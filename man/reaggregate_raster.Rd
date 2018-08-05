@@ -8,15 +8,17 @@ reaggregate_raster(x, coords, to_res = c(0, 0), with_weights = NULL,
   method = c("raster", "raster_con", "block"), tol = 0.01)
 }
 \arguments{
-\item{x}{A raster* object from which data are extracted.}
+\item{x}{A \code{\link[raster:Raster-class]{raster::Raster}} object from
+which data are extracted.}
 
-\item{coords}{A numeric vector of length two or a matrix with two columns. The x and
-y coordinates of the center(s) of the rectangle(s).}
+\item{coords}{A numeric vector of length two or a matrix with two columns.
+The x and y coordinates of the center(s) of the rectangle(s).}
 
-\item{to_res}{A numeric vector of length two. The x- and y-extent of the rectangle(s).}
+\item{to_res}{A numeric vector of length two. The x- and y-extent of the
+rectangle(s).}
 
-\item{with_weights}{A logical value or \code{NULL}. If \code{NULL}, then code attempts
-to determine whether weights are required for the call to
+\item{with_weights}{A logical value or \code{NULL}. If \code{NULL}, then
+ code attempts to determine whether weights are required for the call to
 \code{\link[raster]{extract}}.}
 
 \item{method}{A character string. Selects the extraction method, see details.}
@@ -25,29 +27,31 @@ to determine whether weights are required for the call to
 \code{is.null(with_weights)}.}
 }
 \value{
-A list of length corresponding to the number of rectangles. Each element is a
- list which contains three items each
+A list of length corresponding to the number of rectangles. Each
+  element is a list which contains three items each
  \describe{
-   \item{N}{An integer vector. The number of unique values within the rectangle for
-     each layer of \code{x}.}
-   \item{values}{A list of numeric vectors. The sorted unique values as vector for
-     each layer.}
-   \item{weigths}{A list of numeric vectors. The weights of the \code{values} for each
-     layer.}
+   \item{N}{An integer vector. The number of unique values within the
+     rectangle for each layer of \code{x}.}
+   \item{values}{A list of numeric vectors. The sorted unique values as
+     vector for each layer.}
+   \item{weigths}{A list of numeric vectors. The weights of the
+     \code{values} for each layer.}
  }
 }
 \description{
-This is similar to \code{\link[raster]{aggregate}} but with more control and information.
+This is similar to \code{\link[raster]{aggregate}} but with more control
+and information.
 }
 \details{
 Available extraction \code{method}s include
  \describe{
     \item{raster}{Uses the function \code{\link[raster]{extract}}}
-    \item{raster_con}{Uses the function \code{extract2_Raster_SpatialPolygons}.
-       This is a modified version of \code{\link[raster]{extract}} where the
-       'connection' to the raster file is open for the entire extraction call and
-       not re-opened/closed for each read event. This allows a massive speed-up which
-       scales with the number of 'rectangles' to be extracted [not implemented].}
+    \item{raster_con}{Uses the function
+      \code{extract2_Raster_SpatialPolygons}. This is a modified version
+      of \code{\link[raster]{extract}} where the 'connection' to the raster
+      file is open for the entire extraction call and not re-opened/closed
+      for each read event. This allows a massive speed-up which scales with
+      the number of 'rectangles' to be extracted [not implemented].}
     \item{block}{Uses the function \code{extract_blocks}.}
   }
 The weighted mean of the extracted values can be calculated as

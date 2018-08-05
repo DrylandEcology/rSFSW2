@@ -1,5 +1,16 @@
 ^appveyor\.yml$
+^\.appveyor_clear_cache\.txt$
 ^\.travis\.yml$
 ^codecov\.yml$
-^CONDUCT\.md$
+^CODE_OF_CONDUCT\.md$
 ^data-raw$
+^.lintr$
+
+# RStudio stuff
+^.*\.Rproj$
+^\.Rproj\.user$
+
+# CRAN stuff
+^cran-comments\.md$
+^NEWS\.md$
+

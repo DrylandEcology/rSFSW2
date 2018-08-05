@@ -9,8 +9,8 @@ applyPPTdelta_simple(m, data, ydelta, add_days, mult_days,
   set_negPPT_to0 = TRUE)
 }
 \arguments{
-\item{m}{An integer vector. Each element corresponds to a day (i.e., length(m) is 365
-or 366 days) and the values are the number of the month.}
+\item{m}{An integer vector. Each element corresponds to a day (i.e., \code{length(m)}
+is 365 or 366 days) and the values are the number of the month.}
 
 \item{data}{A numeric vector. Precipitation of each day.}
 

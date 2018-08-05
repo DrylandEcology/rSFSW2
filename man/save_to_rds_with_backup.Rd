@@ -12,16 +12,16 @@ save_to_rds_with_backup(object, file, tag_backup = "backup", ...)
 \item{file}{a \link{connection} or the name of the file where the \R object
     is saved to or read from.}
 
-\item{tag_backup}{A character string. A tag that is appended at the end of the
-\code{file} name to identify the backup.}
+\item{tag_backup}{A character string. A tag that is appended at the end of
+the \code{file} name to identify the backup.}
 }
 \description{
-Function to write a single object to file, but create a backup file first if an older
-version of the file exists. This backup is restored in case the writing to the file
-fails. Situations where \code{\link{saveRDS}} may fail include forced termination of
-the running R process (e.g., HPC schedulers); those situations likely will not allow
-that the original file be restored from the backup -- this will have to be done
-manually.
+Function to write a single object to file, but create a backup file first if
+an older version of the file exists. This backup is restored in case the
+writing to the file fails. Situations where \code{\link{saveRDS}} may fail
+include forced termination of the running R process (e.g., \var{HPC}
+schedulers); those situations likely will not allow that the original file be
+restored from the backup -- this will have to be done manually.
 }
 \seealso{
 \code{\link{saveRDS}}

@@ -1,8 +1,8 @@
 #---------------------------------------------------------------------------------------#
 #------------------------FUNCTIONS FOR SOILWAT2 SIMULATIONS
 
-#' List of objects to export which are required by do_OneSite and are not in rSFSW2
-#'  (sorted alphabetically)
+#' List of objects to export which are required by \code{do_OneSite} and are not in
+#'  \pkg{rSFSW2} (sorted alphabetically)
 #' @export
 global_args_do_OneSite <- function() {
   c("create_experimentals", "create_treatments", "done_prior", "fnames_in", "fnames_out",
@@ -11,8 +11,8 @@ global_args_do_OneSite <- function() {
     "sim_size", "sim_time", "sw_input_climscen_use", "sw_input_climscen_values_use",
     "sw_input_cloud_use", "sw_input_experimentals_use", "sw_input_experimentals",
     "sw_input_prod_use", "sw_input_site_use", "sw_input_soils_use",
-    "sw_input_weather_use", "swDataFromFiles", "swof", "t_job_start", "tr_cloud",
-    "tr_files", "tr_input_CarbonScenario", "tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
+    "sw_input_weather_use", "swDefaultInputs", "swof", "t_job_start", "tr_cloud",
+    "tr_files", "tr_input_CO2data", "tr_input_climPPT", "tr_input_climTemp", "tr_input_EvapCoeff",
     "tr_input_shiftedPPT", "tr_input_SnowD", "tr_input_TranspCoeff_Code",
     "tr_input_TranspCoeff", "tr_input_TranspRegions", "tr_prod", "tr_site", "tr_soil",
     "tr_VegetationComposition", "tr_weather")
@@ -29,7 +29,7 @@ gather_args_do_OneSite <- function(meta, inputs) {
 
 print_debug <- function(opt_verbosity, tag_id, tag_action, tag_section = NULL) {
   if (opt_verbosity[["print.debug"]]) {
-    print(paste0(tag_id, ": ", tag_action,
+    print(paste0(Sys.time(), " ", tag_id, ": ", tag_action,
       if (!is.null(tag_section)) paste0(" ", shQuote(tag_section))))
   }
 }
@@ -82,6 +82,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       0L
     }
 
+  # temporary output database
+  dbTempFile <- dbConnect(SQLite(), dbname =
+    file.path(SimParams[["project_paths"]][["dir_out_temp"]],
+    paste0("SQL_Node_", fid, ".sqlite3")))
+  on.exit(dbDisconnect(dbTempFile), add = TRUE)
+
   # Print/tag for function call
   tag_simfid <- paste0("[run", i_sim, "/work", fid, "]")
   temp_call <- shQuote("do_OneSite") # match.call()[1] doesn't work when called via parallel-backend
@@ -102,7 +108,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   list2env(as.list(SimParams), envir = environment())
 
-  if (!(SFSW2_glovars[["p_has"]] && SFSW2_glovars[["p_type"]] == "mpi")) {
+  if (opt_behave[["keep_dbWork_updated"]] &&
+    !(SFSW2_glovars[["p_has"]] && SFSW2_glovars[["p_type"]] == "mpi")) {
     stopifnot(dbWork_update_job(project_paths[["dir_out"]], i_sim, status = "inwork",
       verbose = opt_verbosity[["print.debug"]]))
   }
@@ -128,8 +135,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   }
 
   # Set RNG seed for random number use by functions
-  #   - Aggregation GISSM: calculate_TimeToGerminate_modifiedHardegree2006NLR
-  set_RNG_stream(seed = rng_specs[["seeds_runN"]][[it_site(i_sim, sim_size[["runsN_master"]])]])
+  #   - Aggregation GISSM: calc_TimeToGerminate
+  #   - dbExecute2
+  i_seed <- rng_specs[["seeds_runN"]][[it_site(i_sim, sim_size[["runsN_master"]])]]
+  set_RNG_stream(seed = i_seed)
 
   if (opt_verbosity[["print.debug"]] && identical(fid, 0L)) {
     temp <- sapply(grep("p_", ls(envir = SFSW2_glovars), value = TRUE),
@@ -158,23 +167,81 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 
 #------------------------Preparations for simulation run
-  #Check what needs to be done
-  #TODO this currently doesn't work in the database setup
-  isdone.overallAggs <- rep(FALSE, sim_scens[["N"]])
-  if (prj_todos[["adaily"]][["N"]] > 0) {
-    isdone.dailyAggs <- matrix(FALSE, nrow = prj_todos[["adaily"]][["N"]], ncol = sim_scens[["N"]])
+  all_Pids <- it_Pid(i_sim, runN = sim_size[["runsN_master"]],
+    sc = seq_len(sim_scens[["N"]]), scN = sim_scens[["N"]])
+
+  # Determine sequence of scenarios
+  if (is.na(i_sw_input_treatments$Exclude_ClimateAmbient))
+    i_sw_input_treatments$Exclude_ClimateAmbient <- FALSE
+
+  sc1 <- if (any(create_treatments == "Exclude_ClimateAmbient") &&
+      i_sw_input_treatments$Exclude_ClimateAmbient && i_sim != 1L) 2L else 1L
+
+  sim_seq_scens <- sc1:sim_scens[["N"]]
+
+
+  #- Check which output needs to be generated
+  temp0 <- c("aggregation_overall", "aggregation_doy")
+
+  if (isTRUE(opt_out_fix[["use_granular_control"]])) {
+    # Use the 'granular' table of dbWorks to check output needs for
+    # each Pid x output table combination
+    temp <- as.matrix(dbWork_check_granular(project_paths[["dir_out"]], runIDs = i_sim))
+    stopifnot(identical(as.integer(temp[, "Pid"]), as.integer(all_Pids)))
+
+    do_out <- list(agg = matrix(NA, nrow = sim_scens[["N"]], ncol = length(temp0),
+      dimnames = list(NULL, temp0)))
+
+    for (k in seq_along(temp0)) {
+      icol <- grep(temp0[k], colnames(temp), value = TRUE)
+      do_out[[temp0[k]]] <- temp[, icol, drop = FALSE] == 1L
+
+      do_out[["agg"]][, temp0[k]] <- if (length(dim(do_out[[temp0[k]]])) == 2L) {
+          apply(do_out[[temp0[k]]], 1L, any)
+        } else {
+          rep(FALSE, sim_scens[["N"]])
+        }
+    }
+
   } else {
-    isdone.dailyAggs <- TRUE
+    # Assume all Pids x output tables need to be done for this runID = i_sim
+    temp1 <- dbOutput_ListOutputTables(dbname = fnames_out[["dbOutput"]])
+
+    do_out_cols <- list(agg = temp0)
+    for (k in seq_along(temp0)) {
+      do_out_cols[[temp0[k]]] <- grep(temp0[k], temp1, value = TRUE)
+    }
+
+    do_out <- lapply(do_out_cols, function(x)
+      matrix(TRUE, nrow = sim_scens[["N"]], ncol = length(x), dimnames = list(NULL, x)))
   }
 
-  #set up task list: code: -1, don't do; 0, failed; 1, to do; 2, success
+
+  # Exclude_ClimateAmbient
+  if (sc1 > 1) for (k in seq_along(do_out)) {
+    do_out[[k]][1L, ] <- FALSE
+  }
+
+  # Set up task list: code: -1, don't do; 0, failed; 1, to do; 2, success
   #   for now: ignoring to check time-series aggregations, i.e., assuming that if
   #   overallAggs is done, then time-series output was also completed
-  tasks <- list(
-    create = if (prj_todos[["actions"]][["sim_create"]]) 1L else -1L,
-    execute = rep(if (prj_todos[["actions"]][["sim_execute"]]) 1L else -1L, sim_scens[["N"]]),
-    aggregate = rep(if (prj_todos[["actions"]][["sim_aggregate"]]) 1L else -1L,
-      sim_scens[["N"]]))
+  tasks <- matrix(-1L, nrow = sim_scens[["N"]], ncol = 3,
+    dimnames = list(NULL, c("create", "execute", "aggregate")))
+
+  needs_out <- ifelse(apply(do_out[["agg"]], 1, any), 1L, -1L)
+
+  if (prj_todos[["actions"]][["sim_aggregate"]]) {
+    tasks[, "aggregate"] <- needs_out
+  }
+  if (any(unlist(prj_todos[["actions"]][c("sim_execute", "sim_aggregate")]))) {
+    tasks[, "execute"] <- needs_out
+  }
+  if (any(unlist(prj_todos[["actions"]][c("sim_create", "sim_execute", "sim_aggregate")]))) {
+    temp <- needs_out
+    temp[1L] <- TRUE # 'create' code relies on 'ambient/current' scenario input data
+    tasks[, "create"] <- temp
+  }
+
 
   #Prepare directory structure in case SOILWAT2 input/output is requested to be stored on disk
   temp <- file.path(project_paths[["dir_out_sw"]], i_label)
@@ -183,27 +250,27 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     ".RData"))
 
   if (opt_out_run[["saveRsoilwatInput"]] || opt_out_run[["saveRsoilwatOutput"]]) {
-    dir.create2(temp, showWarnings = FALSE)
+    dir.create2(temp, showWarnings = opt_verbosity[["print.debug"]])
   }
 
   #--- Load previously created rSOILWAT2 run objets
-  if (file.exists(f_sw_input) && ((tasks$create == 1L && opt_behave[["resume"]]) ||
-    (tasks$create == -1L && any(tasks$execute == 1L, tasks$aggregate == 1L)))) {
+  if (file.exists(f_sw_input) && ((any(tasks[, "create"] == 1L) && opt_behave[["resume"]]) ||
+    (all(tasks[, "create"] == -1L) && any(tasks[, "execute"] == 1L, tasks[, "aggregate"] == 1L)))) {
 
     # load objects: swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
     #   ClimatePerturbationsVals, isim_time, simTime2
     load(f_sw_input)
-    tasks$create <- 2L
+    tasks[, "create"] <- 2L
   }
 
 
   #----Get preparations done
-  if (all(unlist(tasks) %in% c(-1L, 1L))) {
+  if (any(tasks == 1L)) {
     #------Learn about soil layer structure
     soil_source <- NULL
 
     #determine number of soil layers = soilLayers_N and soildepth
-    if (tasks$create == 1L && (!any(create_treatments == "soilsin") ||
+    if (any(tasks[, "create"] == 1L) && (!any(create_treatments == "soilsin") ||
         any(create_treatments == "soilsin") && (is.na(i_sw_input_treatments$soilsin) ||
             identical(i_sw_input_treatments$soilsin, "NA")))) {
 
@@ -227,7 +294,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           slot(tr_soil[[i_sw_input_treatments$soilsin]], "Layers")[, 1]
         } else {
           soil_source <- "default_run"
-          unname(rSOILWAT2::swSoils_Layers(swDataFromFiles)[, 1])
+          unname(rSOILWAT2::swSoils_Layers(swDefaultInputs)[, 1])
         }
       soilLayers_N <- length(layers_depth)
       soildepth <- max(layers_depth)
@@ -268,8 +335,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         sim_tscales = c("daily", "monthly", "yearly"),
         latitude = i_SWRunInformation$Y_WGS84,
         account_NorthSouth = opt_agg[["adjust_NorthSouth"]],
-        use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
-        doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]])
+        use_doy_range = opt_agg[["use_doy_range"]],
+        doy_ranges = opt_agg[["doy_ranges"]])
 
     } else {
       simTime2 <- if (i_SWRunInformation$Y_WGS84 >= 0) {
@@ -286,7 +353,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 
 #------------------------CREATE RUNS
-  if (tasks$create == 1L) {
+  if (any(tasks[, "create"] == 1L)) {
     print_debug(opt_verbosity, tag_simfid, "section", "create simulation")
 
     EVCO_done <- TRCO_done <- FALSE  #to check whether we get information for evaporation and transpiration coefficients
@@ -297,10 +364,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     ClimatePerturbationsVals <- matrix(c(rep(1, 12), rep(0, 24)),
       nrow = sim_scens[["N"]], ncol = 12 * 3, byrow = TRUE) #, dimnames = list(NULL, paste0(rep(paste0("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m")), each = 12), SFSW2_glovars[["st_mo"]], rep(c("_none", "_C", "_C"), each = 12), "_const"))
 
-    #------1. Step: Information for this SOILWAT2-run from prepared SOILWAT2-run stored in dir_in_sw
+    #------1. Step: Information for this SOILWAT2-run from default rSOILWAT2-input object
     #Make a local copy of the swInput object do not want to destroy orignal
     swRunScenariosData <- list()
-    swRunScenariosData[[1]] <- swDataFromFiles
+    swRunScenariosData[[1]] <- swDefaultInputs
 
     #adjust simulation years
     rSOILWAT2::swYears_StartYear(swRunScenariosData[[1]]) <- as.integer(isim_time[["simstartyr"]])
@@ -345,14 +412,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
     # End carbon effects -----
 
-    if (any(sw_input_experimentals_use[c("LookupEvapCoeffFromTable",
-                                     "LookupTranspRegionsFromTable",
-                                     "LookupSnowDensityFromTable")]) &&
-        any(!done_prior)) {
+    # Table lookups
+    lookup_names <- c("LookupEvapCoefs", "LookupTranspRegions",
+      "LookupSnowDensity")
+
+    if (any(sw_input_experimentals_use[lookup_names]) && any(!done_prior)) {
 
       do_lookup <- list(
-        LookupEvapCoeffFromTable = list(
-          flag = "LookupEvapCoeffFromTable",
+        LookupEvapCoefs = list(
+          flag = "LookupEvapCoefs",
           pattern = "EvapCoeff",
           tr_input = tr_input_EvapCoeff,
           sw_input_use = sw_input_soils_use,
@@ -360,8 +428,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nvars = SFSW2_glovars[["slyrs_maxN"]],
           do_fill = FALSE),
 
-        LookupTranspRegionsFromTable = list(
-          flag = "LookupTranspRegionsFromTable",
+        LookupTranspRegions = list(
+          flag = "LookupTranspRegions",
           pattern = "TranspRegion",
           tr_input = tr_input_TranspRegions,
           sw_input_use = sw_input_soils_use,
@@ -369,8 +437,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nvars = SFSW2_glovars[["slyrs_maxN"]],
           do_fill = FALSE),
 
-        LookupSnowDensityFromTable = list(
-          flag = "LookupSnowDensityFromTable",
+        LookupSnowDensity = list(
+          flag = "LookupSnowDensity",
           pattern = "(snowd)|(SnowD_Hemisphere)",
           tr_input = tr_input_SnowD,
           sw_input_use = sw_input_cloud_use,
@@ -378,18 +446,23 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nvars = 12 + 1,
           do_fill = TRUE,
           fill_pattern = "snowd",
-          fill_value = 76)  # 76 kg/m3 = median of medians over 6 sites in Colorado and Wyoming: Judson, A. & Doesken, N. (2000) Density of Freshly Fallen Snow in the Central Rocky Mountains. Bulletin of the American Meteorological Society, 81, 1577-1587.
+          # 76 kg/m3 = median of medians over 6 sites in Colorado and Wyoming:
+          # Judson, A. & Doesken, N. (2000) Density of Freshly Fallen Snow in
+          # the Central Rocky Mountains. Bulletin of the American Meteorological
+          # Society, 81, 1577-1587.
+          fill_value = 76)
       )
 
       for (pc in do_lookup) {
         if (sw_input_experimentals_use[pc$flag] && !done_prior[pc$flag]) {
           if (any(is.na(i_sw_input_treatments[[pc$flag]])) ||
-             !all(unique(i_sw_input_treatments[[pc$flag]]) %in% rownames(pc$tr_input))) {
+             !all(unique(i_sw_input_treatments[[pc$flag]]) %in%
+             rownames(pc$tr_input))) {
 
             print(paste0(tag_simfid, ": ERROR: ", shQuote(pc$flag), " column in ",
               "experimental table cannot have any NAs or name is not in tr_input table."))
 
-            tasks$create <- 0L
+            tasks[, "create"] <- 0L
             break
 
           } else {
@@ -409,7 +482,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               assign(pc$sw_input, tempdat$sw_input)
 
             } else {
-              tasks$create <- 0L
+              tasks[, "create"] <- 0L
               break
             }
           }
@@ -421,8 +494,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     print_debug(opt_verbosity, tag_simfid, "creating", "LookupTranspCoeff")
     do_vegs <- list(
       veg = c("Grass", "Shrub", "Tree", "Forb"),
-      flag = c("LookupTranspCoeffFromTable_Grass", "LookupTranspCoeffFromTable_Shrub",
-                "LookupTranspCoeffFromTable_Tree", "LookupTranspCoeffFromTable_Forb"),
+      flag = c("LookupTranspCoefs_Grass", "LookupTranspCoefs_Shrub",
+                "LookupTranspCoefs_Tree", "LookupTranspCoefs_Forb"),
       adjustType = c("positive", "inverse", "inverse", "inverse"))
 
     for (k in seq_along(do_vegs[["veg"]])) {
@@ -437,7 +510,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (temp1)
             print(paste0(tag_simfid, ": ", do_vegs[["flag"]][k], " name(s) are not in ",
               "'tr_input_TranspCoeff' table column names"))
-          tasks$create <- 0L
+          tasks[, "create"] <- 0L
           break
 
         } else {
@@ -459,7 +532,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           } else {
             print(paste0(tag_simfid, ": the function 'TranspCoeffByVegType' returned NA ",
               "or does not sum to greater than 0 for type", do_vegs[["adjustType"]][k]))
-            tasks$create <- 0L
+            tasks[, "create"] <- 0L
             break
           }
         }
@@ -468,20 +541,20 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     #the monthly ppt-shifts are extracted, but written to the weathersetup input file only at the end of the create section 'copy and make climate scenarios from datafiles', because they are multiplied with any climate change factors
     ppt_scShift <- rep(1, times = 12)
-    if (any(create_treatments == "LookupShiftedPPTScenarios")) {
-      ppt_scShift <- tr_input_shiftedPPT[which(rownames(tr_input_shiftedPPT) == i_sw_input_treatments[1, "LookupShiftedPPTCategory"]), (ts <- which(colnames(tr_input_shiftedPPT) == paste0(i_sw_input_treatments$LookupShiftedPPTScenarios, "_m1"))):(ts+11)][SFSW2_glovars[["st_mo"]]]
+    if (any(create_treatments == "LookupShiftedPPT")) {
+      ppt_scShift <- tr_input_shiftedPPT[which(rownames(tr_input_shiftedPPT) == i_sw_input_treatments[1, "LookupShiftedPPTCategory"]), (ts <- which(colnames(tr_input_shiftedPPT) == paste0(i_sw_input_treatments$LookupShiftedPPT, "_m1"))):(ts+11)][SFSW2_glovars[["st_mo"]]]
     }
 
-    if (any(create_treatments == "LookupClimatePPTScenarios") | any(create_treatments == "LookupClimateTempScenarios")) {
+    if (any(create_treatments == "LookupClimatePPT") | any(create_treatments == "LookupClimateTemp")) {
       clim_scale <- rSOILWAT2::swWeather_MonScalingParams(swRunScenariosData[[1]])[, 1:3]
 
       #Treatment chunk = climate precipitation scenarios
-      if (any(create_treatments == "LookupClimatePPTScenarios")) {
-        clim_scale[, 1] <- tr_input_climPPT[SFSW2_glovars[["st_mo"]], which(colnames(tr_input_climPPT) == i_sw_input_treatments$LookupClimatePPTScenarios)]
+      if (any(create_treatments == "LookupClimatePPT")) {
+        clim_scale[, 1] <- tr_input_climPPT[SFSW2_glovars[["st_mo"]], which(colnames(tr_input_climPPT) == i_sw_input_treatments$LookupClimatePPT)]
       }
       #Treatment chunk = climate temperature scenarios
-      if (any(create_treatments == "LookupClimateTempScenarios")) {
-        clim_scale[, 2] <- clim_scale[, 3] <- tr_input_climTemp[SFSW2_glovars[["st_mo"]], which(colnames(tr_input_climTemp) == i_sw_input_treatments$LookupClimateTempScenarios)]
+      if (any(create_treatments == "LookupClimateTemp")) {
+        clim_scale[, 2] <- clim_scale[, 3] <- tr_input_climTemp[SFSW2_glovars[["st_mo"]], which(colnames(tr_input_climTemp) == i_sw_input_treatments$LookupClimateTemp)]
       }
 
       rSOILWAT2::swWeather_MonScalingParams(swRunScenariosData[[1]])[, 1:3] <- clim_scale
@@ -551,7 +624,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         tag = "Composition", use = sw_input_prod_use, values = i_sw_input_prod,
         fun = "swProd_Composition", reset = TRUE, default = 0))
       if (inherits(temp, "try-error")) {
-        tasks$create <- 0L
+        tasks[, "create"] <- 0L
       } else {
         swRunScenariosData[[1]] <- temp
       }
@@ -561,7 +634,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         tag = "Albedo", use = sw_input_prod_use, values = i_sw_input_prod,
         fun = "swProd_Albedo", reset = FALSE))
       if (inherits(temp, "try-error")) {
-        tasks$create <- 0L
+        tasks[, "create"] <- 0L
       } else {
         swRunScenariosData[[1]] <- temp
       }
@@ -571,7 +644,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         tag = "HydRed", use = sw_input_prod_use, values = i_sw_input_prod,
         fun = "swProd_HydrRedstro_use", reset = FALSE))
       if (inherits(temp, "try-error")) {
-        tasks$create <- 0L
+        tasks[, "create"] <- 0L
       } else {
         swRunScenariosData[[1]] <- temp
       }
@@ -581,7 +654,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         tag = "SWPcrit_MPa", use = sw_input_prod_use, values = i_sw_input_prod,
         fun = "swProd_CritSoilWaterPotential", reset = FALSE))
       if (inherits(temp, "try-error")) {
-        tasks$create <- 0L
+        tasks[, "create"] <- 0L
       } else {
         swRunScenariosData[[1]] <- temp
       }
@@ -766,7 +839,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             print(paste0(tag_simfid, ": data missing for 1st layer -> no data to impute: ",
               "simulation will fail"))
             print(soildat[l, icols])
-            tasks$create <- 0L
+            tasks[, "create"] <- 0L
             break
           }
         }
@@ -782,7 +855,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         print(paste0(tag_simfid, ": soil data didn't pass quality checks for:",
           paste(soil_cols[colSums(!check_soil) > 0], collapse = ", ")))
         print(soil_swdat)
-        tasks$create <- 0L
+        tasks[, "create"] <- 0L
       }
 
     }
@@ -811,7 +884,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       if (sum(tr_rows) == 0) {
         print(paste0(tag_simfid, ": 'transpiration regions' cannot be empty."))
       } else if (sum(tr_rows) == 1) {
-        rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[1]]) <- matrix(data = TranspirationRegions[tr_rows, ], nrow = 1, ncol = 2, byrow = T, dimnames = list(numeric(), c("ndx", "layer")))
+        rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[1]]) <- matrix(data = TranspirationRegions[tr_rows, ], nrow = 1, ncol = 2, byrow = TRUE, dimnames = list(numeric(), c("ndx", "layer")))
         TRRG_done <- TRUE
       } else {
         rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[1]]) <- TranspirationRegions[tr_rows, ]
@@ -860,18 +933,20 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           weatherDirName = local_weatherDirName(i_sim, sim_size[["runsN_master"]], sim_scens[["N"]],
             fnames_out[["dbOutput"]]), filebasename = opt_sim[["tag_WeatherFolder"]],
           startYear = isim_time[["simstartyr"]], endYear = isim_time[["endyr"]]),
-          silent = TRUE)
+          silent = !opt_verbosity[["verbose"]])
       }
 
     } else {
       #---Extract weather data
+      print_debug(opt_verbosity, tag_simfid, "creating", "access dbOut for weatherDirName")
+
       weather_label_cur <- try(local_weatherDirName(i_sim, sim_size[["runsN_master"]], sim_scens[["N"]],
-        fnames_out[["dbOutput"]]), silent = TRUE)
+        fnames_out[["dbOutput"]]), silent = !opt_verbosity[["verbose"]])
 
       if (is.na(weather_label_cur))
         weather_label_cur <- try({function() stop(tag_simfid, ": Output DB ",
           basename(fnames_out[["dbOutput"]]), " has no information about weather data")}(),
-          silent = TRUE)
+          silent = !opt_verbosity[["verbose"]])
 
       if (inherits(weather_label_cur, "try-error")) {
         i_sw_weatherList <- weather_label_cur
@@ -881,23 +956,27 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             seq_len(sim_scens[["N"]])
           } else 1L
 
+        print_debug(opt_verbosity, tag_simfid, "creating", "access dbW for daily weather")
+
         i_sw_weatherList <- try(lapply(sim_scens[["id"]][temp], function(scen)
           rSOILWAT2::dbW_getWeatherData(Label = weather_label_cur,
             startYear = isim_time[["simstartyr"]], endYear = isim_time[["endyr"]],
-            Scenario = scen)), silent = TRUE)
+            Scenario = scen)), silent = !opt_verbosity[["verbose"]])
       }
     }
 
+    print_debug(opt_verbosity, tag_simfid, "creating", "daily weather done")
+
     #Check that extraction of weather data was successful
     if (inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
-      tasks$create <- 0L
+      tasks[, "create"] <- 0L
       print(paste0(tag_simfid, ": i_sw_weatherList ERROR: ", i_sw_weatherList))
     }
 
     #copy and make climate scenarios from datafiles
-    if (tasks$create > 0L) for (sc in seq_len(sim_scens[["N"]])) {
-      P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
-      tag_simpidfid <- paste0("[run", i_sim, "/PID", P_id, "/sc", sc, "/work", fid, "]")
+    if (any(tasks[, "create"] > 0L)) for (sc in seq_len(sim_scens[["N"]])) {
+      tag_simpidfid <- paste0("[run", i_sim, "/PID", all_Pids[sc], "/sc", sc,
+        "/work", fid, "]")
 
       if (sc > 1) {
         swRunScenariosData[[sc]] <- swRunScenariosData[[1]]
@@ -925,36 +1004,36 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       #----- Begin CO2 effects
       # CO2 effects rely on the information of the current scenario, so the extraction of its Lookup data
       # doesn't occur until now
-      if (sw_input_experimentals_use["LookupCarbonScenarios"]) {
-        if (is.na(i_sw_input_treatments$LookupCarbonScenarios)) {
-          tasks$create <- 0L
-          print(paste0(tag_simfid, ": ERROR: An empty value was provided for LookupCarbonScenarios"))
+      if (sw_input_experimentals_use["LookupCO2data"]) {
+        if (is.na(i_sw_input_treatments$LookupCO2data)) {
+          tasks[sc, "create"] <- 0L
+          print(paste0(tag_simfid, ": ERROR: An empty value was provided for LookupCO2data"))
           break
         }
 
         scenario_CO2 <- "Default"
 
-        # Are we modelling a scenario?
+        # Are we modeling a scenario?
         if (sc > 1) {
           # Did the user request to use the built-in scenario information?
-          if (toupper(i_sw_input_treatments$LookupCarbonScenarios) == "FILL")
+          if (toupper(i_sw_input_treatments$LookupCO2data) == "FILL")
             scenario_CO2 <- sim_scens[["df"]][sc - 1, "ConcScen"]
         }
 
         # Did the user override the scenario name?
-        if (toupper(i_sw_input_treatments$LookupCarbonScenarios) != "FILL")
-          scenario_CO2 <- i_sw_input_treatments$LookupCarbonScenarios
+        if (toupper(i_sw_input_treatments$LookupCO2data) != "FILL")
+          scenario_CO2 <- i_sw_input_treatments$LookupCO2data
 
         # Save the scenario to the input object just so that the user can see it
         rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- scenario_CO2
 
-        scenario_index <- which(toupper(colnames(tr_input_CarbonScenario)) == toupper(scenario_CO2))
+        scenario_index <- which(toupper(colnames(tr_input_CO2data)) == toupper(scenario_CO2))
 
         # Was a scenario found?
         if (length(scenario_index) == 0) {
-          tasks$create <- 0L
+          tasks[sc, "create"] <- 0L
           print(paste0(tag_simfid, ": ERROR: Scenario ", scenario_CO2,
-            " was not found in LookupCarbonScenarios.csv"))
+            " was not found in `LookupCO2data` table"))
           break
         }
 
@@ -964,10 +1043,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         # Extract CO2 concentration values in units of ppm into swCarbon
         ids_years <- match(isim_time$simstartyr:isim_time$endyr + rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]),
-          tr_input_CarbonScenario[, "Year"], nomatch = 0)
+          tr_input_CO2data[, "Year"], nomatch = 0)
         # Convert possible integers to numeric
-        tr_input_CarbonScenario[ids_years, scenario_index] <- as.numeric(unlist(tr_input_CarbonScenario[ids_years, scenario_index]))
-        scenarioCO2_ppm <- tr_input_CarbonScenario[ids_years, c(1, scenario_index)]
+        tr_input_CO2data[ids_years, scenario_index] <- as.numeric(unlist(tr_input_CO2data[ids_years, scenario_index]))
+        scenarioCO2_ppm <- tr_input_CO2data[ids_years, c(1, scenario_index)]
         colnames(scenarioCO2_ppm) <- c("Year", "CO2ppm")
 
         rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- as.matrix(scenarioCO2_ppm,
@@ -1014,24 +1093,24 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         t_max_sc <- ifelse(is.finite(t_max_sc), t_max_sc, 0)
 
         if (sc > 1) {
-          if (any(create_treatments == "ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) {
-            if (grepl("Mean", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) {
+          if (any(create_treatments == "ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) {
+            if (grepl("Mean", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) {
               t_min_sc <- rep(mean(t_min_sc), times = 12)
               t_max_sc <- rep(mean(t_max_sc), times = 12)
             }
-            if (grepl("Seasonality", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) {
+            if (grepl("Seasonality", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) {
               t_min_sc <- t_min_sc - mean(t_min_sc)
               t_max_sc <- t_max_sc - mean(t_max_sc)
             }
-            if (grepl("None", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) {
+            if (grepl("None", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) {
               t_min_sc <- t_max_sc <- rep(0, times = 12)
             }
           }
-          if (any(create_treatments == "ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) {
+          if (any(create_treatments == "ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) {
             temp_map_sc <- sum(SiteClimate_Ambient$meanMonthlyPPTcm * temp_ppt_sc)
-            if (grepl("Mean", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) ppt_sc = rep(temp_map_sc / SiteClimate_Ambient$MAP_cm, times = 12)
-            if (grepl("Seasonality", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) ppt_sc = ppt_sc * SiteClimate_Ambient$MAP_cm / temp_map_sc
-            if (grepl("None", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) ppt_sc = rep(1, times = 12)
+            if (grepl("Mean", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) ppt_sc = rep(temp_map_sc / SiteClimate_Ambient$MAP_cm, times = 12)
+            if (grepl("Seasonality", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) ppt_sc = ppt_sc * SiteClimate_Ambient$MAP_cm / temp_map_sc
+            if (grepl("None", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) ppt_sc = rep(1, times = 12)
           }
         }
 
@@ -1087,25 +1166,25 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           t_max <- temp[, 2]
           t_min <- temp[, 3]
 
-          if (any(create_treatments == "ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) {
-            if (grepl("Mean", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) {
+          if (any(create_treatments == "ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) {
+            if (grepl("Mean", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) {
               # -(mean monthly of scenario - mean monthly of current) + (mean annual of scenario - mean annual of current)
               t_min <- -(SiteClimate_Scenario$minMonthlyTempC - SiteClimate_Ambient$minMonthlyTempC) + (SiteClimate_Scenario$MAT_C - SiteClimate_Ambient$MAT_C)
               t_max <- -(SiteClimate_Scenario$maxMonthlyTempC - SiteClimate_Ambient$maxMonthlyTempC) + (SiteClimate_Scenario$MAT_C - SiteClimate_Ambient$MAT_C)
             }
-            if (grepl("Seasonality", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) {
+            if (grepl("Seasonality", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) {
               # -(mean annual of scenario - mean annual of current)
               t_min <- rep(-(SiteClimate_Scenario$MAT_C - SiteClimate_Ambient$MAT_C), 12)
               t_max <- rep(-(SiteClimate_Scenario$MAT_C - SiteClimate_Ambient$MAT_C), 12)
             }
-            if (grepl("None", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) {
+            if (grepl("None", i_sw_input_treatments$ClimateScenario_Temp_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) {
               # -(mean monthly of scenario - mean monthly of current)
               t_min <- -(SiteClimate_Scenario$minMonthlyTempC - SiteClimate_Ambient$minMonthlyTempC)
               t_max <- -(SiteClimate_Scenario$maxMonthlyTempC - SiteClimate_Ambient$maxMonthlyTempC)
             }
           }
-          if (any(create_treatments == "ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) {
-            if (grepl("Mean", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) {
+          if (any(create_treatments == "ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone") && !grepl("Both", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) {
+            if (grepl("Mean", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) {
               #Mean of weather == mean of scenario, seasonality of weather = seasonality of ambient
               if (isTRUE(all.equal(SiteClimate_Ambient$MAP_cm, 0))) {
                 SiteClimate_Ambient$MAP_cm <- SFSW2_glovars[["tol"]]
@@ -1124,7 +1203,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 ppt_sc <- (SiteClimate_Ambient$meanMonthlyPPTcm / SiteClimate_Scenario$meanMonthlyPPTcm) * (SiteClimate_Scenario$MAP_cm / SiteClimate_Ambient$MAP_cm)
               }
             }
-            if (grepl("Seasonality", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = T)) {
+            if (grepl("Seasonality", i_sw_input_treatments$ClimateScenario_PPT_PerturbationInMeanSeasonalityBothOrNone, ignore.case = TRUE)) {
               #Mean of weather == mean of ambient, seasonality of weather = seasonality of scenario
               if (isTRUE(all.equal(SiteClimate_Scenario$MAP_cm, 0))) {
                 SiteClimate_Scenario$MAP_cm <- SFSW2_glovars[["tol"]]
@@ -1168,7 +1247,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
       }
 
-      if (any(create_treatments == "LookupShiftedPPTScenarios")) {
+      if (any(create_treatments == "LookupShiftedPPT")) {
         ppt_f <- rSOILWAT2::swWeather_MonScalingParams(swRunScenariosData[[sc]])[, 1]
         ppt_f <- ppt_f * as.numeric(ppt_scShift)
         rSOILWAT2::swWeather_MonScalingParams(swRunScenariosData[[sc]])[, 1] <- ppt_f
@@ -1208,7 +1287,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       if (prj_todos[["EstimateInitialSoilTemperatureForEachSoilLayer"]]) {
         stopifnot(exists("soilTUpper"))
 
-        init.soilTprofile <- EstimateInitialSoilTemperatureForEachSoilLayer(
+        init.soilTprofile <- init_soiltemperature(
           layers_depth = layers_depth,
           lower.Tdepth = as.numeric(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]),
           soilTupper = soilTUpper,
@@ -1251,8 +1330,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         isNorth <- i_SWRunInformation$Y_WGS84 >= 0
 
-        #TODO: Include forbs and bareground in PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction
-        temp <- try(PotNatVeg_Composition_Estimate_ShrubsC3C4_Fraction(MAP_mm, MAT_C,
+        #TODO: Include forbs and bareground in estimate_PotNatVeg_composition
+        temp <- try(estimate_PotNatVeg_composition(MAP_mm, MAT_C,
           mean_monthly_ppt_mm = monthly.ppt, dailyC4vars, isNorth = isNorth,
           shrub_limit = opt_sim[["shrub_limit"]],
           fix_annuals = any(create_treatments == "PotentialNaturalVegetation_CompositionAnnuals_Fraction"),
@@ -1269,7 +1348,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           BareGround_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionBareGround_Fraction))
 
         if (inherits(temp, "try-error")) {
-          tasks$create <- 0L
+          tasks[sc, "create"] <- 0L
           break
 
         } else {
@@ -1288,7 +1367,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&
         i_sw_input_treatments$AdjMonthlyBioMass_Precipitation))) {
 
-        temp <- PotNatVeg_MonthlyBiomassPhenology_from_Climate(
+        temp <- estimate_PotNatVeg_biomass(
           tr_VegBiom = tr_VegetationComposition,
           do_adjBiom_by_temp = any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature,
           do_adjBiom_by_ppt = any(create_treatments == "AdjMonthlyBioMass_Precipitation") & i_sw_input_treatments$AdjMonthlyBioMass_Precipitation,
@@ -1343,10 +1422,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             "SchenkJackson2003_PCdry_forbs"
           }
 
-        tro_type_tree <- if (any(create_treatments == "LookupTranspCoeffFromTable_Tree") &&
-          is.finite(i_sw_input_treatments$LookupTranspCoeffFromTable_Tree) &&
-          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoeffFromTable_Tree)) {
-            i_sw_input_treatments$LookupTranspCoeffFromTable_Tree
+        tro_type_tree <- if (any(create_treatments == "LookupTranspCoefs_Tree") &&
+          is.finite(i_sw_input_treatments$LookupTranspCoefs_Tree) &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoefs_Tree)) {
+            i_sw_input_treatments$LookupTranspCoefs_Tree
           } else {
             "FILL"
           }
@@ -1529,7 +1608,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         anyNA(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])))
       if (is_bad_veg) {
         print(paste0(tag_simpidfid, ": ERROR: vegetation values contain NA."))
-        tasks$create <- 0L
+        tasks[sc, "create"] <- 0L
         break
       }
 
@@ -1578,10 +1657,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         "transpTree_frac", "transpForb_frac"), drop = FALSE]
       TRCO_done <- all(apply(temp_trco, 2, check_soilco))
 
-
+      temp <- paste0(colnames(tasks), ": ", apply(tasks, 2, paste, collapse = ", "),
+        collapse = " / ")
       print_debug(opt_verbosity, tag_simpidfid, "tasks =",
-        paste(paste(tasks, collapse = ", "), ", evco = ", EVCO_done, ", trco = ",
-        TRCO_done, ", trrg = ", TRRG_done))
+        paste(temp, ", evco = ", EVCO_done, ", trco = ", TRCO_done,
+        ", trrg = ", TRRG_done))
     }#end do scenario creations
 
     if (!EVCO_done) {
@@ -1592,12 +1672,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       print(paste0(tag_simfid, ": transpiration regions not set for this run."))
     }
 
-    if (tasks$create <= 0L || !EVCO_done || !TRCO_done || !TRRG_done) {
-      tasks$create <- 0L
-      tasks$execute[] <- tasks$aggregate[] <- -1L
-    } else {
-      tasks$create <- 2L
+    if (!EVCO_done || !TRCO_done || !TRRG_done) {
+      tasks[, "create"] <- 0L
     }
+
+    has_failed <- tasks[, "create"] == 0L
+    if (any(has_failed)) {
+      tasks[has_failed, "execute"] <- tasks[has_failed, "aggregate"] <- -1L
+    }
+
+    tasks[!has_failed, "create"] <- 2L
+
 
     if (opt_out_run[["saveRsoilwatInput"]])
       save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
@@ -1650,7 +1735,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 #------------------------EXECUTE & AGGREGATE SOILWAT2
   if (!exists("swRunScenariosData") || !exists("i_sw_weatherList")) {
-    tasks$execute[] <- -1L
+    tasks[, "aggregate"] <- -1L
 
   } else {
     #get soil texture data for each layer
@@ -1678,7 +1763,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     #get soil aggregation layer for daily aggregations
     if (opt_agg[["doy_slyrs"]][["do"]]) {
-      aggLs <- setAggSoilLayerForAggDailyResponses(layers_depth, opt_agg[["doy_slyrs"]])
+      aggLs <- assign_aggregation_soillayers(layers_depth, opt_agg[["doy_slyrs"]])
     } else {
       aggLs <- as.list(ld)
     }
@@ -1705,19 +1790,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     }
 
     #prepare SQL result container
-    SQL <- SQLcurrent <- character(0)
-
-    dbTempFile <- file.path(project_paths[["dir_out_temp"]],
-      paste0("SQL_Node_", fid, ".sql"))
-    dbTempFileCurrent <- file.path(project_paths[["dir_out_temp"]],
-      paste0("SQL_Current_Node_", fid, ".sql"))
+    SQL <- character(0)
   }
-
-  if (is.na(i_sw_input_treatments$Exclude_ClimateAmbient))
-    i_sw_input_treatments$Exclude_ClimateAmbient <- FALSE
-
-  sc1 <- if (any(create_treatments == "Exclude_ClimateAmbient") &&
-      i_sw_input_treatments$Exclude_ClimateAmbient && i_sim != 1L) 2L else 1L
 
 #  #' Width of layer used to simulate soil temperature
 #  #'
@@ -1727,22 +1801,21 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 #  #'    1 == deltaX_Param successfully approved; 2 == deltaX_Param successfully modified
   DeltaX <- c(NA, 0L)
 
-  for (sc in sc1:sim_scens[["N"]]) {
-
-    P_id <- it_Pid(i_sim, sim_size[["runsN_master"]], sc, sim_scens[["N"]])
-    tag_simpidfid <- paste0("[run", i_sim, "/PID", P_id, "/sc", sc, "/work", fid, "]")
+  for (sc in sim_seq_scens) {
+    tag_simpidfid <- paste0("[run", i_sim, "/PID", all_Pids[sc], "/sc", sc,
+      "/work", fid, "]")
 
     print_debug(opt_verbosity, tag_simpidfid, "executing", "SOILWAT2")
 
-    if (file.exists(f_sw_output[sc]) && ((tasks$execute[sc] == 1L && opt_behave[["resume"]]) ||
-      (tasks$execute[sc] == -1L && any(tasks$aggregate == 1L)))) {
+    if (file.exists(f_sw_output[sc]) && ((tasks[sc, "execute"] == 1L && opt_behave[["resume"]]) ||
+      (tasks[sc, "execute"] == -1L && any(tasks[, "aggregate"] == 1L)))) {
 
       load(f_sw_output[sc])  # load object: runDataSC
       if (exists("runDataSC"))
-        tasks$execute[sc] <- 2L
+        tasks[sc, "execute"] <- 2L
     }
 
-    if (tasks$execute[sc] == 1L) {
+    if (tasks[sc, "execute"] == 1L) {
       runDataSC <- NULL
       is_SOILTEMP_INSTABLE <- rep(NA, sim_scens[["N"]])
 
@@ -1806,7 +1879,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
       if (inherits(runDataSC, "try-error") || DeltaX[2] < 0) {
-        tasks$execute[sc] <- 0L
+        tasks[sc, "execute"] <- 0L
       }
 
       if (opt_out_run[["saveRsoilwatOutput"]]) {
@@ -1814,51 +1887,44 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
     }
 
-    if (tasks$execute[sc] > 0L && exists("runDataSC"))
-      tasks$execute[sc] <- 2L
+    if (tasks[sc, "execute"] > 0L && exists("runDataSC"))
+      tasks[sc, "execute"] <- 2L
 
 
 #------------------------AGGREGATE SOILWAT2 OUTPUT
-    if (tasks$execute[sc] != 2L && !exists("swRunScenariosData") || !exists("runDataSC") ||
+    if (tasks[sc, "execute"] != 2L && !exists("swRunScenariosData") || !exists("runDataSC") ||
       !exists("grasses.c3c4ann.fractions") || !exists("ClimatePerturbationsVals") ||
       !exists("is_SOILTEMP_INSTABLE") || !inherits(runDataSC, "swOutput")) {
 
-      tasks$aggregate[sc] <- -1L
+      tasks[sc, "aggregate"] <- -1L
     }
 
 
-    if (tasks$aggregate[sc] == 1L) {
-      print_debug(opt_verbosity, tag_simpidfid, "section", "overall aggregation")
+    if (tasks[sc, "aggregate"] == 1L) {
 
-      #HEADER GENERATION REMOVED#
-      #only exclude if
+      # Exclude current scenario if
       #   1.) Exclude_ClimateAmbient is true in treatments
       #   2.) That Run is set to Exclude_ClimateAmbient
       #   3.) Our current Scenario is Current
-      if (any(create_treatments == "Exclude_ClimateAmbient") &&
-        i_sw_input_treatments$Exclude_ClimateAmbient && sc == 1 && i_sim != 1) {
+      Exclude_ClimateAmbient <- any(create_treatments == "Exclude_ClimateAmbient") &&
+        i_sw_input_treatments$Exclude_ClimateAmbient && sc == 1 && i_sim != 1
 
-        Exclude_ClimateAmbient <- TRUE
 
-        #ncol_dbOut_overall comes from database creation
-        temp <- paste(c(P_id, if (sim_size[["ncol_dbOut_overall"]] > 0)
+      #--- Output tables: 'overall aggregation'
+      print_debug(opt_verbosity, tag_simpidfid, "section", "overall aggregation")
+
+      if (!opt_behave[["resume"]] || (opt_behave[["resume"]] &&
+        do_out[["agg"]][sc, "aggregation_overall"]) && sim_size[["ncol_dbOut_overall"]] > 0) {
+
+
+      if (Exclude_ClimateAmbient || sim_size[["ncol_dbOut_overall"]] == 0L) {
+        temp <- paste(c(all_Pids[sc], if (sim_size[["ncol_dbOut_overall"]] > 0)
           paste0(rep("NULL", sim_size[["ncol_dbOut_overall"]]), collapse = ",")),
           collapse = ", ")
-        SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
-        SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
-        if (length(SQL) == 0) {
-          SQL <- paste(SQL1, SQL2, sep = "\n")
-        } else {
-          SQL <- paste(SQL, SQL1, SQL2, sep = "\n")
-        }
+        resMeans <- resSDs <- rep(NA, length = sim_size[["ncol_dbOut_overall"]])
+        nv <- 1L + sim_size[["ncol_dbOut_overall"]]
 
       } else {
-        Exclude_ClimateAmbient <- FALSE
-      }
-
-      #overall aggregation. If Exclude_ClimateAmbient == TRUE then skip
-      if (!opt_behave[["resume"]] || (opt_behave[["resume"]] &&
-        !isdone.overallAggs[sc]) && !Exclude_ClimateAmbient) {
 
         # delete data so that they are read anew for each scenario; each variable is
         # checked that datafile is read in only once per scenario
@@ -4405,6 +4471,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
           if (!exists("vpd.dy")) vpd.dy <- get_VPD_dy(sc, temp.dy, xin = swRunScenariosData, st2 = simTime2)
+          if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time)
 
           # Aggregate for hottest and for coldest conditions
           extreme <- c(hottest = TRUE, coldest = FALSE)
@@ -4514,11 +4581,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             periodicVWCsums <- tapply(vwclayervals[,3], vwclayervals[,1], sum)
 
             resMeans[nv:(nv+1)] <- mean(periodicVWCmeans, na.rm = TRUE)
-            resSDs[nv:(nv+1)] <- sd(periodicVWCmeans, na.rm = TRUE)
+            resSDs[nv:(nv+1)] <- stats::sd(periodicVWCmeans, na.rm = TRUE)
             nv <- nv + 1
 
             resMeans[nv:(nv+1)] <- mean(periodicVWCsums, na.rm = TRUE)
-            resSDs[nv:(nv+1)] <- sd(periodicVWCsums, na.rm = TRUE)
+            resSDs[nv:(nv+1)] <- stats::sd(periodicVWCsums, na.rm = TRUE)
             nv <- nv + 1
 
             rm(vwclayervals, doy.trim, year.trim, periodicVWCmeans, periodicVWCsums)
@@ -4992,16 +5059,16 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             }
 
             #Put all limits together
-            Germination_DuringFavorableConditions <- Germination_AtBelowTmax & Germination_AtAboveTmin & Germination_AtMoreThanTopSWPmin
+            Germination_WhileFavorable <- Germination_AtBelowTmax & Germination_AtAboveTmin & Germination_AtMoreThanTopSWPmin
 
             #---2. Time to germinate
             #for each day with favorable conditions, determine whether period of favorable conditions (resumed or reset if broken) is long enough for successful completion of germination under current mean conditions
-            LengthDays_FavorableConditions <- unlist(lapply(RY.useyrs, FUN = calculate_DurationFavorableConditions,
+            LengthDays_FavorableConditions <- unlist(lapply(RY.useyrs, FUN = calc_DurationFavorableConds,
                 consequences.unfavorable = param$GerminationPeriods_0ResetOr1Resume,
-                Germination_DuringFavorableConditions = Germination_DuringFavorableConditions,
+                Germination_WhileFavorable = Germination_WhileFavorable,
                 RYyear_ForEachUsedDay = RYyear_ForEachUsedDay))
-            Germination_TimeToGerminate <- unlist(lapply(RY.useyrs, FUN = calculate_TimeToGerminate_modifiedHardegree2006NLR,
-                Germination_DuringFavorableConditions = Germination_DuringFavorableConditions,
+            Germination_TimeToGerminate <- unlist(lapply(RY.useyrs, FUN = calc_TimeToGerminate,
+                Germination_WhileFavorable = Germination_WhileFavorable,
                 LengthDays_FavorableConditions = LengthDays_FavorableConditions,
                 RYyear_ForEachUsedDay = RYyear_ForEachUsedDay,
                 soilTmeanSnow = soilTmeanSnow,
@@ -5009,7 +5076,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 TmeanJan = TmeanJan, param = param))
 
             Germination_RestrictedByTimeToGerminate <- rep(FALSE, RY_N_usedy)
-            Germination_RestrictedByTimeToGerminate[Germination_DuringFavorableConditions & is.na(Germination_TimeToGerminate)] <- TRUE
+            Germination_RestrictedByTimeToGerminate[Germination_WhileFavorable & is.na(Germination_TimeToGerminate)] <- TRUE
 
             #---3. Successful germinations
             GerminationSuccess_Initiated <- !is.na(Germination_TimeToGerminate)
@@ -5031,12 +5098,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             #---1. Seedling survival periods:
             #  mortality = !survival: days with conditions which kill a seedling, defined by upper/lower limits
             #  growth: days with conditions which allows a seedling to grow (here, roots), defined by upper/lower limits
-            SeedlingMortality_UnderneathSnowCover <- calculate_SeedlingMortality_ByCondition(kill.conditions = (snow > param$SWE_MaximumForSeedlingGrowth), max.duration.before.kill = param$Days_SnowCover_MaximumForSeedlingSurvival)
-            SeedlingMortality_ByTmin <- calculate_SeedlingMortality_ByCondition(kill.conditions = (airTminSnow < param$Temp_MinimumForSeedlingSurvival), max.duration.before.kill = 0)
-            SeedlingMortality_ByTmax <- calculate_SeedlingMortality_ByCondition(kill.conditions = (airTmax > param$Temp_MaximumForSeedlingSurvival), max.duration.before.kill = 0)
-            SeedlingMortality_ByChronicSWPMax <- calculate_SeedlingMortality_ByCondition(kill.conditions = (swp > param$SWP_ChronicMaximumForSeedlingSurvival), max.duration.before.kill = param$Days_ChronicMaximumForSeedlingSurvival)
-            SeedlingMortality_ByChronicSWPMin <- calculate_SeedlingMortality_ByCondition(kill.conditions = (swp < param$SWP_ChronicMinimumForSeedlingSurvival), max.duration.before.kill = param$Days_ChronicMinimumForSeedlingSurvival)
-            SeedlingMortality_ByAcuteSWPMin <- calculate_SeedlingMortality_ByCondition(kill.conditions = (swp < param$SWP_AcuteMinimumForSeedlingSurvival), max.duration.before.kill = 0)
+            SeedlingMortality_UnderneathSnowCover <- calc_SeedlingMortality(kill.conditions = (snow > param$SWE_MaximumForSeedlingGrowth), max.duration.before.kill = param$Days_SnowCover_MaximumForSeedlingSurvival)
+            SeedlingMortality_ByTmin <- calc_SeedlingMortality(kill.conditions = (airTminSnow < param$Temp_MinimumForSeedlingSurvival), max.duration.before.kill = 0)
+            SeedlingMortality_ByTmax <- calc_SeedlingMortality(kill.conditions = (airTmax > param$Temp_MaximumForSeedlingSurvival), max.duration.before.kill = 0)
+            SeedlingMortality_ByChronicSWPMax <- calc_SeedlingMortality(kill.conditions = (swp > param$SWP_ChronicMaximumForSeedlingSurvival), max.duration.before.kill = param$Days_ChronicMaximumForSeedlingSurvival)
+            SeedlingMortality_ByChronicSWPMin <- calc_SeedlingMortality(kill.conditions = (swp < param$SWP_ChronicMinimumForSeedlingSurvival), max.duration.before.kill = param$Days_ChronicMinimumForSeedlingSurvival)
+            SeedlingMortality_ByAcuteSWPMin <- calc_SeedlingMortality(kill.conditions = (swp < param$SWP_AcuteMinimumForSeedlingSurvival), max.duration.before.kill = 0)
 
             SeedlingGrowth_AbsenceOfSnowCover <- (snow <= param$SWE_MaximumForSeedlingGrowth)
             SeedlingGrowth_AtAboveTmin <- (airTminSnow >= param$Temp_MinimumForSeedlingGrowth)
@@ -5080,17 +5147,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
                   #Check growth under above-ground conditions
                   #Snow cover
-                  thisSeedlingGrowth_AbsenceOfSnowCover <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions = thisSeedlingGrowing & thisYear_SeedlingGrowth_AbsenceOfSnowCover, consequences.unfavorable = param$SeedlingGrowth_0StopOr1Resume)
+                  thisSeedlingGrowth_AbsenceOfSnowCover <- check_SuitableGrowthThisYear(favorable.conditions = thisSeedlingGrowing & thisYear_SeedlingGrowth_AbsenceOfSnowCover, consequences.unfavorable = param$SeedlingGrowth_0StopOr1Resume)
                   temp <- !thisSeedlingGrowth_AbsenceOfSnowCover[index.thisSeedlingSeason]
                   if (any(temp))
                     stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueSnowCover"] <- sg_RYdoy + which(temp)[1]
                   #Minimum temperature
-                  thisSeedlingGrowth_AtAboveTmin <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions = thisSeedlingGrowing & thisYear_SeedlingGrowth_AtAboveTmin, consequences.unfavorable = param$SeedlingGrowth_0StopOr1Resume)
+                  thisSeedlingGrowth_AtAboveTmin <- check_SuitableGrowthThisYear(favorable.conditions = thisSeedlingGrowing & thisYear_SeedlingGrowth_AtAboveTmin, consequences.unfavorable = param$SeedlingGrowth_0StopOr1Resume)
                   temp <- !thisSeedlingGrowth_AtAboveTmin[index.thisSeedlingSeason]
                   if (any(temp))
                     stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueTmin"] <- sg_RYdoy + which(temp)[1]
                   #Maximum temperature
-                  thisSeedlingGrowth_AtBelowTmax <- calculate_SuitableGrowthThisYear_UnderCondition(favorable.conditions = thisSeedlingGrowing & thisYear_SeedlingGrowth_AtBelowTmax, consequences.unfavorable = param$SeedlingGrowth_0StopOr1Resume)
+                  thisSeedlingGrowth_AtBelowTmax <- check_SuitableGrowthThisYear(favorable.conditions = thisSeedlingGrowing & thisYear_SeedlingGrowth_AtBelowTmax, consequences.unfavorable = param$SeedlingGrowth_0StopOr1Resume)
                   temp <- !thisSeedlingGrowth_AtBelowTmax[index.thisSeedlingSeason]
                   if (any(temp))
                     stopped_byCauses_onRYdoy["Seedlings1stSeason.Mortality.DuringStoppedGrowth.DueTmax"] <- sg_RYdoy + which(temp)[1]
@@ -5171,7 +5238,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                       SeedlingMortality_CausesByYear[y, 6+stop.factor] <- SeedlingMortality_CausesByYear[y, 6+stop.factor] + 1
                     }
 
-                    SeedlingSurvival_1stSeason <- setFALSE_SeedlingSurvival_1stSeason(
+                    SeedlingSurvival_1stSeason <- kill_seedling(
                       SeedlingSurvival_1stSeason, RYyear_ForEachUsedDay,
                       RY.useyrs, y, sg_RYdoy)
                   }
@@ -5184,7 +5251,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             #---Aggregate output
             dat_gissm1 <- cbind(Germination_Emergence, SeedlingSurvival_1stSeason)
             dat_gissm2 <- cbind(!Germination_AtBelowTmax, !Germination_AtAboveTmin,
-              !Germination_AtMoreThanTopSWPmin, !Germination_DuringFavorableConditions,
+              !Germination_AtMoreThanTopSWPmin, !Germination_WhileFavorable,
               Germination_RestrictedByTimeToGerminate)
 
             #Fraction of years with success
@@ -5284,48 +5351,77 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         }
 
         #---Aggregation: done with options
+      }
 
-        #temporaly save aggregate data
+        #--- Write overall aggregation results to dbTempOut
         nv1 <- nv - 1
-        if ((sim_size[["ncol_dbOut_overall"]] > 0 &&
-          sim_size[["ncol_dbOut_overall"]] == nv1) ||
-          sim_size[["ncol_dbOut_overall"]] == 0L) {
+        if (sim_size[["ncol_dbOut_overall"]] == nv1 && tasks[sc, "aggregate"] != 0L) {
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut: overall")
 
-          resMeans[!is.finite(resMeans)] <- "NULL"
-          resSDs[!is.finite(resSDs)] <- "NULL"
-          temp1 <- paste0(c(P_id, resMeans[seq_len(nv1)]), collapse = ",")
-          temp2 <- paste0(c(P_id, resSDs[seq_len(nv1)]), collapse = ",")
+          if (isTRUE(unname(do_out[["aggregation_overall"]][sc, "aggregation_overall_mean"]))) {
+            resMeans[!is.finite(resMeans)] <- "NULL"
+            temp <- paste0(c(all_Pids[sc], resMeans[seq_len(nv1)]), collapse = ",")
 
-          print_debug(opt_verbosity, tag_simpidfid, "aggregations successful!")
+            SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
+            res <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["print.debug"]],
+              seed = i_seed)
+
+            if (opt_behave[["keep_dbWork_updated"]] && res &&
+              isTRUE(opt_out_fix[["use_granular_control"]])) {
+              res <- dbWork_update_granular(path = project_paths[["dir_out"]],
+                table = "aggregation_overall_mean", Pid = all_Pids[sc], status = FALSE)
+            }
+
+            do_out[["aggregation_overall"]][sc, "aggregation_overall_mean"] <- !res
+          }
+
+          if (isTRUE(unname(do_out[["aggregation_overall"]][sc, "aggregation_overall_sd"]))) {
+            resSDs[!is.finite(resSDs)] <- "NULL"
+            temp <- paste0(c(all_Pids[sc], resSDs[seq_len(nv1)]), collapse = ",")
+
+            SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
+            res <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["print.debug"]],
+              seed = i_seed)
+
+            if (opt_behave[["keep_dbWork_updated"]] && res &&
+              isTRUE(opt_out_fix[["use_granular_control"]])) {
+              res <- dbWork_update_granular(path = project_paths[["dir_out"]],
+                table = "aggregation_overall_sd", Pid = all_Pids[sc], status = FALSE)
+            }
+
+            do_out[["aggregation_overall"]][sc, "aggregation_overall_sd"] <- !res
+          }
+
+          res <- !do_out[["aggregation_overall"]][sc, "aggregation_overall_mean"] &&
+            !do_out[["aggregation_overall"]][sc, "aggregation_overall_sd"]
+          tasks[sc, "aggregate"] <- if (res) 2L else 0L
+
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
 
         } else {
           print(paste0(tag_simpidfid, ": aggregation unsuccessful:",
             " incorrect number of aggregated variables: n = ", nv1,
             " instead of ", sim_size[["ncol_dbOut_overall"]]))
-          tasks$aggregate[sc] <- 0L
-          temp1 <- temp2 <- P_id
+          tasks[sc, "aggregate"] <- 0L
         }
 
-        SQL1 <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp1, ");")
-        SQL2 <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp2, ");")
+        print_debug(opt_verbosity, tag_simpidfid, "section", "overall aggregation done")
+      } # end of 'overall aggregation'
 
-        if (length(SQL) == 0) {
-          SQL <- paste(SQL1, SQL2, sep = "\n")
-        } else {
-          SQL <- paste(SQL, SQL1, SQL2, sep = "\n")
-        }
-      }
 
-      #Daily Output
-      if (prj_todos[["adaily"]][["N"]] > 0 && tasks$aggregate[sc] > 0L) {
-        dailyList <- list()
-        SQLc <- ""
+      #--- Output tables: 'mean daily'
+      if (prj_todos[["adaily"]][["N"]] > 0 &&
+          (!opt_behave[["resume"]] || (opt_behave[["resume"]] &&
+              do_out[["agg"]][sc, "aggregation_doy"]))) {
+
         #aggregate for each response variable
         for (doi in seq_len(prj_todos[["adaily"]][["N"]])) {
-          nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "daily aggregation", doi)
 
-          if (!opt_behave[["resume"]] | (opt_behave[["resume"]] & !isdone.dailyAggs[doi, sc])) {
+          tag_table <- paste0("aggregation_doy_", prj_todos[["adaily"]][["tag"]][doi])
+          icol <- grep(tag_table, colnames(do_out[["aggregation_doy"]]))
+
+          if (length(icol) > 0L && any(do_out[["aggregation_doy"]][sc, icol])) {
             #check to see if we are on SWA
             if (regexpr("SWAbulk", prj_todos[["adaily"]][["tag"]][doi]) > 0) {
               agg.resp <- "SWAbulk"
@@ -5441,7 +5537,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 
               #calculate mean/stats::sd daily values
-              for (al in 1:agg.no) {
+              for (al in seq_len(agg.no)) {
                 ir <- (al - 1) * 366 + 1:366
                 res.dailyMean[ir] <- stats::aggregate(scaler * agg.dat[[al]], by = list(simTime2$doy_ForEachUsedDay), FUN = mean)[, 2]
                 if (agg.resp == "SWPmatric") { ##post-aggregate calculation of SWP: convert VWC to SWP
@@ -5456,7 +5552,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               if (agg.resp == "SWAbulk") {
                 swc.swpcrit.layers <- layers_width * 10 * SWPtoVWC(index.SWPcrit, sand, clay)
 
-                for (al in 1:agg.no) {
+                for (al in seq_len(agg.no)) {
                   ir <- (al - 1) * 366 + 1:366
 
                   if (length(aggLs[[al]]) > 1) {
@@ -5469,123 +5565,141 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               }
             }
 
-            #temporary save daily data
-            res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
-            res.dailySD[!is.finite(res.dailySD)] <- "NULL"
+            #--- Write mean daily aggregation results to dbTempOut
+            print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut: daily")
 
-            if (agg.analysis > 1) {
-              SQL1 <- paste0("(", sapply(seq_len(agg.no), function(x) {
+            table_name1 <- paste0(tag_table, "_Mean")
+            if (do_out[["aggregation_doy"]][sc, table_name1]) {
+              res.dailyMean[!is.finite(res.dailyMean)] <- "NULL"
+
+              if (agg.analysis > 1) {
+                temp1 <- paste0("(", sapply(seq_len(agg.no), function(x) {
                   ids <- seq_len(366) + (x - 1) * 366
-                  paste0(P_id, ", ", x, ", ", paste0(res.dailyMean[ids], collapse = ","))
+                  paste0(all_Pids[sc], ", ", x, ", ",
+                    paste0(res.dailyMean[ids], collapse = ","))
                 }), ")")
+              } else { #no layers
+                temp1 <- paste0("(", all_Pids[sc], ", ",
+                  paste(res.dailyMean, collapse = ","), ")")
+              }
 
-              SQL2 <- paste0("(", sapply(seq_len(agg.no), function(x) {
-                  ids <- seq_len(366) + (x - 1) * 366
-                  paste0(P_id, ", ", x, ", ", paste0(res.dailySD[ids], collapse = ","))
-                }), ")")
+              SQL1 <- paste0("INSERT INTO \"", table_name1, "\" VALUES ", temp1, ";")
+              res1 <- dbExecute2(dbTempFile, SQL1,
+                verbose = opt_verbosity[["print.debug"]], seed = i_seed)
 
-            } else { #no layers
-              SQL1 <- paste0("(", P_id, ", ", paste(res.dailyMean, collapse = ","), ")")
-              SQL2 <- paste0("(", P_id, ", ", paste(res.dailySD, collapse = ","), ")")
+              if (opt_behave[["keep_dbWork_updated"]] && res1 &&
+                isTRUE(opt_out_fix[["use_granular_control"]])) {
+                res1 <- dbWork_update_granular(path = project_paths[["dir_out"]],
+                  table = table_name1, Pid = all_Pids[sc], status = FALSE)
+              }
+
+              do_out[["aggregation_doy"]][sc, table_name1] <- !res1
             }
 
-            SQL1 <- paste0("INSERT INTO \"aggregation_doy_", prj_todos[["adaily"]][["tag"]][doi],
-              "_Mean\" VALUES ", SQL1, ";")
 
-            SQL2 <- paste0("INSERT INTO \"aggregation_doy_", prj_todos[["adaily"]][["tag"]][doi],
-              "_SD\" VALUES ", SQL2, ";")
+            table_name2 <- paste0(tag_table, "_SD")
+            if (do_out[["aggregation_doy"]][sc, table_name2]) {
+              res.dailySD[!is.finite(res.dailySD)] <- "NULL"
 
-            if (agg.analysis > 1) {
-              SQL1 <- paste(SQL1, collapse = "\n")
-              SQL2 <- paste(SQL2, collapse = "\n")
+              if (agg.analysis > 1) {
+                temp2 <- paste0("(", sapply(seq_len(agg.no), function(x) {
+                    ids <- seq_len(366) + (x - 1) * 366
+                    paste0(all_Pids[sc], ", ", x, ", ",
+                      paste0(res.dailySD[ids], collapse = ","))
+                  }), ")")
+
+              } else { #no layers
+                temp2 <- paste0("(", all_Pids[sc], ", ",
+                  paste(res.dailySD, collapse = ","), ")")
+              }
+
+              SQL2 <- paste0("INSERT INTO \"", table_name2, "\" VALUES ", temp2, ";")
+              res2 <- dbExecute2(dbTempFile, SQL2,
+                verbose = opt_verbosity[["print.debug"]], seed = i_seed)
+
+              if (opt_behave[["keep_dbWork_updated"]] && res2 &&
+                isTRUE(opt_out_fix[["use_granular_control"]])) {
+                res2 <- dbWork_update_granular(path = project_paths[["dir_out"]],
+                  table = table_name2, Pid = all_Pids[sc], status = FALSE)
+              }
+
+              do_out[["aggregation_doy"]][sc, table_name2] <- !res2
             }
 
-            SQL <- paste(SQL, SQL1, SQL2, sep = "\n")
-
+            print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
           }#end if resume
         }#doi loop
+
+        res <- all(!do_out[["aggregation_doy"]][sc, ])
+        tasks[sc, "aggregate"] <- if (res && tasks[sc, "aggregate"] != 0L) 2L else 0L
       }#end if daily output
 
       # Determine success of 'aggregate' section
-      if (tasks$aggregate[sc] > 0L && length(SQL) > 0) {
-        tasks$aggregate[sc] <- 2L
-
-        if (sc == 1) {
-          #Clear SQL
-          SQLcurrent <- SQL
-          SQL <- character(0)
-        }
+      if (tasks[sc, "aggregate"] == 1L) {
+        tasks[sc, "aggregate"] <- 2L
       }
 
     } #end if do aggregate
+
   } #end loop through scenarios
 
-
-  if (all(tasks$aggregate > 0L)) {
-    print_debug(opt_verbosity, tag_simfid, "writing", "temporary files")
-
-    if (length(SQLcurrent) > 0) {
-      temp <- try(cat(SQLcurrent, file = dbTempFileCurrent, append = TRUE, sep = "\n"))
-      if (inherits(temp, "try-error")) {
-        print(paste0(tag_simfid, ": writing to temporary file",
-          shQuote(dbTempFileCurrent)))
-      }
-    }
-
-    if (length(SQL) > 0) {
-      temp <- try(cat(SQL, file = dbTempFile, append = TRUE, sep = "\n"))
-      if (inherits(temp, "try-error")) {
-        print(paste0(tag_simfid, ": writing to temporary file", shQuote(dbTempFile)))
-      }
-    }
-
-  } else {
-    print(paste0(tag_simfid, ": not all aggregation results successful with",
-      paste(tasks$aggregate, collapse = "-")))
+  if (any(tasks[, "aggregate"] == 0L)) {
+    print(paste0(tag_simfid, ": not all aggregation results successful with ",
+      paste(tasks[, "aggregate"], collapse = "-")))
   }
 
   delta.do_OneSite <- round(difftime(Sys.time(), t.do_OneSite, units = "secs"), 2)
   status <- all(unlist(tasks) != 0)
 
-  if (!(SFSW2_glovars[["p_has"]] && SFSW2_glovars[["p_type"]] == "mpi")) {
+  if (opt_behave[["keep_dbWork_updated"]] &&
+    !(SFSW2_glovars[["p_has"]] && SFSW2_glovars[["p_type"]] == "mpi")) {
     temp <- dbWork_update_job(project_paths[["dir_out"]], i_sim,
       status = if (status) "completed" else "failed", time_s = delta.do_OneSite,
       verbose = opt_verbosity[["print.debug"]])
   }
 
   if (status) {
-    #ETA estimation
-    times <- dbWork_timing(project_paths[["dir_out"]])
-
     if (opt_verbosity[["verbose"]]) {
-      n <- length(times) - 1
+      msg <- paste0("rSFSW2's ", temp_call, ": ", tag_simfid, ": completed in ",
+        delta.do_OneSite, " ", units(delta.do_OneSite))
 
-      temp <- paste0("rSFSW2's ", temp_call, ": ", tag_simfid, ": completed in ",
-        delta.do_OneSite, " ", units(delta.do_OneSite), "; simulation project is ",
-        round(n / sim_size[["runsN_job"]] * 100, 2), "% complete")
+      if (opt_behave[["keep_dbWork_updated"]]) {
+        percent_complete <- dbWork_report_completion(project_paths[["dir_out"]])
 
-      if (opt_verbosity[["print.eta"]]) {
-        deta <- round(ceiling((sim_size[["runsN_job"]] - n) / SFSW2_glovars[["p_workersN"]]) *
-          sapply(list(mean, stats::sd), function(f) f(times, na.rm = TRUE)))
-        pi95 <- deta[2] * sqrt(1 + 1 / n) * {if (n > 1) stats::qt(0.975, n) else NA}# 95% prediction interval
-        pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
-            paste(round(pi95 / 3600), "h")
-          } else if (pi95 > 60) {
-            paste(round(pi95 / 60), "min")
-          } else {
-            paste(round(pi95), "s")
-          }
-        temp <- paste0(temp, " with ETA (mean plus/minus 95%-PI) = ",
-                      Sys.time() + deta[1], " +/- ", pi95)
+        msg <- paste0(msg, "; simulation project is ", round(percent_complete, 2),
+          "% complete")
+
+        if (opt_verbosity[["print.eta"]]) {
+          # ETA estimation
+          n_todo <- ceiling(dbWork_Ntodo(project_paths[["dir_out"]]) /
+            SFSW2_glovars[["p_workersN"]])
+          agg_timing <- dbWork_agg_timing(project_paths[["dir_out"]])
+          deta <- round(n_todo * agg_timing[c("mean", "sd")])
+
+          # 95% prediction interval
+          temp <- if (agg_timing["n"] > 1) stats::qt(0.975, agg_timing["n"]) else NA
+          pi95 <- deta["sd"] * sqrt(1 + 1 / agg_timing["n"]) * temp
+          pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
+              paste(round(pi95 / 3600), "h")
+            } else if (pi95 > 60) {
+              paste(round(pi95 / 60), "min")
+            } else {
+              paste(round(pi95), "s")
+            }
+
+          msg <- paste0(msg, " with ETA (mean plus/minus 95%-PI) = ",
+            Sys.time() + deta["mean"], " +/- ", pi95)
+        }
       }
 
-      print(temp)
+      print(msg)
     }
 
   } else {
     print(paste0(tag_funid, ": unsuccessful after ", delta.do_OneSite, " ",
-      units(delta.do_OneSite), " with status of tasks = "))
-    print(unlist(sapply(tasks, table)))
+      units(delta.do_OneSite), " with status of tasks = ",
+      paste0(colnames(tasks), ": ", apply(tasks, 2, paste, collapse = ", "),
+      collapse = " / ")))
   }
 
   on.exit()
@@ -5594,7 +5708,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 } #end do_OneSite()
 
 
-#' Run a rSFSW2 simulation experiment
+#' Run a \pkg{rSFSW2} simulation experiment
 #' @export
 run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
@@ -5615,6 +5729,22 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
   i_sites <- it_site(MoreArgs[["sim_size"]][["runIDs_todo"]],
     MoreArgs[["sim_size"]][["runsN_master"]])
+
+
+  #--- prepare the temporary output databases
+  make_dbTempOut(dbOutput = MoreArgs[["fnames_out"]][["dbOutput"]],
+    dir_out_temp = MoreArgs[["project_paths"]][["dir_out_temp"]],
+    fields = MoreArgs[["prj_todos"]][["aon_fields"]],
+    adaily = MoreArgs[["prj_todos"]][["adaily"]],
+    verbose = MoreArgs[["opt_verbosity"]][["verbose"]])
+
+
+  #--- set dbWork as modified if not being kept up-to-date
+  if (!MoreArgs[["opt_behave"]][["keep_dbWork_updated"]]) {
+    dbWork_update_status(MoreArgs[["project_paths"]][["dir_out"]],
+      status = TRUE, verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
+  }
+
 
   #--- call the simulations depending on parallel backend
   if (SFSW2_glovars[["p_has"]]) {
@@ -5664,10 +5794,13 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
             t.do_OneSite <- Sys.time()
 
             i_sim <- MoreArgs[["sim_size"]][["runIDs_todo"]][runs.completed]
-            success <- dbWork_update_job(MoreArgs[["project_paths"]][["dir_out"]],
-              runID = i_sim, status = "inwork",
-              verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
-            # TODO: do something on failure of 'dbWork_update_job'
+
+            if (MoreArgs[["opt_behave"]][["keep_dbWork_updated"]]) {
+              success <- dbWork_update_job(MoreArgs[["project_paths"]][["dir_out"]],
+                runID = i_sim, status = "inwork",
+                verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
+              # TODO: do something on failure of 'dbWork_update_job'
+            }
 
             i_site <- i_sites[runs.completed]
             dataForRun <- list(do_OneSite = TRUE, i_sim = i_sim,
@@ -5736,7 +5869,9 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
             "from worker", worker_id, "but doesn't know what this means."))
         }
 
-        if (tag_from_worker %in% c(2L, 4L)) {
+        if (MoreArgs[["opt_behave"]][["keep_dbWork_updated"]] &&
+          tag_from_worker %in% c(2L, 4L)) {
+
           temp <- dbWork_update_job(MoreArgs[["project_paths"]][["dir_out"]],
             runID = complete[["i"]],
             status = if (complete[["status"]]) "completed" else "failed",

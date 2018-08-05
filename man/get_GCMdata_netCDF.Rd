@@ -2,16 +2,18 @@
 % Please edit documentation in R/ExtractData_ClimateDownscaling.R
 \name{get_GCMdata_netCDF}
 \alias{get_GCMdata_netCDF}
-\title{Extract GCM projection from a netCDF file}
+\title{Extract \var{GCM} projection from a \var{netCDF} file}
 \usage{
 get_GCMdata_netCDF(i_tag, ts_mons, dpm, gcm, scen, rip, lon, lat, startyear,
   endyear, climDB_meta, ...)
 }
 \value{
 A list of one data.frame object with 5 columns and names of
-"year", "month", "tmax", "tmin", and "prcp". Each row is one day.
-Units are [degree Celsius] for temperature and [cm / day] and [cm / month], respectively, for precipitation.
+  \var{\dQuote{year}}, \var{\dQuote{month}}, \var{\dQuote{tmax}}, \var{\dQuote{tmin}},
+  and \var{\dQuote{prcp}}. Each row is one day.
+Units are [degree Celsius] for temperature and [cm / day] and [cm / month],
+respectively, for precipitation.
 }
 \description{
-Extract GCM projection from a netCDF file
+Extract \var{GCM} projection from a \var{netCDF} file
 }

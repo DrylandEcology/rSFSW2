@@ -2,7 +2,7 @@
   cfsr_convert.c
 
   Author:   Donovan Miller
-  Purpose:  Access CFSR data (at: "http://rda.ucar.edu/pub/cfsr.html"), and prepare daily
+  Purpose:  Access CFSR data (at: \url{http://rda.ucar.edu/pub/cfsr.html}, and prepare daily
             weather and mean monthly climate files for SoilWat
   Date:     07/12/2012
   Usage:    ./cfsr_convert yearLow yearHigh inputFile
@@ -112,7 +112,7 @@ int suppresswGrib2 = 1; 	// 1 to suppress the output of wGrib2 into the terminal
 
 #define gribDir "griblargeC2//" //the directory the gribfiles are located in... "" for the same directory the program is in.  Needs a // at the end...
 
-//grib2 files are available at: "http://rda.ucar.edu/pub/cfsr.html"
+//grib2 files are available at: \url{http://rda.ucar.edu/pub/cfsr.html}
 //NOTE: the monthly files do not have data for 2010 for some reason, so keep that in mind...
 #define humidityGrib "pgbh06.gdas.R_H.2m.grb2" 		//name of the relative-humidity grib2 file (years 1979-2009) grid: 0.5° x 0.5°, 0E to 359.5E and 90N to 90S (720 x 361 Longitude/Latitude)
 #define windGrib "flxf06.gdas.WND.10m.grb2" 		//name of the surface wind speed grib2 file (years 1979-2009) grid: 0.313° x ~0.312° from 0E to 359.687E and 89.761N to 89.761S (1152 x 576 Gaussian Longitude/Latitude)

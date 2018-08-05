@@ -70,8 +70,10 @@ test_data <- list(
   test2 = list(ttg = 1, dfc = 1, ref = 0L),
   test3 = list(ttg = rep(1, 10), dfc = 10:1, ref = rep(0L, 10)),
   test4 = list(ttg = temp <- c(2, NA, 1), dfc = temp, ref = c(1L, 0L)),
-  test5 = list(ttg = temp <- c(2, rep(NA, 10), 1), dfc = temp, ref = c(10L, 0L)),
-  test6 = list(ttg = temp <- c(3, NA, NA, 2, NA, 1), dfc = temp, ref = c(3L, 1L, 0L)),
+  test5 = list(ttg = temp <- c(2, rep(NA, 10), 1), dfc = temp,
+    ref = c(10L, 0L)),
+  test6 = list(ttg = temp <- c(3, NA, NA, 2, NA, 1), dfc = temp,
+    ref = c(3L, 1L, 0L)),
   test7 = list(ttg = c(3, 3, 3, NA, NA, 2, NA, 1),
               dfc = c(5, 4, 3, NA, NA, 2, NA, 1), ref = c(0L, 2L, 3L, 1L, 0L)),
   test8 = list(ttg = c(NA, 8, 1, 2, 1, NA, NA, NA, 3, 3, 3, NA, NA, 2, NA, 1),
@@ -83,7 +85,8 @@ test_data <- list(
 test_that("germination_wait_times", {
 
   for (k in seq_along(test_data))
-    with(test_data[[k]], expect_equal(as.integer(germination_wait_times(ttg, dfc)), ref,
+    with(test_data[[k]], expect_equal(
+      as.integer(germination_wait_times(ttg, dfc)), ref,
       info = paste("Test dataset =", shQuote(names(test_data)[k]))))
 
   if (FALSE) {
@@ -92,7 +95,8 @@ test_that("germination_wait_times", {
       print(paste("ttg =", paste(test_data[[k]][["ttg"]], collapse = ", ")))
       print(paste("dfc =", paste(test_data[[k]][["dfc"]], collapse = ", ")))
       print(paste("ref =", paste(test_data[[k]][["ref"]], collapse = ", ")))
-      out <- as.integer(germination_wait_times(test_data[[k]][["ttg"]], test_data[[k]][["dfc"]]))
+      out <- as.integer(germination_wait_times(test_data[[k]][["ttg"]],
+        test_data[[k]][["dfc"]]))
       print(paste("out =", paste(out, collapse = ", ")))
       print("")
     }

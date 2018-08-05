@@ -2,11 +2,13 @@
 % Please edit documentation in R/ExtractData_MeanMonthlyClimate.R
 \name{ExtractData_MeanMonthlyClimate}
 \alias{ExtractData_MeanMonthlyClimate}
-\title{Extract mean monthly climate data: cloud cover, relative humidity, and wind speed}
+\title{Extract mean monthly climate data: cloud cover, relative humidity, and
+wind speed}
 \usage{
 ExtractData_MeanMonthlyClimate(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
   opt_parallel, opt_chunks, resume = FALSE, verbose = FALSE)
 }
 \description{
-Extract mean monthly climate data: cloud cover, relative humidity, and wind speed
+Extract mean monthly climate data: cloud cover, relative humidity, and
+wind speed
 }

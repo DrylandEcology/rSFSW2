@@ -2,11 +2,13 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{check_outputDB_completeness}
 \alias{check_outputDB_completeness}
-\title{Check whether dbOutput contains a complete set of output/simulation results}
+\title{Check whether \var{\sQuote{dbOutput}} contains a complete set of
+output/simulation results}
 \usage{
 check_outputDB_completeness(SFSW2_prj_meta, opt_parallel, opt_behave,
-  opt_out_run, verbose = FALSE)
+  opt_out_run, opt_verbosity)
 }
 \description{
-Check whether dbOutput contains a complete set of output/simulation results
+Check whether \var{\sQuote{dbOutput}} contains a complete set of
+output/simulation results
 }

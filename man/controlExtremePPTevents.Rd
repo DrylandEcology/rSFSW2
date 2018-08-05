@@ -13,15 +13,15 @@ controlExtremePPTevents(data, dailyPPTceiling, sigmaN, do_checks = FALSE,
 \item{dailyPPTceiling}{A numeric value. The maximum value of daily precipitation.
 Values above this limit will be removed and redistributed to other days.}
 
-\item{sigmaN}{An integer value. A multiplicator of \code{stats::sd} for data checks.}
+\item{sigmaN}{An integer value. A multiplier of \code{stats::sd} for data checks.}
 
 \item{do_checks}{A logical value. See details.}
 
 \item{mfact}{A numeric value. See details.}
 
 \item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
-the state of the RNG; \code{NULL} will re-initialize the RNG; and all other values
-are passed to \code{\link{set.seed}}.}
+the state of the \acronym{RNG}; \code{NULL} will re-initialize the \acronym{RNG};
+and all other values are passed to \code{\link{set.seed}}.}
 }
 \description{
 Check for and handle days with too extreme precipitation values

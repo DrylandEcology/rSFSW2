@@ -31,12 +31,12 @@ static const R_CMethodDef CEntries[] = {
 /* .Call calls: Rcpp v0.12.12 registers these correctly */
 extern SEXP _rSFSW2_germination_wait_times(SEXP, SEXP);
 extern SEXP _rSFSW2_get_KilledBySoilLayers(SEXP, SEXP);
-extern SEXP _rSFSW2_setFALSE_SeedlingSurvival_1stSeason(SEXP, SEXP, SEXP, SEXP, SEXP);
+extern SEXP _rSFSW2_kill_seedling(SEXP, SEXP, SEXP, SEXP, SEXP);
 
 static const R_CallMethodDef CallEntries[] = {
     {"_rSFSW2_germination_wait_times", (DL_FUNC) &_rSFSW2_germination_wait_times, 2},
     {"_rSFSW2_get_KilledBySoilLayers", (DL_FUNC) &_rSFSW2_get_KilledBySoilLayers, 2},
-    {"_rSFSW2_setFALSE_SeedlingSurvival_1stSeason", (DL_FUNC) &_rSFSW2_setFALSE_SeedlingSurvival_1stSeason, 5},
+    {"_rSFSW2_kill_seedling", (DL_FUNC) &_rSFSW2_kill_seedling, 5},
     {NULL, NULL, 0}
 };
 

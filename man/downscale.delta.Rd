@@ -10,17 +10,18 @@ downscale.delta(obs.hist.daily, obs.hist.monthly, scen.hist.monthly,
   dailyPPTceiling, do_checks = TRUE, ...)
 }
 \arguments{
-\item{obs.hist.daily}{A list. Each element corresponds to one year of simstartyr:endyr
-is an object of class \linkS4class{swWeatherData}.}
+\item{obs.hist.daily}{A list. Each element corresponds to one year of
+\code{simstartyr:endyr} is an object of
+\code{\link[rSOILWAT2:swWeatherData-class]{rSOILWAT2::swWeatherData}}.}
 
 \item{obs.hist.monthly}{A numeric matrix. Monthly time-series of observed weather
-calculated from \code{obs.hist.daily} for the years simstartyr:endyr.}
+calculated from \code{obs.hist.daily} for the years \code{simstartyr:endyr}.}
 
 \item{scen.hist.monthly}{A numeric matrix. Monthly time-series of scenario weather
-during the historic time period DScur_startyr:DScur_endyr}
+during the historic time period \code{DScur_startyr:DScur_endyr}}
 
 \item{scen.fut.monthly}{A numeric matrix. Monthly time-series of scenario weather
-during the projected time period DSfut_startyr:DSfut_endyr}
+during the projected time period \code{DSfut_startyr:DSfut_endyr}}
 
 \item{opt_DS}{A named list.}
 
@@ -32,7 +33,7 @@ Downscale with the 'delta approach'
 }
 \references{
 Hay, L. E., R. L. Wilby, and G. H. Leavesley. 2000. A comparison of delta
- change and downscaled gcm scenarios for three mountainous basins in the United States.
+ change and downscaled GCM scenarios for three mountainous basins in the United States.
  Journal of the American Water Resources Association 36:387-397.
 
 Hamlet, A. F., E. P. Salathe, and P. Carrasco. 2010. Statistical

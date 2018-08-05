@@ -2,10 +2,10 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{dbOutput_ListDesignTables}
 \alias{dbOutput_ListDesignTables}
-\title{List the design tables of dbOutput}
+\title{List the design tables of \var{\sQuote{dbOutput}}}
 \usage{
 dbOutput_ListDesignTables()
 }
 \description{
-List the design tables of dbOutput
+List the design tables of \var{\sQuote{dbOutput}}
 }

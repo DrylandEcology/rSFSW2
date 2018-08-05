@@ -24,9 +24,9 @@ values. See details.}
 linear. See details.}
 
 \item{spline_method}{A character string. Type of spline, passed to
-\code{\link[stats]{splinefun}} as \code{method} argument. The type "monoH.FC" is the
-only appropriate method here because quantile mapping requires a monotone function
-if possible.}
+\code{\link[stats]{splinefun}} as \code{method} argument. The type
+\var{\dQuote{monoH.FC}} is the only appropriate method here because quantile mapping
+requires a monotone function if possible.}
 
 \item{monthly_extremes}{A numeric vector of length two. The first element suggests a
 monthly minimum value and the second element a monthly maximum value for the mapped
@@ -36,61 +36,63 @@ output.}
 
 \item{...}{Additional arguments are ignored.}
 
-\item{type_map}{A character vector. The type of interpolation, extrapolation, and spline
-passed to \code{\link{doQmapQUANT.default_drs}}. Possible values include "linear_Boe",
-"linear_Thermessl2012CC.QMv1b", "linear_none", "tricub_fmm", "tricub_monoH.FC",
-"tricub_natural", and "normal_anomalies". See details.}
+\item{type_map}{A character vector. The type of interpolation, extrapolation, and
+spline passed to \code{\link{doQmapQUANT.default_drs}}. Possible values include
+\var{\dQuote{linear_Boe}}, \var{\dQuote{linear_Thermessl2012CC.QMv1b}},
+\var{\dQuote{linear_none}}, \var{\dQuote{tricub_fmm}}, \var{\dQuote{tricub_monoH.FC}},
+\var{\dQuote{tricub_natural}}, and \var{\dQuote{normal_anomalies}}. See details.}
 
 \item{monthly_obs_base}{A numeric vector. Base values used to calculate t-scores of
-\code{x} which are only used if \code{type_map} is "normal_anomalies".}
+\code{x} which are only used if \code{type_map} is \var{\dQuote{normal_anomalies}}.}
 }
 \value{
 A numeric vector of the length of \code{x}. Return values differ among repeated
  calls with identical input arguments if jitter correction (using random numbers) is
- applied, i.e., \code{type} is 'spline', \code{fix_spline} is 'attempt' and there are
- values outside the range suggested by \code{monthly_extremes}.
+ applied, i.e., \code{type} is \var{\dQuote{spline}}, \code{fix_spline} is
+ \var{\dQuote{attempt}} and there are values outside the range suggested by
+ \code{monthly_extremes}.
 }
 \description{
 Whereas the function \code{\link[qmap]{fitQmapQUANT}} estimates values of the empirical
-cumulative distribution function of observed and modelled time series for regularly
+cumulative distribution function of observed and modeled time series for regularly
 spaced quantiles. \code{doQmapQUANT.default_drs} uses these estimates to perform
 quantile mapping.
 }
 \section{Details}{
  \itemize{
  \item \code{type} takes one of two possible values \itemize{
-   \item "linear": linear interpolation using \code{\link[stats]{approx}}
-   \item "tricub": monotonic tricubic spline interpolation using
+   \item \var{\dQuote{linear}}: linear interpolation using \code{\link[stats]{approx}}
+   \item \var{\dQuote{tricub}}: monotonic tricubic spline interpolation using
      \code{\link[stats]{splinefun}}. Splines may result in abnormally high output
      values which appears to be due to at least two reasons: \enumerate{
        \item extrapolation errors
        \item huge oscillations in the spline-function which arise from non-monotone
-         splines (\code{spline_method} is 'fmm' or 'natural') or which arise from
-         numerical instabilities in the exact monotonicity if \code{spline_method} is
-         'monoH.FC'
+         splines (\code{spline_method} is \var{\dQuote{fmm}} or \var{\dQuote{natural}})
+         or which arise from numerical instabilities in the exact monotonicity if
+         \code{spline_method} is \var{\dQuote{monoH.FC}}.
        }
  }
  \item \code{lin_extrapol} is the extrapolation for values of \code{x} that are outside
    \code{range(fobj[["par"]]$modq)}. This argument is only in effect if \code{type}
-   is "linear" and takes one of three possible values \itemize{
-   \item "none": no linear extrapolation is performed, i.e., output of
-     \code{\link[stats]{approx}}" for type = 2 is return; that is 'values at the
+   is \var{\dQuote{linear}} and takes one of three possible values \itemize{
+   \item \var{\dQuote{none}}: no linear extrapolation is performed, i.e., output of
+     \code{\link[stats]{approx}} for type = 2 is return; that is 'values at the
      closest data extreme'.
-   \item "Boe": constant extrapolation from Boe et al. 2007
-   \item "Thermessl2012CC.QMv1b": same extrapolation as Boe et al. 2007, but not
-     not including three largest/smallest values, from Thermessl et al. 2012.
+   \item \var{\dQuote{Boe}}: constant extrapolation from Boe et al. 2007
+   \item \var{\dQuote{Thermessl2012CC.QMv1b}}: same extrapolation as Boe et al. 2007,
+     but not including three largest/smallest values, from Themessl et al. 2012.
  }
  \item \code{fix_spline} takes one of three values \itemize{
-   \item "none": No correction to mapped values is applied.
-   \item "fail": If mapped values fall outside the range suggested by
+   \item \var{\dQuote{none}}: No correction to mapped values is applied.
+   \item \var{\dQuote{fail}}: If mapped values fall outside the range suggested by
      \code{monthly_extremes}, then an error is generated.
-   \item "attempt": The spline-based mapping is repeated up to ten times where the
-     values of the quantile map \code{fobj} are jittered.
+   \item \var{\dQuote{attempt}}: The spline-based mapping is repeated up to ten times
+     where the values of the quantile map \code{fobj} are jittered.
  }
  }
 
  \itemize{
- \item \code{type_map} with "normal_anomalies" represents a 'linear
+ \item \code{type_map} with \var{\dQuote{normal_anomalies}} represents a 'linear
  interpolation with extrapolation following Boe et al. 2007 and a correction using
  standard anomalies (i.e. number of standard deviations from the mean) for values
  outside the observed quantile map that is based on Tohver et al. 2014 (Appendix A)}
@@ -115,6 +117,6 @@ Tohver, I. M., A. F. Hamlet, and S.-Y. Lee. 2014. Impacts of 21st-Century
  America. Journal of the American Water Resources Association 50:1461-1476.
 }
 \seealso{
-Based on code from \code{\link[qmap]{doQmapQUANT}} v1.0.4 (Gudmundson et al.
- 2012), but with additional methods and more granual control. See details.
+Based on code from \code{\link[qmap]{doQmapQUANT}} v1.0.4 (Gudmundsson et al.
+ 2012), but with additional methods and more granular control. See details.
 }

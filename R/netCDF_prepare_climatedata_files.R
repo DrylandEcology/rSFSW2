@@ -1,5 +1,5 @@
 
-#' Compare two netCDF files
+#' Compare two \var{netCDF} files
 do_compare_nc <- function(fnc1, fnc2, var) {
   stopifnot(requireNamespace("ncdf4"))
 
@@ -11,7 +11,8 @@ do_compare_nc <- function(fnc1, fnc2, var) {
   temp <- temp[!is.na(temp)]
   comp[["layout"]] <- temp[!grepl("id|group_id|filename", names(temp))]
 
-  comp[["var"]] <- do_compare(ncdf4::ncvar_get(nc1, var), ncdf4::ncvar_get(nc2, var))
+  comp[["var"]] <- do_compare(ncdf4::ncvar_get(nc1, var),
+    ncdf4::ncvar_get(nc2, var))
   comp[["varname"]] <- var
 
   ncdf4::nc_close(nc1)
@@ -33,7 +34,8 @@ calc_ncfile_times <- function(x_times, ts_expected = NULL) {
   tsl_yrmo <- lapply(seq_len(N), function(k) {
     temp <- seq.Date(
       from = as.Date(ISOdate(temp_yr[k, "start"], temp_mo[k, "start"], 15)),
-      to = as.Date(ISOdate(temp_yr[k, "end"], temp_mo[k, "end"], 15)), by = "month")
+      to = as.Date(ISOdate(temp_yr[k, "end"], temp_mo[k, "end"], 15)),
+      by = "month")
   })
   for (k in seq_len(N)) {
     ts_yrmo <- if (k > 1) c(ts_yrmo, tsl_yrmo[[k]]) else tsl_yrmo[[k]]
@@ -66,7 +68,8 @@ get_nctime_attributes <- function(filename) {
   nc <- ncdf4::nc_open(filename = filename, write = FALSE, verbose = FALSE)
   ncdf4::nc_close(nc)
 
-  dim_time <- grep("(\\btime\\b)|(\\bt\\b)", names(nc$dim), value = TRUE, ignore.case = TRUE)
+  dim_time <- grep("(\\btime\\b)|(\\bt\\b)", names(nc$dim), value = TRUE,
+    ignore.case = TRUE)
   stopifnot(length(dim_time) > 0)
 
   list(dim_time = dim_time, units = nc$dim[[dim_time]]$units,
@@ -78,7 +81,8 @@ get_ncvar_attributes <- function(filename) {
   ncdf4::nc_close(nc)
 
   temp <- unlist(nc, recursive = TRUE)
-  res <- temp[grep("(hasAddOffset)|(hasScaleFact)|(compression)|(units)", names(temp))]
+  res <- temp[grep("(hasAddOffset)|(hasScaleFact)|(compression)|(units)",
+    names(temp))]
 
   res[order(names(res))]
 }
@@ -109,7 +113,7 @@ get_nc_time_axis <- function(filename, dim_time = "time") {
   itemp <- temp > id_time_start
   id_time_end <- if (any(itemp)) {
       x <- temp[itemp][1]
-      if (grepl("[[:digit:]]", tvals[x])) x else {x - 1}
+      if (grepl("[[:digit:]]", tvals[x])) x else x - 1
     } else {
       temp <- grep("[;]", tvals)
       itemp <- temp >= id_time_start # for cases with one time value
@@ -125,7 +129,9 @@ get_nc_time_axis <- function(filename, dim_time = "time") {
 
 get_nc_time_axis <- memoise::memoise(get_nc_time_axis)
 
-get_ncvalues_at_times <- function(filename, varname, at, dim_time = NULL, ztime = NULL) {
+get_ncvalues_at_times <- function(filename, varname, at, dim_time = NULL,
+  ztime = NULL) {
+
   nc <- ncdf4::nc_open(filename = filename, write = FALSE, verbose = FALSE)
   vals <- ncdf4::ncvar_get(nc, varname)
   ncdf4::nc_close(nc)
@@ -203,7 +209,9 @@ time_agrees_with_ncfilename <- function(filename, ftime) {
   )
 }
 
-#' Process downloaded netCDF files to concatenate if needed otherwise move to dedicated directory
+#' Process downloaded \var{netCDF} files to concatenate if needed otherwise
+#' move to dedicated directory
+#'
 #' @examples
 #' \dontrun{
 #' dir_prj <- file.path("/Volumes", "BookDuo_12TB", "BigData", "GIS", "Data",
@@ -214,12 +222,14 @@ time_agrees_with_ncfilename <- function(filename, ftime) {
 #' dir_concatables <- file.path(dir_prj, "Raw_to_concat")
 #' dir_delete <- file.path(dir_prj, "to_delete")
 #' dir_scrutinize <- file.path(dir_prj, "to_scrutinize")
-#' dir_out <- file.path(dir_prj, "..", "ClimateScenarios", "CMIP5", "ESGF_Global")
-#' prepare_climatedata_netCDF_files(dir_code, dir_data, dir_duplicates, dir_concatables,
-#'   dir_delete, dir_scrutinize, dir_out, climDB_tag = "CMIP5_ESGF_Global")
+#' dir_out <- file.path(dir_prj, "..", "ClimateScenarios", "CMIP5",
+#'   "ESGF_Global")
+#' prepare_climatedata_netCDFs(dir_code, dir_data, dir_duplicates,
+#'   dir_concatables, dir_delete, dir_scrutinize, dir_out,
+#'   climDB_tag = "CMIP5_ESGF_Global")
 #' }
 #' @export
-prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
+prepare_climatedata_netCDFs <- function(dir_code, dir_data, dir_duplicates,
   dir_concatables, dir_delete, dir_scrutinize, dir_out, climDB_tag = NULL,
   climDB_meta = NULL) {
 
@@ -229,8 +239,8 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
   }
 
   # Shell-command output file
-  f_toconcat <- file.path(dir_code, paste0(format(Sys.time(), format = "%Y%m%d%H%M"),
-    "_concat_along_time_esgf.sh"))
+  f_toconcat <- file.path(dir_code, paste0(format(Sys.time(),
+    format = "%Y%m%d%H%M"), "_concat_along_time_esgf.sh"))
 
   if (file.exists(f_toconcat)) {
     f_toconcat <- file(f_toconcat, open = "a+")
@@ -245,20 +255,22 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
   ftemps <- list.files(dir_data, pattern = ".nc")
 
   f_parts <- strsplit(ftemps, split = "_", fixed = TRUE)
-  f_vars <- sapply(f_parts, function(x) x[climDB_meta[["str_fname"]][["id_var"]]])
-  f_scens <- sapply(f_parts, function(x) x[climDB_meta[["str_fname"]][["id_scen"]]])
-  f_times <- sapply(f_parts, function(x) x[climDB_meta[["str_fname"]][["id_time"]]])
-  f_body <- sapply(f_parts, function(x) {
-      paste(x[-climDB_meta[["str_fname"]][["id_time"]]], collapse = "_")
-    })
+  f_vars <- sapply(f_parts, function(x)
+    x[climDB_meta[["str_fname"]][["id_var"]]])
+  f_scens <- sapply(f_parts, function(x)
+    x[climDB_meta[["str_fname"]][["id_scen"]]])
+  f_times <- sapply(f_parts, function(x)
+    x[climDB_meta[["str_fname"]][["id_time"]]])
+  f_body <- sapply(f_parts, function(x)
+    paste(x[-climDB_meta[["str_fname"]][["id_time"]]], collapse = "_"))
 
   funi_body <- unique(f_body)
 
   for (fid in seq_along(funi_body)) {
     f <- funi_body[fid]
     i_alltimes <- grep(f, ftemps)
-    print(paste(Sys.time(), "work on", shQuote(f), "including", length(i_alltimes),
-      "netCDF file(s)."))
+    print(paste(Sys.time(), "work on", shQuote(f), "including",
+      length(i_alltimes), "netCDF file(s)."))
 
     # Sort historically and by length
     temp_ts <- calc_ncfile_times(f_times[i_alltimes])
@@ -275,7 +287,8 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
     # Check that filenames agree with content of time dimension
     goodtimes <- sapply(seq_along(i_alltimes), function(k) {
         filename <- file.path(dir_data, ftemps[i_alltimes[k]])
-        c(check_nc_time_axis(filename, dim_time = f_attr_time[[k]][["dim_time"]]),
+        c(check_nc_time_axis(filename,
+          dim_time = f_attr_time[[k]][["dim_time"]]),
           time_agrees_with_ncfilename(filename, ftime = f_times[i_alltimes[k]]))
       })
 
@@ -294,7 +307,8 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
           paste(gsub("_", "-", names(temp))[temp], sep = "_", collapse = "_")))
         dir_safe_create(dir_scrutinize_to)
 
-        temp <- try(file.rename(from = file.path(dir_data, ftemps[i_badtimes[k]]),
+        temp <- try(file.rename(
+          from = file.path(dir_data, ftemps[i_badtimes[k]]),
           to = file.path(dir_scrutinize_to, ftemps[i_badtimes[k]])))
 
         print(paste("Moving", shQuote(basename(ftemps[i_badtimes[k]])), "from",
@@ -327,16 +341,17 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
         if (f_all_ts[["has_everymonth"]]) {
           # Complete data for time series ==> we can concatenate
           # http://nco.sourceforge.net/nco.html#ncrcat
-          #   - "ncrcat concatenates record variables across an arbitrary number of
-          #     input-files"
-          #   - "The record coordinate, if any, should be monotonic (or else non-fatal
-          #     warnings may be generated)."
-          #   - "Hyperslabs along the record dimension that span more than one file are
-          #     handled correctly."
-          #   - "ncrcat does not unpack data, it simply copies the data from the input-files,
-          #     and the metadata from the first input-file, to the output-file. This means
-          #     that data compressed with a packing convention must use the identical packing
-          #     parameters (e.g., scale_factor and add_offset) for a given variable across
+          #   - "ncrcat concatenates record variables across an arbitrary
+          #     number of input-files"
+          #   - "The record coordinate, if any, should be monotonic (or else
+          #     non-fatal warnings may be generated)."
+          #   - "Hyperslabs along the record dimension that span more than
+          #     one file are handled correctly."
+          #   - "ncrcat does not unpack data, it simply copies the data from
+          #     the input-files, and the metadata from the first input-file,
+          #     to the output-file. This means that data compressed with a
+          #     packing convention must use the identical packing parameters
+          #     (e.g., scale_factor and add_offset) for a given variable across
           #     all input files."
           ts_posix <- as.POSIXlt(f_all_ts[["ts_yrmo"]])
           ts_years <- unique(ts_posix$year + 1900)
@@ -353,10 +368,12 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
           f_attr_var <- lapply(ffrom, get_ncvar_attributes)
 
           # Check that all data are packed/compress identically
-          comp_vars <- is.na(sapply(f_attr_var, function(p) do_compare(f_attr_var[[1]], p)))
+          comp_vars <- is.na(sapply(f_attr_var, function(p)
+            do_compare(f_attr_var[[1]], p)))
 
           # Check that calendar and time units are identically
-          temp <- is.na(sapply(f_attr_time, function(p) do_compare(f_attr_time[[1]], p)))
+          temp <- is.na(sapply(f_attr_time, function(p)
+            do_compare(f_attr_time[[1]], p)))
           comp_time1 <- apply(temp, 2, all)
 
           # Check that record variable is 'time'
@@ -366,24 +383,29 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
 
           # Check that time units are unique
           comp_time2 <- unname(sapply(seq_along(ffrom), function(k) {
-              temp <- get_nc_time_axis(ffrom[k], dim_time = f_attr_time[[k]][["dim_time"]])
-              !anyNA(temp) && identical(anyDuplicated(format(temp, format = "%Y%m")), 0L)
+              temp <- get_nc_time_axis(ffrom[k],
+                dim_time = f_attr_time[[k]][["dim_time"]])
+              !anyNA(temp) &&
+                identical(anyDuplicated(format(temp, format = "%Y%m")), 0L)
             }))
 
           # Index of files suitable for concatenation
-          is_alltimes_suitable <- comp_vars & comp_time1 & comp_time2 & has_recvar_time
+          is_alltimes_suitable <- comp_vars & comp_time1 & comp_time2 &
+            has_recvar_time
           i_suitable <- i_alltimes[is_alltimes_suitable]
           i_unsuitable <- i_alltimes[!is_alltimes_suitable]
           f_unsuittimes <- ftemps[i_unsuitable]
 
           # Check that year-month time series is complete
-          f_suitable_ts <- calc_ncfile_times(f_times[i_suitable], f_all_ts[["ts_expected"]])
+          f_suitable_ts <- calc_ncfile_times(f_times[i_suitable],
+            f_all_ts[["ts_expected"]])
 
           if (f_suitable_ts[["has_everymonth"]]) {
             f_suittimes <- ftemps[i_suitable]
             f_attr_suittimes <- f_attr_time[is_alltimes_suitable]
             ffrom_suit <- file.path(dir_data, f_suittimes)
-            fin_concat <- file.path("..", basename(dir_concatables), f_suittimes)
+            fin_concat <- file.path("..", basename(dir_concatables),
+              f_suittimes)
 
             if (f_suitable_ts[["has_duplicated"]] && length(i_suitable) > 1) {
               #--- Deal with duplicated data between files
@@ -402,7 +424,8 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
                     at = f_suitable_ts[["yrmo_dups"]][[k]]))
               }
 
-              has_identical_dups <- c(TRUE, # first (reference) file is by definition identical to itself
+              # first (reference) file is by definition identical to itself
+              has_identical_dups <- c(TRUE,
                 sapply(f_suit_dupvals, function(x) {
                   temp <- do_compare(x[["ref1"]], x[["x"]])
                   !is.null(x[["ref1"]]) && !is.list(temp) && is.na(temp)
@@ -421,66 +444,80 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
                 for (k in k_suitordered) {
                   ids_need_source <- which(is.na(fuse_yrmo))
                   if (any(ids_need_source)) {
-                    times_need_source <- f_all_ts[["ts_expected"]][ids_need_source]
-                    from_filek <- times_need_source %in% f_suitable_ts[["tsl_yrmo"]][[k]]
-                    fuse_yrmo[ids_need_source[which(from_filek)]] <- ftemps[i_suitable[k]]
+                    times_need_source <-
+                      f_all_ts[["ts_expected"]][ids_need_source]
+                    from_filek <- times_need_source %in%
+                      f_suitable_ts[["tsl_yrmo"]][[k]]
+                    fuse_yrmo[ids_need_source[which(from_filek)]] <-
+                      ftemps[i_suitable[k]]
                   } else {
                     break
                   }
                 }
 
                 fuse_yrmo_ids <- lapply(seq_along(i_suitable), function(k) {
-                  temp <- f_all_ts[["ts_expected"]][ftemps[i_suitable[k]] == fuse_yrmo]
+                  temp <- ftemps[i_suitable[k]] == fuse_yrmo
+                  temp <- f_all_ts[["ts_expected"]][temp]
                   ids <- which(f_suitable_ts[["tsl_yrmo"]][[k]] %in% temp)
                   str_yrmo <- f_suitable_ts[["tsl_yrmo"]][[k]][ids]
 
                   list(ids = ids,
                     start_yrmo = format(str_yrmo[1], format = "%Y%m"),
-                    end_yrmo = format(str_yrmo[length(str_yrmo)], format = "%Y%m"))
+                    end_yrmo = format(str_yrmo[length(str_yrmo)],
+                      format = "%Y%m"))
                 })
 
                 fuse_yrmo_used <- sapply(seq_along(i_suitable), function(k)
                   length(fuse_yrmo_ids[[k]][["ids"]]) > 0)
 
                 cat("\n", file = f_toconcat, append = TRUE)
-                cat(paste("echo", f), sep = "\n", file = f_toconcat, append = TRUE)
+                cat(paste("echo", f), sep = "\n", file = f_toconcat,
+                  append = TRUE)
 
                 temp_fouts <- rep(NA, length(i_suitable))
 
                 for (k in seq_along(i_suitable)) {
-                  temp3 <- file.path("..", basename(dir_concatables), f_suittimes[k])
+                  temp3 <- file.path("..", basename(dir_concatables),
+                    f_suittimes[k])
 
                   if (fuse_yrmo_used[k]) {
                     # cut suitable file to usable time period
                     temp1 <- fuse_yrmo_ids[[k]][["ids"]]
                     temp_fouts[k] <- file.path(dir_concatables, paste0(f, "_",
-                      fuse_yrmo_ids[[k]][["start_yrmo"]], "-", fuse_yrmo_ids[[k]][["end_yrmo"]],
-                      ".nc"))
+                      fuse_yrmo_ids[[k]][["start_yrmo"]], "-",
+                      fuse_yrmo_ids[[k]][["end_yrmo"]], ".nc"))
 
                     if (!identical(basename(temp_fouts[k]), basename(temp3))) {
                       cmd_ncrcat <- paste0("ncrcat",
-                        " -F -d time,", temp1[1], ",", temp1[length(temp1)], # specify time series (in base-1 indexing)
+                        # specify time series (in base-1 indexing):
+                        " -F -d time,", temp1[1], ",", temp1[length(temp1)],
                         " -o", temp_fouts[k], # output file name
                         " ", temp3) # input file
-                      cat(cmd_ncrcat, sep = "\n", file = f_toconcat, append = TRUE)
+                      cat(cmd_ncrcat, sep = "\n", file = f_toconcat,
+                        append = TRUE)
                       del_fins <- TRUE
                     } else {
                       # use all of this file
-                      del_fins <- FALSE # don't delete because uncut file is input to concatenation
+                      # don't delete because uncut file is input to
+                      # concatenation
+                      del_fins <- FALSE
                     }
                   } else {
                      del_fins <- TRUE
                   }
 
-                  # move suitable, whether cut or unused file to delete folder since no longer needed
+                  # move suitable, whether cut or unused file to delete
+                  # folder since no longer needed
                   if (del_fins)  {
-                    cmd_move <- paste("mv", temp3, file.path(dir_delete, f_suittimes[k]))
+                    cmd_move <- paste("mv", temp3, file.path(dir_delete,
+                      f_suittimes[k]))
                     cat(cmd_move, sep = "\n", file = f_toconcat, append = TRUE)
                   }
                 }
 
                 # file destination
-                fto[is_alltimes_suitable] <- file.path(dir_concatables, f_suittimes)
+                fto[is_alltimes_suitable] <- file.path(dir_concatables,
+                  f_suittimes)
 
                 # concatenate cut output files
                 temp_fouts <- file.path("..", basename(dir_concatables),
@@ -488,7 +525,8 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
 
                 if (!identical(basename(temp_fouts), basename(fout_concat))) {
                   cmd_ncrcat <- paste0("ncrcat",
-                    " -F -d time,1,", length(f_all_ts[["ts_expected"]]), # specify time series (in base-1 indexing)
+                    # specify time series (in base-1 indexing):
+                    " -F -d time,1,", length(f_all_ts[["ts_expected"]]),
                     " -o ", fout_concat, # output file name
                     " ", paste(temp_fouts, collapse = " ")) # input files
                   cat(cmd_ncrcat, sep = "\n", file = f_toconcat, append = TRUE)
@@ -500,49 +538,58 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
                   }
 
                 } else {
-                  # one among several suitable files contains all the data: move to destination
+                  # one among several suitable files contains all the data:
+                  # move to destination
                   itemp <- which(f_suittimes == basename(fout_concat))
-                  fto[is_alltimes_suitable][itemp] <- fto0[is_alltimes_suitable][itemp]
+                  fto[is_alltimes_suitable][itemp] <-
+                    fto0[is_alltimes_suitable][itemp]
                 }
 
-                fto[!is_alltimes_suitable] <- file.path(dir_delete, f_unsuittimes)
+                fto[!is_alltimes_suitable] <- file.path(dir_delete,
+                  f_unsuittimes)
 
               } else {
-                print(paste("Data for time-series suggested by filenames is complete, but",
-                  "duplicated data between files is not equal:", paste(shQuote(f_suittimes),
-                  collapse = ", ")))
+                print(paste("Data for time-series suggested by filenames is",
+                  "complete, but duplicated data between files is not equal:",
+                  paste(shQuote(f_suittimes), collapse = ", ")))
 
-                dir_scrutinize_to <- file.path(dir_scrutinize, "duplicated-data-with-diffs")
+                dir_scrutinize_to <- file.path(dir_scrutinize,
+                  "duplicated-data-with-diffs")
                 dir_safe_create(dir_scrutinize_to)
                 fto <- file.path(dir_scrutinize_to, f_alltimes)
               }
 
             } else {
-              # No duplicated data: prepare simple concatenation command (relative to dir_code)
+              # No duplicated data: prepare simple concatenation command
+              # (relative to dir_code)
               cat("\n", file = f_toconcat, append = TRUE)
-              cat(paste("echo", f), sep = "\n", file = f_toconcat, append = TRUE)
+              cat(paste("echo", f), sep = "\n", file = f_toconcat,
+                append = TRUE)
 
               cmd_ncrcat <- paste0("ncrcat",
-                " -F -d time,1,", length(f_all_ts[["ts_expected"]]), # specify time series (in base-1 indexing)
+                # specify time series (in base-1 indexing):
+                " -F -d time,1,", length(f_all_ts[["ts_expected"]]),
                 " -o ", fout_concat, # output file name
                 " ", paste(fin_concat, collapse = " ")) # input files
               cat(cmd_ncrcat, sep = "\n", file = f_toconcat, append = TRUE)
 
               for (k in seq_along(f_suittimes)) {
-                cmd_move <- paste("mv", file.path(dir_concatables, f_suittimes[k]),
+                cmd_move <- paste("mv",
+                  file.path(dir_concatables, f_suittimes[k]),
                   file.path(dir_delete, f_suittimes[k]))
                 cat(cmd_move, sep = "\n", file = f_toconcat, append = TRUE)
               }
 
               # file destination
-              fto[is_alltimes_suitable] <- file.path(dir_concatables, f_suittimes)
+              fto[is_alltimes_suitable] <- file.path(dir_concatables,
+                f_suittimes)
               fto[!is_alltimes_suitable] <- file.path(dir_delete, f_unsuittimes)
             }
 
           } else {
-            print(paste("Data for time-series suggested by filenames is complete, but some",
-              "not-required files are incompatible:", paste(shQuote(f_unsuittimes),
-              collapse = ", ")))
+            print(paste("Data for time-series suggested by filenames is",
+              "complete, but some not-required files are incompatible:",
+              paste(shQuote(f_unsuittimes), collapse = ", ")))
 
             # file destination
             fto[!is_alltimes_suitable] <- file.path(dir_delete, f_unsuittimes)
@@ -551,7 +598,8 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
         } else {
           print("Data for time-series suggested by filenames is not complete.")
 
-          dir_scrutinize_to <- file.path(dir_scrutinize, "incomplete-timeseries")
+          dir_scrutinize_to <- file.path(dir_scrutinize,
+            "incomplete-timeseries")
           dir_safe_create(dir_scrutinize_to)
           fto <- file.path(dir_scrutinize, f_alltimes)
         }
@@ -559,16 +607,24 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
       } else {
         #--- check for already available duplicate file
         if (file.exists(fto0)) {
-          comp <- do_compare_nc(fnc1 = ffrom, fnc2 = fto0, var = f_vars[i_alltimes])
+          comp <- do_compare_nc(fnc1 = ffrom, fnc2 = fto0,
+            var = f_vars[i_alltimes])
 
           if (length(comp[["layout"]]) > 0 || !is.na(comp[["var"]])) {
-            print(paste(shQuote(f_alltimes), "has non-identical duplicate file:"))
+            print(paste(shQuote(f_alltimes),
+              "has non-identical duplicate file:"))
             print(comp)
+
             # two copies are not identical
             if (is.na(comp[["var"]]) &&
-              identical(names(comp[["layout"]]), c("natts.eq", "natts.x1", "natts.x2"))) {
-              # two copies only differ in number of attributes; keep the copy with more
-              if (comp[["layout"]][["natts.x1"]] > comp[["layout"]][["natts.x2"]]) {
+              identical(names(comp[["layout"]]),
+                c("natts.eq", "natts.x1", "natts.x2"))) {
+
+              # two copies only differ in number of attributes;
+              # keep the copy with more
+              if (comp[["layout"]][["natts.x1"]] >
+                  comp[["layout"]][["natts.x2"]]) {
+
                  fto <- fto0
               } else {
                 fto <- file.path(dir_delete, f_alltimes)
@@ -590,8 +646,8 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
       for (k in seq_along(i_alltimes)) {
         if (!is.na(fto[k]) && identical(basename(ffrom[k]), basename(fto[k]))) {
           temp <- try(file.rename(from = ffrom[k], to = fto[k]))
-          print(paste("Moving", shQuote(basename(ffrom[k])), "from", shQuote(dir_data), "to",
-            shQuote(dirname(fto[k])),
+          print(paste("Moving", shQuote(basename(ffrom[k])), "from",
+            shQuote(dir_data), "to", shQuote(dirname(fto[k])),
             if (inherits(temp, "try-error")) "failed." else "succeeded."))
         }
       }
@@ -602,4 +658,3 @@ prepare_climatedata_netCDF_files <- function(dir_code, dir_data, dir_duplicates,
 
   invisible(length(ftemps))
 }
-

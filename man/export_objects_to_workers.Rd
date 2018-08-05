@@ -10,12 +10,14 @@ export_objects_to_workers(obj_env, parallel_backend = c("mpi", "socket"),
 \arguments{
 \item{obj_env}{An environment containing R objects to export.}
 
-\item{parallel_backend}{A character vector, either 'mpi' or 'socket'}
+\item{parallel_backend}{A character vector, either \var{\dQuote{mpi}}' or
+\var{\dQuote{socket}}}
 
 \item{cl}{A parallel (socket) cluster object}
 }
 \value{
-A logical value. \code{TRUE} if every object was exported successfully.
+A logical value. \code{TRUE} if every object was exported
+  successfully.
 }
 \description{
 Export objects to workers

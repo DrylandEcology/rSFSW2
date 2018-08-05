@@ -2,36 +2,44 @@
 % Please edit documentation in R/Spatial_Functions.R
 \name{extract_from_external_raster_old}
 \alias{extract_from_external_raster_old}
-\title{function to extract data for raster cells}
+\title{Function to extract data for raster cells}
 \usage{
 extract_from_external_raster_old(x, data, ...)
 }
 \arguments{
-\item{x}{A RasterLayer object for which !NA cells, values of 'data' are resampled and
+\item{x}{A \code{\link[raster:RasterLayer-class]{raster::RasterLayer}}
+object for which \code{!NA} cells, values of \code{data} are resampled and
 extracted}
 
-\item{data}{A raster* object from which data are extracted}
+\item{data}{A \code{\link[raster:Raster-class]{raster::Raster}} object from
+which data are extracted}
 
 \item{\dots}{\describe{
-  \item{method}{A character string. The method used to resample values for the new
-    RasterLayer, should be "bilinear" for bilinear interpolation, or "ngb" for using
-    the nearest neighbor.}
-  \item{coords}{graphics::points represented by a two-column matrix or data.frame, or
-    SpatialPoints*; SpatialPolygons*; SpatialLines; Extent; or a numeric vector
+  \item{method}{A character string. The method used to resample values for
+    the new \code{\link[raster:RasterLayer-class]{raster::RasterLayer}},
+    should be \var{\dQuote{bilinear}} for bilinear interpolation, or
+    \var{\dQuote{ngb}} for using the nearest neighbor.}
+  \item{coords}{\code{points} represented by a two-column matrix or
+    data.frame, or
+    \code{\link[sp:SpatialPoints-class]{sp::SpatialPoints}};
+    \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}};
+    \code{\link[sp:SpatialLines-class]{sp::SpatialLines}};
+    \code{\link[raster:Extent-class]{raster::Extent}}; or a numeric vector
     representing cell numbers.}
-  \item{crit_v_exclude}{A character string representing a logical expression based
-    on a variable named 'v'. If present, then the condition(s) are applied to 'data'
-    before resampling.}
+  \item{crit_v_exclude}{A character string representing a logical
+    expression based on a variable named 'v'. If present, then the
+    condition(s) are applied to \code{data} before resampling.}
 }}
 }
 \value{
-A vector or matrix with length/rows corresponding to the !NA cells of \code{x}
- and columns to layers of \code{data}.
+A vector or matrix with length/rows corresponding to the \code{!NA}
+  cells of \code{x} and columns to layers of \code{data}.
 }
 \description{
-This function is slow because of the call to \code{\link[raster]{resample}}.
- The result is also too smooth because of 'two' smoothing steps: (i) aggregation and
- (ii) 'bilinear' resampling method.
+This function is slow because of the call to
+  \code{\link[raster]{resample}}. The result is also too smooth because of
+  'two' smoothing steps: (i) aggregation and (ii) 'bilinear' resampling
+  method.
 }
 \seealso{
 \code{\link[raster]{extract}}

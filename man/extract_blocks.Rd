@@ -2,26 +2,33 @@
 % Please edit documentation in R/Spatial_Functions.R
 \name{extract_blocks}
 \alias{extract_blocks}
-\title{Extract values from Raster* objects that are covered by an extent rectangle.}
+\title{Extract values from \code{\link[raster:Raster-class]{raster::Raster}}
+objects that are covered by an extent rectangle.}
 \usage{
 extract_blocks(x, y, weights = FALSE)
 }
 \arguments{
 \item{x}{Raster* object}
 
-\item{y}{A matrix with four columns, xmin, xmax, ymin, ymax; each row represents the}
+\item{y}{A matrix with four columns: \var{\dQuote{xmin}},
+\var{\dQuote{xmax}}, \var{\dQuote{ymin}}, \var{\dQuote{ymax}}; each row
+represents the corners of an
+\code{\link[raster:Extent-class]{raster::Extent}} object.}
 
 \item{weights}{logical. If \code{TRUE} and \code{normalizeWeights=FALSE}, the function returns, for each polygon, a matrix with the cell values and the approximate fraction of each cell that is covered by the polygon(rounded to 1/100). If \code{TRUE} and  \code{normalizeWeights=TRUE} the weights are normalized such that they add up to one. The weights can be used for averaging; see examples. This option can be useful (but slow) if the polygons are small relative to the cells size of the Raster* object}
 }
 \value{
 A list with one item for each extent of \code{y}.
-  Each element is a matrix where each row corresponds to one of the cells of \code{x}
-  and where columns correspond to layers of \code{x}.
- If \code{weights} is \code{TRUE}, then an additional last column is added which
+  Each element is a matrix where each row corresponds to one of the cells
+  of \code{x} contained in a
+  \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}} and where
+  columns correspond to layers of \code{x}. If \code{weights} is
+  \code{TRUE}, then an additional last column is added which contains the
+  weights of the rows.
 }
 \description{
-A cell is covered if its center is inside the polygon (but see the weights option for
- considering partly covered cells).
+A cell is covered if its center is inside the polygon (but see the weights
+option for considering partly covered cells).
 }
 \seealso{
 \code{\link[raster]{extract}}

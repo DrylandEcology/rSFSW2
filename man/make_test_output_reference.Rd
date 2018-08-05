@@ -11,12 +11,13 @@ make_test_output_reference(dir_test, dir_ref = NULL, SFSW2_version = NULL)
 
 \item{dir_ref}{A character string. Path to folder with reference database.}
 
-\item{SFSW2_version}{A character string. The version ID of the simulation framework as
-reported by the file \code{DESCRIPTION}.}
+\item{SFSW2_version}{A character string. The version ID of the simulation
+framework as reported by the file \code{DESCRIPTION}.}
 }
 \value{
 A logical value. \code{TRUE} if successful.
 }
 \description{
-This function is called for its side effect of copying a file to the reference folder.
+This function is called for its side effect of copying a file to the
+reference folder.
 }

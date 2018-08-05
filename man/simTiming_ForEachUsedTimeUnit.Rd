@@ -9,20 +9,23 @@ simTiming_ForEachUsedTimeUnit(st, sim_tscales = c("daily", "weekly",
   latitude = 90, account_NorthSouth = TRUE)
 }
 \arguments{
-\item{st}{An object as returned from the function \code{\link{setup_simulation_time}}.}
+\item{st}{An object as returned from the function
+\code{\link{setup_simulation_time}}.}
 
-\item{sim_tscales}{A vector of character strings. One or multiple of \code{c("daily",
-"weekly", "monthly", "yearly")}.}
+\item{sim_tscales}{A vector of character strings. One or multiple of
+\code{c("daily", "weekly", "monthly", "yearly")}.}
 
 \item{use_doy_range}{A logical value. If \code{TRUE}, then the result is
-additional daily indices indicating whether the DOY is within the days indicated
-in the \code{doy_ranges}.}
+additional daily indices indicating whether the \var{DOY} is within the
+days indicated in the \code{doy_ranges}.}
 
-\item{doy_ranges}{A named list. Aggregation output variables and the daily \code{c(min, max)}
-of days you wish to calculate the aggregation over.}
+\item{doy_ranges}{A named list. Aggregation output variables and the daily
+\code{c(min, max)} of days you wish to calculate the aggregation over.}
 
-\item{latitude}{A numeric value. The latitude in decimal degrees for which a hemispheric
-adjustment is requested; however, the code extracts only the sign.}
+\item{latitude}{A numeric value. The latitude in decimal degrees for which a
+hemispheric adjustment is requested; however, the code extracts only the
+sign. Positive values are interpreted as from the northern hemisphere;
+negative latitudes as from the southern hemisphere.}
 
 \item{account_NorthSouth}{A logical value. If \code{TRUE}, then the result is
 corrected for locations on the southern vs. northern hemisphere.}

@@ -7,12 +7,12 @@ get_siteN <- function(x) if (is.null(dim(x))) 1L else dim(x)[1]
 get_layerN <- function(x) if (is.null(dim(x))) length(x) else dim(x)[2]
 
 layers_depth <- list(
-  c(5),
+  5,
   c(5, 10, 15, 30),
   c(5, 10, 30, 50),
   c(15, 50),
-  c(50),
-  c(200),
+  50,
+  200,
   c(5, NA, 30, 50),
   c(0, 5, 30, 50),
   c(-5, 5, 30),
@@ -63,39 +63,44 @@ test_that("Bare-soil evaporation coefficients", {
 
         if (anyNA(ld) || anyNA(sp) || anyNA(cp) || anyNA(md) ||
             Nl < length(ld) || Ns != get_siteN(cp) || Nl != get_layerN(cp) ||
-            any(md < 0) || any(ld <= 0) || any(sp < 0) || any(cp < 0) || any(sp > 1) ||
-            any(cp > 1) || any(sp + cp > 1)) {
+            any(md < 0) || any(ld <= 0) || any(sp < 0) || any(cp < 0) ||
+            any(sp > 1) || any(cp > 1) || any(sp + cp > 1)) {
 
           if (print_debug) {
             print(paste0(k1, k2, k3, ": ", info, ": expect error"))
           }
-          expect_error(calc_BareSoilEvaporationCoefficientsFromSoilTexture(ld, sp, cp, md),
+          expect_error(calc_BareSoilEvapCoefs(ld, sp, cp, md),
             info = info)
         } else {
-          bsevap_coeff <- calc_BareSoilEvaporationCoefficientsFromSoilTexture(ld, sp, cp, md)
+          bsevap_coeff <- calc_BareSoilEvapCoefs(ld, sp, cp, md)
 
           # Coeffs of each site sum to one
           expect_equal(apply(bsevap_coeff, 1, sum), rep(1, Ns), info = info)
           # Coeffs are between 0 and 1
-          expect_equal(as.vector(bsevap_coeff <= 1), rep(TRUE, Ns * Nl), info = info)
-          expect_equal(as.vector(bsevap_coeff >= 0), rep(TRUE, Ns * Nl), info = info)
+          expect_equal(as.vector(bsevap_coeff <= 1), rep(TRUE, Ns * Nl),
+            info = info)
+          expect_equal(as.vector(bsevap_coeff >= 0), rep(TRUE, Ns * Nl),
+            info = info)
           # If max is shallower than first layer, then first layer is 1
           if (ld[1] >= md) {
             expect_equal(bsevap_coeff[, 1], rep(1, Ns))
           }
           # Monotonic decrease with soil depth
           if (Ns * Nl > 1) {
-            deltas <- as.vector(apply(sweep(bsevap_coeff, 2, ld, FUN = "/"), 1, diff))
+            temp <- sweep(bsevap_coeff, 2, ld, FUN = "/")
+            deltas <- as.vector(apply(temp, 1, diff))
             expect_equal(deltas <= 0, rep(TRUE, Ns * Nl - 1L))
           }
-          # No bare-soil evaporation from depths greater than 'depth_max_bs_evap_cm'
+          # No bare-soil evaporation from depths greater than
+          # 'depth_max_bs_evap_cm'
           lmax <- max(1, min(Nl, findInterval(md, c(0, ld))))
-          expect_equal(apply(bsevap_coeff, 1, function(x) sum(x > 0)) <= rep(lmax, Ns),
+          expect_equal(apply(bsevap_coeff, 1, function(x)
+            sum(x > 0)) <= rep(lmax, Ns),
             rep(TRUE, Ns), info = info)
 
           if (print_debug) {
-            print(paste0(k1, k2, k3, ": ", info, ": bsevap = ", paste(bsevap_coeff,
-              collapse = ":")))
+            print(paste0(k1, k2, k3, ": ", info, ": bsevap = ",
+              paste(bsevap_coeff, collapse = ":")))
           }
         }
 

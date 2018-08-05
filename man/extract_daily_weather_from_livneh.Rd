@@ -15,18 +15,19 @@ extract_daily_weather_from_livneh(dir_data, dir_temp, site_ids, site_ids_by_dbW,
 
 \item{site_ids}{the sites to gather weather data for}
 
-\item{coords}{the coordinates for each site in WGS84 format}
+\item{coords}{the coordinates for each site in \var{WGS84} format}
 
 \item{start_year}{the start year in the sequence of data to gather}
 
 \item{end_year}{the end year in the sequence of data to gather}
 
-\item{f_check}{flag to check for errors in file structure - TRUE
-for check else no integrity check}
+\item{f_check}{flag to check for errors in file structure -
+\code{TRUE}
+                          for check else no integrity check}
 
 \item{backup}{flag to create a backup of the weather data prior
 to insertion in the database
-(can create large files) - TRUE for backup
+(can create large files) - \code{TRUE} for backup
 else no backup}
 
 \item{comp_type}{the compression type of the data to
@@ -34,7 +35,7 @@ be inserted into the database}
 
 \item{run_parallel}{whether the extraction should be ran in parallel}
 
-\item{num_cores}{the num of cores to use if parallel}
+\item{num_cores}{the number of cores to use if parallel}
 }
 \description{
 Extracts daily gridded weather data, including precipitation,
@@ -46,5 +47,5 @@ Extracts daily gridded weather data, including precipitation,
 \href{http://www.esrl.noaa.gov/psd/data/gridded/data.livneh.html}{Livneh Weather Website}
 }
 \author{
-Charles Duso    <cd622@nau.edu>
+Charles Duso    \email{cd622@nau.edu}
 }

@@ -1,10 +1,15 @@
-# Set R_TESTS to empty string because tests work with devtools::test() and error out with
-# devtools::check(). See https://github.com/hadley/testthat/issues/86 and
-# https://github.com/hadley/testthat/issues/144
-# Remove following line when that issue in R is fixed.
-Sys.setenv("R_TESTS" = "")
-
 library("testthat")
 library("rSFSW2")
 
-test_check("rSFSW2", reporter = SummaryReporter)
+# Make sure that environmental variable \code{NOT_CRAN} is set to either
+# \var{\dQuote{true}} or \var{\dQuote{false}}
+if (!identical(tolower(Sys.getenv("NOT_CRAN")), "false")) {
+  # \code{testthat::skip_on_cran()} requires a value of \var{\dQuote{true}}
+  # for the environmental variable \code{NOT_CRAN} to not skip.
+  # However, only \pkg{devtools} sets \code{NOT_CRAN}. For instance,
+  # `R CMD check *tar.gz` without `--as-cran`) does not set \code{NOT_CRAN},
+  # thus, \code{testthat::skip_on_cran()} skips even though unintended
+  Sys.setenv(NOT_CRAN = "true")
+}
+
+test_check("rSFSW2", reporter = ListReporter, encoding = "UTF-8")

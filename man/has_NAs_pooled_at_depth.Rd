@@ -10,12 +10,12 @@ has_NAs_pooled_at_depth(x)
 \item{x}{A data.frame, matrix, or array with at least two dimensions.}
 }
 \value{
-A logical vector of length equal to the first dimension of \code{x} with
- \code{TRUE} if there are n[k] \code{NA}s in the k-th row and they occupy the k
- rightmost columns.
+A logical vector of length equal to the first dimension of \code{x}
+  with \code{TRUE} if there are n[k] \code{NA}s in the k-th row and they
+  occupy the k rightmost columns.
 }
 \description{
-Checks that NAs are present and that NAs occur only grouped together
-in the right-most columns per row (e.g., deepest soil layers if columns represent
+Checks that NAs are present and that NAs occur only grouped together in the
+right-most columns per row (e.g., deepest soil layers if columns represent
 soil layers and rows represent sites).
 }

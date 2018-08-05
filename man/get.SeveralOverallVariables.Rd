@@ -2,12 +2,14 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{get.SeveralOverallVariables}
 \alias{get.SeveralOverallVariables}
-\title{Get data of variables in the overall aggregation table for one of the climCat rows (combining 'Current' and ensembles)}
+\title{Get data of variables in the overall aggregation table for one of the
+\code{climCat} rows (combining 'Current' and ensembles)}
 \usage{
 get.SeveralOverallVariables(fdbrSFSW2, fdbrSFSW2ens, climCat, responseName,
   MeanOrSD = "Mean", i_climCat = 1, whereClause = NULL,
   climate.ambient = "Current")
 }
 \description{
-Get data of variables in the overall aggregation table for one of the climCat rows (combining 'Current' and ensembles)
+Get data of variables in the overall aggregation table for one of the
+\code{climCat} rows (combining 'Current' and ensembles)
 }

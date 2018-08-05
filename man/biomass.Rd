@@ -11,7 +11,8 @@ Shrub_ANPP(MAP_mm)
 Grass_ANPP(MAP_mm)
 }
 \arguments{
-\item{MAP_mm}{A numeric vector. Mean annual precipitation in millimeters (mm).}
+\item{MAP_mm}{A numeric vector. Mean annual precipitation in
+millimeters (mm).}
 }
 \description{
 Biomass equations
@@ -21,5 +22,6 @@ Estimate shrub biomass density from mean annual precipitation
 Estimate grass biomass density from mean annual precipitation
 }
 \references{
-Milchunas & Lauenroth 1993 (Fig. 2): Y [g/m2/yr] = c1 * MAP [mm/yr] + c2
+Milchunas & Lauenroth 1993 (Fig. 2):
+  Y [g/m2/yr] = c1 * MAP [mm/yr] + c2
 }

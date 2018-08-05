@@ -2,7 +2,8 @@
 % Please edit documentation in R/Mathematical_Functions.R
 \name{check_monotonic_increase}
 \alias{check_monotonic_increase}
-\title{Check that values in matrix-like object are (strictly) monotonically increasing/decreasing}
+\title{Check that values in matrix-like object are (strictly) monotonically
+increasing/decreasing}
 \usage{
 check_monotonic_increase(x, MARGIN = 1, increase = TRUE, strictly = FALSE,
   fail = FALSE, replacement = NA, na.rm = FALSE)
@@ -10,25 +11,29 @@ check_monotonic_increase(x, MARGIN = 1, increase = TRUE, strictly = FALSE,
 \arguments{
 \item{x}{A numeric matrix like object.}
 
-\item{MARGIN}{An integer value giving the subscripts over which the monotonicity will
-be checked; 1 indicates rows, 2 indicates columns.}
+\item{MARGIN}{An integer value giving the subscripts over which the
+monotonicity will be checked; 1 indicates rows, 2 indicates columns.}
 
-\item{increase}{A logical value. If \code{TRUE}, check monotic increase; if
+\item{increase}{A logical value. If \code{TRUE}, check monotonic increase; if
 \code{FALSE}, check monotonic decrease.}
 
-\item{strictly}{A logical value. If \code{TRUE}, check for a strict monotic pattern.}
+\item{strictly}{A logical value. If \code{TRUE}, check for a strict monotonic
+pattern.}
 
-\item{fail}{A logical value. If \code{TRUE}, throw error if monotic check fails.}
+\item{fail}{A logical value. If \code{TRUE}, throw error if monotonic check
+fails.}
 
-\item{replacement}{A value that replaces non-(strictly) monotically increasing/decreasing
-values if \code{fail} is \code{FALSE}.}
+\item{replacement}{A value that replaces non-(strictly) monotonically
+increasing/decreasing values if \code{fail} is \code{FALSE}.}
 
-\item{na.rm}{A logical value. If \code{TRUE}, then ignore \code{NA}s; if \code{FALSE},
-then fail if \code{strictly} or replace with \code{replacement}.}
+\item{na.rm}{A logical value. If \code{TRUE}, then ignore \code{NA}s; if
+\code{FALSE}, then fail if \code{strictly} or replace with
+\code{replacement}.}
 }
 \value{
 The updated \code{x}.
 }
 \description{
-Check that values in matrix-like object are (strictly) monotonically increasing/decreasing
+Check that values in matrix-like object are (strictly) monotonically
+increasing/decreasing
 }

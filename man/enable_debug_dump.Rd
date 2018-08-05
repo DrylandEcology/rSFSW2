@@ -7,16 +7,19 @@
 enable_debug_dump(dir_out = ".", file_tag = "debug")
 }
 \arguments{
-\item{dir_out}{A character string. The path to where the 'RData' file is dumped.}
+\item{dir_out}{A character string. The path to where the \var{RData} file is
+dumped.}
 
-\item{file_tag}{A character string. Will become final part of the 'RData' file name.}
+\item{file_tag}{A character string. Will become final part of the \var{RData}
+file name.}
 }
 \value{
 Expression.
 }
 \description{
-Create an expression for functions 'f' to set on.exit() such that all objects from the
-evaluation frame stack of function 'f' are collected and stored in a 'RData' file
+Create an expression for functions 'f' to set \code{on.exit()} such that all
+objects from the evaluation frame stack of function 'f' are collected and
+stored in a \var{RData} file
 }
 \examples{
 \dontrun{
@@ -31,10 +34,11 @@ f2 <- function(x, cause_error = FALSE) {
   res <- x + 100
   if (cause_error) stop("Create error and force debug dumping")
 
-  # Remove debug dumping but not other 'on.exit' expressions before returning without error
+  # Remove debug dumping but not other 'on.exit' expressions before
+  # returning without error
   oe <- sys.on.exit()
   oe <- remove_from_onexit_expression(oe, tag = "enable_debug_dump")
-  on.exit(eval(oe), add = FALSE)
+  do.call(on.exit, args = c(list(oe), add = FALSE))
   # Add to 'on.exit'
   on.exit(print(paste("exit2 from", match.call()[[1]])), add = TRUE)
   res
@@ -58,5 +62,6 @@ unlink("last.dump.f2.RData")
 
 }
 \seealso{
-\code{\link{set_options_warn_error}} with \code{debug.dump.objects = TRUE}
+\code{\link{set_options_warn_error}} with \code{debug.dump.objects =
+  TRUE}
 }

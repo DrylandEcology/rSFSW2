@@ -2,10 +2,10 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{dbOutput_ListOutputTables}
 \alias{dbOutput_ListOutputTables}
-\title{List the available output tables of dbOutput}
+\title{List the available output tables of \var{\sQuote{dbOutput}}}
 \usage{
 dbOutput_ListOutputTables(con = NULL, dbname = NULL)
 }
 \description{
-List the available output tables of dbOutput
+List the available output tables of \var{\sQuote{dbOutput}}
 }

@@ -4,20 +4,23 @@
 \alias{update_runIDs_sites_by_dbW}
 \title{Lookup IDs of sites as found in a weather database}
 \usage{
-update_runIDs_sites_by_dbW(sim_size, label_WeatherData, fdbWeather = NULL)
+update_runIDs_sites_by_dbW(sim_size, label_WeatherData, fdbWeather = NULL,
+  verbose = FALSE)
 }
 \arguments{
 \item{sim_size}{A list with at least one named element \code{runIDs_sites}.}
 
-\item{label_WeatherData}{A vector of character strings. The names of the weather data.}
+\item{label_WeatherData}{A vector of character strings. The names of the
+weather data.}
 
-\item{fdbWeather}{A character string. The path to the weather database. This is only used if
-there is no current valid connection.}
+\item{fdbWeather}{A character string. The path to the weather database. This
+is only used if there is no current valid connection.}
 }
 \value{
-The list \code{sim_size} with an updated respectively newly added named element
- \code{runIDs_sites_by_dbW}. The element \code{runIDs_sites_by_dbW} is only added if
- there is a current valid connection to a weather database or if one can be established.
+The list \code{sim_size} with an updated respectively newly added
+  named element \code{runIDs_sites_by_dbW}. The element
+  \code{runIDs_sites_by_dbW} is only added if there is a current valid
+  connection to a weather database or if one can be established.
 }
 \description{
 Lookup IDs of sites as found in a weather database

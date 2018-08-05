@@ -14,11 +14,15 @@ vpd(Tmin, Tmax, RHmean = NULL)
 \item{RHmean}{A numeric vector of daily mean relative humidity (percentage)}
 }
 \value{
-A numeric vector of length \code{T} of vapor pressure deficit (kPa)
+A numeric vector of length \code{T} of vapor pressure deficit
+  (\var{kPa})
 }
 \description{
 Vapor pressure deficit
 }
 \references{
-Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
+Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of
+  Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy
+  of Standardized Penman-Monteith Equation in a Humid Climate Journal of
+  Irrigation and Drainage Engineering 131:228-237.
 }

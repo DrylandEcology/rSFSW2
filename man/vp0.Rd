@@ -4,18 +4,21 @@
 \alias{vp0}
 \title{Saturation vapor pressure}
 \usage{
-vp0(T)
+vp0(Temp)
 }
 \arguments{
-\item{T}{A numeric vector of temperature(s) (deg C)}
+\item{Temp}{A numeric vector of temperature(s) (deg C)}
 }
 \value{
-A numeric vector of length \code{T} of saturation vapor pressure (kPa) at
-   temperature T
+A numeric vector of length \code{T} of saturation vapor pressure
+  (\var{kPa}) at temperature T
 }
 \description{
 Saturation vapor pressure
 }
 \references{
-Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy of Standardized Penman-Monteith Equation in a Humid Climate Journal of Irrigation and Drainage Engineering 131:228-237.
+Yoder, R. E., L. O. Odhiambo, and W. C. Wright. 2005. Effects of
+  Vapor-Pressure Deficit and Net-Irradiance Calculation Methods on Accuracy
+  of Standardized Penman-Monteith Equation in a Humid Climate Journal of
+  Irrigation and Drainage Engineering 131:228-237.
 }

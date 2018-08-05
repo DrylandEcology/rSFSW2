@@ -2,7 +2,7 @@
 % Please edit documentation in R/Parallel.R
 \name{mpi_work}
 \alias{mpi_work}
-\title{Rmpi work function for calling \code{do_OneSite}}
+\title{\pkg{Rmpi} work function for calling \code{do_OneSite}}
 \usage{
 mpi_work(verbose = FALSE)
 }
@@ -10,12 +10,12 @@ mpi_work(verbose = FALSE)
 \item{verbose}{A logical value.}
 }
 \description{
-Rmpi work function for calling \code{do_OneSite}
+\pkg{Rmpi} work function for calling \code{do_OneSite}
 }
 \section{Notes}{
-
- If an error occurs, then the worker will likely not report back to master because
- it hangs in miscommunication and remains idle (check activity, e.g., with \code{top}).
+ If an error occurs, then the worker will likely not report
+  back to master because it hangs in miscommunication and remains idle
+  (check activity, e.g., with \code{top}).
 }
 
 \section{Details}{
@@ -26,12 +26,14 @@ Message tags sent by this function from workers to master: \itemize{
  \item 3 = worker is exiting
  \item 4 = worker failed with task
 }
-Message tags from master which this function can receive and understand: \itemize{
+Message tags from master which this function can receive and understand:
+\itemize{
  \item 1 = this communication is a new task
  \item 2 = tells worker to shut down because all tasks are completed
 }
 }
 
 \references{
-based on the example file \href{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}{'task_pull.R' by ACMMaC}
+based on the example file
+  \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}
 }
