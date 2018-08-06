@@ -1,19 +1,20 @@
 Package: rSFSW2
 Title: Simulation Framework for SOILWAT2
-Version: 2.7.4
-Date: 2018-05-02
+Version: 3.0.0
+Date: 2018-08-04
 Authors@R: c(
   person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@yale.edu",
     comment = c(ORCID = "0000-0001-9973-2065"), role = c("aut", "cre")),
   person("Caitlin", "Andrews", role = "ctb"),
   person("Zach", "Kramer", role = "ctb"),
+  person("Charlie", "Duso", role = "ctb"),
   person("Ryan", "Murphy", role = "ctb"))
 Description: Setting up, carrying out, and analyzing ecosystem water balance
     simulation experiments with SOILWAT2.
 Depends:
     R (>= 3.3.0)
 Imports:
-    rSOILWAT2 (>= 2.3.0),
+    rSOILWAT2 (>= 2.3.2),
     RSQLite (>= 2.1.1),
     DBI (>= 1.0),
     Rcpp (>= 0.12.12),
@@ -51,7 +52,7 @@ LazyData: true
 ByteCompile: true
 NeedsCompilation: yes
 License: GPL-3 + file LICENSE
-URL: https://github.com/Burke-Lauenroth-Lab/rSFSW2
-BugReports: https://github.com/Burke-Lauenroth-Lab/rSFSW2/issues
+URL: https://github.com/DrylandEcology/rSFSW2
+BugReports: https://github.com/DrylandEcology/rSFSW2/issues
 RoxygenNote: 6.0.1
 VignetteBuilder: knitr
