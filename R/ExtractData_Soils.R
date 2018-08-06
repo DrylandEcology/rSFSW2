@@ -263,7 +263,7 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
   MMC
 }
 
-#' @description Extracts all .tif files' data (clay, sand, bd) in dir_ex_soil to an enviornment. 
+#' @description Extracts all .tif files' data (at the moment clay, sand, bd) in dir_ex_soil to an enviornment. 
 #' @param MMC An enviornment containing the structure for extracted data to be
 #'   extracted to
 #' @param sim_size An environment containing information on the runs.
@@ -298,7 +298,7 @@ do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
   
   show_site_info <- verbose
   soil_layer <- 1
-  dir.ex.gridded <- file.path(dir_ex_soil, "NRCS", "GriddedGlobalV5")
+  dir.ex.gridded <- file.path(dir_ex_soil, "Isric", "GriddedGlobalV5")
   file_in_gridded <- list.files(dir.ex.gridded);
   MMC[["source"]] <- "GriddedFROM250m"
   todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "GriddedFROM250m"
