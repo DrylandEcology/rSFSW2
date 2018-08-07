@@ -81,7 +81,7 @@ opt_verbosity <- list(
   # Prints status of progress to standard output
   verbose = TRUE, #interactive(),
   # Prints details of progress to standard output
-  print.debug = FALSE, #interactive(),
+  print.debug = TRUE, #interactive(),
   # Calculates and prints estimated time of job completion at end of each
   #   call of 'do_OneSite' (a somewhat expensive operation)
   print.eta = interactive(),

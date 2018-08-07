@@ -664,7 +664,7 @@ opt_agg <- list(
     # Do [no] aggregate soil layers
     #   - TRUE, aggregate into 1-4 layers for mean/stats::sd
     #   - FALSE, output values for every simulated soil layer
-    do = TRUE,
+    do = FALSE,
     # Depth of aggregated soil layers
     #   Options: depth in centimeters or
     #   - NULL is interpreted as deepest soil layer (not available for first)

@@ -522,8 +522,8 @@ compare_test_output <- function(dir_test, dir_ref = NULL) {
   }
 
   #---Compare
-  # c(diff_msgs,
-  #   compare_two_dbOutput(dbOut1 = file.path(dir_ref, fname_refDB),
-  #     dbOut2 = file.path(dir_test, "4_Simulation", "dbOutput.sqlite3"),
-  #     verbose = FALSE))
+  c(diff_msgs,
+    compare_two_dbOutput(dbOut1 = file.path(dir_ref, fname_refDB),
+      dbOut2 = file.path(dir_test, "4_Simulation", "dbOutput.sqlite3"),
+      verbose = FALSE))
 }

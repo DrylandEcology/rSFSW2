@@ -113,7 +113,6 @@ SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
 ################################################################################
 #------ 4) ATTEMPT TO CHECK INPUT DATA -----------------------------------------
-actions[["check_inputs"]] = FALSE
 if (isTRUE(actions[["check_inputs"]])) {
 
   temp <- check_rSFSW2_project_input_data(SFSW2_prj_meta, SFSW2_prj_inputs,
