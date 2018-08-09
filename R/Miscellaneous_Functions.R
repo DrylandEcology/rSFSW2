@@ -311,18 +311,64 @@ dir_safe_create <- function(paths, showWarnings = FALSE, recursive = TRUE,
   invisible(temp)
 }
 
+future_time_window_aggregation <- function(sim_time){
+  # Add future time windows for aggregation of simulation output
+  sim_time[["agg_years"]] <- c(sim_time[["agg_years.current1"]],
+                               future = apply(future_yrs, 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
+  )
+  
+  # Time windows of current and future simulation periods
+  sim_time[["sim_windows"]] <- c(
+    current = list(sim_time[["simstartyr"]]:sim_time[["endyr"]]),
+    future = apply(future_yrs, 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
+  )
+}
 
-#' Calculate variables required to estimate percent C4 species in North America
-#'
-#' @return A named numeric vector of length 6.
-#' @references Teeri J.A., Stowe L.G. (1976) Climatic patterns and the
-#'   distribution of C4 grasses in North America. Oecologia, 23, 1-12.
-sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
+
+degree_days <- function(temp_C, base_C = 0) {
+  res <- temp_C - base_C
+  res[res < 0] <- 0
+
+  res
+}
+
+soil_status <- function(..., swp_crit, time_N, is_dry = TRUE) {
+  swp <- list(...)
+  if (is.null(names(swp)))
+    names(swp) <- paste0("V", seq_along(swp))
+
+  out <- list()
+  mat_crits <- list()
+  ncols <- vapply(swp, function(x) dim(x)[2], FUN.VALUE = NA_real_)
+
+print("'soil_status' needs fixing")
+#TODO(drs)
+#  for (k in seq_along(swp)) {
+#    if (k > 1 &&
+#    mat_crit <- array(swp_crit, dim = c(length(swp_crit), time_N))
+#
+#
+#  mat_crit1 <- matrix(swp_crit, nrow = time_N, ncol = length(swp_crit), byrow = TRUE)
+
+  if (is_dry) {
+    lapply(swp, function(x) x < mat_crit)
+  } else {
+    lapply(swp, function(x) x >= mat_crit)
+  }
+}
+
+sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2, return_yearly = FALSE) {
+  #Variables to estimate percent C4 species in North America: Teeri JA, Stowe LG (1976) Climatic patterns and the distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 
   temp7 <- simTime2$month_ForEachUsedDay_NSadj == 7
   Month7th_MinTemp_C <- tapply(dailyTempMin[temp7],
     simTime2$year_ForEachUsedDay_NSadj[temp7], min)
   FrostFree_Days <- tapply(dailyTempMin, simTime2$year_ForEachUsedDay_NSadj,
+    function(x) {
+      temp <- rle(x > 0)
+      if (any(temp$values)) max(temp$lengths[temp$values], na.rm = TRUE) else 0
+    })
+  LengthFreezeFreeGrowingPeriod_Days <- tapply(dailyTempMin, simTime2$year_ForEachUsedDay_NSadj,
     function(x) {
       temp <- rle(x > 0)
       if (any(temp$values)) max(temp$lengths[temp$values], na.rm = TRUE) else 0
@@ -336,13 +382,37 @@ sw_dailyC4_TempVar <- function(dailyTempMin, dailyTempMean, simTime2) {
 
   # if southern Hemisphere, then 7th month of last year is not included
   nyrs <- seq_along(Month7th_MinTemp_C)
+  ydat <- cbind(Month7th_MinTemp_C[nyrs],
+                LengthFreezeFreeGrowingPeriod_Days[nyrs],
+                DegreeDaysAbove65F_DaysC[nyrs])
+  dimnames(ydat) <- list(NULL,
+                        c("Month7th_NSadj_MinTemp_C",
+                          "LengthFreezeFreeGrowingPeriod_NSadj_Days",
+                          "DegreeDaysAbove65F_NSadj_DaysC")
+                        )
   temp <- cbind(Month7th_MinTemp_C[nyrs], FrostFree_Days[nyrs],
     DegreeDaysAbove65F_DaysC[nyrs])
   res <- c(apply(temp, 2, mean), apply(temp, 2, stats::sd))
   temp <- c("Month7th_NSadj_MinTemp_C",
     "LengthFreezeFreeGrowingPeriod_NSadj_Days",
     "DegreeDaysAbove65F_NSadj_DaysC")
-  names(res) <- c(temp, paste0(temp, ".sd"))
+  if (return_yearly) {
+    yrs_have <- as.integer(names(Month7th_MinTemp_C[nyrs]))
+
+    if (all(yrs_have == simTime$useyrs)) {
+      res <- cbind(Years = yrs_have, ydat)
+
+    } else {
+      res <- matrix(NA, nrow = simTime$no.useyr, ncol = 4,
+                    dimnames = list(NULL, c("Years", colnames(ydat))))
+      res[, "Years"] <- simTime$useyrs
+      res[, -1] <- ydat[match(simTime$useyrs, yrs_have), ]
+    }
+
+  } else {
+    res <- c(apply(ydat, 2, mean), apply(ydat, 2, sd))
+    names(res) <- c(colnames(ydat), paste0(colnames(ydat), ".sd"))
+  }
 
   res
 }
@@ -1128,6 +1198,16 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation,
   }
 
   SWRunInformation
+}
+
+season_diff_NS <- function(simTime2, t_unit = "day") {
+  switch(t_unit,
+    day = ,
+    days = simTime2$doy_ForEachUsedDay_NSadj[1] - simTime2$doy_ForEachUsedDay[1],
+    month = ,
+    months = simTime2$month_ForEachUsedMonth_NSadj[1] - simTime2$month_ForEachUsedMonth[1],
+
+    stop("'season_diff_NS': unknown time unit"))
 }
 
 
