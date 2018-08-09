@@ -393,6 +393,20 @@ sim_time <- list(
   )
 )
 
+sim_time <- c(
+  sim_time,
+
+  # Named list of current time windows to aggregate over
+  # Note: add multiple current time windows by adding named elements 'currentX' with
+  #   X a whole positive number
+  # Note: future time windows are defined by elements of the list 'future_yrs' and added
+  #   to 'agg_years' by the code via function 'setup_simulation_time'
+  agg_years = c(
+    current1 = list(sim_time[["startyr"]]:sim_time[["endyr"]])
+#   current2 = list((sim_time[["endyr"]] - 10):(sim_time[["endyr"]] + 10))
+  )
+)
+
 
 #------ Requested climate conditions
 req_scens <- list(
@@ -543,6 +557,21 @@ req_scens <- list(
 #------ Requested output
 # Turn aggregation for variable groups on (1) or off (0), don't delete any names
 req_out <- list(
+  # Functions which aggregate output across years
+  #  don't delete names, only set \code{TRUE}/\code{FALSE}
+  agg_funs = list(
+    mean = TRUE,
+    SD  = TRUE,
+    quantile = TRUE,
+    median = TRUE,
+    mad = TRUE,
+    yearly = TRUE
+  ),
+  agg_fun_options = list(
+    quantile = list(probs = c(0, 0.025, 0.5, 0.975, 1))
+  ),
+
+  # Turn aggregation for variable groups on (1) or off (0), don't delete any names
   # Overall aggregated output table
   overall_out = c(
   #---Aggregation: SOILWAT2 inputs
