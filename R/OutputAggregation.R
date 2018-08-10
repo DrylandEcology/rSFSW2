@@ -1,4 +1,3 @@
-print('Ran OutputAggregation file\n')
 #---------------------------------------------------------------------------------------#
 
 #------CODE developed and written by
@@ -203,6 +202,7 @@ setup_aggregations <- function(SFSW2_prj_meta) {
   agg_funs <- SFSW2_prj_meta[["req_out"]][["agg_funs"]]
   agg_fun_options <- SFSW2_prj_meta[["req_out"]][["agg_fun_options"]]
   agg_years <- SFSW2_prj_meta[["sim_time"]][["agg_years"]]
+  tol <- 1e2 * SFSW2_prj_meta[["tol"]]
 
   aggs <- list()
 
@@ -239,8 +239,8 @@ setup_aggregations <- function(SFSW2_prj_meta) {
       agg_fun_types[itemp[i50]] <- "central"
     }
   }
-
-  aggs[["agg_fun_defs"]] <- data.frame(id = seq_len(agg_fun_names),
+  print(paste("length(agg_fun_names): ", length(agg_fun_names)))
+  aggs[["agg_fun_defs"]] <- data.frame(id = seq(length(agg_fun_names)),
     agg_fun = agg_fun_names, type = agg_fun_types)
 
   # Prepare aggregation functions
@@ -265,7 +265,7 @@ setup_aggregations <- function(SFSW2_prj_meta) {
   # 'aggregation_timewindows' of outputDB
   aggs[["agg_windows"]] <- as.data.frame(matrix(NA, nrow = length(agg_years), ncol = 4,
     dimnames = list(NULL, c("id", "label", "agg_start", "agg_end"))))
-  aggs[["agg_windows"]][, "id"] <- seq_len(agg_years)
+  aggs[["agg_windows"]][, "id"] <- seq(length(agg_years))
   aggs[["agg_windows"]][, "label"] <- names(agg_years)
   aggs[["agg_windows"]][, c("agg_start", "agg_end")] <- t(sapply(agg_years, function(x)
     range(x)))

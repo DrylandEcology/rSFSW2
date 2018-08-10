@@ -122,7 +122,6 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
     !is.null(sim_time[["simstartyr"]]),
     !is.null(sim_time[["startyr"]]),
     !is.null(sim_time[["endyr"]]))
-
   if (is.matrix(sim_time[["future_yrs"]])) {
     stopifnot(dim(sim_time[["future_yrs"]])[2] == 3)
 

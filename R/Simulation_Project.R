@@ -209,9 +209,8 @@ update_project_paths <- function(SFSW2_prj_meta, fmetar) {
     SFSW2_prj_meta[["opt_platform"]][[k]] <-
       SFSW2_prj_meta2[["opt_platform"]][[k]]
   }
-
-
-
+  SFSW2_prj_meta[["aggs"]] <- setup_aggregations(SFSW2_prj_meta)
+  
   SFSW2_prj_meta
 }
 
@@ -292,6 +291,8 @@ init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE,
 
     # 1c) Load and prepare project description
     SFSW2_prj_meta <- load_project_description(fmetar)
+    
+    
 
     #--- Update project paths and file names
     dir_safe_create(SFSW2_prj_meta[["project_paths"]],
@@ -302,7 +303,7 @@ init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE,
       SFSW2_prj_meta[["project_paths"]], SFSW2_prj_meta[["fnames_in"]])
 
     init_timer(SFSW2_prj_meta[["fnames_out"]][["timerfile"]])
-
+    print(paste("sim_time[[agg_years]] before: ", SFSW2_prj_meta[["sim_time"]][["agg_years"]]))
     #--- Update simulation time
     SFSW2_prj_meta[["sim_time"]] <- setup_simulation_time(
       SFSW2_prj_meta[["sim_time"]], add_st2 = TRUE,
@@ -311,6 +312,10 @@ init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE,
       doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]]
     )
 
+    print(paste("sim_time[[agg_years]] after: ", SFSW2_prj_meta[["sim_time"]][["agg_years"]]))
+    #--- Functionality to aggregate simulation output
+    SFSW2_prj_meta[["aggs"]] <- setup_aggregations(SFSW2_prj_meta)
+    
     #--- Determine scenario names
     SFSW2_prj_meta[["sim_scens"]] <- setup_scenarios(
       SFSW2_prj_meta[["req_scens"]],
@@ -874,7 +879,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, # noli
 
   #------ CREATE OUTPUT DATABASE (IF NOT ALREADY EXISTING)
   if (todo_intracker(SFSW2_prj_meta, "dbOut", "prepared")) {
-
+    print(paste("temp error: ", temp))
     temp <- try(make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
       verbose = opt_verbosity[["verbose"]]),
       silent = !opt_verbosity[["print.debug"]])
