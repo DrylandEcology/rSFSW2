@@ -254,6 +254,7 @@ setup_aggregations <- function(SFSW2_prj_meta) {
   if (any(agg_years_bad))
     stop("Aggregation time windows must be continuous sequences of years; ",
         "check: ", paste0(names(agg_years)[agg_years_bad], collapse = ", "))
+  SFSW2_prj_meta[["sim_time"]][["sim_windows"]] <- future_time_window_aggregation(SFSW2_prj_meta[["sim_time"]])
   agg_years_bad <- sapply(agg_years, function(x)
     all(sapply(SFSW2_prj_meta[["sim_time"]][["sim_windows"]], function(sw)
     length(setdiff(x, sw)) > 0)))
