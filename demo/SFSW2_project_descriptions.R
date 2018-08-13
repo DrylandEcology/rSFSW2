@@ -71,7 +71,7 @@ project_paths <- list(
 
   # Path from where external data are extraced
   dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
-    file.path("/media/natemccauslin/SOILWAT_DATA/GIS/Data")
+    file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
   } else if (identical(opt_platform[["host"]], "hpc")) {
     file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
   },
@@ -89,7 +89,7 @@ project_paths <- list(
 
 #------ Base names or full names of input files
 fnames_in <- list(
-  fmaster = "SWRuns_InputMaster_Test_v11.csv",
+  fmaster = "SWRuns_InputMaster_YOURPROJECT_v11.csv",
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
   ftreatDesign = "SWRuns_InputData_TreatmentDesign_v16.csv",
