@@ -54,10 +54,10 @@ project_paths <- list(
 
   # Path to where large outputs are saved to disk
   dir_big = dir_big <- if (identical(opt_platform[["host"]], "local")) {
-    dir_prj
-  } else if (identical(opt_platform[["host"]], "hpc")) {
-    dir_prj
-  },
+      dir_prj
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      dir_prj
+    },
   # Path to where rSOILWAT2 objects are saved to disk
   #   if saveRsoilwatInput and/or saveRsoilwatOutput
   dir_out_sw = file.path(dir_big, "3_Runs"),
@@ -357,10 +357,10 @@ in_space <- list(
   sim_res = if (scorp == "cell") c(1e4, 1e4) else NA,
   # Coordinate reference system (CRS)
   sim_crs = if (scorp == "cell") {
-    "+init=epsg:5072" # NAD83(HARN) / Conus Albers
-  } else {
-    "+init=epsg:4326" # WGS84
-  }
+      "+init=epsg:5072" # NAD83(HARN) / Conus Albers
+    } else {
+      "+init=epsg:4326" # WGS84
+    }
 )
 
 

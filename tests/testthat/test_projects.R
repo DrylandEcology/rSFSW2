@@ -29,7 +29,6 @@ test_that("Test projects", {
         write_report_to_disk = FALSE, verbose = FALSE)
       , silent = FALSE)
   )
-  
 
   # Gather information in printable formatting
   info_res <- paste(names(tp[["res"]]), "=", format(tp[["res"]]),

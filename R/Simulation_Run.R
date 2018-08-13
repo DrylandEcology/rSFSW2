@@ -826,6 +826,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       icol_excl <- which(soil_cols %in% "soilTemp_c")
       icols <- seq_along(soil_cols)[-icol_excl]
       bad_data <- !check_soil_data(soildat[, -icol_excl, drop = FALSE])
+      
       if (any(bad_data)) for (l in ld) {
         lbad <- bad_data[l, ]
         if (any(lbad)) {
