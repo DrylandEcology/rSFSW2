@@ -1344,6 +1344,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           Shrubs_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubs_Fraction,
           fix_forbs = any(create_treatments == "PotentialNaturalVegetation_CompositionForb_Fraction"),
           Forbs_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionForb_Fraction,
+          fix_trees = any(create_treatments == "PotentialNaturalVegetation_CompositionTrees_Fraction"),
+          Trees_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionTrees_Fraction,
           fix_BareGround = any(create_treatments == "PotentialNaturalVegetation_CompositionBareGround_Fraction"),
           BareGround_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionBareGround_Fraction))
 

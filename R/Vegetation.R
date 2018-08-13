@@ -79,13 +79,14 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
   fix_C3grasses = FALSE, C3_Fraction = NA,
   fix_shrubs = FALSE, Shrubs_Fraction = NA,
   fix_forbs = FALSE, Forbs_Fraction = NA,
+  fix_trees = FALSE, Trees_Fraction = 0,
   fix_BareGround = TRUE, BareGround_Fraction = 0) {
 
   f.digits <- 3
   tolerance <- 1.1 * 10 ^ -f.digits
 
   # Get the user specified fractions, if column is false set to NA
-  tree.fraction <- 0
+  tree.fraction <- Trees_Fraction
   forb.fraction <- 0
   bareGround.fraction <- 0
   # Input cover fraction values:
