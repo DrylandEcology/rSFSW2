@@ -155,64 +155,64 @@ opt_input <- list(
 
   # Request data from datasets ('external' to a rSFSW2-project)
   req_data = c(
-    # Daily weather data for current conditions
-    #   - Maurer et al. 2002: 1/8-degree res. for 1949-2010; data expected at file.path(
-    #     project_paths[["dir_ex_weather"]], "Maurer+_2002updated", "DAILY_FORCINGS")
-    "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,
-    #   - Thornton et al. 1997: 1-km res. for 1980-2016; data expected at file.path(
-    #     project_paths[["dir_ex_weather"]], "DayMet_NorthAmerica",
-    #     "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
-    "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,
-    #   - McKenney et al. 2011: 10-km res. for 1950-2013; use with dbW; data expected at
-    #     file.path(project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
-    "GriddedDailyWeatherFromNRCan_10km_Canada", 0,
-    #   - Saha et al. 2010: 0.3125-deg res. for 1979-2010; use with dbW; data expected at file.path(
-    #     project_paths[["dir_ex_weather"]], "NCEPCFSR_Global", "CFSR_weather_prog08032012")
-    "GriddedDailyWeatherFromNCEPCFSR_Global", 0,
-    #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at file.path(
-    #     project_paths[["dir_ex_weather"]], "Livneh_NA_2013", "MONTHLY_GRIDS")
-    "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
-
-    # Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL,
-    #   climate condition names must be of the form SCENARIO.GCM with SCENARIO being
-    #   used for ensembles; if using climatewizard, climate condition names must be
-    #   equal to what is in the respective directories
-    #   - data expected at file.path(project_paths[["dir_ex_fut"]], "ClimateScenarios")
-    "ExtractClimateChangeScenarios", 1,
-
-    # Mean monthly wind, relative humidity, and 100% - sunshine
-    #   - NCDC 2005: data expected at file.path(project_paths[["dir_ex_weather"]],
-    #     "ClimateAtlasUS")
-    "ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
-    #   - Saha et al. 2010: project_paths[["dir_ex_weather"]], "NCEPCFSR_Global",
-    #     "CFSR_weather_prog08032012")
-    "ExtractSkyDataFromNCEPCFSR_Global", 0,
-
-    # Topography
-    #   - NED, National Elevation Dataset (ned.usgs.gov): 1-arcsec res; data expected
-    #     at project_paths[["dir_ex_dem"]], "NED_USA", "NED_1arcsec")
-    "ExtractElevation_NED_USA", 0,
-    #   - Harmonized World Soil Database: 30-arcsec res; data expected
-    #     at project_paths[["dir_ex_dem"]], "HWSD")
-    "ExtractElevation_HWSD_Global", 0,
-    # Soil texture
-    #   - Harmonized World Soil Database: 1-km re-gridded; data expected
-    #     at project_paths[["dir_ex_soil"]], "CONUSSoil", "output", "albers")
-    "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
-    # Soil texture
-    #   - Soil data from penn state for the United States; data expected
-    #     at: project_paths[["dir_ex_soil"]], "Isric", GriddedGlobalV5
-    "ExtractSoilDataFromIsricSoilGrid_Global_250m", 0,
-    #   - ISRIC-WISE 5-arcmin v1.2 (2012): 5-arcmin re-gridded; data expected
-    #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b", "Grid", "smw5by5min")
-    "ExtractSoilDataFromISRICWISEv12_Global", 0,
-    #   - Contains information about soil as collected by the National Cooperative Soil Survey.
-    #     Data was collected at scales ranging from 1:12,000 to 1:63,360.
-    #     Site-specific data will be checked for and downloaded to at project_paths[["dir_to_SSURGO"]]
-    "ExtractSoilDataFromSSURGO", 0,
-    #   - ISRIC-WISE 30-arsec v1.0 (2016): 30-arcsec re-gridded; data expected
-    #     at project_paths[["dir_ex_soil"]], "WISE", "WISE30sec_v1a")
-    "ExtractSoilDataFromISRICWISE30secV1a_Global", 0
+      # Daily weather data for current conditions
+      #   - Maurer et al. 2002: 1/8-degree res. for 1949-2010; data expected at file.path(
+      #     project_paths[["dir_ex_weather"]], "Maurer+_2002updated", "DAILY_FORCINGS")
+      "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,
+      #   - Thornton et al. 1997: 1-km res. for 1980-2016; data expected at file.path(
+      #     project_paths[["dir_ex_weather"]], "DayMet_NorthAmerica",
+      #     "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
+      "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,
+      #   - McKenney et al. 2011: 10-km res. for 1950-2013; use with dbW; data expected at
+      #     file.path(project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
+      "GriddedDailyWeatherFromNRCan_10km_Canada", 0,
+      #   - Saha et al. 2010: 0.3125-deg res. for 1979-2010; use with dbW; data expected at file.path(
+      #     project_paths[["dir_ex_weather"]], "NCEPCFSR_Global", "CFSR_weather_prog08032012")
+      "GriddedDailyWeatherFromNCEPCFSR_Global", 0,
+      #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at file.path(
+      #     project_paths[["dir_ex_weather"]], "Livneh_NA_2013", "MONTHLY_GRIDS")
+      "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
+  
+      # Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL,
+      #   climate condition names must be of the form SCENARIO.GCM with SCENARIO being
+      #   used for ensembles; if using climatewizard, climate condition names must be
+      #   equal to what is in the respective directories
+      #   - data expected at file.path(project_paths[["dir_ex_fut"]], "ClimateScenarios")
+      "ExtractClimateChangeScenarios", 1,
+  
+      # Mean monthly wind, relative humidity, and 100% - sunshine
+      #   - NCDC 2005: data expected at file.path(project_paths[["dir_ex_weather"]],
+      #     "ClimateAtlasUS")
+      "ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
+      #   - Saha et al. 2010: project_paths[["dir_ex_weather"]], "NCEPCFSR_Global",
+      #     "CFSR_weather_prog08032012")
+      "ExtractSkyDataFromNCEPCFSR_Global", 0,
+  
+      # Topography
+      #   - NED, National Elevation Dataset (ned.usgs.gov): 1-arcsec res; data expected
+      #     at project_paths[["dir_ex_dem"]], "NED_USA", "NED_1arcsec")
+      "ExtractElevation_NED_USA", 0,
+      #   - Harmonized World Soil Database: 30-arcsec res; data expected
+      #     at project_paths[["dir_ex_dem"]], "HWSD")
+      "ExtractElevation_HWSD_Global", 0,
+      # Soil texture
+      #   - Harmonized World Soil Database: 1-km re-gridded; data expected
+      #     at project_paths[["dir_ex_soil"]], "CONUSSoil", "output", "albers")
+      "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
+      # Soil texture
+      #   - Soil data from penn state for the United States; data expected
+      #     at: project_paths[["dir_ex_soil"]], "Isric", GriddedGlobalV5
+      "ExtractSoilDataFromIsricSoilGrid_Global_250m", 0,
+      #   - ISRIC-WISE 5-arcmin v1.2 (2012): 5-arcmin re-gridded; data expected
+      #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b", "Grid", "smw5by5min")
+      "ExtractSoilDataFromISRICWISEv12_Global", 0,
+      #   - Contains information about soil as collected by the National Cooperative Soil Survey.
+      #     Data was collected at scales ranging from 1:12,000 to 1:63,360.
+      #     Site-specific data will be checked for and downloaded to at project_paths[["dir_to_SSURGO"]]
+      "ExtractSoilDataFromSSURGO", 0,
+      #   - ISRIC-WISE 30-arsec v1.0 (2016): 30-arcsec re-gridded; data expected
+      #     at project_paths[["dir_ex_soil"]], "WISE", "WISE30sec_v1a")
+      "ExtractSoilDataFromISRICWISE30secV1a_Global", 0
   ),
 
   # Approach to determine prioprities of external data source extractions
