@@ -59,8 +59,8 @@ Ecohydrological niche of sagebrush ecosystems. Ecohydrology 5:453-466.
 \seealso{
 Useful links:
 \itemize{
-  \item \url{https://github.com/Burke-Lauenroth-Lab/rSFSW2}
-  \item Report bugs at \url{https://github.com/Burke-Lauenroth-Lab/rSFSW2/issues}
+  \item \url{https://github.com/DrylandEcology/rSFSW2}
+  \item Report bugs at \url{https://github.com/DrylandEcology/rSFSW2/issues}
 }
 
 }
@@ -71,6 +71,7 @@ Other contributors:
 \itemize{
   \item Caitlin Andrews [contributor]
   \item Zach Kramer [contributor]
+  \item Charlie Duso [contributor]
   \item Ryan Murphy [contributor]
 }
 

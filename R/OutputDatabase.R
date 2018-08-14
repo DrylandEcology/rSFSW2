@@ -3095,3 +3095,230 @@ compare_two_dbOutput <- function(dbOut1, dbOut2, tol = 1e-3,
 
   diff_msgs
 }
+
+
+dbOut_prepare1 <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
+  fields_exclude = NULL) {
+
+  #--- Connect to dbOut
+  con_dbOut <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOut_fname,
+    flags = RSQLite::SQLITE_RW)
+
+  # Attach dbNew
+  dbNew_fname <- normalizePath(dbNew_fname)
+  dbExecute(con_dbOut, paste("ATTACH",
+    dbQuoteIdentifier(con_dbOut, dbNew_fname), "AS dbNew"))
+
+  #--- Identify tables and fields to update
+  has_tables0 <- dbOutput_ListOutputTables(con = con_dbOut)
+  has_tables_new <- dbOutput_ListOutputTables(dbname = dbNew_fname)
+
+  # Find output tables
+  req_tables <- if (is.null(fields_include)) {
+      has_tables_new
+    } else {
+      names(fields_include)
+    }
+
+  # Confirm that requested tables are available in dbOut and dbNew
+  has_temp <- req_tables %in% has_tables0 & req_tables %in% has_tables_new
+  not_temp <- !has_temp
+  if (any(not_temp)) {
+    print(paste("Requested tables not available:",
+      paste0(shQuote(req_tables[not_temp]), collapse = ", ")))
+  }
+
+  tables <- req_tables[has_temp]
+  tables_w_soillayers <- dbOutput_Tables_have_SoilLayers(tables,
+    con = con_dbOut)
+
+
+  # Find fields to match and fields to update the output values
+  fields_design <- c("P_id", "Soil_Layer")
+  result_fields <- design <- list()
+
+  for (k in seq_along(tables)) {
+    fields0 <- dbListFields(con_dbOut, tables[k])
+    fields_new <- names(dbGetQuery(con_dbOut, paste0("SELECT * FROM dbNew.",
+      dbQuoteIdentifier(con_dbOut, tables[k]), " LIMIT 0")))
+
+    design[[k]] <- fields_design[seq_len(if (tables_w_soillayers[k]) 2 else 1)]
+
+    req_fields <- if (is.null(fields_include) ||
+        is.null(fields_include[[tables[k]]])) {
+        fields_new
+      } else {
+        fields_include[[tables[k]]]
+      }
+
+    # Exclude design fields
+    temp <- req_fields %in% design[[k]]
+    req_fields <- req_fields[!temp]
+
+    # Exclude fields requested to be excluded
+    if (!(is.null(fields_exclude) || is.null(fields_exclude[[tables[k]]]))) {
+      temp <- req_fields %in% fields_exclude[[tables[k]]]
+      req_fields <- req_fields[!temp]
+    }
+
+    # Confirm that requested fields are available in dbOut and dbNew
+    has_temp <- req_fields %in% fields0 & req_fields %in% fields_new
+    not_temp <- !has_temp
+    if (any(not_temp)) {
+      print(paste("Requested fields not available:",
+        paste0(shQuote(req_fields[not_temp]), collapse = ", ")))
+    }
+
+    result_fields[[k]] <- req_fields[has_temp]
+  }
+
+  dbExecute(con_dbOut, "DETACH dbNew")
+
+  list(con_dbOut = con_dbOut, tables = tables, fields = result_fields,
+    design = design)
+}
+
+#' Check that cells of dbOutput agree with corresponding cells of another
+#' database
+#'
+#' @param dbOut_fname A character string. The file path of the main
+#'   \var{\code{dbOutput}} that is to be updated.
+#' @param dbNew_fname A character string. The file path of a database with
+#'   values that are to be compared against \code{dbOutput}.
+#' @param fields_check A named list of vectors with character strings. The
+#'   field names per table that are used must have equal values in the original
+#'   and the new database for a record to be checked. If \code{NULL},
+#'   then all output tables, according to
+#'   \code{\link{dbOutput_ListOutputTables}}, and all fields
+#'   (except for ID-fields, i.e., \var{\code{P_id}} and \var{\code{Soil_Layer}})
+#'   are checked.
+#' @param tol A numeric value. Differences smaller than tolerance are not
+#'   considered.
+#' @param verbose A logical value.
+#' @return The connection to an in-memory database with one table that tracks
+#'   which records (identified by \var{\code{P_id}}) agree (value 1) and which
+#'   records do not agree (value 0) for each table (as field names). Value of
+#'   records that were not compared is \code{NA}/\code{NULL}.
+#'
+#' @examples
+#' \dontrun{
+#'   con_dbCheck <- dbOut_check_values(
+#'     dbOut_fname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+#'     dbNew_fname = "path/to/new.sqlite3",
+#'     fields_check = list(
+#'       aggregation_overall_mean = c("MAT_C_mean", "MAP_mm_mean"),
+#'       aggregation_overall_sd = c("MAT_C_sd", "MAP_mm_sd"),
+#'     )
+#'
+#'   table <- dbListTables(con_dbCheck)
+#'   fields <- dbQuoteIdentifier(con_dbCheck, dbListFields(con_dbCheck, table))
+#'
+#'   # Extract Pids from records that matched up
+#'   sql <- paste("SELECT P_id FROM", table, "WHERE",
+#'     paste(fields[-1], "= 1", collapse = " AND "))
+#'   is_good <- dbGetQuery(con_dbCheck, sql)
+#'
+#'   # Extract Pids from records that did not match up; this should be empty
+#'   sql <- paste("SELECT P_id FROM", table, "WHERE",
+#'     paste(fields[-1], "= 0", collapse = " OR "))
+#'   is_bad <- dbGetQuery(con_dbCheck, sql)
+#' }
+#'
+#' @export
+dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
+  tol = 1e-3, verbose = FALSE) {
+
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({
+      print(paste0("rSFSW2's ", temp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
+    },
+      add = TRUE)
+  }
+
+  prep <- dbOut_prepare1(dbOut_fname, dbNew_fname,
+    fields_include = fields_check)
+  dbDisconnect(prep[["con_dbOut"]])
+
+  #--- Create in-memory database with one table that tracks comparison
+  con_res <- dbConnect(SQLite(), ":memory:")
+  table_comparison <- paste0("Comparison_", format(Sys.Date(), "%Y%m%d"))
+  sql <- paste0("CREATE TABLE ", table_comparison, " ",
+    "(P_id INTEGER PRIMARY KEY, ",
+    paste(prep[["tables"]], "INTEGER DEFAULT NULL", collapse = ", "), ")")
+  dbExecute(con_res, sql)
+
+  # Attach dbOut and fill table with P_id
+  sql <- paste("ATTACH", dbQuoteIdentifier(con_res, dbOut_fname), "AS dbOut")
+  dbExecute(con_res, sql)
+
+  sql <- paste("INSERT INTO", table_comparison, "(P_id)",
+    "SELECT P_id FROM dbOut.runs")
+  dbExecute(con_res, sql)
+
+
+  #--- Check values
+  # Attach dbNew
+  sql <- paste("ATTACH", dbQuoteIdentifier(con_res, dbNew_fname), "AS dbNew")
+  dbExecute(con_res, sql)
+
+  for (k in seq_along(prep[["tables"]])) if (length(prep[["fields"]][[k]])) {
+    tfield <- ttable <- dbQuoteIdentifier(con_res, prep[["tables"]][k])
+    tchecks <-  dbQuoteIdentifier(con_res, prep[["fields"]][[k]])
+    tdesign <- dbQuoteIdentifier(con_res, prep[["design"]][[k]])
+
+    if (verbose) {
+      print(paste0(Sys.time(), ": checking table ",
+        shQuote(prep[["tables"]][k]), " with ", length(prep[["fields"]][[k]]),
+        " fields."))
+    }
+
+    sql_design <- paste0(tdesign, collapse = ",")
+    sql_join_NtoM <- paste0("dbOut.", ttable, " JOIN dbNew.", ttable,
+      " USING (", sql_design, ")")
+    sql_checked <- paste0("dbNew.", ttable, ".", tchecks,
+      " BETWEEN dbOut.", ttable, ".", tchecks, " - ", tol, " AND ",
+        "dbOut.", ttable, ".", tchecks, " + ", tol,
+      collapse = " AND ")
+    sql_not_checked <- paste0("dbNew.", ttable, ".", tchecks,
+      " NOT BETWEEN dbOut.", ttable, ".", tchecks, " - ", tol, " AND ",
+        "dbOut.", ttable, ".", tchecks, " + ", tol,
+      collapse = " AND ")
+
+    if (FALSE) {
+      # Determine count of matching records
+      sql <- paste0("SELECT COUNT(*) FROM ",
+        "(SELECT P_id FROM ", sql_join_NtoM, " WHERE ", sql_checked, ")")
+      print(as.integer(dbGetQuery(con_res, sql)))
+    }
+
+    # Update records that match between dbNew and dbOut
+    sql <- paste0(
+      "UPDATE ", table_comparison, " ",
+      "SET ", tfield, " = 1 ",
+      "WHERE P_id IN ",
+        "(SELECT P_id FROM ", sql_join_NtoM, " WHERE ", sql_checked, ")")
+    res <- dbExecute(con_res, sql)
+
+    # Update records that do not match between dbNew and dbOut, but which are
+    # in dbNew
+    sql <- paste0(
+      "UPDATE ", table_comparison, " ",
+      "SET ", tfield, " = 0 ",
+      "WHERE ",
+        "(SELECT P_id FROM ", sql_join_NtoM, " WHERE ", sql_not_checked, ")")
+    res <- dbExecute(con_res, sql)
+  }
+
+  #--- Clean up
+  dbExecute(con_res, "DETACH dbOut")
+  dbExecute(con_res, "DETACH dbNew")
+
+  con_res
+}
+
+
