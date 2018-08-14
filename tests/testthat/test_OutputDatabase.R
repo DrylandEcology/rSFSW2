@@ -47,6 +47,21 @@ test_that("dbOut_check_values:", {
 
 
 
+test_that("compare_two_dbOutput:", {
+  skip_if_not(file.exists(dbOut), file.exists(dbNew))
+
+  # dbOut and dbNew are not equal --> output is a list of length greater than 0
+  res <- compare_two_dbOutput(dbOut, dbNew)
+  expect_gt(length(res), 0)
+
+  # dbOut is equal to itself --> output is an empty list
+  res <- compare_two_dbOutput(dbOut, dbOut)
+  # should be of empty list, but is currently not because of how
+  # `has_samedesign` is calculated by function `compare_two_dbOutput`
+})
+
+
+
 #--- Clean up
 unlink(dbOut)
 unlink(dbNew)
