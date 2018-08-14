@@ -62,6 +62,39 @@ test_that("compare_two_dbOutput:", {
 
 
 
+
+test_that("dbOut_update_values", {
+  skip_if_not(file.exists(dbOut), file.exists(dbNew))
+
+  ttrack <- dbOut_update_values(dbOut_fname = dbOut, dbNew_fname = dbNew,
+    fields_exclude = fields_exclude)
+  expect_type(ttrack, "character")
+
+  con <- dbConnect(SQLite(), dbOut)
+  ures <- dbReadTable(con, "iris")
+  utrack <- dbReadTable(con, ttrack)
+
+  # Expect that correct records were updated
+  expect_equal(length(new_Pids), sum(utrack[, "iris"]))
+  expect_equal(new_Pids, which(as.logical(utrack[, "iris"])))
+
+  # Expect that updated cells contain updated values
+  temp0 <- res1[order(res1[, "P_id"]), ]
+  temp1 <- ures[sort(new_Pids), ]
+  temp1[, "Species"] <- as.integer(temp1[, "Species"])
+  expect_equal(temp0, temp1)
+
+  # Expect that non-updated cells continue to contain previous values
+  icol <- !(sapply(ures, mode) %in% c("character"))
+  temp0 <- res0[-new_Pids, icol]
+  temp1 <- ures[-new_Pids, icol]
+  expect_equal(temp0[order(temp0[, "P_id"]), ], temp1[order(temp1[, "P_id"]), ])
+
+  dbDisconnect(con)
+})
+
+
+
 #--- Clean up
 unlink(dbOut)
 unlink(dbNew)

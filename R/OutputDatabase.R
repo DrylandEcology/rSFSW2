@@ -3322,3 +3322,135 @@ dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
 }
 
 
+#' Update values of dbOutput based on a new database
+#'
+#' @param dbOut_fname A character string. The file path of the main
+#'   \var{\code{dbOutput}} that is to be updated.
+#' @param dbNew_fname A character string. The file path of a database with
+#'   new values that are used to update corresponding values in
+#'   \code{dbOutput}.
+#' @param fields_update A named list of vectors with character strings. The
+#'   field names per table to be updated. Each table is represented by a
+#'   correspondingly named element. If \code{NULL}, then all output tables,
+#'   according to \code{\link{dbOutput_ListOutputTables}}, and all fields
+#'   (except for ID-fields, i.e., \var{\code{P_id}} and \var{\code{Soil_Layer}})
+#'   are updated.
+#' @param fields_exclude A named list of vectors with character strings. The
+#'   field names per table to be updated. Each table is represented by a
+#'   correspondingly named element. If \code{NULL}, then no fields are excluded
+#'   from the update operation.
+#' @param verbose A logical value.
+#' @return Invisibly, the name of a new table that tracks which records
+#'   (identified by \var{\code{P_id}}) have been updated (value 1) for each
+#'   table.
+#'
+#' @examples
+#' \dontrun{
+#'   table <- dbOut_update_values(
+#'     dbOut_fname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+#'     dbNew_fname = "path/to/new.sqlite3",
+#'     fields_exclude = list(
+#'       aggregation_overall_mean = c("MAT_C_mean", "MAP_mm_mean"),
+#'       aggregation_overall_sd = c("MAT_C_sd", "MAP_mm_sd")))
+#'
+#'   con <- dbConnect(SQLite(), SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+#'   fields <- dbQuoteIdentifier(con, dbListFields(con, table))
+#'
+#'   # Extract Pids from records that were updated
+#'   sql <- paste("SELECT P_id FROM", table, "WHERE",
+#'     paste(fields[-1], "= 1", collapse = " AND "))
+#'   is_good <- dbGetQuery(con, sql)
+#'
+#'   dbDisconnect(con)
+#' }
+#'
+#' @export
+dbOut_update_values <- function(dbOut_fname, dbNew_fname, fields_update = NULL,
+  fields_exclude = NULL, verbose = FALSE) {
+
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({
+      print(paste0("rSFSW2's ", temp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
+    },
+      add = TRUE)
+  }
+
+  prep <- dbOut_prepare1(dbOut_fname, dbNew_fname,
+    fields_include = fields_update, fields_exclude = fields_exclude)
+  on.exit(dbDisconnect(prep[["con_dbOut"]]), add = TRUE)
+
+  #--- Add table that tracks updated cells (insert 0 = not updated as default)
+  table_updated <- paste0("Updated_", format(Sys.Date(), "%Y%m%d"))
+  sql <- paste0("CREATE TABLE IF NOT EXISTS ", table_updated, " ",
+    "(P_id INTEGER PRIMARY KEY, ",
+      paste(prep[["tables"]], "INTEGER DEFAULT 0", collapse = ", "), ")")
+  dbExecute(prep[["con_dbOut"]], sql)
+
+  sql <- paste("INSERT INTO", table_updated, "(P_id)",
+    "SELECT P_id FROM runs")
+  dbExecute(prep[["con_dbOut"]], sql)
+
+  #--- Update values
+  # Attach dbNew
+  sql <- paste("ATTACH", dbQuoteIdentifier(prep[["con_dbOut"]], dbNew_fname),
+    "AS dbNew")
+  dbExecute(prep[["con_dbOut"]], sql)
+
+  for (k in seq_along(prep[["tables"]])) {
+    ttable <- dbQuoteIdentifier(prep[["con_dbOut"]], prep[["tables"]][k])
+    tfields <- dbQuoteIdentifier(prep[["con_dbOut"]], prep[["fields"]][[k]])
+    tdesign <- dbQuoteIdentifier(prep[["con_dbOut"]], prep[["design"]][[k]])
+
+    sql_fields <- paste0(tfields, collapse = ",")
+    sql_where <- paste0("dbNew.", ttable, ".", tdesign,
+      " = main.", ttable, ".", tdesign, collapse = " AND ")
+
+    # Determine count of records to update
+    sql <- paste0("SELECT COUNT(*) FROM dbNew.", ttable, " WHERE ",
+      gsub("main.", "", sql_where))
+    n <- as.integer(dbGetQuery(prep[["con_dbOut"]], sql))
+
+    if (verbose) {
+      print(paste0(Sys.time(), ": updating table ",
+        shQuote(prep[["tables"]][k]), ": ", length(prep[["fields"]][[k]]),
+        " fields of ", n, " records."))
+    }
+
+    # Update records in main
+    sql <- paste0(
+      "UPDATE ", ttable, " ",
+      "SET (", sql_fields, ") = ",
+        "(SELECT ", sql_fields, " FROM dbNew.", ttable,
+        " WHERE ", sql_where, ") ",
+      "WHERE ", tdesign,
+        " IN (SELECT ", tdesign, " FROM dbNew.", ttable, ")")
+
+    res <- dbExecute(prep[["con_dbOut"]], sql)
+
+    # Check that correct number of records was updated
+    if (isTRUE(all.equal(res, n))) {
+      # Enter information of updated records into tracking table
+      sql <- paste(
+        "UPDATE", table_updated,
+        "SET", ttable, " = 1 ",
+        "WHERE P_id IN (SELECT DISTINCT P_id FROM dbNew.", ttable, ")")
+      dbExecute(prep[["con_dbOut"]], sql)
+
+    } else {
+      print(paste("Update of table", shQuote(prep[["tables"]][k]), "failed:",
+        res, "instead of", n, "records updated."))
+    }
+  }
+
+  #--- Clean up
+  dbExecute(prep[["con_dbOut"]], "DETACH dbNew")
+  dbExecute(prep[["con_dbOut"]], "PRAGMA optimize")
+
+  invisible(table_updated)
+}
+
