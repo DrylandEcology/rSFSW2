@@ -55,9 +55,9 @@ if (requireNamespace("rgdal", quietly = TRUE)) {
   sim_space[["sim_crs"]] <- sp::CRS(temp[[2]])
 }
 
-fnames_in$fslayers <- "/home/natemccauslin/Desktop/TestPrj4/1_Input/SWRuns_InputData_SoilLayers_v9.csv"
-fnames_in$fprepocin <- "/home/natemccauslin/Desktop/TestPrj4/1_Input/SWRuns_InputAll_PreProcessed.rds"
-fnames_in$fsoils <- "/home/natemccauslin/Desktop/TestPrj4/1_Input/datafiles/SWRuns_InputData_soils_v12.csv"
+fnames_in$fslayers <- "/PATH_TO_YOUR_SWRuns_InputData_SoilLayers csv file"
+fnames_in$fprepocin <- "/PATH_TO_YOUR_SWRuns_InputAll_PreProcessed rds file"
+fnames_in$fsoils <- "/PATH_TO_YOUR_SWRuns_InputData_soils csv file"
 
 field_sources <- "SoilTexture_source"
 include_sources <- "Include_YN_SoilSources"
@@ -180,7 +180,7 @@ test_that("Update Soils Input", {
   expect_is(MMC[["nvars"]], "integer")
 })
 test_that("Extract 250m Gridded Data", {
-  MMC <- do_ExtractFromIsricSoilGrid_Global_250m(MMC, sim_size = sim_size,
+  MMC <- extract_soil_ISRIC250m(MMC, sim_size = sim_size,
                              sim_space = sim_space,
                              dir_ex_soil = "/media/natemccauslin/SOILWAT_DATA/GIS/Data/Soils",
                              fnames_in = fnames_in, resume, verbose, default_TOC_GperKG = 0)

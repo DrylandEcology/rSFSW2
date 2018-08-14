@@ -263,25 +263,38 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
   MMC
 }
 
-#' @description Extracts all .tif files' data (at the moment clay, sand, bd) in dir_ex_soil to an enviornment. 
-#' @param MMC An enviornment containing the structure for extracted data to be
+#' Extracts all .tif files' data (clay, sand, bd, gravel, depth, ...) in dir_ex_soil to an environment 
+#' @param MMC An environment containing the structure for extracted data to be
 #'   extracted to
 #' @param sim_size An environment containing information on the runs.
 #' @param sim_space An environment containing information on site locations and
 #'   extraction type, ie. cell or point.
 #' @param dir_ex_soil String for the location of the soil files to be extracted.
-#' @param fnames_in An enviornment containing output file locations.
+#' @param fnames_in An environment containing output file locations.
 #' @param resume Logical whether or not to resume the project if it failed partially through
 #'   before.
 #' @param verbose Logical whether to see additional messages or not as the function executes.
 #' @param default_TOC_GperKG A numeric value. The default value is
 #'   0 g \var{TOC} per kg soil.
-#' @return MMC An enviornment containing the extracted data.
-#' @references Miller, D. A. and R. A. White. 1998. A conterminous United States
-#'  multilayer soil characteristics dataset for regional climate and hydrology
-#'  modeling. Earth Interactions 2:1-26.
+#' @return MMC An environment containing the extracted data.
+#' @references Hengl. T. et al, 2017. SoilGrids250m: Global gridded soil information based
+#'  on machine learning.
+#' @references Shangguan, W. et al, 2016. Mapping the global depth to bedrock for land 
+#' surface modeling.
 #' @author Nathan Payton- McCauslin. July 2018.
-do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
+#' @section Note: \enumerate{
+#' \item All data is taken at a resolution of 250m.
+#'     \item Data Extracted Using Reference 1: \itemize{
+#'     \item Sand
+#'     \item Clay
+#'     \item Bulk Density
+#'     \item Gravel
+#'    }
+#'  \item Data Extracted Using Reference 2: \itemize{
+#'      \item Depth to Bedrock
+#'    }
+#'  }
+extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
                                        dir_ex_soil, fnames_in, resume, verbose, default_TOC_GperKG = 0){
 
   # print stats
@@ -299,6 +312,9 @@ do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
   show_site_info <- verbose
   soil_layer <- 1
   dir.ex.gridded <- file.path(dir_ex_soil, "Isric", "GriddedGlobalV5")
+  # stop program execution if file path is incorrect
+  if(!file.exists(dir.ex.gridded)) stop(paste0("File '", dir.ex.gridded, "' does not exist"))
+  
   file_in_gridded <- list.files(dir.ex.gridded);
   MMC[["source"]] <- "GriddedFROM250m"
   todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "GriddedFROM250m"
@@ -314,13 +330,13 @@ do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
     # set soil types based on tif filenames
     if(grepl('.tif$', tif_file)){
       if(grepl('^bd', tif_file)){
-        soil_type <- "matricd";
+        file_type <- "matricd";
       }
       else if(grepl('^gravel', tif_file)){
-        soil_type <- "GravelContent" # switch soil_type to match with MMC for insertion
+        file_type <- "GravelContent" # switch file_type to match with MMC for insertion
       }
       else{
-        soil_type <- substr(tif_file, 1, regexpr("_", tif_file) - 1);
+        file_type <- substr(tif_file, 1, regexpr("_", tif_file) - 1);
       }
 
     # find the layer number of the current file ===================
@@ -386,7 +402,6 @@ do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
       g <- if (file.exists(ftemp)) {
         raster::brick(ftemp)
       } else {
-        # bulk density of less than 0.3 g / cm3 should be treated as no soil
         raster::calc(g, fun = cond30, filename = ftemp)
       }
       # get max depths for site soil profiles
@@ -394,30 +409,29 @@ do_ExtractFromIsricSoilGrid_Global_250m <- function(MMC, sim_size, sim_space,
       gd <- if (file.exists(ftemp_d)) {
         raster::brick(ftemp_d)
       } else {
-        # bulk density of less than 0.3 g / cm3 should be treated as no soil
         raster::calc(gd, fun = cond30, filename = ftemp_d)
       }
       soil_frame_depth <- do.call("extract_rSFSW2", args = c(args_extract, x = list(gd))) 
       MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = soil_frame_depth
-      if(soil_type != "depth"){
+      if(file_type != "depth"){
         # get soil data as a dataframe 
         soil <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g))) 
         soil_frame <- soil
         percent_div <- 100
   
         # write density data, MMC[["data"]] requires a different column name to be written then the rest
-        if(soil_type == "matricd"){
+        if(file_type == "matricd"){
           percent_div <- 1000;
           MMC[["data"]][todos, grep("density", MMC[["cn"]])[ils]][,soil_layer] <- soil_frame / percent_div 
         }
-        else if(soil_type == "GravelContent"){
+        else if(file_type == "GravelContent"){
           soil_frame <- pmax(pmin(soil_frame / 100, 1), 0)
           # write gravel data to "data
           MMC[["data"]][todos, grep("rock", MMC[["cn"]])[ils]][,soil_layer] <- soil_frame # gravel is already in form we want so no need to divide
         }
         else{
           # write sand or clay data to "data
-          MMC[["data"]][todos, grep(soil_type, MMC[["cn"]])[ils]][,soil_layer] <- soil_frame / percent_div 
+          MMC[["data"]][todos, grep(file_type, MMC[["cn"]])[ils]][,soil_layer] <- soil_frame / percent_div 
         }
   
         # There is no organic carbon data, set all values to a default
@@ -1008,7 +1022,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
   }
 
   if(exinfo$ExtractSoilDataFromIsricSoilGrid_Global_250m){
-    MMC <- do_ExtractFromIsricSoilGrid_Global_250m(MMC, sim_size = SFSW2_prj_meta[["sim_size"]],
+    MMC <- extract_soil_ISRIC250m(MMC, sim_size = SFSW2_prj_meta[["sim_size"]],
             sim_space = SFSW2_prj_meta[["sim_space"]],
             dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
             fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
