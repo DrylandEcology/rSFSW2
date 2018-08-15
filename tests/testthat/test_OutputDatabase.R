@@ -5,6 +5,10 @@ context("Output: dbOutput database functionality")
 utils::data(list = "iris", package = "datasets")
 
 # original data
+Nsl <- 5L
+dat_sl <- data.frame(
+  P_id = rep(seq_len(nrow(iris)), each = Nsl),
+  Soil_Layer = rep(seq_len(Nsl), nrow(iris)))
 res0 <- data.frame(P_id = seq_len(nrow(iris)), iris)
 
 # new data
@@ -18,8 +22,9 @@ res1 <- res1[rev(seq_along(new_Pids)), ]
 # create dbOutput
 dbOut <- tempfile()
 con <- dbConnect(SQLite(), dbOut)
-dbWriteTable(con, "iris", res0)
 dbWriteTable(con, "runs", res0[, "P_id", drop = FALSE])
+dbWriteTable(con, "aSoilLayer", dat_sl)
+dbWriteTable(con, "iris", res0)
 dbDisconnect(con)
 
 # create dbNew

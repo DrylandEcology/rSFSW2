@@ -3101,8 +3101,7 @@ dbOut_prepare1 <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
   fields_exclude = NULL) {
 
   #--- Connect to dbOut
-  con_dbOut <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOut_fname,
-    flags = RSQLite::SQLITE_RW)
+  con_dbOut <- dbConnect(SQLite(), dbname = dbOut_fname, flags = SQLITE_RW)
 
   # Attach dbNew
   dbNew_fname <- normalizePath(dbNew_fname)
@@ -3142,7 +3141,8 @@ dbOut_prepare1 <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
     fields_new <- names(dbGetQuery(con_dbOut, paste0("SELECT * FROM dbNew.",
       dbQuoteIdentifier(con_dbOut, tables[k]), " LIMIT 0")))
 
-    design[[k]] <- fields_design[seq_len(if (tables_w_soillayers[k]) 2 else 1)]
+    temp <- seq_len(if (tables_w_soillayers[tables[k]]) 2 else 1)
+    design[[k]] <- fields_design[temp]
 
     req_fields <- if (is.null(fields_include) ||
         is.null(fields_include[[tables[k]]])) {
