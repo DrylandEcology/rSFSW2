@@ -109,8 +109,24 @@ dbOutput_ListOutputTables <- function(con = NULL, dbname = NULL) {
 }
 
 
-#' List the available output tables of \var{\sQuote{dbOutput}} which
-#' record output of variables per soil layer
+#' Checks whether output tables of \var{\sQuote{dbOutput}} store output of
+#' variables for each soil layer
+#'
+#' @param tables A vector of character strings. The names of those tables that
+#'  should be checked for the presence of a field named \var{\code{Soil_Layer}}.
+#'  If \code{NULL}, then all output tables will be checked.
+#' @param con A valid \code{SQLiteConnection} database connection to
+#'   \var{\sQuote{dbOutput}} or \code{NULL}.
+#' @param dbname A character string. The path including name to
+#'  \var{\sQuote{dbOutput}} or \code{NULL}.
+#'
+#' @section Note: At least one of \code{con} and \code{dbname} must be provided.
+#'  Argument \code{con} has priority if both arguments are provided and
+#'  \code{con} is valid.
+#'
+#' @return A named logical vector where names are tables. \code{TRUE} indicates
+#'   that a table has records by soil layers.
+#'
 #' @export
 dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, # nolint
   dbname = NULL) {
@@ -129,7 +145,7 @@ dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, # nolint
     on.exit(dbDisconnect(con), add = TRUE)
   }
 
-  if (!is.null(tables))
+  if (is.null(tables))
     tables <- dbOutput_ListOutputTables(con)
 
   has_soillayers <- sapply(tables, function(table) {

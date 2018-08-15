@@ -99,6 +99,32 @@ test_that("dbOut_update_values", {
 })
 
 
+test_that("dbOutput_Tables_have_SoilLayers", {
+  skip_if_not(file.exists(dbOut))
+
+  res <- dbOutput_Tables_have_SoilLayers(tables = "iris", dbname = dbOut)
+  expect_type(res, "logical")
+  expect_length(res, 1)
+  expect_named(res, "iris")
+  expect_false(res)
+
+  con <- dbConnect(SQLite(), dbOut)
+
+  res <- dbOutput_Tables_have_SoilLayers(tables = "iris", con = con)
+  expect_type(res, "logical")
+  expect_length(res, 1)
+  expect_named(res, "iris")
+  expect_false(res)
+
+  res <- dbOutput_Tables_have_SoilLayers(con = con)
+  expect_type(res, "logical")
+  expect_length(res, 2)
+  expect_named(res, c("aSoilLayer", "iris"))
+  expect_equivalent(res, c(TRUE, FALSE))
+
+  dbDisconnect(con)
+})
+
 
 #--- Clean up
 unlink(dbOut)
