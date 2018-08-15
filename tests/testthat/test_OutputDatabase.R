@@ -10,7 +10,7 @@ res0 <- data.frame(P_id = seq_len(nrow(iris)), iris)
 # new data
 new_Pids <- 10:15
 res1 <- data.frame(P_id = new_Pids, iris[new_Pids, ])
-res1[, -(1:2)] <- seq_along(new_Pids)
+res1[, - (1:2)] <- seq_along(new_Pids)
 fields_exclude <- list(iris = colnames(iris)[1])
 # reverse row order to test that updates are still correct
 res1 <- res1[rev(seq_along(new_Pids)), ]
@@ -85,7 +85,7 @@ test_that("dbOut_update_values", {
   expect_equal(temp0, temp1)
 
   # Expect that non-updated cells continue to contain previous values
-  icol <- !(sapply(ures, mode) %in% c("character"))
+  icol <- !(sapply(ures, mode) %in% "character")
   temp0 <- res0[-new_Pids, icol]
   temp1 <- ures[-new_Pids, icol]
   expect_equal(temp0[order(temp0[, "P_id"]), ], temp1[order(temp1[, "P_id"]), ])

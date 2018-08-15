@@ -2,7 +2,7 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{dbOut_update_values}
 \alias{dbOut_update_values}
-\title{Update values of dbOutput based on a new database}
+\title{Update values of \var{dbOutput} based on a new database}
 \usage{
 dbOut_update_values(dbOut_fname, dbNew_fname, fields_update = NULL,
   fields_exclude = NULL, verbose = FALSE)
@@ -13,7 +13,7 @@ dbOut_update_values(dbOut_fname, dbNew_fname, fields_update = NULL,
 
 \item{dbNew_fname}{A character string. The file path of a database with
 new values that are used to update corresponding values in
-\code{dbOutput}.}
+\var{\code{dbOutput}}.}
 
 \item{fields_update}{A named list of vectors with character strings. The
 field names per table to be updated. Each table is represented by a
@@ -35,7 +35,7 @@ Invisibly, the name of a new table that tracks which records
   table.
 }
 \description{
-Update values of dbOutput based on a new database
+Update values of \var{dbOutput} based on a new database
 }
 \examples{
 \dontrun{

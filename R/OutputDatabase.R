@@ -3178,13 +3178,13 @@ dbOut_prepare1 <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
     design = design)
 }
 
-#' Check that cells of dbOutput agree with corresponding cells of another
+#' Check that cells of \var{dbOutput} agree with corresponding cells of another
 #' database
 #'
 #' @param dbOut_fname A character string. The file path of the main
 #'   \var{\code{dbOutput}} that is to be updated.
 #' @param dbNew_fname A character string. The file path of a database with
-#'   values that are to be compared against \code{dbOutput}.
+#'   values that are to be compared against \var{\code{dbOutput}}.
 #' @param fields_check A named list of vectors with character strings. The
 #'   field names per table that are used must have equal values in the original
 #'   and the new database for a record to be checked. If \code{NULL},
@@ -3302,7 +3302,7 @@ dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
       "SET ", tfield, " = 1 ",
       "WHERE P_id IN ",
         "(SELECT P_id FROM ", sql_join_NtoM, " WHERE ", sql_checked, ")")
-    res <- dbExecute(con_res, sql)
+    dbExecute(con_res, sql)
 
     # Update records that do not match between dbNew and dbOut, but which are
     # in dbNew
@@ -3311,7 +3311,7 @@ dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
       "SET ", tfield, " = 0 ",
       "WHERE ",
         "(SELECT P_id FROM ", sql_join_NtoM, " WHERE ", sql_not_checked, ")")
-    res <- dbExecute(con_res, sql)
+    dbExecute(con_res, sql)
   }
 
   #--- Clean up
@@ -3322,13 +3322,13 @@ dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
 }
 
 
-#' Update values of dbOutput based on a new database
+#' Update values of \var{dbOutput} based on a new database
 #'
 #' @param dbOut_fname A character string. The file path of the main
 #'   \var{\code{dbOutput}} that is to be updated.
 #' @param dbNew_fname A character string. The file path of a database with
 #'   new values that are used to update corresponding values in
-#'   \code{dbOutput}.
+#'   \var{\code{dbOutput}}.
 #' @param fields_update A named list of vectors with character strings. The
 #'   field names per table to be updated. Each table is represented by a
 #'   correspondingly named element. If \code{NULL}, then all output tables,
@@ -3453,4 +3453,3 @@ dbOut_update_values <- function(dbOut_fname, dbNew_fname, fields_update = NULL,
 
   invisible(table_updated)
 }
-

@@ -2,7 +2,7 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{dbOut_check_values}
 \alias{dbOut_check_values}
-\title{Check that cells of dbOutput agree with corresponding cells of another
+\title{Check that cells of \var{dbOutput} agree with corresponding cells of another
 database}
 \usage{
 dbOut_check_values(dbOut_fname, dbNew_fname, fields_check = NULL,
@@ -13,7 +13,7 @@ dbOut_check_values(dbOut_fname, dbNew_fname, fields_check = NULL,
 \var{\code{dbOutput}} that is to be updated.}
 
 \item{dbNew_fname}{A character string. The file path of a database with
-values that are to be compared against \code{dbOutput}.}
+values that are to be compared against \var{\code{dbOutput}}.}
 
 \item{fields_check}{A named list of vectors with character strings. The
 field names per table that are used must have equal values in the original
@@ -35,7 +35,7 @@ The connection to an in-memory database with one table that tracks
   records that were not compared is \code{NA}/\code{NULL}.
 }
 \description{
-Check that cells of dbOutput agree with corresponding cells of another
+Check that cells of \var{dbOutput} agree with corresponding cells of another
 database
 }
 \examples{
