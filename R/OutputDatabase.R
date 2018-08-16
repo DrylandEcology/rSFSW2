@@ -54,18 +54,15 @@ getIDs_from_db_Pids <- function(dbname, Pids) {
 }
 
 add_dbOutput_index <- function(con) {
-  sql <- "SELECT * FROM sqlite_master WHERE type = 'index'"
-  prev_indices <- dbGetQuery(con, sql)
+  tables <- dbListTables(con)
 
-  if (NROW(prev_indices) == 0L ||
-      !("index_aomean_Pid" %in% prev_indices[, "name"])) {
-    dbExecute(con, paste("CREATE INDEX index_aomean_Pid ON",
+  if ("aggregation_overall_mean" %in% tables) {
+    dbExecute(con, paste("CREATE INDEX IF NOT EXISTS index_aomean_Pid ON",
       "aggregation_overall_mean (P_id)"))
   }
 
-  if (NROW(prev_indices) == 0L ||
-      !("index_aosd_Pid" %in% prev_indices[, "name"])) {
-    dbExecute(con, paste("CREATE INDEX index_aosd_Pid ON",
+  if ("aggregation_overall_sd" %in% tables) {
+    dbExecute(con, paste("CREATE INDEX IF NOT EXISTS index_aosd_Pid ON",
       "aggregation_overall_sd (P_id)"))
   }
 }
@@ -3462,3 +3459,188 @@ dbOut_update_values <- function(dbOut_fname, dbNew_fname, fields_update = NULL,
 
   invisible(table_updated)
 }
+
+
+#' Make a copy of \var{\code{dbOutput}} with a subset of tables and/or fields
+#'
+#' The copy includes all design tables and their full content and a subset
+#' of the records and/or fields of the output tables.
+#'
+#' @param dbOut_fname A character string. The file path of the main
+#'   \var{\code{dbOutput}}.
+#' @param dbNew_fname A character string. The file path and name of the new
+#'   copy of the database with a subset of the values of \var{\code{dbOutput}}.
+#' @param fields_include A named list of vectors with character strings. The
+#'   field names per table to be selected. Each table is represented by a
+#'   correspondingly named element. If \code{NULL}, then all tables and all
+#'   fields are included. If a named element is \code{NULL}, then all fields of
+#'   the corresponding table are included. Except for those fields listed in
+#'   \code{fields_exclude}.
+#' @param fields_exclude A named list of vectors with character strings. The
+#'   field names per table to be excluded from the subset. Each table is
+#'   represented by a correspondingly named element. If \code{NULL}, then no
+#'   fields are excluded from the subset operation.
+#' @param verbose A logical value.
+#'
+#' @export
+dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
+  fields_exclude = NULL, verbose = FALSE) {
+
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({
+      print(paste0("rSFSW2's ", temp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
+    },
+      add = TRUE)
+  }
+
+  con_dbOut <- dbConnect(SQLite(), dbname = dbOut_fname)
+  on.exit(dbDisconnect(con_dbOut), add = TRUE)
+
+  #--- Create dbNew and attach dbOut
+  unlink(dbNew_fname)
+  con_dbNew <- dbConnect(SQLite(), dbname = dbNew_fname)
+  on.exit(dbDisconnect(con_dbNew), add = TRUE)
+
+  set_PRAGMAs(con_dbNew, PRAGMA_settings2())
+
+  dbOut_fname <- normalizePath(dbOut_fname)
+  dbExecute(con_dbNew, paste("ATTACH",
+    dbQuoteIdentifier(con_dbNew, dbOut_fname), "AS dbOut"))
+
+
+  # Extract sql-statements that created tables from dbOut
+  sql <- "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name"
+  sql_tables <- dbGetQuery(con_dbOut, sql)[, 1]
+  sql <- "SELECT sql FROM sqlite_master WHERE type = 'view' ORDER BY name"
+  sql_views <- dbGetQuery(con_dbOut, sql)[, 1]
+
+  #--- Create and copy design/view tables
+  for (dtable in dbOutput_ListDesignTables()) {
+    sql <- grep(dtable, sql_tables, value = TRUE)
+
+    if (length(sql) > 0 && nchar(sql) > 0) {
+      dbExecute(con_dbNew, sql)
+
+      table <- dbQuoteIdentifier(con_dbNew, dtable)
+      sql <- paste0("INSERT INTO ", table,
+        " SELECT * FROM dbOut.", table, "")
+      dbExecute(con_dbNew, sql)
+    }
+  }
+
+  # Create views
+  for (k in seq_along(sql_views)) {
+    dbExecute(con_dbNew, sql_views[k])
+  }
+
+
+  #--- Identify tables and fields to subset and copy
+  has_tables0 <- dbOutput_ListOutputTables(con = con_dbOut)
+
+  # Find output tables
+  req_tables <- if (is.null(fields_include)) {
+      has_tables0
+    } else {
+      names(fields_include)
+    }
+
+  # Confirm that requested tables are available in dbOut
+  has_temp <- req_tables %in% has_tables0
+  not_temp <- !has_temp
+  if (any(not_temp)) {
+    print(paste("Requested tables not available:",
+      paste0(shQuote(req_tables[not_temp]), collapse = ", ")))
+  }
+
+  tables <- req_tables[has_temp]
+  tables_w_soillayers <- dbOutput_Tables_have_SoilLayers(tables,
+    con = con_dbOut)
+
+
+  # Find fields to subset and copy
+  fields_design <- c("P_id", "Soil_Layer")
+  result_fields <- design <- list()
+
+  for (k in seq_along(tables)) {
+    fields0 <- dbListFields(con_dbOut, tables[k])
+
+    temp <- seq_len(if (tables_w_soillayers[tables[k]]) 2 else 1)
+    design[[k]] <- fields_design[temp]
+
+    req_fields <- if (is.null(fields_include) ||
+        is.null(fields_include[[tables[k]]])) {
+        fields0
+      } else {
+        fields_include[[tables[k]]]
+      }
+
+    # Exclude fields requested to be excluded
+    if (!(is.null(fields_exclude) || is.null(fields_exclude[[tables[k]]]))) {
+      temp <- req_fields %in% fields_exclude[[tables[k]]]
+      req_fields <- req_fields[!temp]
+    }
+
+    # Make sure that design fields are included
+    temp <- req_fields %in% design[[k]]
+    req_fields <- c(design[[k]], req_fields[!temp])
+
+    # Confirm that requested fields are available in dbOut
+    has_temp <- req_fields %in% fields0
+    not_temp <- !has_temp
+    if (any(not_temp)) {
+      print(paste("Requested fields not available:",
+        paste0(shQuote(req_fields[not_temp]), collapse = ", ")))
+    }
+
+    result_fields[[k]] <- req_fields[has_temp]
+  }
+
+
+  #--- Create, subset and copy output tables
+  for (k in seq_along(tables)) {
+    sql <- grep(tables[k], sql_tables, value = TRUE)
+
+    if (length(sql) > 0 && nchar(sql) > 0) {
+      table <- dbQuoteIdentifier(con_dbNew, tables[k])
+      tfields <- dbQuoteIdentifier(con_dbNew, result_fields[[k]])
+      sql_fields <- paste0(tfields, collapse = ",")
+
+      # Subset fields
+      temp <- strsplit(sql, split = "\\n")[[1]]
+      fids <- sapply(result_fields[[k]], function(x) grep(x, temp))
+      ids <- c(1, fids, length(temp))
+      sql_subset <- paste(temp[ids], collapse = "\n")
+
+      # Create table
+      if (verbose) {
+        print(paste(Sys.time(), "creating table", shQuote(tables[k])))
+      }
+
+      dbExecute(con_dbNew, sql_subset)
+
+      # Copy subsetted values
+      if (verbose) {
+        print(paste(Sys.time(), "copying values into table",
+          shQuote(tables[k])))
+      }
+
+      sql <- paste0("INSERT INTO ", table, " (", sql_fields, ") ",
+          "SELECT ", sql_fields, " FROM dbOut.", table, "")
+      dbExecute(con_dbNew, sql)
+    }
+  }
+
+  dbExecute(con_dbNew, "DETACH dbOut")
+
+  #--- Add indices (after inserting data) and optimize database
+  add_dbOutput_index(con_dbNew)
+  dbExecute(con_dbNew, "PRAGMA optimize")
+
+  invisible(TRUE)
+}
+
