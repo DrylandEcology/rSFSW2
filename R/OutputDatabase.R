@@ -1855,7 +1855,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   }
 
 
-  #############Site Table############################
+  #------ Site Table
   # Note: invariant to 'include_YN', i.e., do not subset
   # rows of 'SFSW2_prj_inputs[["SWRunInformation"]]'
   index_sites <- sort(unique(c(sapply(req_fields_SWRunInformation(),
@@ -1885,15 +1885,14 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   useTreatments <- any(!(SFSW2_prj_inputs[["create_treatments"]] %in%
       SFSW2_prj_inputs[["create_experimentals"]]))
 
-  #############simulation_years table#########################
+  #------ simulation_years table
   dbExecute(con_dbOut, paste("CREATE TABLE",
     "simulation_years(id INTEGER PRIMARY KEY AUTOINCREMENT,",
     "simulationStartYear INTEGER NOT NULL, StartYear INTEGER NOT NULL,",
     "EndYear INTEGER NOT NULL);"))
-  ##################################################
 
 
-  ##########Create table experimental_labels only if using experimentals
+  #------ Create table experimental_labels only if using experimentals
   if (useExperimentals) {
     dbExecute(con_dbOut, paste("CREATE TABLE",
       "experimental_labels(id INTEGER PRIMARY KEY AUTOINCREMENT,",
@@ -1904,11 +1903,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     dbBind(rs, param = list(
       label = SFSW2_prj_inputs[["sw_input_experimentals"]][, 1]))
     dbClearResult(rs)
-
   }
-  ################################
 
-  # If LookupWeatherFolder is ON we need to make sure all of the weather
+  #------ If LookupWeatherFolder is ON we need to make sure all of the weather
   # folders are in weatherfolders table
 #TODO: WeatherFolder update
   if (any(SFSW2_prj_inputs[["create_treatments"]] == fieldname_weatherf)) {
@@ -2084,8 +2081,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       SFSW2_prj_inputs[["create_experimentals"]]
     db_treatments_column_types[temp, "table"] <- 1
 
-    ######################
-    #Get the column types from the proper tables
+    #------ Get the column types from the proper tables
     temp <- SFSW2_prj_inputs[["create_treatments"]] %in%
       SFSW2_prj_inputs[["create_experimentals"]]
     temp <- SFSW2_prj_inputs[["create_treatments"]][!temp]
@@ -2297,7 +2293,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   dbClearResult(rs)
 
 
-  ##############scenario_labels table###############
+  #------ scenario_labels table
   dbExecute(con_dbOut, paste("CREATE TABLE",
     "scenario_labels(id INTEGER PRIMARY KEY AUTOINCREMENT,",
     "label TEXT UNIQUE NOT NULL)"))
@@ -2307,9 +2303,8 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   dbBind(rs, param = list(label = SFSW2_prj_meta[["sim_scens"]][["id"]]))
   dbClearResult(rs)
 
-  ##################################################
 
-  #############run_labels table#########################
+  #------ run_labels table
   # Note: invariant to 'include_YN', i.e., do not
   # subset 'SFSW2_prj_inputs[["SWRunInformation"]]'
   dbExecute(con_dbOut, paste("CREATE TABLE",
@@ -2332,10 +2327,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   rs <- dbSendStatement(con_dbOut, sql)
   dbBind(rs, param = list(label = temp))
   dbClearResult(rs)
-  ##################################################
 
 
-  #####################runs table###################
+  #------ runs table
   # Note: invariant to 'include_YN', i.e., do not
   # subset 'SFSW2_prj_inputs[["SWRunInformation"]]'
   dbExecute(con_dbOut, paste("CREATE TABLE",
@@ -2387,9 +2381,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   rs <- dbSendStatement(con_dbOut, sql)
   dbBind(rs, param = as.list(db_runs))
   dbClearResult(rs)
-  ##################################################
 
-  ################CREATE VIEW########################
+
+  #------ CREATE VIEW
   if (length(SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]]) > 0) {
     sites_columns <- colnames(SFSW2_prj_inputs[["SWRunInformation"]])[
       SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]]]
@@ -2442,7 +2436,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       "treatments.experimental_id=experimental_labels.id AND ",
     "treatments.simulation_years_id=simulation_years.id;"
   ))
-  ##################################################
 
   invisible(NULL)
 }
