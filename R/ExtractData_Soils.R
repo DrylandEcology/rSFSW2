@@ -368,7 +368,7 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
       }
   
       tif_file <- paste0(paste0(dir.ex.gridded, "/"), tif_file);
-      stopifnot(file.exists(dir.ex.gridded))
+      stopifnot(file.exists(tif_file))
       ldepth_gridded <- c(0, 5, 15, 30, 60, 100, 200) #in cm
       layer_N <- length(ldepth_gridded) - 1 
       ils <- seq_len(layer_N)
@@ -453,13 +453,17 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
                                   ldepths_cm = ldepth_gridded[-1], lys, fnames_in)
         }
       }
-      }
+    }
+    else{
+      break
+    }
     }
   }
   # print stats
   if (verbose){
-    print(paste("Soil data from 'Gridded250m' was extracted for", soil_layer, "layers and n =",
-                sum(i_good), "out of", n_extract, "sites"))
+    if(soil_layer > 1)
+      print(paste("Soil data from 'Gridded250m' was extracted for", soil_layer, "layers and n =",
+                  sum(i_good), "out of", n_extract, "sites"))
   }
   MMC
 }
