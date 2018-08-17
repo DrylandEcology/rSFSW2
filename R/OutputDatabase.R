@@ -3461,6 +3461,56 @@ dbOut_update_values <- function(dbOut_fname, dbNew_fname, fields_update = NULL,
 }
 
 
+
+#' @section Note: This function assumes a simiplified column-definition
+#'   `column-name -> type name -> column-constraints``,
+#'   i.e., (i) type name does occur and contraints have no
+#'   (ii) field/column names and (iii) do not contain (..., ...)
+split_fields_from_SQLite_CREATETABLE <- function(sql) {
+  start <- end <- -1L
+  field_code <- field_names <- NA_character_
+  sep <- ","
+
+  # Check that SQL is a `CREATE TABLE` and
+  # not `CREATE TABLE ... AS SELECT` statement
+  if (length(sql) == 1 &&
+      isTRUE(grepl("CREATE TABLE", sql) && !grepl("AS SELECT", sql))) {
+
+    # Locate column-definition: first set of paranthesis
+    ids <- gregexpr("[(][^][()]*[)]", sql)[[1]]
+
+    if (all(ids > -1)) {
+      start <- ids[1] + 1
+      end <- ids[1] + attr(ids, "match.length")[1] - 2
+      coldef <- substr(sql, start, end)
+
+      # Separate field/column-definitions: see note
+      field_code <- strsplit(coldef, split = sep)[[1]]
+
+      # Identify field/column name: first word in field code
+      # if escaped then name is first word separated by escape character
+      # if not escaped then name is first word separated by white space
+      temp <- strsplit(field_code, split = "[[:space:]]")
+      words <- lapply(temp, function(x) x[nchar(x) > 0])
+      field_names <- lapply(words, function(x)
+        gsub("[`'\"]", "", x[1]))
+    }
+  }
+
+  list(field_start = start, field_end = end, field_code = field_code,
+    field_names = field_names, field_sep = sep)
+}
+
+paste_SQLite_CREATETABLE_from_fields <- function(sql, field_info, subset) {
+  paste(
+    substr(sql, 1, field_info[["field_start"]] - 1),
+    paste(field_info[["field_code"]][subset],
+      collapse = field_info[["field_sep"]]),
+    substr(sql, field_info[["field_end"]] + 1, nchar(sql))
+  )
+}
+
+
 #' Make a copy of \var{\code{dbOutput}} with a subset of tables and/or fields
 #'
 #' The copy includes all design tables and their full content and a subset
@@ -3514,19 +3564,29 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 
 
   # Extract sql-statements that created tables from dbOut
-  sql <- "SELECT sql FROM sqlite_master WHERE type='table' ORDER BY name"
-  sql_tables <- dbGetQuery(con_dbOut, sql)[, 1]
-  sql <- "SELECT sql FROM sqlite_master WHERE type = 'view' ORDER BY name"
+  sql <- "SELECT tbl_name, sql FROM sqlite_master WHERE type='table'"
+  sql_tables <- dbGetQuery(con_dbOut, sql)
+  sql <- "SELECT sql FROM sqlite_master WHERE type = 'view'"
   sql_views <- dbGetQuery(con_dbOut, sql)[, 1]
 
   #--- Create and copy design/view tables
-  for (dtable in dbOutput_ListDesignTables()) {
-    sql <- grep(dtable, sql_tables, value = TRUE)
+  dtables <- dbOutput_ListDesignTables()
 
-    if (length(sql) > 0 && nchar(sql) > 0) {
-      dbExecute(con_dbNew, sql)
+  for (k in seq_len(NROW(sql_tables))) {
+    if (sql_tables[k, "tbl_name"] %in% dtables &&
+        isTRUE(nchar(sql_tables[k, "sql"]) > 0) &&
+        grepl("CREATE TABLE", sql_tables[k, "sql"])) {
 
-      table <- dbQuoteIdentifier(con_dbNew, dtable)
+      if (verbose) {
+        print(paste(Sys.time(), "re-create and copy design table",
+          shQuote(sql_tables[k, "tbl_name"])))
+      }
+
+      # Re-create table
+      dbExecute(con_dbNew, sql_tables[k, "sql"])
+
+      # Copy table values from dbOut to dbNew
+      table <- dbQuoteIdentifier(con_dbNew, sql_tables[k, "tbl_name"])
       sql <- paste0("INSERT INTO ", table,
         " SELECT * FROM dbOut.", table, "")
       dbExecute(con_dbNew, sql)
@@ -3600,33 +3660,38 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
     result_fields[[k]] <- req_fields[has_temp]
   }
 
+  names(result_fields) <- tables
+
 
   #--- Create, subset and copy output tables
-  for (k in seq_along(tables)) {
-    sql <- grep(tables[k], sql_tables, value = TRUE)
+  for (k in seq_len(NROW(sql_tables))) {
+    if (sql_tables[k, "tbl_name"] %in% tables &&
+        isTRUE(nchar(sql_tables[k, "sql"]) > 0) &&
+        grepl("CREATE TABLE", sql_tables[k, "sql"])) {
 
-    if (length(sql) > 0 && nchar(sql) > 0) {
-      table <- dbQuoteIdentifier(con_dbNew, tables[k])
-      tfields <- dbQuoteIdentifier(con_dbNew, result_fields[[k]])
+      table <- dbQuoteIdentifier(con_dbNew, sql_tables[k, "tbl_name"])
+      rfields <- result_fields[[sql_tables[k, "tbl_name"]]]
+      tfields <- dbQuoteIdentifier(con_dbNew, rfields)
       sql_fields <- paste0(tfields, collapse = ",")
 
       # Subset fields
-      temp <- strsplit(sql, split = "\\n")[[1]]
-      fids <- sapply(result_fields[[k]], function(x) grep(x, temp))
-      ids <- c(1, fids, length(temp))
-      sql_subset <- paste(temp[ids], collapse = "\n")
+      temp <- split_fields_from_SQLite_CREATETABLE(sql_tables[k, "sql"])
+      fids <- which(temp[["field_names"]] %in% rfields)
+      sql_subset <- paste_SQLite_CREATETABLE_from_fields(sql_tables[k, "sql"],
+        field_info = temp, subset = fids)
 
       # Create table
       if (verbose) {
-        print(paste(Sys.time(), "creating table", shQuote(tables[k])))
+        print(paste(Sys.time(), "creating table",
+          shQuote(sql_tables[k, "tbl_name"])))
       }
 
       dbExecute(con_dbNew, sql_subset)
 
-      # Copy subsetted values
+      # Copy subsetted values from dbOut to dbNew
       if (verbose) {
         print(paste(Sys.time(), "copying values into table",
-          shQuote(tables[k])))
+          shQuote(sql_tables[k, "tbl_name"])))
       }
 
       sql <- paste0("INSERT INTO ", table, " (", sql_fields, ") ",
