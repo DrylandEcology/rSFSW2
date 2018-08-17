@@ -312,8 +312,8 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
   show_site_info <- verbose
   soil_layer <- 1
   dir.ex.gridded <- file.path(dir_ex_soil, "Isric", "GriddedGlobalV5")
-  # stop program execution if file path is incorrect
-  if(!file.exists(dir.ex.gridded)) stop(paste0("Filepath '", dir.ex.gridded, "' does not exist"))
+  # stop program execution if folder path is incorrect
+  if(!file.exists(dir.ex.gridded)) stop(paste0("Folder '", dir.ex.gridded, "' does not exist"))
   
   file_in_gridded <- list.files(dir.ex.gridded);
   MMC[["source"]] <- "GriddedFROM250m"
@@ -326,6 +326,9 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
     todos <- adjust_soils_todos(todos, MMC, sim_size)
   }
   names(todos) <- NULL
+  # get locations of simulation runs
+  sites_conus <- sim_space[["run_sites"]][todos, ]
+  
   # set this once now to avoid extracting data that already exists  
   n_extract <- sum(todos)
   
@@ -379,11 +382,7 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
       
           g <- raster::brick(tif_file)
           soil_data <- raster::crs(g)
-          gd <- raster::brick(tif_file)
-      
-          # get locations of simulation runs
-          sites_conus <- sim_space[["run_sites"]][todos, ]
-      
+
           if (!raster::compareCRS(sim_space[["crs_sites"]], soil_data)) {
             sites_conus <- sp::spTransform(sites_conus, CRS = soil_data) #transform graphics::points to grid-coords
           }
@@ -419,8 +418,7 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
           MMC[["data"]][todos, grep("depth", MMC[["cn"]])] = soil_frame_depth
           if(file_type != "depth"){
             # get soil data as a dataframe 
-            soil <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g))) 
-            soil_frame <- soil
+            soil_frame <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g))) 
             percent_div <- 100
       
             # write density data, MMC[["data"]] requires a different column name to be written then the rest
@@ -441,23 +439,23 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
             # There is no organic carbon data, set all values to a default
             MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[ils]] <- default_TOC_GperKG
             MMC[["idone"]]["GriddedFROM250m"] <- TRUE
-            
-            # Determine successful extractions =============================
-            
-            i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) 
-            MMC[["source"]][which(todos)[!i_good]] <- NA
-            lys <- seq_len(max(findInterval(MMC[["data"]][todos, "depth"],
-                                            ldepth_gridded[-1]), na.rm = TRUE))
-            if (any(i_good)) {
-              i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) 
-              i_Done[which(todos)[i_good]] <- TRUE
-              MMC[["source"]][i_Done] <- "GriddedFROM250m"
-              MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
-                                        ldepths_cm = ldepth_gridded[-1], lys, fnames_in)
-            }
           }
         }
       }
+    }
+    
+    # Determine successful extractions =============================
+    
+    i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"]) 
+    MMC[["source"]][which(todos)[!i_good]] <- NA
+    lys <- seq_len(max(findInterval(MMC[["data"]][todos, "depth"],
+                                    ldepth_gridded[-1]), na.rm = TRUE))
+    if (any(i_good)) {
+      i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]]) 
+      i_Done[which(todos)[i_good]] <- TRUE
+      MMC[["source"]][i_Done] <- "GriddedFROM250m"
+      MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
+                                ldepths_cm = ldepth_gridded[-1], lys, fnames_in)
     }
     # print stats
     if (verbose){
