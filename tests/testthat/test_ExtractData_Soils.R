@@ -11,6 +11,9 @@ skip_on_cran();
 # =============================================================================
 
 # set stage manually so that future changes won't cause the test to fail ======
+fnames_in$fslayers <- "/PATH_TO_YOUR_SWRuns_InputData_SoilLayers csv file"
+fnames_in$fprepocin <- "/PATH_TO_YOUR_SWRuns_InputAll_PreProcessed rds file"
+fnames_in$fsoils <- "/PATH_TO_YOUR_SWRuns_InputData_soils csv file"
 resume <- TRUE
 verbose <- FALSE
 MMC <- environment();
@@ -54,10 +57,6 @@ if (requireNamespace("rgdal", quietly = TRUE)) {
   stopifnot(temp[[1]])
   sim_space[["sim_crs"]] <- sp::CRS(temp[[2]])
 }
-
-fnames_in$fslayers <- "/PATH_TO_YOUR_SWRuns_InputData_SoilLayers csv file"
-fnames_in$fprepocin <- "/PATH_TO_YOUR_SWRuns_InputAll_PreProcessed rds file"
-fnames_in$fsoils <- "/PATH_TO_YOUR_SWRuns_InputData_soils csv file"
 
 field_sources <- "SoilTexture_source"
 include_sources <- "Include_YN_SoilSources"

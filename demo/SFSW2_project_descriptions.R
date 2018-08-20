@@ -71,10 +71,10 @@ project_paths <- list(
 
   # Path from where external data are extraced
   dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
-    file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
-  } else if (identical(opt_platform[["host"]], "hpc")) {
-    file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
-  },
+      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
+    } else if (identical(opt_platform[["host"]], "hpc")) {
+      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
+    },
   # Path to historic weather and climate data including
   #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
   dir_ex_weather = file.path(dir_ex, "Weather_Past"),
@@ -156,45 +156,52 @@ opt_input <- list(
   # Request data from datasets ('external' to a rSFSW2-project)
   req_data = c(
       # Daily weather data for current conditions
-      #   - Maurer et al. 2002: 1/8-degree res. for 1949-2010; data expected at file.path(
-      #     project_paths[["dir_ex_weather"]], "Maurer+_2002updated", "DAILY_FORCINGS")
+      #   - Maurer et al. 2002: 1/8-degree res. for 1949-2010; data expected at
+      #     file.path(project_paths[["dir_ex_weather"]], "Maurer+_2002updated",
+      #     "DAILY_FORCINGS")
       "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,
-      #   - Thornton et al. 1997: 1-km res. for 1980-2016; data expected at file.path(
-      #     project_paths[["dir_ex_weather"]], "DayMet_NorthAmerica",
+      #   - Thornton et al. 1997: 1-km res. for 1980-2016; data expected at
+      #     file.path(project_paths[["dir_ex_weather"]], "DayMet_NorthAmerica",
       #     "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
       "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,
-      #   - McKenney et al. 2011: 10-km res. for 1950-2013; use with dbW; data expected at
-      #     file.path(project_paths[["dir_ex_weather"]], "NRCan_10km_Canada", "DAILY_GRIDS")
+      #   - McKenney et al. 2011: 10-km res. for 1950-2013; use with dbW;
+      #     data expected at file.path(project_paths[["dir_ex_weather"]],
+      #     "NRCan_10km_Canada", "DAILY_GRIDS")
       "GriddedDailyWeatherFromNRCan_10km_Canada", 0,
-      #   - Saha et al. 2010: 0.3125-deg res. for 1979-2010; use with dbW; data expected at file.path(
-      #     project_paths[["dir_ex_weather"]], "NCEPCFSR_Global", "CFSR_weather_prog08032012")
+      #   - Saha et al. 2010: 0.3125-deg res. for 1979-2010; use with dbW;
+      #     data expected at file.path(project_paths[["dir_ex_weather"]],
+      #     "NCEPCFSR_Global", "CFSR_weather_prog08032012")
       "GriddedDailyWeatherFromNCEPCFSR_Global", 0,
-      #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at file.path(
-      #     project_paths[["dir_ex_weather"]], "Livneh_NA_2013", "MONTHLY_GRIDS")
+      #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at
+      #     file.path(project_paths[["dir_ex_weather"]], "Livneh_NA_2013",
+      #     "MONTHLY_GRIDS")
       "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
-  
+
       # Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL,
-      #   climate condition names must be of the form SCENARIO.GCM with SCENARIO being
-      #   used for ensembles; if using climatewizard, climate condition names must be
-      #   equal to what is in the respective directories
-      #   - data expected at file.path(project_paths[["dir_ex_fut"]], "ClimateScenarios")
-      "ExtractClimateChangeScenarios", 1,
-  
+      #   climate condition names must be of the form SCENARIO.GCM with
+      #   SCENARIO being used for ensembles; if using climatewizard, climate
+      #   condition names must be equal to what is in the respective directories
+      #   - data expected at file.path(project_paths[["dir_ex_fut"]],
+      #   "ClimateScenarios")
+      "ExtractClimateChangeScenarios", 0,
+
       # Mean monthly wind, relative humidity, and 100% - sunshine
-      #   - NCDC 2005: data expected at file.path(project_paths[["dir_ex_weather"]],
-      #     "ClimateAtlasUS")
+      #   - NCDC 2005: data expected at file.path(
+      #     project_paths[["dir_ex_weather"]], "ClimateAtlasUS")
       "ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
-      #   - Saha et al. 2010: project_paths[["dir_ex_weather"]], "NCEPCFSR_Global",
-      #     "CFSR_weather_prog08032012")
+      #   - Saha et al. 2010: project_paths[["dir_ex_weather"]],
+      #     "NCEPCFSR_Global", "CFSR_weather_prog08032012")
       "ExtractSkyDataFromNCEPCFSR_Global", 0,
-  
+
       # Topography
-      #   - NED, National Elevation Dataset (ned.usgs.gov): 1-arcsec res; data expected
-      #     at project_paths[["dir_ex_dem"]], "NED_USA", "NED_1arcsec")
+      #   - NED, National Elevation Dataset (ned.usgs.gov): 1-arcsec res;
+      #     data expected at project_paths[["dir_ex_dem"]], "NED_USA",
+      #     "NED_1arcsec")
       "ExtractElevation_NED_USA", 0,
       #   - Harmonized World Soil Database: 30-arcsec res; data expected
       #     at project_paths[["dir_ex_dem"]], "HWSD")
       "ExtractElevation_HWSD_Global", 0,
+
       # Soil texture
       #   - Harmonized World Soil Database: 1-km re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "CONUSSoil", "output", "albers")
@@ -204,11 +211,13 @@ opt_input <- list(
       #     at: project_paths[["dir_ex_soil"]], "Isric", GriddedGlobalV5
       "ExtractSoilDataFromIsricSoilGrid_Global_250m", 0,
       #   - ISRIC-WISE 5-arcmin v1.2 (2012): 5-arcmin re-gridded; data expected
-      #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b", "Grid", "smw5by5min")
+      #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b",
+      #     "Grid", "smw5by5min")
       "ExtractSoilDataFromISRICWISEv12_Global", 0,
-      #   - Contains information about soil as collected by the National Cooperative Soil Survey.
-      #     Data was collected at scales ranging from 1:12,000 to 1:63,360.
-      #     Site-specific data will be checked for and downloaded to at project_paths[["dir_to_SSURGO"]]
+      #   - Contains information about soil as collected by the 
+      #     National Cooperative Soil Survey. Data was collected at scales
+      #     ranging from 1:12,000 to 1:63,360. Site-specific data will be
+      #     checked for and downloaded to at project_paths[["dir_to_SSURGO"]]
       "ExtractSoilDataFromSSURGO", 0,
       #   - ISRIC-WISE 30-arsec v1.0 (2016): 30-arcsec re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "WISE", "WISE30sec_v1a")
@@ -455,7 +464,7 @@ req_scens <- list(
     #     - "BCSD_SageSeer_USA": monthly time-series at 1-km resolution for the
     #       western US prepared by Katie Renwick
     #     - "ESGF_Global": monthly time-series at varying resolution
-    dataset1 = "CMIP5_BCSD_GDODCPUCLLNL_USA"
+      dataset1 = "CMIP5_BCSD_GDODCPUCLLNL_USA"
   ),
 
   # Downscaling method (applied to each each climate.conditions)
@@ -545,7 +554,7 @@ req_scens <- list(
 req_out <- list(
   # Overall aggregated output table
   overall_out = c(
-    #---Aggregation: SOILWAT2 inputs
+  #---Aggregation: SOILWAT2 inputs
     "input_SoilProfile", 1,
     "input_FractionVegetationComposition", 1,
     "input_VegetationBiomassMonthly", 1,
@@ -555,7 +564,7 @@ req_out <- list(
     "input_TranspirationCoeff", 1,
     "input_ClimatePerturbations", 1,
     "input_CO2Effects", 1,
-    #---Aggregation: Climate and weather
+  #---Aggregation: Climate and weather
     "yearlyTemp", 1,
     "yearlyPPT", 1,
     "dailySnowpack", 1,
@@ -567,23 +576,23 @@ req_out <- list(
     "dailyPrecipitationEventSizeDistribution", 1,
     "yearlyPET", 1,
     "monthlySeasonalityIndices", 1,
-    #---Aggregation: Climatic dryness
+  #---Aggregation: Climatic dryness
     "yearlymonthlyTemperateDrylandIndices", 1,
     "yearlyDryWetPeriods", 1,
     "dailyWeatherGeneratorCharacteristics", 1,
     "dailyPrecipitationFreeEventDistribution", 1,
     "monthlySPEIEvents", 1,
-    #---Aggregation: Climatic control
+  #---Aggregation: Climatic control
     "monthlyPlantGrowthControls", 1,
     "dailyC4_TempVar", 1,
     "dailyDegreeDays", 1,
     "dailyColdDegreeDays", 1,
-    #---Aggregation: Yearly water balance
+  #---Aggregation: Yearly water balance
     "yearlyAET", 1,
     "yearlyWaterBalanceFluxes", 1,
     "yearlyTranspirationBySoilLayer", 1,
     "dailySoilWaterPulseVsStorage", 1,
-    #---Aggregation: Daily extreme values
+  #---Aggregation: Daily extreme values
     "dailyTranspirationExtremes", 1,
     "dailyTotalEvaporationExtremes", 1,
     "dailyDrainageExtremes", 1,
@@ -611,7 +620,7 @@ req_out <- list(
     "dailySWPdrynessIntensity", 1,
     "dailyThermalDrynessStress", 1,
     "periodicVWCmatricFirstLayer", 1,
-    #---Aggregation: Mean monthly values
+  #---Aggregation: Mean monthly values
     "monthlyTemp", 1,
     "monthlyPPT", 1,
     "monthlySnowpack", 1,
@@ -633,7 +642,7 @@ req_out <- list(
     "monthlyVPD", 1,
     "monthlyAETratios", 1,
     "monthlyPETratios", 1,
-    #---Aggregation: Potential regeneration
+  #---Aggregation: Potential regeneration
     "dailyRegeneration_bySWPSnow", 1,
     "dailyRegeneration_GISSM", 1
   ),
