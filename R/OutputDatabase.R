@@ -2536,7 +2536,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       temp <- c(temp, paste0(c(rep("Grass", 36), rep("Shrub", 36), rep("Tree", 36), rep("Forb", 36)),
                             "_",
                             c(rep("Litter", 12), rep("TotalBiomass", 12), rep("LiveBiomass", 12)),
-                            "_m", st_mo, "_gPERm2"))
+                            "_m", SFSW2_glovars[["st_mo"]], "_gPERm2"))
     }
   #2b
     if (aon$input_VegetationBiomassTrends) {
@@ -2783,6 +2783,8 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
   #27.2
     if (aon$dailySoilWaterPulseVsStorage) {
+      # temp, be sure to actually set this to a real value later
+      lmax <- 1
       temp <- c(temp,
                 paste0("WaterExtractionSpell_MeanContinuousDuration_L", lmax, "_days"),
                 paste0("WaterExtractionSpell_AnnualSummedExtraction_L", lmax, "_mm"))

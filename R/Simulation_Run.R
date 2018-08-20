@@ -5404,7 +5404,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             " instead of ", sim_size[["ncol_dbOut_overall"]]))
           tasks[sc, "aggregate"] <- 0L
         }
-
+        # overall_SQL <- paste0("CREATE TABLE overall_aggregations AS (SELECT aggregation_overall_mean.*, aggregation_overall_sd.* FROM aggregation_overall_mean INNER JOIN aggregation_overall_sd ON aggregation_overall_mean.P_id = aggregation_overall_sd.P_id);")
+        # dbExecute2(dbTempFile, overall_SQL, verbose = opt_verbosity[["print.debug"]],
+        #            seed = i_seed)
+        
         print_debug(opt_verbosity, tag_simpidfid, "section", "overall aggregation done")
       } # end of 'overall aggregation'
 

@@ -879,18 +879,19 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, # noli
 
   #------ CREATE OUTPUT DATABASE (IF NOT ALREADY EXISTING)
   if (todo_intracker(SFSW2_prj_meta, "dbOut", "prepared")) {
-    print(paste("temp error: ", temp))
     temp <- try(make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
       verbose = opt_verbosity[["verbose"]]),
       silent = !opt_verbosity[["print.debug"]])
-
+    
+    print(paste("temp error: ", temp))
+    
     if (inherits(temp, "try-error")) {
       stop("Output database failed to setup")
     }
 
     SFSW2_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <-
-      temp[["ncol_dbOut_overall"]]
-    SFSW2_prj_meta[["prj_todos"]][["aon_fields"]] <- temp[["fields"]]
+      temp[["ncol_dbOut_overall"]][["fields"]]
+    SFSW2_prj_meta[["prj_todos"]][["aon_fields"]] <- temp
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(
       SFSW2_prj_meta[["input_status"]], tracker = "dbOut", prepared = TRUE)

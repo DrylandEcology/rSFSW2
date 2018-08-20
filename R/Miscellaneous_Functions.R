@@ -314,13 +314,13 @@ dir_safe_create <- function(paths, showWarnings = FALSE, recursive = TRUE,
 future_time_window_aggregation <- function(sim_time){
   # Add future time windows for aggregation of simulation output
   sim_time[["agg_years"]] <- c(sim_time[["agg_years.current1"]],
-                               future = apply(future_yrs, 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
+                               future = apply(sim_time[["future_yrs"]], 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
   )
   
   # Time windows of current and future simulation periods
   sim_time[["sim_windows"]] <- c(
     current = list(sim_time[["simstartyr"]]:sim_time[["endyr"]]),
-    future = apply(future_yrs, 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
+    future = apply(sim_time[["future_yrs"]], 1, function(x) x["DSfut_startyr"]:x["DSfut_endyr"])
   )
 }
 
