@@ -3233,7 +3233,9 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       ")")
 
     DBI::dbExecute(con_dbOut, overallSQL)
-
+  # temp, be sure to change these at a later date
+  meanString <- "24"
+  sdString <- "15"
   list(ncol_dbOut_overall = ncol_dbOut_overall, meanString = meanString,
     sdString = sdString)
 }
