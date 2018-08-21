@@ -79,19 +79,19 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
   fix_C3grasses = FALSE, C3_Fraction = NA,
   fix_shrubs = FALSE, Shrubs_Fraction = NA,
   fix_forbs = FALSE, Forbs_Fraction = NA,
-  fix_trees = FALSE, Trees_Fraction = 0,
+  fix_trees = FALSE, Trees_Fraction = NA,
   fix_BareGround = TRUE, BareGround_Fraction = 0) {
 
   f.digits <- 3
   tolerance <- 1.1 * 10 ^ -f.digits
 
   # Get the user specified fractions, if column is false set to NA
-  tree.fraction <- Trees_Fraction
+  tree.fraction <- 0
   forb.fraction <- 0
   bareGround.fraction <- 0
   # Input cover fraction values:
   # annual grasses, C4-grasses, C3-grasses, shrubs, forbs, bare-ground
-  input_cover <- rep(NA, 6)
+  input_cover <- rep(NA, 7)
 
   if (fix_annuals) {
     input_cover[1] <- finite01(Annuals_Fraction)
@@ -114,6 +114,11 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
     input_cover[6] <- finite01(BareGround_Fraction)
   } else {
     input_cover[6] <- bareGround.fraction
+  }
+  if(fix_trees){
+    input_cover[7] <- finite01(Trees_Fraction)
+  } else {
+    input_cover[7] <- tree.fraction
   }
   input_cover <- cut0Inf(input_cover) # treat negatives as if NA
   TotalFraction <- sum(input_cover, na.rm = TRUE)
