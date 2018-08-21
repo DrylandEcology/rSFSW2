@@ -156,6 +156,9 @@ opt_input <- list(
       #     file.path(project_paths[["dir_ex_weather"]], "Livneh_NA_2013",
       #     "MONTHLY_GRIDS")
       "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
+      #   - Livneh et al. 2016: 1/16 degree res. for 1915-2015; data expected at
+      #     file.path(project_paths[["dir_ex_weather"]], "Livneh_NA_2016")
+      "GriddedDailyWeatherFromLivneh2016_NorthAmerica", 0,
 
       # Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL,
       #   climate condition names must be of the form SCENARIO.GCM with
@@ -218,8 +221,8 @@ opt_input <- list(
   #   etc.
   # Do not change/remove/add entries; only re-order to set different priorities
   dw_source_priority = c("DayMet_NorthAmerica", "LookupWeatherFolder",
-    "Maurer2002_NorthAmerica", "Livneh2013_NorthAmerica", "NRCan_10km_Canada",
-    "NCEPCFSR_Global"),
+    "Maurer2002_NorthAmerica", "Livneh2013_NorthAmerica",
+    "Livneh2016_NorthAmerica", "NRCan_10km_Canada", "NCEPCFSR_Global"),
 
   # Creation of dbWeather
   # Compression type of dbWeather; one value of eval(formals(memCompress)[[2]])
