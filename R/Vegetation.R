@@ -91,7 +91,7 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
   bareGround.fraction <- 0
   # Input cover fraction values:
   # annual grasses, C4-grasses, C3-grasses, shrubs, forbs, bare-ground
-  input_cover <- rep(NA, 7)
+  input_cover <- rep(NA, 6)
 
   if (fix_annuals) {
     input_cover[1] <- finite01(Annuals_Fraction)
@@ -283,7 +283,7 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
     Composition = c(
       Grasses = grass.fraction,
       Shrubs = input_cover[4],
-      Trees = tree.fraction,
+      Trees = input_cover[7],
       Forbs = input_cover[5],
       BareGround = input_cover[6]),
 
