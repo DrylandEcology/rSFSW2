@@ -149,8 +149,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   }
 
 #-----------------------Check for experimentals
-  print(paste("length(create_exp)", length(create_experimentals)))
-  print(paste("sim_size[[expN]]", sim_size[["expN"]]))
   if (sim_size[["expN"]] > 0 && length(create_experimentals) > 0) {
     i_exp <- it_exp(i_sim, sim_size[["runsN_master"]])
     i_label <- paste(flag.icounter, sw_input_experimentals[i_exp, 1],
