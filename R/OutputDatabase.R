@@ -1830,7 +1830,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
       sql <- "INSERT INTO weatherfolders VALUES(NULL, :folder)"
       rs <- dbSendStatement(con_dbOut, sql)
-      dbBind(rs, param = list(folder = temp))
+      dbBind(rs, params = list(folder = temp))
       dbClearResult(rs)
 
     } else {
@@ -1885,7 +1885,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
     sql <- "INSERT INTO experimental_labels VALUES(NULL, :label)"
     rs <- dbSendStatement(con_dbOut, sql)
-    dbBind(rs, param = list(
+    dbBind(rs, params = list(
       label = SFSW2_prj_inputs[["sw_input_experimentals"]][, 1]))
     dbClearResult(rs)
 
@@ -1944,7 +1944,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
         #Write those in
         sql <- "INSERT INTO weatherfolders VALUES(:id, :folder)"
         rs <- dbSendStatement(con_dbOut, sql)
-        dbBind(rs, param = as.list(LWF_index[isna, ]))
+        dbBind(rs, params = as.list(LWF_index[isna, ]))
         dbClearResult(rs)
       }
     }
@@ -2270,14 +2270,14 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   sql <- paste("INSERT INTO simulation_years VALUES(NULL,",
     ":simulationStartYear, :StartYear, :EndYear)")
   rs <- dbSendStatement(con_dbOut, sql)
-  dbBind(rs, param = as.list(unique_simulation_years))
+  dbBind(rs, params = as.list(unique_simulation_years))
   dbClearResult(rs)
 
   #Insert the data into the treatments table
   sql <- paste0("INSERT INTO treatments VALUES(", paste0(":",
     colnames(db_combined_exp_treatments), collapse = ", "), ")")
   rs <- dbSendStatement(con_dbOut, sql)
-  dbBind(rs, param = as.list(db_combined_exp_treatments))
+  dbBind(rs, params = as.list(db_combined_exp_treatments))
   dbClearResult(rs)
 
 
@@ -2288,7 +2288,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
   sql <- "INSERT INTO scenario_labels VALUES(NULL, :label)"
   rs <- dbSendStatement(con_dbOut, sql)
-  dbBind(rs, param = list(label = SFSW2_prj_meta[["sim_scens"]][["id"]]))
+  dbBind(rs, params = list(label = SFSW2_prj_meta[["sim_scens"]][["id"]]))
   dbClearResult(rs)
 
   ##################################################
@@ -2314,7 +2314,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
   sql <- "INSERT INTO run_labels VALUES(NULL, :label)"
   rs <- dbSendStatement(con_dbOut, sql)
-  dbBind(rs, param = list(label = temp))
+  dbBind(rs, params = list(label = temp))
   dbClearResult(rs)
   ##################################################
 
@@ -2369,7 +2369,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   sql <- paste("INSERT INTO runs VALUES(:P_id, :label_id, :site_id,",
     ":treatment_id, :scenario_id)")
   rs <- dbSendStatement(con_dbOut, sql)
-  dbBind(rs, param = as.list(db_runs))
+  dbBind(rs, params = as.list(db_runs))
   dbClearResult(rs)
   ##################################################
 

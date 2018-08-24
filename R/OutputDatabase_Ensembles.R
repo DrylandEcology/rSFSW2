@@ -89,7 +89,7 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
       sql <- paste0("INSERT INTO ", outfile, " VALUES (", paste0(paste(":", colnames(dat)),
           collapse = ", "), ")")
       rs <- dbSendStatement(conEnsembleDB, sql)
-      dbBind(rs, param = as.list(dat))
+      dbBind(rs, params = as.list(dat))
       dbClearResult(rs)
 
       written <- 1
