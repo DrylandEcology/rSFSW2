@@ -124,19 +124,41 @@ __Setup a new simulation project__:
 You can contribute to this project in different ways:
 
 1. Reporting [issues](https://github.com/DrylandEcology/rSFSW2/issues)
-2. Contributing code and sending a [pull request](https://github.com/DrylandEcology/rSFSW2/pulls)
+2. Contributing code and sending a
+   [pull request](https://github.com/DrylandEcology/rSFSW2/pulls)
 
-Please follow our [guidelines](https://github.com/DrylandEcology/workflow_guidelines),
+Please follow our
+[guidelines](https://github.com/DrylandEcology/workflow_guidelines),
 particularly,
-  * Use code style that passes our `lintr` unit tests which basically reflect
-    [Hadley's style recommendation](http://r-pkgs.had.co.nz/r.html#style)
+  * Use code style that passes our
+    [`lintr`](https://github.com/jimhester/lintr) unit tests
+    which basically reflect
+    [Hadley's style recommendation](http://r-pkgs.had.co.nz/r.html#style).
+    Note: we require `lintr v1.0.2.900` or later.
   * Use 2-spaces as one tab and indent code hierarchically
   * Note, many function and variable names are "ancient" (too long; combine
     snake and camel-case)
 
 
 ### __Tests, documentation, and code__ form a trinity
-- Interactive code development
+
+- __Updates to input files and/or demo code__
+  * If `SOILWAT2` and `rSOILWAT2` change their `default` inputs, then `rSFSW2`
+    will automatically experience these changes through function
+    `read_SOILWAT2_DefaultInputs`. This function may need to be updated
+    accordingly to provide suitable `defaults` for `rSFSW2` runs.
+  * If you change 'input files' in `data-raw/1_Input` (e.g., added a new column
+    to experimental/design treatment file) then update the `R/sysdata.rda`
+    object by running the Rscript from terminal
+    `./data-raw/prepare_default_project_infrastructure.R`.
+    The file `R/sysdata.rda` is used to setup a new simulation project.
+  * Additionally, if 'input files' and/or 'demo code' in `demo/` changes, then
+    update the unit test 'test project' `tests/test_data/TestPrj4/` by
+    running the Rscript from terminal
+    `./data-raw/update_test_project_infrastructure.R` and make any necessary
+    additional changes by hand.
+
+- __Interactive code development__
   * Use (a copy of) `tests/test_data/TestPrj4/` as basis to interact with code
     and a real simulation project, for instance:
     ```{r}
@@ -155,14 +177,19 @@ particularly,
     # Clean up `TestPrj4/`
     delete_test_output(dir_test = ".")
     ```
+
   * *Do not* commit, please:
     * Any changes to settings/inputs etc. in your local copy unless those
       changes are a feature of your coding task
+    * Do not comment/turn-off any tests and/or checks
+    * Print statements for local debugging purposes
     * Package bundles or binaries (e.g., as from `R CMD build`)
     * Package check reports (e.g., as from `R CMD check`)
     * Built vignettes
+    * etc
 
-- Code documentation
+
+- __Code documentation__
   * Read the section 'Object documentation' in
     [Wickham's book 'R packages'](http://r-pkgs.had.co.nz/man.html)
   * Use [roxygen2](https://cran.r-project.org/web/packages/roxygen2/vignettes/formatting.html)
@@ -172,40 +199,110 @@ particularly,
     with the command `devtools::run_examples()`
   * Ideally, expand the vignettes.
 
-- Code tests
+
+- __Code tests__
   * Notes:
     * Our code coverage is incomplete as of now at [![codecov status][9]][10];
       thus, any change may introduce bugs that may not be detected by our
       testing framework.
     * Please be careful and considerate and strive to write tests for any new
       feature.
-  * Locally during code development:
+    * Our tests behave differently depending on several run-time conditions:
+      1) Level of verbosity is determined by interactive/non-interactive status
+         whether or not simulations are run in parallel (non-interactive) or
+         sequentially (interactive),
+      2) Simulation runs are processed in parallel if session is
+         non-interactive, not on travis-ci, not on appveyor-ci, and not on CRAN
+         whereas they are processed sequentially if session is interactive,
+         on travis-ci, on appveyor-ci, or on CRAN
+      3) Live access to the internet is required by some unit tests, e.g.,
+         `tests/testthat/test_netCDF_functions.R` and
+         `tests/testthat/test_WeatherDB_DayMet.R`
+      4) Some unit tests are skipped if on CRAN, and/or on travis-ci, and/or
+         on appveyor-ci, e.g.,
+         `test/testthat/test_rSFSW2_StyleSpelllingPractices.R`
+
+  * __Test code locally during code development:__
     * Interactive execution and exploration
-    * Run tests from an individual test file with `testthat::test_file()`.
+    * Interactive execution of individual expectations `expect_*` and/or
+      `test_that()` statements; write new expectations at the same time as
+      writing and developing code.
+    * Run tests from an individual test file with `testthat::test_file()`
+        - You may likely need to first load the latest code version with
+          `devtools::load_all()` for R code, and with
+          `devtools::load_all(recompile = TRUE)` if your changes include C code
+        - Most likely, this will run tests as if on CRAN (depending on your
+          specific setup), i.e., it will skip several of our tests:
+            - Explicitly set the environmental variable
+              `NOT_CRAN` to force tests to behave as if not on CRAN with
+              `Sys.setenv(NOT_CRAN = "true")`.
+            - To unset, do `Sys.setenv(NOT_CRAN = "false")`.
+        - If you don't like the output format of the tests (which differs
+          depending on whether you run R interactively or not, whether you run
+          R via RStudio or not, etc.), then chose a testthat-'reporter'
+          explicitly, e.g., `testthat::test_file(reporter = SummaryReporter)`
+    * Run all tests together with `testthat::test()`, but it is a waste of time
+      and resources to re-run tests again and again during development
+      that are not affected by your code changes
     * Currently defunct: Ideally, run test projects in repository
       [rSFSW2_tools](https://github.com/DrylandEcology/rSFSW2_tools)
       and add a new test project, if necessary due to new features.
-  * Locally before finalizing a pull-request and/or code review:
-    1) Run code from examples and vignettes with `devtools:run_examples()`
-    2) Run all tests with the command `devtools::test()`. Note: this combines
-       unit tests and integration tests (e.g., `TestPrj4`); the latter take a
-       substantial amount of time to complete.
+
+  * __Run the following five steps locally__
+    in order to prepare a pull-request or commit that will be reviewed.
+    Fix any problem and repeat as necessary.
+
+    0) Make sure that the anticipated version of `rSOILWAT2` is indeed
+       installed, e.g.,
+       ```{r}
+       packageVersion("rSOILWAT2")
+       ```
+
+    1) Make sure that the documentation is up-to-date with:
+       ```{r}
+       devtools::document()
+       ```
+
+    2) Run and check the code from the examples and vignettes:
+       ```{r}
+       devtools::run_examples()
+       ```
+
+    3) Run tests as if not on CRAN, in an interactive R session,
+       and with a sequential schedule.
+       ```{r}
+       # Run in R.app, RStudio, or in an R terminal-session:
+       Sys.setenv(NOT_CRAN = "true")
+       devtools::test()
+       ```
+       Notes:
+        - Make sure that no test is skipped. Investigate if any is skipped.
+        - Investigate if any warning is reported.
+        - This combines unit tests, documentation and code-style checks,
+          and integration tests (e.g., `TestPrj4`); the latter two take a
+          substantial amount of time to complete.
        The environmental variable `RSFSW2_ALLTESTS` determines whether or not
        long-running expectations/unit-tests are skipped; the default is "true",
        i.e., run all expectations/unit-tests. You may decide to run tests
        while temporary skipping time-intensive tests, e.g.,
        - `Sys.setenv(RSFSW2_ALLTESTS = "false"); devtools::test()`
        - `RSFSW2_ALLTESTS="false" R CMD check *tar.gz`
-    3) Run command-line checks, i.e., `R CMD check` or `devtools::check()`.
-       - Note: `R CMD check` requires a built package, i.e.,
-         run `R CMD build . && R CMD check *tar.gz`; if the
-         build-step fails due to latex-troubles while vignette/help building,
-         then see `.travis.yml`.
-       - Different tests/checks are run under different settings depending on
-         the environmental setting `NOT_CRAN` and whether or not integration
-         tests (i.e., those that run `TestPrj4`) are executed in parallel or
-         serial mode. Thus, for greatest coverage, run checks both with and
-         without option `--as-cran` respectively argument `cran` of function
+
+    4) Run tests as if not on CRAN, in an non-interactive session,
+       and with a parallel schedule.
+       ```{bash}
+       # Run via shell in the terminal:
+       R CMD INSTALL .
+       Rscript -e 'Sys.setenv(NOT_CRAN = "true"); devtools::test()'
+       ```
+       Notes:
+        - Parallel workers will load the package `rSFSW2` "normally", i.e.,
+          from the R library path. Thus, the workers do not see the development
+          version. Therefore, we need to install the current version before
+          running tests in parallel.
+          You can convince yourself of this by first removing `rSFSW2` with
+          `remove.packages("rSFSW2")` and then run above command -- the tests
+          will fail with errors such as `object 'SFSW2_glovars' not found` or
          `devtools::check()` -- on the command line and interactively, i.e.,
          * it is set as `NOT_CRAN="true"` if run with:
             * `devtools::test()` unless `NOT_CRAN` was previously set
@@ -237,33 +334,56 @@ particularly,
          utres[[1]] # explore results of first set of tests
        ```
     5) Fix any problem and repeat.
+    
+    
+          `all(tp[["res"]][, "has_run"]) isn't true`.
+        - Make sure that the integration test (e.g., `TestPrj4`) was indeed run
+          in parallel (output reports on the number of workers).
+
+    5) Run R package-level checks as if on CRAN.
+       ```{r}
+       # Run in R.app, RStudio, or in an R terminal-session:
+       Sys.setenv(NOT_CRAN = "false")
+       devtools::check(cran = TRUE)
+       ```
+       Notes:
+        - Avoid adding new `R CMD check` warnings and/or notes; see, milestone
+          [Clean code](https://github.com/DrylandEcology/rSFSW2/milestone/2)
+
+
+    __Notes__: The four above steps can also be executed with different commands
+    and there are more combinations that could be tested. For instance, you
+    could use `R CMD` instead of `devtools::check`, e.g., see
+    [Writing R Extensions](https://cran.r-project.org/doc/manuals/R-exts.html).
+    As an example, R-package level checks could also be run with:
+    ```{bash}
+    R CMD build . && R CMD check *tar.gz
+    ```
+    Unless the build-step fails due to latex-troubles while building the
+    vignette and/or help pages, then maybe:
+    ```{bash}
+    R CMD build --no-build-vignettes --no-manual .
+    R CMD check *tar.gz --ignore-vignettes --no-manual
+    ```
+    You could also pass the argument `--as-cran` to `R CMD check` to simulate
+    checks as if on CRAN.
+
   * On github:
     * The command-line checks which include our unit tests will be run on the
       continuous integration frameworks 'travis' and 'appveyor'
     * Development/feature branches can only be merged into master if they pass
       all checks
+    * Ideally, each pull-request will include fully-tested changes, at least
+      they should be as thoroughly tested as master so that overall code
+      coverage after merging into master does not decrease.
     * Please, don't use the CIs for debugging -- debug locally
+
   * We use the framework of [testthat](https://github.com/hadley/testthat) for
     unit testing and other tests for the package
+
   * Read the section 'Testing' in
     [Wickham's book 'R packages'](http://r-pkgs.had.co.nz/tests.html)
     for additional information
-
-### __Updates to input files and/or demo code__
-- If `SOILWAT2` and `rSOILWAT2` change their `default` inputs, then `rSFSW2`
-  will automatically experience these changes through function
-  `read_SOILWAT2_DefaultInputs`. This function may need to be updated
-  accordingly to provide suitable `defaults` for `rSFSW2` runs.
-- If you change 'input files' in `data-raw/1_Input` (e.g., added a new column
-  to experimental/design treatment file) then update the `R/sysdata.rda`
-  object by running the Rscript from terminal
-  `./data-raw/prepare_default_project_infrastructure.R`.
-  The file `R/sysdata.rda` is used to setup a new simulation project.
-- Additionally, if 'input files' and/or 'demo code' in `demo/` changes, then
-  update the unit test 'test project' `tests/test_data/TestPrj4/` by
-  running the Rscript from terminal
-  `./data-raw/update_test_project_infrastructure.R` and make any necessary
-  additional changes by hand.
 
 
 <br>
