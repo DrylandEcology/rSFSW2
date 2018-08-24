@@ -4,8 +4,8 @@
 \alias{get.Table_Ensemble}
 \title{Get header and data for an entire table for one of the ensembles}
 \usage{
-get.Table_Ensemble(fdbrSFSW2, fdbrSFSW2ens, responseName, MeanOrSD = "Mean",
-  fam, level, whereClause = NULL, header = FALSE)
+get.Table_Ensemble(fdbrSFSW2, fdbrSFSW2ens, responseName,
+  MeanOrSD = "Mean", fam, level, whereClause = NULL, header = FALSE)
 }
 \description{
 Get header and data for an entire table for one of the ensembles

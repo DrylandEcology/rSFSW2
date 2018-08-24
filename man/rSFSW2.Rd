@@ -4,12 +4,11 @@
 \name{rSFSW2}
 \alias{rSFSW2}
 \alias{rSFSW2-package}
-\alias{rSFSW2-package}
 \title{\pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation
  runs, executing simulations, and aggregating outputs}
 \description{
-\pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation
- runs, executing simulations, and aggregating outputs
+Setting up, carrying out, and analyzing ecosystem water balance
+    simulation experiments with SOILWAT2.
 }
 \section{FORCING}{
  \pkg{SOILWAT2} is forced by \itemize{

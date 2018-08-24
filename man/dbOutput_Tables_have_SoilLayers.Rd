@@ -5,7 +5,8 @@
 \title{List the available output tables of \var{\sQuote{dbOutput}} which
 record output of variables per soil layer}
 \usage{
-dbOutput_Tables_have_SoilLayers(tables = NULL, con = NULL, dbname = NULL)
+dbOutput_Tables_have_SoilLayers(tables = NULL, con = NULL,
+  dbname = NULL)
 }
 \description{
 List the available output tables of \var{\sQuote{dbOutput}} which

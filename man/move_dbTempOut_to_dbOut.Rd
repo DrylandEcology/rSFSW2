@@ -5,9 +5,9 @@
 \title{Moves simulation output that was written to temporary \var{SQL}-databases to
 a final output \var{SQL}-database}
 \usage{
-move_dbTempOut_to_dbOut(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
-  opt_out_run, opt_verbosity, chunk_size = -1L, dir_out_temp = NULL,
-  check_if_Pid_present = FALSE)
+move_dbTempOut_to_dbOut(SFSW2_prj_meta, t_job_start, opt_parallel,
+  opt_behave, opt_out_run, opt_verbosity, chunk_size = -1L,
+  dir_out_temp = NULL, check_if_Pid_present = FALSE)
 }
 \value{
 Invisibly the number of temporary \var{SQL}-databases.

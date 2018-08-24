@@ -2,10 +2,11 @@
 % Please edit documentation in R/ExtractData_Soils.R
 \name{extract_soil_ISRIC250m}
 \alias{extract_soil_ISRIC250m}
-\title{Extracts all .tif files' data (clay, sand, bd, gravel, depth, ...) in dir_ex_soil to an environment}
+\title{Extracts all .tif files' data (clay, sand, bd, gravel, depth, ...) in
+dir_ex_soil to an environment}
 \usage{
-extract_soil_ISRIC250m(MMC, sim_size, sim_space, dir_ex_soil, fnames_in, resume,
-  verbose, default_TOC_GperKG = 0)
+extract_soil_ISRIC250m(MMC, sim_size, sim_space, dir_ex_soil, fnames_in,
+  resume, verbose, default_TOC_GperKG = 0)
 }
 \arguments{
 \item{MMC}{An environment containing the structure for extracted data to be
@@ -16,14 +17,16 @@ extracted to}
 \item{sim_space}{An environment containing information on site locations and
 extraction type, ie. cell or point.}
 
-\item{dir_ex_soil}{String for the location of the soil files to be extracted.}
+\item{dir_ex_soil}{String for the location of the soil files to be
+extracted.}
 
 \item{fnames_in}{An environment containing output file locations.}
 
-\item{resume}{Logical whether or not to resume the project if it failed partially through
-before.}
+\item{resume}{Logical whether or not to resume the project if it failed
+partially through before.}
 
-\item{verbose}{Logical whether to see additional messages or not as the function executes.}
+\item{verbose}{Logical whether to see additional messages or not as the
+function executes.}
 
 \item{default_TOC_GperKG}{A numeric value. The default value is
 0 g \var{TOC} per kg soil.}
@@ -32,7 +35,8 @@ before.}
 MMC An environment containing the extracted data.
 }
 \description{
-Extracts all .tif files' data (clay, sand, bd, gravel, depth, ...) in dir_ex_soil to an environment
+Extracts all .tif files' data (clay, sand, bd, gravel, depth, ...) in
+dir_ex_soil to an environment
 }
 \section{Note}{
  \enumerate{
@@ -50,11 +54,11 @@ Extracts all .tif files' data (clay, sand, bd, gravel, depth, ...) in dir_ex_soi
 }
 
 \references{
-Hengl. T. et al, 2017. SoilGrids250m: Global gridded soil information based
- on machine learning.
+Hengl. T. et al, 2017. SoilGrids250m: Global gridded soil
+ information based on machine learning.
 
-Shangguan, W. et al, 2016. Mapping the global depth to bedrock for land 
-surface modeling.
+Shangguan, W. et al, 2016. Mapping the global depth to bedrock
+for land surface modeling.
 }
 \author{
 Nathan Payton- McCauslin. July 2018.
