@@ -334,7 +334,7 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
   n_extract <- sum(todos)
   if (n_extract > 0){
     # main loop, does extraction for matricd, clay, sand, gravel, depth
-    for (tif in seq_len(file_in_gridded)){
+    for (tif in seq_len(length(file_in_gridded))){
       # get next tif file
       tif_file <- file_in_gridded[tif];
       # set soil types based on tif filenames

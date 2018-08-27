@@ -18,7 +18,7 @@ fnames_in <- environment();
 fnames_in$fslayers <- file.path("/home/natemccauslin/Desktop/DryLand Ecology/",
                                 "rSFSW2/tests/test_data/TestPrj4/1_Input/",
                                 "SWRuns_InputData_SoilLayers_v9.csv")
-# fnames_in$fprepocin <- "/PATH_TO_YOUR_SWRuns_InputAll_PreProcessed rds file"
+fnames_in$fprepocin <- "/PATH_TO_YOUR_SWRuns_InputAll_PreProcessed rds file"
 fnames_in$fsoils <- "/home/natemccauslin/Desktop/DryLand Ecology/rSFSW2/tests/test_data/TestPrj4/1_Input/datafiles/SWRuns_InputData_soils_v12.csv"
 dir_ex_soil <- "/media/natemccauslin/SOILWAT_DATA/GIS/Data/Soils"
 resume <- TRUE
