@@ -115,7 +115,7 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
   } else {
     input_cover[6] <- bareGround.fraction
   }
-  if(fix_trees){
+  if (fix_trees) {
     input_cover[7] <- finite01(Trees_Fraction)
   } else {
     input_cover[7] <- tree.fraction
