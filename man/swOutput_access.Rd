@@ -31,8 +31,9 @@
 \alias{get_CO2effects_yr}
 \title{\pkg{rSOILWAT2} data access functions}
 \usage{
-get_Response_aggL(response, tscale = c("dy", "dyAll", "mo", "moAll", "yr",
-  "yrAll"), scaler = 10, FUN, weights = NULL, x, st, st2, topL, bottomL)
+get_Response_aggL(response, tscale = c("dy", "dyAll", "mo", "moAll",
+  "yr", "yrAll"), scaler = 10, FUN, weights = NULL, x, st, st2, topL,
+  bottomL)
 
 get_Temp_yr(x, st)
 

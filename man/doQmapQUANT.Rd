@@ -7,7 +7,8 @@
 \title{Apply a quantile mapping}
 \usage{
 doQmapQUANT.default_drs(x, fobj, type = NULL, lin_extrapol = NULL,
-  spline_method = NULL, monthly_extremes = NULL, fix_spline = NULL, ...)
+  spline_method = NULL, monthly_extremes = NULL, fix_spline = NULL,
+  ...)
 
 doQmapQUANT_drs(x, fobj, type_map = NULL, monthly_obs_base = NULL,
   monthly_extremes = NULL, fix_spline = NULL, ...)

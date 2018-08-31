@@ -25,17 +25,19 @@
 
 \S4method{extract_rSFSW2}{Raster,Raster,character}(x, y, type, ...)
 
-\S4method{extract_rSFSW2}{SpatialPolygons,SpatialPoints,character}(x, y, type,
-  ...)
+\S4method{extract_rSFSW2}{SpatialPolygons,SpatialPoints,character}(x, y,
+  type, ...)
 
 \S4method{extract_rSFSW2}{character,ANY,character}(x, y, type, ...)
 
-\S4method{extract_rSFSW2}{SpatialPolygons,SpatialPolygons,character}(x, y, type,
+\S4method{extract_rSFSW2}{SpatialPolygons,SpatialPolygons,character}(x, y,
+  type, ...)
+
+\S4method{extract_rSFSW2}{SpatialPolygons,vector,character}(x, y, type,
   ...)
 
-\S4method{extract_rSFSW2}{SpatialPolygons,vector,character}(x, y, type, ...)
-
-\S4method{extract_rSFSW2}{SpatialPolygons,matrix,character}(x, y, type, ...)
+\S4method{extract_rSFSW2}{SpatialPolygons,matrix,character}(x, y, type,
+  ...)
 }
 \arguments{
 \item{x}{A \linkS4class{Raster} object from which data are extracted.}

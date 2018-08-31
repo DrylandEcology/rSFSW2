@@ -5,11 +5,8 @@
 \alias{it_exp}
 \alias{it_site}
 \alias{it_Pid}
-\alias{it_exp}
 \alias{it_exp2}
-\alias{it_site}
 \alias{it_site2}
-\alias{it_Pid}
 \alias{it_Pid0}
 \alias{it_sim0}
 \alias{it_sim2}

@@ -3463,7 +3463,7 @@ dbOut_update_values <- function(dbOut_fname, dbNew_fname, fields_update = NULL,
 #'   `column-name -> type name -> column-constraints``,
 #'   i.e., (i) type name does occur and contraints have no
 #'   (ii) field/column names and (iii) do not contain (..., ...)
-split_fields_from_SQLite_CREATETABLE <- function(sql) {
+split_SQLite_CREATETABLE <- function(sql) {
   start <- end <- -1L
   field_code <- field_names <- NA_character_
   sep <- ","
@@ -3498,7 +3498,7 @@ split_fields_from_SQLite_CREATETABLE <- function(sql) {
     field_names = field_names, field_sep = sep)
 }
 
-paste_SQLite_CREATETABLE_from_fields <- function(sql, field_info, subset) {
+paste_SQLite_CREATETABLE <- function(sql, field_info, subset) {
   paste(
     substr(sql, 1, field_info[["field_start"]] - 1),
     paste(field_info[["field_code"]][subset],
@@ -3672,9 +3672,9 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
       sql_fields <- paste0(tfields, collapse = ",")
 
       # Subset fields
-      temp <- split_fields_from_SQLite_CREATETABLE(sql_tables[k, "sql"])
+      temp <- split_SQLite_CREATETABLE(sql_tables[k, "sql"])
       fids <- which(temp[["field_names"]] %in% rfields)
-      sql_subset <- paste_SQLite_CREATETABLE_from_fields(sql_tables[k, "sql"],
+      sql_subset <- paste_SQLite_CREATETABLE(sql_tables[k, "sql"],
         field_info = temp, subset = fids)
 
       # Create table
@@ -3705,4 +3705,3 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 
   invisible(TRUE)
 }
-

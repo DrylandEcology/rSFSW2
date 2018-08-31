@@ -4,7 +4,8 @@
 \alias{dbWork_update_job}
 \title{Update run information of a \pkg{rSFSW2} simulation project}
 \usage{
-dbWork_update_job(path, runID, status, time_s = "NULL", verbose = FALSE)
+dbWork_update_job(path, runID, status, time_s = "NULL",
+  verbose = FALSE)
 }
 \arguments{
 \item{path}{A character string. Path to the folder where the database will be
