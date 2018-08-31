@@ -989,9 +989,6 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
       if (opt_out_run[["deleteTmpSQLFiles"]]) {
         try(unlink(theFileList[k1], force = TRUE),
           silent = !opt_verbosity[["verbose"]])
-
-        if (file.exists(theFileList[k1])) {
-        }
       }
     }
 
@@ -1006,7 +1003,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
     do.call(on.exit, args = c(list(oe), add = FALSE))
 
     if (opt_out_run[["deleteTmpSQLFiles"]]) {
-      to_delete <- !file.exists(theFileList)
+      to_delete <- file.exists(theFileList)
 
       if (any(to_delete)) {
         # Windows OS has problems with deleting files even if it claims
@@ -1018,7 +1015,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
         try(file.remove(theFileList[to_delete]),
           silent = !opt_verbosity[["verbose"]])
 
-        to_delete <- !file.exists(theFileList)
+        to_delete <- file.exists(theFileList)
         if (any(to_delete)) {
           print(paste("The temporary file(s)",
             paste(shQuote(theFileList[to_delete]), collapse = ", ",
