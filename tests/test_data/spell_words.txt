@@ -151,6 +151,7 @@ Schlaepfer
 Schneiderman
 Shangguan
 Skaugen
+SoilGrids
 SOILWAT
 Technometrics
 Teeri
@@ -173,7 +174,5 @@ Zach
 # Keep as short as possible, use \var{} etc. instead
 bd
 dir
-ie
 MMC
-SoilGrids
 tif
