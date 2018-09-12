@@ -300,7 +300,6 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
 extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
                                        dir_ex_soil, fnames_in, resume, verbose,
                                        default_TOC_GperKG = 0) {
-
   # print stats
   if (verbose) {
     t1 <- Sys.time()
@@ -359,9 +358,6 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
         }
       }
       # start extraction process =============================
-      MMC[["idone"]]["ISRIC_SoilGrids250m"] <- FALSE
-      n_extract <- sum(todos)
-      if (n_extract > 0) {
         if (show_site_info) {
           print(paste("Soils data from 'ISRIC_SoilGrids250m' will be extracted for",
                       "n =", n_extract, "sites"))
@@ -394,22 +390,11 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
         }
         cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA,
                                                       v))
-        ftemp <- tif_file
-        g <- if (file.exists(ftemp)) {
-          raster::brick(ftemp)
+        g <- if (file.exists(tif_file)) {
+          raster::brick(tif_file)
         } else {
-          raster::calc(g, fun = cond30, filename = ftemp)
+          raster::calc(g, fun = cond30, filename = tif_file)
         }
-        # get max depths for site soil profiles
-        ftemp_d <- paste0(dir.ex.gridded, "/depth_M_250m.tif")
-        gd <- if (file.exists(ftemp_d)) {
-          raster::brick(ftemp_d)
-        } else {
-          raster::calc(gd, fun = cond30, filename = ftemp_d)
-        }
-        soil_frame_depth <- do.call("extract_rSFSW2", args = c(args_extract,
-                                                               x = list(gd)))
-        MMC[["data"]][todos, grep("depth", MMC[["cn"]])] <- soil_frame_depth
         if (file_type != "depth") {
           # get soil data as a dataframe
           soil_frame <- do.call("extract_rSFSW2", args = c(args_extract,
@@ -436,6 +421,17 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
           MMC[["data"]][todos, grep("carbon",
                                     MMC[["cn"]])[ils]] <- default_TOC_GperKG
           MMC[["idone"]]["ISRIC_SoilGrids250m"] <- TRUE
+        } else {
+          # get max depths for site soil profiles
+          ftemp_d <- file.path(dir.ex.gridded, "depth_M_250m.tif")
+          gd <- if (file.exists(ftemp_d)) {
+            raster::brick(ftemp_d)
+          } else {
+            raster::calc(gd, fun = cond30, filename = ftemp_d)
+          }
+          soil_frame_depth <- do.call("extract_rSFSW2", args = c(args_extract,
+                                                                 x = list(gd)))
+          MMC[["data"]][todos, grep("depth", MMC[["cn"]])] <- soil_frame_depth
         }
       }
     }
@@ -458,7 +454,6 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
                     soil_layer, "layers and n =", sum(i_good), "out of",
                     n_extract, "sites"))
     }
-  }
   MMC
 }
 
