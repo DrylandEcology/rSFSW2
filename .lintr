@@ -2,6 +2,7 @@ linters: with_defaults(
   #--- DEFAULT LINTERS
   # Default line length:
   line_length_linter(80L),
+  closed_curly_linter(allow_single_line = TRUE),
   # Turn off default linters for now:
   object_name_linter = NULL,
   camel_case_linter = NULL,
@@ -11,11 +12,11 @@ linters: with_defaults(
   #extraction_operator_linter,
   #implicit_integer_linter,
   #todo_comment_linter,
-  #absolute_path_linter,
+  #absolute_path_linter(lax = TRUE),
   # Activated non-default linters:
   T_and_F_symbol_linter,
-  nonportable_path_linter,
-  semicolon_terminator_linter,
+  nonportable_path_linter(lax = TRUE),
+  semicolon_terminator_linter(semicolon = c("compound", "trailing")),
   seq_linter,
   undesirable_function_linter,
   undesirable_operator_linter,
