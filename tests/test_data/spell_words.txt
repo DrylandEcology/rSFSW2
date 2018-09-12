@@ -172,7 +172,4 @@ Zach
 #------------------------------------
 #------ Stupid stuff to avoid false positive hits
 # Keep as short as possible, use \var{} etc. instead
-bd
 dir
-MMC
-tif

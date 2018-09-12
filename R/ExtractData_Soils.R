@@ -263,14 +263,14 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
   MMC
 }
 
-#' Extracts soils data (clay, sand, bd, gravel, depth, ...) from .tif files in
-#' dir_ex_soil to a list
-#' @param MMC A list containing the structure for extracted data to be
+#' Extracts soils data (clay, sand, \var{bd}, gravel, depth, ...) from \var{.tif} files in
+#' \var{dir_ex_soil} to a list
+#' @param \var{MMC} A list containing the structure for extracted data to be
 #'   extracted to
 #' @param sim_size A list containing information on the runs.
 #' @param sim_space A list containing information on site locations and
 #'   extraction type, i.e. cell or point.
-#' @param dir_ex_soil String for the location of the soil files to be
+#' @param \var{dir_ex_soil} String for the location of the soil files to be
 #'  extracted.
 #' @param fnames_in A list containing output file locations.
 #' @param resume Logical whether or not to resume the project if it failed
@@ -279,23 +279,30 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
 #'  function executes.
 #' @param default_TOC_GperKG A numeric value. The default value is
 #'   0 g \var{TOC} per kg soil.
-#' @return MMC A list containing the extracted data.
+#' @return \var{MMC} A list containing the extracted data.
 #' @references Hengl. T. et al, 2017. SoilGrids250m: Global gridded soil
 #'  information based on machine learning.
 #' @references Shangguan, W. et al, 2016. Mapping the global depth to bedrock
 #' for land surface modeling.
 #' @author Nathan Payton- McCauslin. July 2018.
 #' @section Note: \enumerate{
-#' \item All data is taken at a resolution of 250m.
-#'     \item Data Extracted Using Hengl. T. et al, 2017: \itemize{
-#'     \item Sand
-#'     \item Clay
-#'     \item Bulk Density
-#'     \item Gravel
+#' \item All data is taken at a resolution of 250m, downloadable at
+#' \var{ftp://ftp.soilgrids.org/data/recent/}
+#'    \item Data Extracted Using Hengl. T. et al, 2017: \itemize{
+#'      \item Sand
+#'      \item Clay
+#'      \item Bulk Density
+#'      \item Gravel
 #'    }
-#'  \item Data Extracted Using Shangguan, W. et al, 2016: \itemize{
+#'    \item Data Extracted Using Shangguan, W. et al, 2016: \itemize{
 #'      \item Depth to Bedrock
 #'    }
+#'    \item Filenames expected to be in format 
+#'    \var{soiltype_M_sllayernumber_250m.tif}
+#'    Examples: \itemize{
+#'       \item Layer 2 clay = \var{clay_M_sl2_250m.tif}
+#'       \item Layer 4 bulk density = \var{bd_M_sl4_250m.tif}
+#'       }
 #'  }
 extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
                                        dir_ex_soil, fnames_in, resume, verbose,
@@ -311,6 +318,7 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
                           " s")) ; cat("\n")}, add = TRUE)
   }
   # set up data files for extraction =============================
+  # set temp variable show_site_info
   show_site_info <- verbose
   soil_layer <- 1
   dir.ex.gridded <- file.path(dir_ex_soil, "ISRIC", "GriddedGlobalV5")
@@ -358,9 +366,10 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
         }
       }
       # start extraction process =============================
+      
         if (show_site_info) {
-          print(paste("Soils data from 'ISRIC_SoilGrids250m' will be extracted for",
-                      "n =", n_extract, "sites"))
+          print(paste("Soils data from 'ISRIC_SoilGrids250m' will be extracted
+                      for n =", n_extract, "sites"))
           show_site_info <- FALSE
         }
         tif_file <- file.path(dir.ex.gridded, tif_file)
@@ -434,25 +443,25 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
           MMC[["data"]][todos, grep("depth", MMC[["cn"]])] <- soil_frame_depth
         }
       }
-    }
-    # Determine successful extractions =============================
-    i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"])
-    MMC[["source"]][which(todos)[!i_good]] <- NA
-    lys <- seq_len(max(findInterval(MMC[["data"]][todos, "depth"],
-                                    ldepth_gridded[-1]), na.rm = TRUE))
-    if (any(i_good)) {
-      i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]])
-      i_Done[which(todos)[i_good]] <- TRUE
-      MMC[["source"]][i_Done] <- "ISRIC_SoilGrids250m"
-      MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
-                                ldepths_cm = ldepth_gridded[-1], lys,
-                                fnames_in)
-    }
-    # print stats
-    if (verbose) {
-        print(paste("Soil data from 'ISRIC_SoilGrids250m' was extracted for",
-                    soil_layer, "layers and n =", sum(i_good), "out of",
-                    n_extract, "sites"))
+      # Determine successful extractions =============================
+      i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"])
+      MMC[["source"]][which(todos)[!i_good]] <- NA
+      lys <- seq_len(max(findInterval(MMC[["data"]][todos, "depth"],
+                                      ldepth_gridded[-1]), na.rm = TRUE))
+      if (any(i_good)) {
+        i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]])
+        i_Done[which(todos)[i_good]] <- TRUE
+        MMC[["source"]][i_Done] <- "ISRIC_SoilGrids250m"
+        MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
+                                  ldepths_cm = ldepth_gridded[-1], lys,
+                                  fnames_in)
+      }
+      # print stats
+      if (verbose) {
+          print(paste("Soil data from 'ISRIC_SoilGrids250m' was extracted for",
+                      soil_layer, "layers and n =", sum(i_good), "out of",
+                      n_extract, "sites"))
+      }
     }
   MMC
 }

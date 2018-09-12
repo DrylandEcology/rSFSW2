@@ -16,7 +16,7 @@ returned by \code{\link{ISRICWISE_extract_SUIDs}}.}
 
 \item{sim_soils}{A named numeric vector. First element is 'i' and second is
 'depth'. The following elements represent the soil variables (currently,
-"density", "sand", "clay", "rock", "carbon"; see
+"density", "sand", "clay", "rock", "carbon" see
 \code{\link{prepare_ExtractData_Soils}}) for each of the maximally possible
 soil layers (see \code{SFSW2_glovars[["slyrs_maxN"]]}). Input is an empty
 template.}
