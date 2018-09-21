@@ -915,7 +915,7 @@ benchmark_BLAS <- function(platform, seed = NA) {
 #' @return A numeric vector of the same size as \code{x} in units of
 #'   \code{unit_to}.
 #' @export
-convert_precipitation <- function(x, dpm, unit_from, unit_to = "cm month-1") {
+convert_precipitation_monthly <- function(x, dpm, unit_from, unit_to = "cm month-1") {
   if (!(unit_to %in% c("cm/month", "cm month-1"))) {
     stop("'convert_precipitation': only converts to units of 'cm month-1'")
   }
@@ -933,6 +933,35 @@ convert_precipitation <- function(x, dpm, unit_from, unit_to = "cm month-1") {
     x * dpm * 8640
 
   } else if (unit_from %in% c("cm/month", "cm month-1")) {
+    x
+
+  } else {
+    stop("Unknown precipitation unit: ", unit_from)
+  }
+}
+
+#' Converts units of precipitation data
+#'
+#' @param x A numeric vector. Precipitation data as monthly series in units of
+#'   \code{unit_from}.
+#' @param unit_from A character string. Units of data in \code{x}. Currently,
+#'   supported units include "mm/d", "mm d-1",
+#'   "kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1".
+#' @param unit_to A character string. Units to which data are converted.
+#'   Currently, supported unit is "cm day-1" respectively "cm/day".
+#'
+#' @return A numeric vector of the same size as \code{x} in units of
+#'   \code{unit_to}.
+#' @export
+convert_precipitation_daily <- function(x, unit_from, unit_to = "cm day-1") {
+
+  if (unit_from %in% c("mm/d", "mm d-1")) {
+    x / 10
+
+  } else if (unit_from %in% c("kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1")) {
+    x * 8640
+
+  } else if (unit_from %in% c("cm/day", "cm day-1", "cm/d", "cm d-1")) {
     x
 
   } else {
