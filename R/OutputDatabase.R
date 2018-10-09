@@ -1778,7 +1778,11 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
     }
 
   } else {
-     do_update_status <- TRUE
+    do_update_status <- TRUE
+
+    if (opt_verbosity[["verbose"]]) {
+      print("No missing Pids found: dbOut database is complete.")
+    }
   }
 
   if (do_update_status) {
@@ -1803,8 +1807,13 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
         "is missing n =", length(missing_Pids_current), "records;",
         "P_id of these records are saved to file", shQuote(ftemp)))
 
-     saveRDS(missing_Pids_current, file = ftemp)
-   }
+      saveRDS(missing_Pids_current, file = ftemp)
+    }
+
+  } else {
+    if (opt_verbosity[["verbose"]]) {
+      print("No missing Pids found: dbOutCurrent database is complete.")
+    }
   }
 
   oe <- sys.on.exit()
