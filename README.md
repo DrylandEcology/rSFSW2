@@ -190,17 +190,53 @@ particularly,
     2) Run all tests with the command `devtools::test()`. Note: this combines
        unit tests and integration tests (e.g., `TestPrj4`); the latter take a
        substantial amount of time to complete.
+       The environmental variable `RSFSW2_ALLTESTS` determines whether or not
+       long-running expectations/unit-tests are skipped; the default is "true",
+       i.e., run all expectations/unit-tests. You may decide to run tests
+       while temporary skipping time-intensive tests, e.g.,
+       - `Sys.setenv(RSFSW2_ALLTESTS = "false"); devtools::test()`
+       - `RSFSW2_ALLTESTS="false" R CMD check *tar.gz`
     3) Run command-line checks, i.e., `R CMD check` or `devtools::check()`.
        - Note: `R CMD check` requires a built package, i.e.,
-         run `R CMD build . && R CMD check *tar.gz`; see `.travis.yml` if the
-         build-step fails due to latex-troubles while vignette/help building.
+         run `R CMD build . && R CMD check *tar.gz`; if the
+         build-step fails due to latex-troubles while vignette/help building,
+         then see `.travis.yml`.
        - Different tests/checks are run under different settings depending on
          the environmental setting `NOT_CRAN` and whether or not integration
          tests (i.e., those that run `TestPrj4`) are executed in parallel or
          serial mode. Thus, for greatest coverage, run checks both with and
          without option `--as-cran` respectively argument `cran` of function
-         `devtools::check()` -- on the command line and interactively.
-    4) Fix any problem and repeat.
+         `devtools::check()` -- on the command line and interactively, i.e.,
+         * it is set as `NOT_CRAN="true"` if run with:
+            * `devtools::test()` unless `NOT_CRAN` was previously set
+            * `devtools::check(cran = FALSE)`
+            * `R CMD check *tar.gz`
+         * it is set as `NOT_CRAN="false"` (i.e, behaving as if run on CRAN)
+         if run with:
+            * `Sys.setenv(NOT_CRAN = "false"); devtools::test()`
+            * `devtools::check(cran = TRUE)`
+            * `R CMD check *tar.gz --as-cran`
+    4) The environmental variable `RSFSW2_SAVETESTS` determines whether or not
+       the otherwise invisible internal `testthat` results are saved to file
+       which can be useful for debugging; the default is "true" in
+       non-interactive mode, i.e., save results, and "false" in interactive
+       mode.
+       To set it to true, e.g.,
+         * `Sys.setenv(RSFSW2_SAVETESTS = "true"); devtools::test()`
+         * `RSFSW2_SAVETESTS="true" R CMD check *tar.gz`
+
+       To illustrate how to read in such reporter output and display
+       its content (note: you may need to adjust the file path):
+       ```{r}
+         utres <- readRDS(file.path("rSFSW2.Rcheck", "tests", "testthat_results.rds"))
+         r <- ListReporter$new()
+         r$start_reporter()
+         force(utres) # print test results with `ListReporter`
+         r$end_reporter()
+
+         utres[[1]] # explore results of first set of tests
+       ```
+    5) Fix any problem and repeat.
   * On github:
     * The command-line checks which include our unit tests will be run on the
       continuous integration frameworks 'travis' and 'appveyor'

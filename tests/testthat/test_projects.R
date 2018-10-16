@@ -19,6 +19,7 @@ test_that("Test projects structure", {
 
 
 test_that("Test projects", {
+  skip_if_not(identical(tolower(Sys.getenv("RSFSW2_ALLTESTS")), "true"))
   skip_on_cran()
 
   # Run test projects
