@@ -161,6 +161,9 @@ test_that("dbOutput_subset", {
   expect_equal(dbReadTable(con2, "iris"), res0)
   expect_equal(dbReadTable(con2, "aSoilLayer"), aSoilLayer)
   unlink(dbNew2)
+  if (file.exists(dbNew2)) {
+    dbNew2 <- tempfile() # hack because Windows OS doesn't reliably delete files
+  }
 
   #--- Subset and include all tables/fields and exclude some
   expect_true(dbOutput_subset(dbOut_fname = dbOut0, dbNew_fname = dbNew2,
@@ -172,7 +175,9 @@ test_that("dbOutput_subset", {
   expect_equal(dbReadTable(con2, "iris"), res0[, - icol])
   expect_equal(dbReadTable(con2, "aSoilLayer"), aSoilLayer)
   unlink(dbNew2)
-
+  if (file.exists(dbNew2)) {
+    dbNew2 <- tempfile() # hack because Windows OS doesn't reliably delete files
+  }
 
   #--- Subset and include some tables/fields and exclude some
   fields_include <- list(iris = "Species", aSoilLayer = "Soil_Layer")
