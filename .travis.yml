@@ -1,9 +1,13 @@
 # R for travis: see documentation at https://docs.travis-ci.com/user/languages/r
 
 language: R
+
+# Set environmental variables
+#   - _R_CHECK_FORCE_SUGGESTS_=false: because of Rmpi, ncdf4, hydromat, and weathergen
+#   - NOT_CRAN=false: set false to match `as-cran` option of checks; note, travis default is true
 env:
-  - _R_CHECK_FORCE_SUGGESTS_=false # because of Rmpi, ncdf4, hydromat, and weathergen
-  - NOT_CRAN=false # set false to match `as-cran` option of checks; note, travis default is true
+  - _R_CHECK_FORCE_SUGGESTS_=false NOT_CRAN=true
+  - _R_CHECK_FORCE_SUGGESTS_=false NOT_CRAN=false
 sudo: false
 cache: packages
 warnings_are_errors: false # turn this back on for more severe testing
