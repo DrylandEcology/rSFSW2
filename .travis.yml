@@ -3,6 +3,7 @@
 language: R
 env:
   - _R_CHECK_FORCE_SUGGESTS_=false # because of Rmpi, ncdf4, hydromat, and weathergen
+  - NOT_CRAN=false # set false to match `as-cran` option of checks; note, travis default is true
 sudo: false
 cache: packages
 warnings_are_errors: false # turn this back on for more severe testing
@@ -14,7 +15,7 @@ warnings_are_errors: false # turn this back on for more severe testing
 # manual until we have proper, fast running unit tests
 latex: false
 r_build_args: '--no-build-vignettes --no-manual'
-r_check_args: '--ignore-vignettes --no-manual'
+r_check_args: '--as-cran --ignore-vignettes --no-manual'
 #r_packages: hunspell
 
 addons:
