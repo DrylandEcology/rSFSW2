@@ -55,7 +55,9 @@ if (!nzchar(Sys.getenv("NOT_CRAN"))) {
   )
 
   temp <- Sys.getenv(names(ascran_env_vals), names = TRUE)
+print(temp)
   temp <- toupper(temp) == toupper(ascran_env_vals)
+print(temp)
   guess_ascran <- mean(temp)
 
   if (guess_ascran > 0.9) {
