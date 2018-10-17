@@ -98,9 +98,12 @@ if (identical(tolower(Sys.getenv("RSFSW2_SAVETESTS")), "true")) {
 }
 
 
+# Print environmental variables that are important for running our tests:
+temp <- c("RSFSW2_ALLTESTS", "RSFSW2_SAVETESTS",
+  "NOT_CRAN", "TRAVIS", "APPVEYOR", "TESTTHAT")
+temp <- Sys.getenv(temp, names = TRUE)
 
-print(paste("Testing environment is run with:",
-    "RSFSW2_ALLTESTS =", shQuote(Sys.getenv("RSFSW2_ALLTESTS")), "/",
-    "RSFSW2_SAVETESTS =", shQuote(Sys.getenv("RSFSW2_SAVETESTS")), "/",
-    "NOT_CRAN =", shQuote(Sys.getenv("NOT_CRAN"))
-  ))
+message(paste("Testing environment is run with:",
+  paste(
+  paste("\n\t*", names(temp), "=", shQuote(temp)),
+  collapse = "")))
