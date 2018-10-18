@@ -25,6 +25,7 @@ inst/doc
 # Package check files
 ..Rcheck
 rSFSW2.Rcheck
+testthat_results.rds
 
 # Package builds
 *tar.gz
