@@ -1,3 +1,6 @@
+# `setup_*.R`: executed before tests, but not during `devtools::load_all()`
+# (see `?test_check`)
+
 # Environmental variable `RSFSW2_ALLTESTS` determines whether or not
 # long-running expectations/unit-tests are skipped;
 # default is "true", i.e., run all expectations/unit-tests.

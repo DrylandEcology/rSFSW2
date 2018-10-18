@@ -92,17 +92,8 @@ test_that("dbWork: mock simulation in parallel", {
       function(i) assign(".node_id", i, envir = globalenv()))
     parallel::clusterSetRNGStream(cl, iseed = 127)
 
-    # Current path is `rSFSW2.Rcheck/tests/testthat/` and the source of
-    # `rSFSW2` is located at `rSFSW2.Rcheck/00_pkg_src/rSFSW2/`, if run with
-    # `R CMD check .` and/or `devtools::check()`, and is located at
-    # `../../`, if run with `devtools::test()`
-    pkg_temp_dir <- file.path("..", "..", "00_pkg_src", "rSFSW2")
-    if (!dir.exists(pkg_temp_dir)) {
-      pkg_temp_dir <- file.path("..", "..")
-    }
-
     parallel::clusterCall(cl, fun = devtools::load_all,
-      pkg = pkg_temp_dir, reset = FALSE, quiet = TRUE)
+      pkg = pkg_temp_dir(), reset = FALSE, quiet = TRUE)
 
   } else {
     fail("dbWork: mock simulation in parallel: cannot run in parallel!")

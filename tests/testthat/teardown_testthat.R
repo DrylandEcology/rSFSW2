@@ -1,3 +1,4 @@
+# `teardown_*.R`: executed after tests (see `?test_check`)
 
 # Post-mortem:
 # Note: wrap in `try(.)` because running unit tests with `devtools::test()`

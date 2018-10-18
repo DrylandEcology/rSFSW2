@@ -30,12 +30,12 @@ test_that("Package code style", {
     lintr::expect_lint_free(
       # Files that should not be linted:
       exclusions = as.list(
-        normalizePath(file.path("..", "..", "R", files_not_tolint))))
+        normalizePath(file.path(pkg_temp_dir(), "R", files_not_tolint))))
 
   } else {
     # for interactive use: easier to work with than `expect_lint_free`
     temp <- list(
-      dir_R = file.path("..", "..", "R"),
+      dir_R = file.path(pkg_temp_dir(), "R"),
       dir_testthat = file.path("."),
       dir_testdata = file.path("..", "test_data"))
     files <- unlist(lapply(temp, function(dir)
@@ -81,7 +81,8 @@ test_that("Package spell checks", {
   # Spell check with `hunspell`:
   #   ignores text in roxygen2 content directives, e.g., \url{}, \var{},
   #   but checks text in roxygen2 formatting directives, e.g., \sQuote{}
-  misspelled <- devtools::spell_check(ignore = spell_ignores)
+  misspelled <- devtools::spell_check(pkg = pkg_temp_dir(),
+    ignore = spell_ignores)
 
   expect_identical(length(misspelled), 0L, info = print(misspelled))
 })
@@ -98,9 +99,7 @@ test_that("Package good practices", {
   skip_on_appveyor()
   skip_if_not_installed("goodpractice")
 
-  # this path assumes that the current working directory is
-  # locatd at 'rSFSW2/tests/testthat/'
-  gps <- goodpractice::gp(path = "../..")
+  gps <- goodpractice::gp(path = pkg_temp_dir())
 
   expect_identical(length(goodpractice::failed_checks(gps)), 0L,
     info = print(gps))
