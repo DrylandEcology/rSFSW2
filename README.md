@@ -124,23 +124,24 @@ __Setup a new simulation project__:
 You can contribute to this project in different ways:
 
 1. Reporting [issues](https://github.com/DrylandEcology/rSFSW2/issues)
-2. Contributing code and sending a
+2. Contributing code following our
+   [protocols/guidelines](https://github.com/DrylandEcology/DrylandEcologyProtocols)
+   and sending a
    [pull request](https://github.com/DrylandEcology/rSFSW2/pulls)
 
-Please follow our
-[guidelines](https://github.com/DrylandEcology/workflow_guidelines),
-particularly,
+<br>
+
+### __Code development: Tests, documentation, and code__ form a trinity
+
+- __Code style__
   * Use code style that passes our
     [`lintr`](https://github.com/jimhester/lintr) unit tests
     which basically reflect
     [Hadley's style recommendation](http://r-pkgs.had.co.nz/r.html#style).
     Note: we require `lintr v1.0.2.900` or later.
-  * Use 2-spaces as one tab and indent code hierarchically
+  * Use 2-spaces instead of tabs and indent code hierarchically
   * Note, many function and variable names are "ancient" (too long; combine
     snake and camel-case)
-
-
-### __Tests, documentation, and code__ form a trinity
 
 - __Updates to input files and/or demo code__
   * If `SOILWAT2` and `rSOILWAT2` change their `default` inputs, then `rSFSW2`
@@ -197,7 +198,7 @@ particularly,
   * Update help pages and NAMESPACE with the command `devtools::document()`
   * Ideally, add examples to function documentation and check these examples
     with the command `devtools::run_examples()`
-  * Ideally, expand the vignettes.
+  * Ideally, expand and/or add vignettes.
 
 
 - __Code tests__
@@ -248,27 +249,27 @@ particularly,
       [rSFSW2_tools](https://github.com/DrylandEcology/rSFSW2_tools)
       and add a new test project, if necessary due to new features.
 
-  * __Run the following five steps locally__
+  * __Run the following steps locally__
     in order to prepare a pull-request or commit that will be reviewed.
     Fix any problem and repeat as necessary.
 
-    0) Make sure that the anticipated version of `rSOILWAT2` is indeed
+    1. Make sure that the anticipated version of `rSOILWAT2` is indeed
        installed, e.g.,
        ```{r}
        packageVersion("rSOILWAT2")
        ```
 
-    1) Make sure that the documentation is up-to-date with:
+    1. Make sure that the documentation is up-to-date with:
        ```{r}
        devtools::document()
        ```
 
-    2) Run and check the code from the examples and vignettes:
+    1. Run and check the code from the examples and vignettes:
        ```{r}
        devtools::run_examples()
        ```
 
-    3) Run tests as if not on CRAN, in an interactive R session,
+    1. Run tests as if not on CRAN, in an interactive R session,
        and with a sequential schedule.
        ```{r}
        # Run in R.app, RStudio, or in an R terminal-session:
@@ -288,7 +289,7 @@ particularly,
        - `Sys.setenv(RSFSW2_ALLTESTS = "false"); devtools::test()`
        - `RSFSW2_ALLTESTS="false" R CMD check *tar.gz`
 
-    4) Run tests as if not on CRAN, in an non-interactive session,
+    1. Run tests as if not on CRAN, in an non-interactive session,
        and with a parallel schedule.
        ```{bash}
        # Run via shell in the terminal:
@@ -340,7 +341,7 @@ particularly,
         - Make sure that the integration test (e.g., `TestPrj4`) was indeed run
           in parallel (output reports on the number of workers).
 
-    5) Run R package-level checks as if on CRAN.
+    1. Run R package-level checks as if on CRAN.
        ```{r}
        # Run in R.app, RStudio, or in an R terminal-session:
        Sys.setenv(NOT_CRAN = "false")
@@ -351,7 +352,7 @@ particularly,
           [Clean code](https://github.com/DrylandEcology/rSFSW2/milestone/2)
 
 
-    __Notes__: The four above steps can also be executed with different commands
+    __Notes__: The above steps can also be executed with different commands
     and there are more combinations that could be tested. For instance, you
     could use `R CMD` instead of `devtools::check`, e.g., see
     [Writing R Extensions](https://cran.r-project.org/doc/manuals/R-exts.html).
