@@ -234,10 +234,16 @@ You can contribute to this project in different ways:
           `devtools::load_all(recompile = TRUE)` if your changes include C code
         - Most likely, this will run tests as if on CRAN (depending on your
           specific setup), i.e., it will skip several of our tests:
-            - Explicitly set the environmental variable
-              `NOT_CRAN` to force tests to behave as if not on CRAN with
-              `Sys.setenv(NOT_CRAN = "true")`.
-            - To unset, do `Sys.setenv(NOT_CRAN = "false")`.
+           * it is set as `NOT_CRAN="true"` if run with:
+              * `devtools::test()` unless `NOT_CRAN` was previously set
+              * `devtools::check(cran = FALSE)`
+              * `R CMD check *tar.gz`
+           * it is set as `NOT_CRAN="false"` (i.e, behaving as if run on CRAN)
+           if run with:
+              * `Sys.setenv(NOT_CRAN = "false"); devtools::test()`
+              * `devtools::check(cran = TRUE)`
+              * `R CMD check *tar.gz --as-cran`
+
         - If you don't like the output format of the tests (which differs
           depending on whether you run R interactively or not, whether you run
           R via RStudio or not, etc.), then chose a testthat-'reporter'
@@ -304,17 +310,11 @@ You can contribute to this project in different ways:
           You can convince yourself of this by first removing `rSFSW2` with
           `remove.packages("rSFSW2")` and then run above command -- the tests
           will fail with errors such as `object 'SFSW2_glovars' not found` or
-         `devtools::check()` -- on the command line and interactively, i.e.,
-         * it is set as `NOT_CRAN="true"` if run with:
-            * `devtools::test()` unless `NOT_CRAN` was previously set
-            * `devtools::check(cran = FALSE)`
-            * `R CMD check *tar.gz`
-         * it is set as `NOT_CRAN="false"` (i.e, behaving as if run on CRAN)
-         if run with:
-            * `Sys.setenv(NOT_CRAN = "false"); devtools::test()`
-            * `devtools::check(cran = TRUE)`
-            * `R CMD check *tar.gz --as-cran`
-    4) The environmental variable `RSFSW2_SAVETESTS` determines whether or not
+          `all(tp[["res"]][, "has_run"]) isn't true`.
+        - Make sure that the integration test (e.g., `TestPrj4`) was indeed run
+          in parallel (output reports on the number of workers).
+
+    1. The environmental variable `RSFSW2_SAVETESTS` determines whether or not
        the otherwise invisible internal `testthat` results are saved to file
        which can be useful for debugging; the default is "true" in
        non-interactive mode, i.e., save results, and "false" in interactive
@@ -334,12 +334,8 @@ You can contribute to this project in different ways:
 
          utres[[1]] # explore results of first set of tests
        ```
-    5) Fix any problem and repeat.
-    
-    
-          `all(tp[["res"]][, "has_run"]) isn't true`.
-        - Make sure that the integration test (e.g., `TestPrj4`) was indeed run
-          in parallel (output reports on the number of workers).
+
+
 
     1. Run R package-level checks as if on CRAN.
        ```{r}
@@ -368,6 +364,9 @@ You can contribute to this project in different ways:
     ```
     You could also pass the argument `--as-cran` to `R CMD check` to simulate
     checks as if on CRAN.
+
+    1. Fix any problem and repeat.
+
 
   * On github:
     * The command-line checks which include our unit tests will be run on the
