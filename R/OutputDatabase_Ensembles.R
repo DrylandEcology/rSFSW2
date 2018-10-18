@@ -36,7 +36,8 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
 }
 
 
-  calc.ensembles <- function(dat, elevels) { #dat must be three-dimensional object with dims = (runs, outputs, scenarios); runs and/or scenarios can be 1 or larger
+  calc.ensembles <- function(dat, elevels) {
+    # dat must be three-dimensional object with dims = (runs, outputs, scenarios); runs and/or scenarios can be 1 or larger
     doRanks <- function(x) {
       temp <- sort.int(x, na.last = NA, index.return = TRUE)
 

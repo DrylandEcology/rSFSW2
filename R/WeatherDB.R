@@ -52,9 +52,8 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   temp_runIDs_sites <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
@@ -528,9 +527,8 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data, # no
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   } else {
     temp_call <- NULL
   }
@@ -789,9 +787,8 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, # no
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   } else {
     temp_call <- NULL
   }
@@ -891,9 +888,8 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids, 
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   } else {
     temp_call <- NULL
   }
@@ -1304,9 +1300,8 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, # 
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   } else {
     temp_call <- NULL
   }
@@ -1410,9 +1405,8 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids, # no
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   } else {
     temp_call <- NULL
   }
@@ -1869,9 +1863,8 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   dw_names <- rep(NA, times = length(dw_source))

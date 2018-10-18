@@ -863,9 +863,8 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   if (is.null(dir_out_temp)) {
@@ -1057,9 +1056,8 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   if (is.null(dir_out_temp)) {
@@ -1250,9 +1248,8 @@ move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, #
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   if (is.null(dir_out_temp)) {
@@ -1614,9 +1611,8 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   #--- CHECK THAT ALL TEMPORARY DATA HAVE BEEN MOVED TO dbOutput
@@ -2665,9 +2661,8 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   if (SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] &&
@@ -2755,9 +2750,8 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
 
@@ -3247,9 +3241,8 @@ dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-    },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   prep <- dbOut_prepare1(dbOut_fname, dbNew_fname,
@@ -3387,9 +3380,8 @@ dbOut_update_values <- function(dbOut_fname, dbNew_fname, fields_update = NULL,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-    },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   prep <- dbOut_prepare1(dbOut_fname, dbNew_fname,
@@ -3549,9 +3541,8 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-    },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   con_dbOut <- dbConnect(SQLite(), dbname = dbOut_fname)
