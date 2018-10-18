@@ -5,7 +5,8 @@
 \title{Function to calculate favorable conditions for seedling growth for each day
 of a given year}
 \usage{
-check_SuitableGrowthThisYear(favorable.conditions, consequences.unfavorable)
+check_SuitableGrowthThisYear(favorable.conditions,
+  consequences.unfavorable)
 }
 \description{
 Function to calculate favorable conditions for seedling growth for each day

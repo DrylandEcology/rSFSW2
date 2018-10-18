@@ -10,9 +10,10 @@ move_temporary_to_outputDB(SFSW2_prj_meta, t_job_start, opt_parallel,
   opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L,
   dir_out_temp = NULL)
 
-move_temporary_to_outputDB_withChecks(SFSW2_prj_meta, t_job_start, opt_parallel,
-  opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L,
-  check_if_Pid_present = TRUE, dir_out_temp = NULL)
+move_temporary_to_outputDB_withChecks(SFSW2_prj_meta, t_job_start,
+  opt_parallel, opt_behave, opt_out_run, opt_verbosity,
+  chunk_size = 1000L, check_if_Pid_present = TRUE,
+  dir_out_temp = NULL)
 }
 \arguments{
 \item{chunk_size}{An integer value. The number of lines that are read at once

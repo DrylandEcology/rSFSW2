@@ -5,8 +5,8 @@
 \title{Check that values in matrix-like object are (strictly) monotonically
 increasing/decreasing}
 \usage{
-check_monotonic_increase(x, MARGIN = 1, increase = TRUE, strictly = FALSE,
-  fail = FALSE, replacement = NA, na.rm = FALSE)
+check_monotonic_increase(x, MARGIN = 1, increase = TRUE,
+  strictly = FALSE, fail = FALSE, replacement = NA, na.rm = FALSE)
 }
 \arguments{
 \item{x}{A numeric matrix like object.}

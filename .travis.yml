@@ -1,8 +1,13 @@
 # R for travis: see documentation at https://docs.travis-ci.com/user/languages/r
 
 language: R
+
+# Set environmental variables
+#   - _R_CHECK_FORCE_SUGGESTS_=false: because of Rmpi, ncdf4, hydromat, and weathergen
+#   - I attempt to set to false to match `as-cran` option of checks; however,
+#     this currently appears to have no bearing for the actual tests; note, travis default is true
 env:
-  - _R_CHECK_FORCE_SUGGESTS_=false # because of Rmpi, ncdf4, hydromat, and weathergen
+  - _R_CHECK_FORCE_SUGGESTS_=false NOT_CRAN=false
 sudo: false
 cache: packages
 warnings_are_errors: false # turn this back on for more severe testing
@@ -14,7 +19,7 @@ warnings_are_errors: false # turn this back on for more severe testing
 # manual until we have proper, fast running unit tests
 latex: false
 r_build_args: '--no-build-vignettes --no-manual'
-r_check_args: '--ignore-vignettes --no-manual'
+r_check_args: '--as-cran --ignore-vignettes --no-manual'
 #r_packages: hunspell
 
 addons:

@@ -66,8 +66,8 @@ pretend_sim <- function(cl, runIDs, dbpath, flock, verbose) {
 
 #--- Unit tests
 test_that("dbWork: mock simulation in parallel", {
-  # Run these tests not in parallel on CIs and CRAN because parallel code
-  # will likely fail on CIs and on CRAN
+  # Skip these tests on CIs and CRAN because parallel code
+  # will (likely) fail on CIs and on CRAN, e.g.,
   #  - travis  on July 21, 2017: "Error in .check_ncores(length(names)) :
   #    10 simultaneous processes spawned"
 
@@ -75,16 +75,15 @@ test_that("dbWork: mock simulation in parallel", {
   skip_on_travis()
   skip_on_appveyor()
 
-  dont_parallel <- identical(tolower(Sys.getenv("NOT_CRAN")), "false") ||
-    identical(tolower(Sys.getenv("TRAVIS")), "true") ||
-    identical(tolower(Sys.getenv("APPVEYOR")), "true")
+  # Only run these tests in parallel if not on cran, if not on travis, and if
+  # not on appveyor
+  do_parallel <- !identical(tolower(Sys.getenv("NOT_CRAN")), "false") &&
+    !(identical(tolower(Sys.getenv("TRAVIS")), "true") ||
+    identical(tolower(Sys.getenv("APPVEYOR")), "true"))
 
   .node_id <- 0L
 
-  if (dont_parallel) {
-    cl <- NULL
-
-  } else {
+  if (do_parallel) {
     # Parallel setup
     temp <- max(2L, min(10L, parallel::detectCores() - 2L))
     ncores <- if (is.finite(temp)) temp else 2L
@@ -92,11 +91,12 @@ test_that("dbWork: mock simulation in parallel", {
     temp <- parallel::clusterApply(cl, seq_len(ncores),
       function(i) assign(".node_id", i, envir = globalenv()))
     parallel::clusterSetRNGStream(cl, iseed = 127)
-    parallel::clusterExport(cl, varlist = c("create_dbWork", "setup_dbWork",
-      "dbWork_todos", "dbWork_timing", "dbWork_update_job", "lock_access",
-      "unlock_access", "lock_attempt", "lock_init", "check_lock_content",
-      "remove_lock"))
-    # End parallel setup
+
+    parallel::clusterCall(cl, fun = devtools::load_all,
+      pkg = pkg_temp_dir(), reset = FALSE, quiet = TRUE)
+
+  } else {
+    fail("dbWork: mock simulation in parallel: cannot run in parallel!")
   }
 
   # Init
@@ -126,9 +126,10 @@ test_that("dbWork: mock simulation in parallel", {
   expect_s3_class(pretend_sim(cl, runIDs, dbpath, flock, verbose), "table")
 
   #--- Clean up
-  if (!dont_parallel) {
+  if (do_parallel) {
     parallel::stopCluster(cl)
   }
+
   unlink(file.path(dbpath, "dbWork.sqlite3*"))
   unlink(flock, recursive = TRUE)
 })

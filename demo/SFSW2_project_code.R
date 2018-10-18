@@ -167,8 +167,8 @@ if (isTRUE(actions[["ensemble"]])) {
 
 if (isTRUE(actions[["check_dbOut"]])) {
 
-  check_outputDB_completeness(SFSW2_prj_meta, opt_parallel, opt_behave,
-    opt_out_run, opt_verbosity)
+  info_missing <- check_outputDB_completeness(SFSW2_prj_meta, opt_parallel,
+    opt_behave, opt_out_run, opt_verbosity)
 }
 
 

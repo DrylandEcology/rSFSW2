@@ -58,9 +58,8 @@ extract_climate_NOAAClimAtlas <- function(MMC, sim_size, sim_space,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   MMC[["idone"]]["NCDC1"] <- FALSE
@@ -273,9 +272,8 @@ extract_climate_NCEPCFSR <- function(MMC, SWRunInformation,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   #--- SET UP PARALLELIZATION

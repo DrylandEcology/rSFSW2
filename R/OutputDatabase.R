@@ -54,18 +54,15 @@ getIDs_from_db_Pids <- function(dbname, Pids) {
 }
 
 add_dbOutput_index <- function(con) {
-  sql <- "SELECT * FROM sqlite_master WHERE type = 'index'"
-  prev_indices <- dbGetQuery(con, sql)
+  tables <- dbListTables(con)
 
-  if (NROW(prev_indices) == 0L ||
-      !("index_aomean_Pid" %in% prev_indices[, "name"])) {
-    dbExecute(con, paste("CREATE INDEX index_aomean_Pid ON",
+  if ("aggregation_overall_mean" %in% tables) {
+    dbExecute(con, paste("CREATE INDEX IF NOT EXISTS index_aomean_Pid ON",
       "aggregation_overall_mean (P_id)"))
   }
 
-  if (NROW(prev_indices) == 0L ||
-      !("index_aosd_Pid" %in% prev_indices[, "name"])) {
-    dbExecute(con, paste("CREATE INDEX index_aosd_Pid ON",
+  if ("aggregation_overall_sd" %in% tables) {
+    dbExecute(con, paste("CREATE INDEX IF NOT EXISTS index_aosd_Pid ON",
       "aggregation_overall_sd (P_id)"))
   }
 }
@@ -109,8 +106,24 @@ dbOutput_ListOutputTables <- function(con = NULL, dbname = NULL) {
 }
 
 
-#' List the available output tables of \var{\sQuote{dbOutput}} which
-#' record output of variables per soil layer
+#' Checks whether output tables of \var{\sQuote{dbOutput}} store output of
+#' variables for each soil layer
+#'
+#' @param tables A vector of character strings. The names of those tables that
+#'  should be checked for the presence of a field named \var{\code{Soil_Layer}}.
+#'  If \code{NULL}, then all output tables will be checked.
+#' @param con A valid \code{SQLiteConnection} database connection to
+#'   \var{\sQuote{dbOutput}} or \code{NULL}.
+#' @param dbname A character string. The path including name to
+#'  \var{\sQuote{dbOutput}} or \code{NULL}.
+#'
+#' @section Note: At least one of \code{con} and \code{dbname} must be provided.
+#'  Argument \code{con} has priority if both arguments are provided and
+#'  \code{con} is valid.
+#'
+#' @return A named logical vector where names are tables. \code{TRUE} indicates
+#'   that a table has records by soil layers.
+#'
 #' @export
 dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, # nolint
   dbname = NULL) {
@@ -129,7 +142,7 @@ dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, # nolint
     on.exit(dbDisconnect(con), add = TRUE)
   }
 
-  if (!is.null(tables))
+  if (is.null(tables))
     tables <- dbOutput_ListOutputTables(con)
 
   has_soillayers <- sapply(tables, function(table) {
@@ -850,9 +863,8 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   if (is.null(dir_out_temp)) {
@@ -976,9 +988,6 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
       if (opt_out_run[["deleteTmpSQLFiles"]]) {
         try(unlink(theFileList[k1], force = TRUE),
           silent = !opt_verbosity[["verbose"]])
-
-        if (file.exists(theFileList[k1])) {
-        }
       }
     }
 
@@ -993,7 +1002,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
     do.call(on.exit, args = c(list(oe), add = FALSE))
 
     if (opt_out_run[["deleteTmpSQLFiles"]]) {
-      to_delete <- !file.exists(theFileList)
+      to_delete <- file.exists(theFileList)
 
       if (any(to_delete)) {
         # Windows OS has problems with deleting files even if it claims
@@ -1005,7 +1014,7 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
         try(file.remove(theFileList[to_delete]),
           silent = !opt_verbosity[["verbose"]])
 
-        to_delete <- !file.exists(theFileList)
+        to_delete <- file.exists(theFileList)
         if (any(to_delete)) {
           print(paste("The temporary file(s)",
             paste(shQuote(theFileList[to_delete]), collapse = ", ",
@@ -1047,9 +1056,8 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   if (is.null(dir_out_temp)) {
@@ -1240,9 +1248,8 @@ move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, #
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   if (is.null(dir_out_temp)) {
@@ -1604,9 +1611,8 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   #--- CHECK THAT ALL TEMPORARY DATA HAVE BEEN MOVED TO dbOutput
@@ -1768,7 +1774,11 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
     }
 
   } else {
-     do_update_status <- TRUE
+    do_update_status <- TRUE
+
+    if (opt_verbosity[["verbose"]]) {
+      print("No missing Pids found: dbOut database is complete.")
+    }
   }
 
   if (do_update_status) {
@@ -1793,8 +1803,13 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
         "is missing n =", length(missing_Pids_current), "records;",
         "P_id of these records are saved to file", shQuote(ftemp)))
 
-     saveRDS(missing_Pids_current, file = ftemp)
-   }
+      saveRDS(missing_Pids_current, file = ftemp)
+    }
+
+  } else {
+    if (opt_verbosity[["verbose"]]) {
+      print("No missing Pids found: dbOutCurrent database is complete.")
+    }
   }
 
   oe <- sys.on.exit()
@@ -1830,7 +1845,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
       sql <- "INSERT INTO weatherfolders VALUES(NULL, :folder)"
       rs <- dbSendStatement(con_dbOut, sql)
-      dbBind(rs, param = list(folder = temp))
+      dbBind(rs, params = list(folder = temp))
       dbClearResult(rs)
 
     } else {
@@ -1839,7 +1854,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   }
 
 
-  #############Site Table############################
+  #------ Site Table
   # Note: invariant to 'include_YN', i.e., do not subset
   # rows of 'SFSW2_prj_inputs[["SWRunInformation"]]'
   index_sites <- sort(unique(c(sapply(req_fields_SWRunInformation(),
@@ -1869,15 +1884,14 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   useTreatments <- any(!(SFSW2_prj_inputs[["create_treatments"]] %in%
       SFSW2_prj_inputs[["create_experimentals"]]))
 
-  #############simulation_years table#########################
+  #------ simulation_years table
   dbExecute(con_dbOut, paste("CREATE TABLE",
     "simulation_years(id INTEGER PRIMARY KEY AUTOINCREMENT,",
     "simulationStartYear INTEGER NOT NULL, StartYear INTEGER NOT NULL,",
     "EndYear INTEGER NOT NULL);"))
-  ##################################################
 
 
-  ##########Create table experimental_labels only if using experimentals
+  #------ Create table experimental_labels only if using experimentals
   if (useExperimentals) {
     dbExecute(con_dbOut, paste("CREATE TABLE",
       "experimental_labels(id INTEGER PRIMARY KEY AUTOINCREMENT,",
@@ -1885,14 +1899,12 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
     sql <- "INSERT INTO experimental_labels VALUES(NULL, :label)"
     rs <- dbSendStatement(con_dbOut, sql)
-    dbBind(rs, param = list(
+    dbBind(rs, params = list(
       label = SFSW2_prj_inputs[["sw_input_experimentals"]][, 1]))
     dbClearResult(rs)
-
   }
-  ################################
 
-  # If LookupWeatherFolder is ON we need to make sure all of the weather
+  #------ If LookupWeatherFolder is ON we need to make sure all of the weather
   # folders are in weatherfolders table
 #TODO: WeatherFolder update
   if (any(SFSW2_prj_inputs[["create_treatments"]] == fieldname_weatherf)) {
@@ -1944,7 +1956,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
         #Write those in
         sql <- "INSERT INTO weatherfolders VALUES(:id, :folder)"
         rs <- dbSendStatement(con_dbOut, sql)
-        dbBind(rs, param = as.list(LWF_index[isna, ]))
+        dbBind(rs, params = as.list(LWF_index[isna, ]))
         dbClearResult(rs)
       }
     }
@@ -2068,8 +2080,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       SFSW2_prj_inputs[["create_experimentals"]]
     db_treatments_column_types[temp, "table"] <- 1
 
-    ######################
-    #Get the column types from the proper tables
+    #------ Get the column types from the proper tables
     temp <- SFSW2_prj_inputs[["create_treatments"]] %in%
       SFSW2_prj_inputs[["create_experimentals"]]
     temp <- SFSW2_prj_inputs[["create_treatments"]][!temp]
@@ -2270,30 +2281,29 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   sql <- paste("INSERT INTO simulation_years VALUES(NULL,",
     ":simulationStartYear, :StartYear, :EndYear)")
   rs <- dbSendStatement(con_dbOut, sql)
-  dbBind(rs, param = as.list(unique_simulation_years))
+  dbBind(rs, params = as.list(unique_simulation_years))
   dbClearResult(rs)
 
   #Insert the data into the treatments table
   sql <- paste0("INSERT INTO treatments VALUES(", paste0(":",
     colnames(db_combined_exp_treatments), collapse = ", "), ")")
   rs <- dbSendStatement(con_dbOut, sql)
-  dbBind(rs, param = as.list(db_combined_exp_treatments))
+  dbBind(rs, params = as.list(db_combined_exp_treatments))
   dbClearResult(rs)
 
 
-  ##############scenario_labels table###############
+  #------ scenario_labels table
   dbExecute(con_dbOut, paste("CREATE TABLE",
     "scenario_labels(id INTEGER PRIMARY KEY AUTOINCREMENT,",
     "label TEXT UNIQUE NOT NULL)"))
 
   sql <- "INSERT INTO scenario_labels VALUES(NULL, :label)"
   rs <- dbSendStatement(con_dbOut, sql)
-  dbBind(rs, param = list(label = SFSW2_prj_meta[["sim_scens"]][["id"]]))
+  dbBind(rs, params = list(label = SFSW2_prj_meta[["sim_scens"]][["id"]]))
   dbClearResult(rs)
 
-  ##################################################
 
-  #############run_labels table#########################
+  #------ run_labels table
   # Note: invariant to 'include_YN', i.e., do not
   # subset 'SFSW2_prj_inputs[["SWRunInformation"]]'
   dbExecute(con_dbOut, paste("CREATE TABLE",
@@ -2314,12 +2324,11 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
   sql <- "INSERT INTO run_labels VALUES(NULL, :label)"
   rs <- dbSendStatement(con_dbOut, sql)
-  dbBind(rs, param = list(label = temp))
+  dbBind(rs, params = list(label = temp))
   dbClearResult(rs)
-  ##################################################
 
 
-  #####################runs table###################
+  #------ runs table
   # Note: invariant to 'include_YN', i.e., do not
   # subset 'SFSW2_prj_inputs[["SWRunInformation"]]'
   dbExecute(con_dbOut, paste("CREATE TABLE",
@@ -2369,11 +2378,11 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   sql <- paste("INSERT INTO runs VALUES(:P_id, :label_id, :site_id,",
     ":treatment_id, :scenario_id)")
   rs <- dbSendStatement(con_dbOut, sql)
-  dbBind(rs, param = as.list(db_runs))
+  dbBind(rs, params = as.list(db_runs))
   dbClearResult(rs)
-  ##################################################
 
-  ################CREATE VIEW########################
+
+  #------ CREATE VIEW
   if (length(SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]]) > 0) {
     sites_columns <- colnames(SFSW2_prj_inputs[["SWRunInformation"]])[
       SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]]]
@@ -2426,7 +2435,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       "treatments.experimental_id=experimental_labels.id AND ",
     "treatments.simulation_years_id=simulation_years.id;"
   ))
-  ##################################################
 
   invisible(NULL)
 }
@@ -2653,9 +2661,8 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   if (SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] &&
@@ -2743,9 +2750,8 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
 
@@ -3094,4 +3100,608 @@ compare_two_dbOutput <- function(dbOut1, dbOut2, tol = 1e-3,
   }
 
   diff_msgs
+}
+
+
+dbOut_prepare1 <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
+  fields_exclude = NULL) {
+
+  #--- Connect to dbOut
+  con_dbOut <- dbConnect(SQLite(), dbname = dbOut_fname, flags = SQLITE_RW)
+
+  # Attach dbNew
+  dbNew_fname <- normalizePath(dbNew_fname)
+  dbExecute(con_dbOut, paste("ATTACH",
+    dbQuoteIdentifier(con_dbOut, dbNew_fname), "AS dbNew"))
+
+  #--- Identify tables and fields to update
+  has_tables0 <- dbOutput_ListOutputTables(con = con_dbOut)
+  has_tables_new <- dbOutput_ListOutputTables(dbname = dbNew_fname)
+
+  # Find output tables
+  req_tables <- if (is.null(fields_include)) {
+      has_tables_new
+    } else {
+      names(fields_include)
+    }
+
+  # Confirm that requested tables are available in dbOut and dbNew
+  has_temp <- req_tables %in% has_tables0 & req_tables %in% has_tables_new
+  not_temp <- !has_temp
+  if (any(not_temp)) {
+    print(paste("Requested tables not available:",
+      paste0(shQuote(req_tables[not_temp]), collapse = ", ")))
+  }
+
+  tables <- req_tables[has_temp]
+  tables_w_soillayers <- dbOutput_Tables_have_SoilLayers(tables,
+    con = con_dbOut)
+
+
+  # Find fields to match and fields to update the output values
+  fields_design <- c("P_id", "Soil_Layer")
+  result_fields <- design <- list()
+
+  for (k in seq_along(tables)) {
+    fields0 <- dbListFields(con_dbOut, tables[k])
+    fields_new <- names(dbGetQuery(con_dbOut, paste0("SELECT * FROM dbNew.",
+      dbQuoteIdentifier(con_dbOut, tables[k]), " LIMIT 0")))
+
+    temp <- seq_len(if (tables_w_soillayers[tables[k]]) 2 else 1)
+    design[[k]] <- fields_design[temp]
+
+    req_fields <- if (is.null(fields_include) ||
+        is.null(fields_include[[tables[k]]])) {
+        fields_new
+      } else {
+        fields_include[[tables[k]]]
+      }
+
+    # Exclude design fields
+    temp <- req_fields %in% design[[k]]
+    req_fields <- req_fields[!temp]
+
+    # Exclude fields requested to be excluded
+    if (!(is.null(fields_exclude) || is.null(fields_exclude[[tables[k]]]))) {
+      temp <- req_fields %in% fields_exclude[[tables[k]]]
+      req_fields <- req_fields[!temp]
+    }
+
+    # Confirm that requested fields are available in dbOut and dbNew
+    has_temp <- req_fields %in% fields0 & req_fields %in% fields_new
+    not_temp <- !has_temp
+    if (any(not_temp)) {
+      print(paste("Requested fields not available:",
+        paste0(shQuote(req_fields[not_temp]), collapse = ", ")))
+    }
+
+    result_fields[[k]] <- req_fields[has_temp]
+  }
+
+  dbExecute(con_dbOut, "DETACH dbNew")
+
+  list(con_dbOut = con_dbOut, tables = tables, fields = result_fields,
+    design = design)
+}
+
+#' Check that cells of \var{dbOutput} agree with corresponding cells of another
+#' database
+#'
+#' @param dbOut_fname A character string. The file path of the main
+#'   \var{\code{dbOutput}} that is to be updated.
+#' @param dbNew_fname A character string. The file path of a database with
+#'   values that are to be compared against \var{\code{dbOutput}}.
+#' @param fields_check A named list of vectors with character strings. The
+#'   field names per table that are used must have equal values in the original
+#'   and the new database for a record to be checked. If \code{NULL},
+#'   then all output tables, according to
+#'   \code{\link{dbOutput_ListOutputTables}}, and all fields
+#'   (except for ID-fields, i.e., \var{\code{P_id}} and \var{\code{Soil_Layer}})
+#'   are checked.
+#' @param tol A numeric value. Differences smaller than tolerance are not
+#'   considered.
+#' @param verbose A logical value.
+#' @return The connection to an in-memory database with one table that tracks
+#'   which records (identified by \var{\code{P_id}}) agree (value 1) and which
+#'   records do not agree (value 0) for each table (as field names). Value of
+#'   records that were not compared is \code{NA}/\code{NULL}.
+#'
+#' @examples
+#' \dontrun{
+#'   con_dbCheck <- dbOut_check_values(
+#'     dbOut_fname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+#'     dbNew_fname = "path/to/new.sqlite3",
+#'     fields_check = list(
+#'       aggregation_overall_mean = c("MAT_C_mean", "MAP_mm_mean"),
+#'       aggregation_overall_sd = c("MAT_C_sd", "MAP_mm_sd"),
+#'     )
+#'
+#'   table <- dbListTables(con_dbCheck)
+#'   fields <- dbQuoteIdentifier(con_dbCheck, dbListFields(con_dbCheck, table))
+#'
+#'   # Extract Pids from records that matched up
+#'   sql <- paste("SELECT P_id FROM", table, "WHERE",
+#'     paste(fields[-1], "= 1", collapse = " AND "))
+#'   is_good <- dbGetQuery(con_dbCheck, sql)
+#'
+#'   # Extract Pids from records that did not match up; this should be empty
+#'   sql <- paste("SELECT P_id FROM", table, "WHERE",
+#'     paste(fields[-1], "= 0", collapse = " OR "))
+#'   is_bad <- dbGetQuery(con_dbCheck, sql)
+#' }
+#'
+#' @export
+dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
+  tol = 1e-3, verbose = FALSE) {
+
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({
+      print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
+  }
+
+  prep <- dbOut_prepare1(dbOut_fname, dbNew_fname,
+    fields_include = fields_check)
+  dbDisconnect(prep[["con_dbOut"]])
+
+  #--- Create in-memory database with one table that tracks comparison
+  con_res <- dbConnect(SQLite(), ":memory:")
+  table_comparison <- paste0("Comparison_", format(Sys.Date(), "%Y%m%d"))
+  sql <- paste0("CREATE TABLE ", table_comparison, " ",
+    "(P_id INTEGER PRIMARY KEY, ",
+    paste(prep[["tables"]], "INTEGER DEFAULT NULL", collapse = ", "), ")")
+  dbExecute(con_res, sql)
+
+  # Attach dbOut and fill table with P_id
+  sql <- paste("ATTACH", dbQuoteIdentifier(con_res, dbOut_fname), "AS dbOut")
+  dbExecute(con_res, sql)
+
+  sql <- paste("INSERT INTO", table_comparison, "(P_id)",
+    "SELECT P_id FROM dbOut.runs")
+  dbExecute(con_res, sql)
+
+
+  #--- Check values
+  # Attach dbNew
+  sql <- paste("ATTACH", dbQuoteIdentifier(con_res, dbNew_fname), "AS dbNew")
+  dbExecute(con_res, sql)
+
+  for (k in seq_along(prep[["tables"]])) if (length(prep[["fields"]][[k]])) {
+    tfield <- ttable <- dbQuoteIdentifier(con_res, prep[["tables"]][k])
+    tchecks <-  dbQuoteIdentifier(con_res, prep[["fields"]][[k]])
+    tdesign <- dbQuoteIdentifier(con_res, prep[["design"]][[k]])
+
+    if (verbose) {
+      print(paste0(Sys.time(), ": checking table ",
+        shQuote(prep[["tables"]][k]), " with ", length(prep[["fields"]][[k]]),
+        " fields."))
+    }
+
+    sql_design <- paste0(tdesign, collapse = ",")
+    sql_join_NtoM <- paste0("dbOut.", ttable, " JOIN dbNew.", ttable,
+      " USING (", sql_design, ")")
+    sql_checked <- paste0("dbNew.", ttable, ".", tchecks,
+      " BETWEEN dbOut.", ttable, ".", tchecks, " - ", tol, " AND ",
+        "dbOut.", ttable, ".", tchecks, " + ", tol,
+      collapse = " AND ")
+    sql_not_checked <- paste0("dbNew.", ttable, ".", tchecks,
+      " NOT BETWEEN dbOut.", ttable, ".", tchecks, " - ", tol, " AND ",
+        "dbOut.", ttable, ".", tchecks, " + ", tol,
+      collapse = " AND ")
+
+    if (FALSE) {
+      # Determine count of matching records
+      sql <- paste0("SELECT COUNT(*) FROM ",
+        "(SELECT P_id FROM ", sql_join_NtoM, " WHERE ", sql_checked, ")")
+      print(as.integer(dbGetQuery(con_res, sql)))
+    }
+
+    # Update records that match between dbNew and dbOut
+    sql <- paste0(
+      "UPDATE ", table_comparison, " ",
+      "SET ", tfield, " = 1 ",
+      "WHERE P_id IN ",
+        "(SELECT P_id FROM ", sql_join_NtoM, " WHERE ", sql_checked, ")")
+    dbExecute(con_res, sql)
+
+    # Update records that do not match between dbNew and dbOut, but which are
+    # in dbNew
+    sql <- paste0(
+      "UPDATE ", table_comparison, " ",
+      "SET ", tfield, " = 0 ",
+      "WHERE ",
+        "(SELECT P_id FROM ", sql_join_NtoM, " WHERE ", sql_not_checked, ")")
+    dbExecute(con_res, sql)
+  }
+
+  #--- Clean up
+  dbExecute(con_res, "DETACH dbOut")
+  dbExecute(con_res, "DETACH dbNew")
+
+  con_res
+}
+
+
+#' Update values of \var{dbOutput} based on a new database
+#'
+#' @param dbOut_fname A character string. The file path of the main
+#'   \var{\code{dbOutput}} that is to be updated.
+#' @param dbNew_fname A character string. The file path of a database with
+#'   new values that are used to update corresponding values in
+#'   \var{\code{dbOutput}}.
+#' @param fields_update A named list of vectors with character strings. The
+#'   field names per table to be updated. Each table is represented by a
+#'   correspondingly named element. If \code{NULL}, then all output tables,
+#'   according to \code{\link{dbOutput_ListOutputTables}}, and all fields
+#'   (except for ID-fields, i.e., \var{\code{P_id}} and \var{\code{Soil_Layer}})
+#'   are updated.
+#' @param fields_exclude A named list of vectors with character strings. The
+#'   field names per table to be updated. Each table is represented by a
+#'   correspondingly named element. If \code{NULL}, then no fields are excluded
+#'   from the update operation.
+#' @param verbose A logical value.
+#' @return Invisibly, the name of a new table that tracks which records
+#'   (identified by \var{\code{P_id}}) have been updated (value 1) for each
+#'   table.
+#'
+#' @examples
+#' \dontrun{
+#'   table <- dbOut_update_values(
+#'     dbOut_fname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+#'     dbNew_fname = "path/to/new.sqlite3",
+#'     fields_exclude = list(
+#'       aggregation_overall_mean = c("MAT_C_mean", "MAP_mm_mean"),
+#'       aggregation_overall_sd = c("MAT_C_sd", "MAP_mm_sd")))
+#'
+#'   con <- dbConnect(SQLite(), SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+#'   fields <- dbQuoteIdentifier(con, dbListFields(con, table))
+#'
+#'   # Extract Pids from records that were updated
+#'   sql <- paste("SELECT P_id FROM", table, "WHERE",
+#'     paste(fields[-1], "= 1", collapse = " AND "))
+#'   is_good <- dbGetQuery(con, sql)
+#'
+#'   dbDisconnect(con)
+#' }
+#'
+#' @export
+dbOut_update_values <- function(dbOut_fname, dbNew_fname, fields_update = NULL,
+  fields_exclude = NULL, verbose = FALSE) {
+
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({
+      print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
+  }
+
+  prep <- dbOut_prepare1(dbOut_fname, dbNew_fname,
+    fields_include = fields_update, fields_exclude = fields_exclude)
+  on.exit(dbDisconnect(prep[["con_dbOut"]]), add = TRUE)
+
+  #--- Add table that tracks updated cells (insert 0 = not updated as default)
+  table_updated <- paste0("Updated_", format(Sys.Date(), "%Y%m%d"))
+  sql <- paste0("CREATE TABLE IF NOT EXISTS ", table_updated, " ",
+    "(P_id INTEGER PRIMARY KEY, ",
+      paste(prep[["tables"]], "INTEGER DEFAULT 0", collapse = ", "), ")")
+  dbExecute(prep[["con_dbOut"]], sql)
+
+  sql <- paste("INSERT INTO", table_updated, "(P_id)",
+    "SELECT P_id FROM runs")
+  dbExecute(prep[["con_dbOut"]], sql)
+
+  #--- Update values
+  # Attach dbNew
+  sql <- paste("ATTACH", dbQuoteIdentifier(prep[["con_dbOut"]], dbNew_fname),
+    "AS dbNew")
+  dbExecute(prep[["con_dbOut"]], sql)
+
+  for (k in seq_along(prep[["tables"]])) {
+    ttable <- dbQuoteIdentifier(prep[["con_dbOut"]], prep[["tables"]][k])
+    tfields <- dbQuoteIdentifier(prep[["con_dbOut"]], prep[["fields"]][[k]])
+    tdesign <- dbQuoteIdentifier(prep[["con_dbOut"]], prep[["design"]][[k]])
+
+    sql_fields <- paste0(tfields, collapse = ",")
+    sql_where <- paste0("dbNew.", ttable, ".", tdesign,
+      " = main.", ttable, ".", tdesign, collapse = " AND ")
+
+    # Determine count of records to update
+    sql <- paste0("SELECT COUNT(*) FROM dbNew.", ttable, " WHERE ",
+      gsub("main.", "", sql_where))
+    n <- as.integer(dbGetQuery(prep[["con_dbOut"]], sql))
+
+    if (verbose) {
+      print(paste0(Sys.time(), ": updating table ",
+        shQuote(prep[["tables"]][k]), ": ", length(prep[["fields"]][[k]]),
+        " fields of ", n, " records."))
+    }
+
+    # Update records in main
+    sql <- paste0(
+      "UPDATE ", ttable, " ",
+      "SET (", sql_fields, ") = ",
+        "(SELECT ", sql_fields, " FROM dbNew.", ttable,
+        " WHERE ", sql_where, ") ",
+      "WHERE ", tdesign,
+        " IN (SELECT ", tdesign, " FROM dbNew.", ttable, ")")
+
+    res <- dbExecute(prep[["con_dbOut"]], sql)
+
+    # Check that correct number of records was updated
+    if (isTRUE(all.equal(res, n))) {
+      # Enter information of updated records into tracking table
+      sql <- paste(
+        "UPDATE", table_updated,
+        "SET", ttable, " = 1 ",
+        "WHERE P_id IN (SELECT DISTINCT P_id FROM dbNew.", ttable, ")")
+      dbExecute(prep[["con_dbOut"]], sql)
+
+    } else {
+      print(paste("Update of table", shQuote(prep[["tables"]][k]), "failed:",
+        res, "instead of", n, "records updated."))
+    }
+  }
+
+  #--- Clean up
+  dbExecute(prep[["con_dbOut"]], "DETACH dbNew")
+  dbExecute(prep[["con_dbOut"]], "PRAGMA optimize")
+
+  invisible(table_updated)
+}
+
+
+
+#' @section Note: This function assumes a simiplified column-definition
+#'   `column-name -> type name -> column-constraints``,
+#'   i.e., (i) type name does occur and contraints have no
+#'   (ii) field/column names and (iii) do not contain (..., ...)
+split_SQLite_CREATETABLE <- function(sql) {
+  start <- end <- -1L
+  field_code <- field_names <- NA_character_
+  sep <- ","
+
+  # Check that SQL is a `CREATE TABLE` and
+  # not `CREATE TABLE ... AS SELECT` statement
+  if (length(sql) == 1 &&
+      isTRUE(grepl("CREATE TABLE", sql) && !grepl("AS SELECT", sql))) {
+
+    # Locate column-definition: first set of paranthesis
+    ids <- gregexpr("[(][^][()]*[)]", sql)[[1]]
+
+    if (all(ids > -1)) {
+      start <- ids[1] + 1
+      end <- ids[1] + attr(ids, "match.length")[1] - 2
+      coldef <- substr(sql, start, end)
+
+      # Separate field/column-definitions: see note
+      field_code <- strsplit(coldef, split = sep)[[1]]
+
+      # Identify field/column name: first word in field code
+      # if escaped then name is first word separated by escape character
+      # if not escaped then name is first word separated by white space
+      temp <- strsplit(field_code, split = "[[:space:]]")
+      words <- lapply(temp, function(x) x[nchar(x) > 0])
+      field_names <- lapply(words, function(x)
+        gsub("[`'\"]", "", x[1]))
+    }
+  }
+
+  list(field_start = start, field_end = end, field_code = field_code,
+    field_names = field_names, field_sep = sep)
+}
+
+paste_SQLite_CREATETABLE <- function(sql, field_info, subset) {
+  paste(
+    substr(sql, 1, field_info[["field_start"]] - 1),
+    paste(field_info[["field_code"]][subset],
+      collapse = field_info[["field_sep"]]),
+    substr(sql, field_info[["field_end"]] + 1, nchar(sql))
+  )
+}
+
+
+#' Make a copy of \var{\code{dbOutput}} with a subset of tables and/or fields
+#'
+#' The copy includes all design tables and their full content and a subset
+#' of the records and/or fields of the output tables.
+#'
+#' @param dbOut_fname A character string. The file path of the main
+#'   \var{\code{dbOutput}}.
+#' @param dbNew_fname A character string. The file path and name of the new
+#'   copy of the database with a subset of the values of \var{\code{dbOutput}}.
+#' @param fields_include A named list of vectors with character strings. The
+#'   field names per table to be selected. Each table is represented by a
+#'   correspondingly named element. If \code{NULL}, then all tables and all
+#'   fields are included. If a named element is \code{NULL}, then all fields of
+#'   the corresponding table are included. Except for those fields listed in
+#'   \code{fields_exclude}.
+#' @param fields_exclude A named list of vectors with character strings. The
+#'   field names per table to be excluded from the subset. Each table is
+#'   represented by a correspondingly named element. If \code{NULL}, then no
+#'   fields are excluded from the subset operation.
+#' @param verbose A logical value.
+#'
+#' @export
+dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
+  fields_exclude = NULL, verbose = FALSE) {
+
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({
+      print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
+  }
+
+  con_dbOut <- dbConnect(SQLite(), dbname = dbOut_fname)
+  on.exit(dbDisconnect(con_dbOut), add = TRUE)
+
+  #--- Create dbNew and attach dbOut
+  unlink(dbNew_fname)
+  con_dbNew <- dbConnect(SQLite(), dbname = dbNew_fname)
+  on.exit(dbDisconnect(con_dbNew), add = TRUE)
+
+  set_PRAGMAs(con_dbNew, PRAGMA_settings2())
+
+  dbOut_fname <- normalizePath(dbOut_fname)
+  dbExecute(con_dbNew, paste("ATTACH",
+    dbQuoteIdentifier(con_dbNew, dbOut_fname), "AS dbOut"))
+
+
+  # Extract sql-statements that created tables from dbOut
+  sql <- "SELECT tbl_name, sql FROM sqlite_master WHERE type='table'"
+  sql_tables <- dbGetQuery(con_dbOut, sql)
+  sql <- "SELECT sql FROM sqlite_master WHERE type = 'view'"
+  sql_views <- dbGetQuery(con_dbOut, sql)[, 1]
+
+  #--- Create and copy design/view tables
+  dtables <- dbOutput_ListDesignTables()
+
+  for (k in seq_len(NROW(sql_tables))) {
+    if (sql_tables[k, "tbl_name"] %in% dtables &&
+        isTRUE(nchar(sql_tables[k, "sql"]) > 0) &&
+        grepl("CREATE TABLE", sql_tables[k, "sql"])) {
+
+      if (verbose) {
+        print(paste(Sys.time(), "re-create and copy design table",
+          shQuote(sql_tables[k, "tbl_name"])))
+      }
+
+      # Re-create table
+      dbExecute(con_dbNew, sql_tables[k, "sql"])
+
+      # Copy table values from dbOut to dbNew
+      table <- dbQuoteIdentifier(con_dbNew, sql_tables[k, "tbl_name"])
+      sql <- paste0("INSERT INTO ", table,
+        " SELECT * FROM dbOut.", table, "")
+      dbExecute(con_dbNew, sql)
+    }
+  }
+
+  # Create views
+  for (k in seq_along(sql_views)) {
+    dbExecute(con_dbNew, sql_views[k])
+  }
+
+
+  #--- Identify tables and fields to subset and copy
+  has_tables0 <- dbOutput_ListOutputTables(con = con_dbOut)
+
+  # Find output tables
+  req_tables <- if (is.null(fields_include)) {
+      has_tables0
+    } else {
+      names(fields_include)
+    }
+
+  # Confirm that requested tables are available in dbOut
+  has_temp <- req_tables %in% has_tables0
+  not_temp <- !has_temp
+  if (any(not_temp)) {
+    print(paste("Requested tables not available:",
+      paste0(shQuote(req_tables[not_temp]), collapse = ", ")))
+  }
+
+  tables <- req_tables[has_temp]
+  tables_w_soillayers <- dbOutput_Tables_have_SoilLayers(tables,
+    con = con_dbOut)
+
+
+  # Find fields to subset and copy
+  fields_design <- c("P_id", "Soil_Layer")
+  result_fields <- design <- list()
+
+  for (k in seq_along(tables)) {
+    fields0 <- dbListFields(con_dbOut, tables[k])
+
+    temp <- seq_len(if (tables_w_soillayers[tables[k]]) 2 else 1)
+    design[[k]] <- fields_design[temp]
+
+    req_fields <- if (is.null(fields_include) ||
+        is.null(fields_include[[tables[k]]])) {
+        fields0
+      } else {
+        fields_include[[tables[k]]]
+      }
+
+    # Exclude fields requested to be excluded
+    if (!(is.null(fields_exclude) || is.null(fields_exclude[[tables[k]]]))) {
+      temp <- req_fields %in% fields_exclude[[tables[k]]]
+      req_fields <- req_fields[!temp]
+    }
+
+    # Make sure that design fields are included
+    temp <- req_fields %in% design[[k]]
+    req_fields <- c(design[[k]], req_fields[!temp])
+
+    # Confirm that requested fields are available in dbOut
+    has_temp <- req_fields %in% fields0
+    not_temp <- !has_temp
+    if (any(not_temp)) {
+      print(paste("Requested fields not available:",
+        paste0(shQuote(req_fields[not_temp]), collapse = ", ")))
+    }
+
+    result_fields[[k]] <- req_fields[has_temp]
+  }
+
+  names(result_fields) <- tables
+
+
+  #--- Create, subset and copy output tables
+  for (k in seq_len(NROW(sql_tables))) {
+    if (sql_tables[k, "tbl_name"] %in% tables &&
+        isTRUE(nchar(sql_tables[k, "sql"]) > 0) &&
+        grepl("CREATE TABLE", sql_tables[k, "sql"])) {
+
+      table <- dbQuoteIdentifier(con_dbNew, sql_tables[k, "tbl_name"])
+      rfields <- result_fields[[sql_tables[k, "tbl_name"]]]
+      tfields <- dbQuoteIdentifier(con_dbNew, rfields)
+      sql_fields <- paste0(tfields, collapse = ",")
+
+      # Subset fields
+      temp <- split_SQLite_CREATETABLE(sql_tables[k, "sql"])
+      fids <- which(temp[["field_names"]] %in% rfields)
+      sql_subset <- paste_SQLite_CREATETABLE(sql_tables[k, "sql"],
+        field_info = temp, subset = fids)
+
+      # Create table
+      if (verbose) {
+        print(paste(Sys.time(), "creating table",
+          shQuote(sql_tables[k, "tbl_name"])))
+      }
+
+      dbExecute(con_dbNew, sql_subset)
+
+      # Copy subsetted values from dbOut to dbNew
+      if (verbose) {
+        print(paste(Sys.time(), "copying values into table",
+          shQuote(sql_tables[k, "tbl_name"])))
+      }
+
+      sql <- paste0("INSERT INTO ", table, " (", sql_fields, ") ",
+          "SELECT ", sql_fields, " FROM dbOut.", table, "")
+      dbExecute(con_dbNew, sql)
+    }
+  }
+
+  dbExecute(con_dbNew, "DETACH dbOut")
+
+  #--- Add indices (after inserting data) and optimize database
+  add_dbOutput_index(con_dbNew)
+  dbExecute(con_dbNew, "PRAGMA optimize")
+
+  invisible(TRUE)
 }

@@ -5,11 +5,12 @@
 \title{Downscale with the new version of the \var{sQuote{delta-hybrid approach}}
 (post to May 2016)}
 \usage{
-downscale.deltahybrid3mod(obs.hist.daily, obs.hist.monthly, scen.hist.monthly,
-  scen.fut.monthly, itime, years = NULL, sim_time = NULL,
-  opt_DS = list(extrapol_type = "linear_Thermessl2012CC.QMv1b", ppt_type =
-  "detailed", sigmaN = 6, PPTratioCutoff = 10, fix_spline = "attempt"),
-  dailyPPTceiling, monthly_extremes, do_checks = TRUE, ...)
+downscale.deltahybrid3mod(obs.hist.daily, obs.hist.monthly,
+  scen.hist.monthly, scen.fut.monthly, itime, years = NULL,
+  sim_time = NULL, opt_DS = list(extrapol_type =
+  "linear_Thermessl2012CC.QMv1b", ppt_type = "detailed", sigmaN = 6,
+  PPTratioCutoff = 10, fix_spline = "attempt"), dailyPPTceiling,
+  monthly_extremes, do_checks = TRUE, ...)
 }
 \arguments{
 \item{obs.hist.daily}{A list. Each element corresponds to one year of
