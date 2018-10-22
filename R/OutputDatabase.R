@@ -3528,11 +3528,19 @@ paste_SQLite_CREATETABLE <- function(sql, field_info, subset) {
 #'   field names per table to be excluded from the subset. Each table is
 #'   represented by a correspondingly named element. If \code{NULL}, then no
 #'   fields are excluded from the subset operation.
+#' @param subset_scenarios A vector of character strings. If not \code{NULL},
+#'   then only records are copied with a \var{P_id} that belongs to an
+#'   included scenario.
+#' @param subset_experiments A vector of character strings. If not \code{NULL},
+#'   then only records are copied with a \var{P_id} that belongs to an
+#'   included experimental treatment label. This and the \code{subset_scenarios}
+#'   condition are combined with a logical \var{AND}.
 #' @param verbose A logical value.
 #'
 #' @export
 dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
-  fields_exclude = NULL, verbose = FALSE) {
+  fields_exclude = NULL, subset_scenarios = NULL, subset_experiments = NULL,
+  verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -3659,8 +3667,23 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 
   names(result_fields) <- tables
 
+  # Determine record subset conditions
+  do_record_subset <- FALSE
+
+  if (!is.null(subset_scenarios)) {
+    do_record_subset <- TRUE
+    scenarios <- paste(dbQuoteString(con_dbNew, subset_scenarios),
+      collapse = ",")
+  }
+
+  if (!is.null(subset_experiments)) {
+    do_record_subset <- TRUE
+    experiments <- paste(dbQuoteString(con_dbNew, subset_experiments),
+      collapse = ",")
+  }
 
   #--- Create, subset and copy output tables
+
   for (k in seq_len(NROW(sql_tables))) {
     if (sql_tables[k, "tbl_name"] %in% tables &&
         isTRUE(nchar(sql_tables[k, "sql"]) > 0) &&
@@ -3669,7 +3692,14 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
       table <- dbQuoteIdentifier(con_dbNew, sql_tables[k, "tbl_name"])
       rfields <- result_fields[[sql_tables[k, "tbl_name"]]]
       tfields <- dbQuoteIdentifier(con_dbNew, rfields)
-      sql_fields <- paste0(tfields, collapse = ",")
+      sql_fields1 <- paste0(tfields, collapse = ",")
+      sql_fields2 <- if (do_record_subset) {
+        # Avoid `ambiguous column name: P_id`
+        paste0(paste0("dbOut.", table, ".P_id"), ",",
+          paste0(tfields[-1], collapse = ","))
+        } else {
+          sql_fields1
+        }
 
       # Subset fields
       temp <- split_SQLite_CREATETABLE(sql_tables[k, "sql"])
@@ -3685,14 +3715,32 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 
       dbExecute(con_dbNew, sql_subset)
 
-      # Copy subsetted values from dbOut to dbNew
+      # Copy values of subsetted records/fields from dbOut to dbNew
       if (verbose) {
         print(paste(Sys.time(), "copying values into table",
           shQuote(sql_tables[k, "tbl_name"])))
       }
 
-      sql <- paste0("INSERT INTO ", table, " (", sql_fields, ") ",
-          "SELECT ", sql_fields, " FROM dbOut.", table, "")
+      sql <- paste0("INSERT INTO ", table, " (", sql_fields1, ") ",
+        "SELECT ", sql_fields2, " FROM dbOut.", table)
+
+      if (do_record_subset) {
+        # Subset records to specified scenarios and experimental levels
+        sql <- paste0(sql,
+          " INNER JOIN header ON dbOut.", table, ".P_id = header.P_id",
+          " WHERE",
+          if (!is.null(subset_scenarios)) {
+            paste0(" header.Scenario IN (", scenarios, ")")
+          },
+          if (!is.null(subset_scenarios) && !is.null(subset_experiments)) {
+            " AND"
+          },
+          if (!is.null(subset_experiments)) {
+            paste0(" header.Experimental_Label IN (", experiments, ")")
+          }
+        )
+      }
+
       dbExecute(con_dbNew, sql)
     }
   }
