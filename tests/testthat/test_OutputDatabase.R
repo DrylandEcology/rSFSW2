@@ -4,14 +4,31 @@ context("Output: dbOutput database functionality")
 #--- Inputs
 utils::data(list = "iris", package = "datasets")
 
+# size
+Ns <- nrow(iris) # N of sites/runs
+Nsl <- 5L # N of soil layers
+Nsc <- 2L # N of scenarios
+Nexp <- 2L # N of experimental levels
+Nall <- Ns * Nsc * Nexp
+
+# design tables/views
+runs <- data.frame(P_id = seq_len(Nall))
+header <- data.frame(
+  P_id = runs[, "P_id"],
+  site_id = rep(rep(seq_len(Ns), each = Nsc), times = Nexp),
+  Scenario = rep(letters[seq_len(Nsc)], times = Ns * Nexp),
+  Experimental_Label = rep(rev(letters)[seq_len(Nsc)], each = Ns * Nsc)
+)
+
 # original data
-Nsl <- 5L
 aSoilLayer <- data.frame(
-  P_id = rep(seq_len(nrow(iris)), each = Nsl),
-  Soil_Layer = rep(seq_len(Nsl), nrow(iris)))
-res0 <- data.frame(P_id = seq_len(nrow(iris)), iris)
+  P_id = rep(seq_len(Ns), each = Nsl),
+  Soil_Layer = rep(seq_len(Nsl), Ns))
+
+res0 <- iris[0, ]
+for (k in seq_len(Nsc * Nexp)) res0 <- rbind(res0, iris)
+res0 <- data.frame(P_id = seq_len(Nall), res0)
 res0[, "Species"] <- as.character(res0[, "Species"])
-runs <- res0[, "P_id", drop = FALSE]
 
 # new data
 new_Pids <- 10:15
@@ -24,6 +41,7 @@ res1 <- res1[rev(seq_along(new_Pids)), ]
 # create dbOutput
 dbOut <- tempfile()
 con <- dbConnect(SQLite(), dbOut)
+dbWriteTable(con, "header", header)
 dbWriteTable(con, "runs", runs)
 dbWriteTable(con, "aSoilLayer", aSoilLayer)
 dbWriteTable(con, "iris", res0)
@@ -191,6 +209,70 @@ test_that("dbOutput_subset", {
   icol <- which(colnames(aSoilLayer) == fields_include[["aSoilLayer"]])
   expect_equal(dbReadTable(con2, "aSoilLayer"), aSoilLayer[, c(1, icol)])
   unlink(dbNew2)
+  if (file.exists(dbNew2)) {
+    dbNew2 <- tempfile() # hack because Windows OS doesn't reliably delete files
+  }
+
+  #--- Subset records by scenario
+  sc <- "a"
+  temp_pids <- header[header[, "Scenario"] == sc, "P_id"]
+  ids1 <- res0[, "P_id"] %in% temp_pids
+  ids2 <- aSoilLayer[, "P_id"] %in% temp_pids
+
+  expect_true(dbOutput_subset(dbOut_fname = dbOut0, dbNew_fname = dbNew2,
+    subset_scenarios = sc))
+
+  con2 <- dbConnect(SQLite(), dbNew2)
+  expect_design(con, con2)
+  # Ignore rownames: use `expect_equivalent` instead of `expect_equal`
+  expect_equivalent(dbReadTable(con2, "iris"), res0[ids1, ])
+  expect_equivalent(dbReadTable(con2, "aSoilLayer"), aSoilLayer[ids2, ])
+  unlink(dbNew2)
+  if (file.exists(dbNew2)) {
+    dbNew2 <- tempfile() # hack because Windows OS doesn't reliably delete files
+  }
+
+
+  #--- Subset records by experimental level
+  exp <- "y"
+  temp_pids <- header[header[, "Experimental_Label"] == exp, "P_id"]
+  ids1 <- res0[, "P_id"] %in% temp_pids
+  ids2 <- aSoilLayer[, "P_id"] %in% temp_pids
+
+  expect_true(dbOutput_subset(dbOut_fname = dbOut0, dbNew_fname = dbNew2,
+    subset_experiments = exp))
+
+  con2 <- dbConnect(SQLite(), dbNew2)
+  expect_design(con, con2)
+  # Ignore rownames: use `expect_equivalent` instead of `expect_equal`
+  expect_equivalent(dbReadTable(con2, "iris"), res0[ids1, ])
+  expect_equivalent(dbReadTable(con2, "aSoilLayer"), aSoilLayer[ids2, ])
+  unlink(dbNew2)
+  if (file.exists(dbNew2)) {
+    dbNew2 <- tempfile() # hack because Windows OS doesn't reliably delete files
+  }
+
+  #--- Subset records by scenario and experimental level
+  sc <- "a"
+  exp <- "y"
+  temp <- header[, "Scenario"] == sc & header[, "Experimental_Label"] == exp
+  temp_pids <- header[temp, "P_id"]
+  ids1 <- res0[, "P_id"] %in% temp_pids
+  ids2 <- aSoilLayer[, "P_id"] %in% temp_pids
+
+  expect_true(dbOutput_subset(dbOut_fname = dbOut0, dbNew_fname = dbNew2,
+    subset_scenarios = sc, subset_experiments = exp))
+
+  con2 <- dbConnect(SQLite(), dbNew2)
+  expect_design(con, con2)
+  # Ignore rownames: use `expect_equivalent` instead of `expect_equal`
+  expect_equivalent(dbReadTable(con2, "iris"), res0[ids1, ])
+  expect_equivalent(dbReadTable(con2, "aSoilLayer"), aSoilLayer[ids2, ])
+  unlink(dbNew2)
+  if (file.exists(dbNew2)) {
+    dbNew2 <- tempfile() # hack because Windows OS doesn't reliably delete files
+  }
+
 
   dbDisconnect(con)
 })
