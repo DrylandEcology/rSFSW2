@@ -109,10 +109,13 @@ create_job_df <- function(sim_size, include_YN) {
     ncol = length(temp), dimnames = list(NULL, temp))
 
   jobs[, "runID_total"] <- seq_len(sim_size[["runsN_total"]])
-  jobs[, "runID_sites"] <- rep(seq_len(sim_size[["runsN_master"]]),
-    times = max(sim_size[["expN"]], 1L))
-  temp <- rep(include_YN, times = max(sim_size[["expN"]], 1L))
-  jobs[temp, "include_YN"] <- 1L
+
+  #jobs[, "runID_sites"] <- rep(seq_len(sim_size[["runsN_master"]]),
+  #  times = max(sim_size[["expN"]], 1L))
+  #temp <- rep(include_YN, times = max(sim_size[["expN"]], 1L))
+
+  jobs[, "runID_sites"] <- seq_len(sim_size[["runsN_total"]])
+  jobs[, "include_YN"] <- 1L
 
   jobs
 }

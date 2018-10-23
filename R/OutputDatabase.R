@@ -2015,14 +2015,17 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     #this maps locations from reduced
     temp <- duplicated(temp_df)
     treatments_unique_map <- rep(NA, nrow(temp_df))
-    temp2 <- data.frame(t(temp_df))
-    treatments_unique_map[temp] <- match(data.frame(t(temp_df[temp, ])), temp2)
-    treatments_unique_map[!temp] <- match(data.frame(t(temp_df[!temp, ])),
-      temp2)
-    db_treatments_map <- unique(treatments_unique_map)
-    treatments_unique_map <- sapply(treatments_unique_map, function(x)
-      which(db_treatments_map == x))
-
+    if(any(temp == TRUE)) {
+     temp2 <- data.frame(t(temp_df))
+     treatments_unique_map[temp] <- match(data.frame(t(temp_df[temp, ])), temp2)
+     treatments_unique_map[!temp] <- match(data.frame(t(temp_df[!temp, ])),
+       temp2)
+     db_treatments_map <- unique(treatments_unique_map)
+     treatments_unique_map <- sapply(treatments_unique_map, function(x)
+       which(db_treatments_map == x))
+     } else {
+       treatments_unique_map <- 1:db_treatments_rows
+     }
   } else {
     db_treatments_rows <- 1
   }
@@ -2195,7 +2198,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       "treatments(id INTEGER PRIMARY KEY AUTOINCREMENT,",
       "simulation_years_id INTEGER);"))
   }
-
   #if the column startYear or endYear are present move over to simulation_years
   if (any(colnames(db_combined_exp_treatments) == "YearStart") ||
     any(colnames(db_combined_exp_treatments) == "YearEnd")) {
@@ -2244,7 +2246,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     }
 
     # Create unique table of simulation years
-    unique_simulation_years <- unique(simulation_years)
+    unique_simulation_years <-as.data.frame((unique(simulation_years)))
     if (nrow(unique_simulation_years) == nrow(simulation_years)) {
       # each row is unique so add id to db_combined
       id <- seq_len(nrow(unique_simulation_years))
@@ -2416,7 +2418,6 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       "simulation_years.EndYear",
       "scenario_labels.label AS Scenario"),
     collapse = ", ")
-
   dbExecute(con_dbOut, paste0(
     "CREATE VIEW header AS SELECT ", header_columns,
     " FROM runs, run_labels, sites, ",
