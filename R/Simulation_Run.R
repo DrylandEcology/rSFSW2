@@ -371,8 +371,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     swRunScenariosData[[1]] <- swDefaultInputs
 
     #adjust simulation years
-    rSOILWAT2::swYears_StartYear(swRunScenariosData[[1]]) <- as.integer(isim_time[["simstartyr"]])
     rSOILWAT2::swYears_EndYear(swRunScenariosData[[1]]) <- as.integer(isim_time[["endyr"]])
+    rSOILWAT2::swYears_StartYear(swRunScenariosData[[1]]) <- as.integer(isim_time[["simstartyr"]])
 
     #------2. Step: a) Information for this SOILWAT2-run from treatment SOILWAT2 input files stored in dir_in_treat
     if (any(create_treatments == "sw"))
@@ -908,7 +908,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #############Get Weather Data################
     print_debug(opt_verbosity, tag_simfid, "creating", "daily weather")
     i_sw_weatherList <- list()
-
     if (!opt_sim[["use_dbW_current"]]) {
       if (i_SWRunInformation$dailyweather_source == "Maurer2002_NorthAmerica") {
         i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
@@ -958,7 +957,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           } else 1L
 
         print_debug(opt_verbosity, tag_simfid, "creating", "access dbW for daily weather")
-
+        print(weather_label_cur)
         i_sw_weatherList <- try(lapply(sim_scens[["id"]][temp], function(scen)
           rSOILWAT2::dbW_getWeatherData(Label = weather_label_cur,
             startYear = isim_time[["simstartyr"]], endYear = isim_time[["endyr"]],
