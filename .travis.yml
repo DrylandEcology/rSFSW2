@@ -16,7 +16,7 @@ env:
     - secure: "rq8iu0qkN0QYa1CF3zx/ub2eXJ1vc6XmOSqWPUSCHQTOuftUnKjbysAo0a8Cj1GqHPltXyIx8ZfLSJpN/zIsW919B3XBPSVeoStdpvJ/omUdGf8g4/0k2jlLQx0JpfFuIjOaFBlL5Kg5iAm3Xg1dxA/+cgx57KLbbF91HEvCE22g5NgO5ZEWsKH6iyVzEkz5o3sxvIxDEniiJSKdxfZLe8jrZNmqG+H2tKn1GbiDfunN8ynYE5Enwamr6y46E8Q2Bm7BR4FX3syxjvhz/JOi44vy88E50wKpMU+y9/lxpqMjQxM8lU0L5ZAxsSe08fM6jvEzOVZgsEVS3tMJHdCy9mQ3YktVl7l4hce4+OI866ZkkfpX2nBoGcjLe9LVbbGLet7UoC8DNv5XF1eJU+9sn5Ynr94YFaNhlFP2H+PoqWgyt7SLpgYjogrd8/X8a/oQeIMhriqNVbddc6oB2rkBsjRA9kGo+8jcHei80Xm/ZaIafMoa9KZV4Aw7Uhd/RP0JiaRQmL8mBf09/LOJD24LIpqYzgHJg6q6pHa/XS+9qcbjoObzbdy1rBtGiS5f1eXrCefTmsvSsOvRWlyZcGLrX2VbTFiLTjFCDWLjYNMUVCxhislsxZCrvRuMaS9IIep8rD+p8EDjUIr/UTq/vl64E1jfd3+3wA4rcW3nbQ6iiYg="
 
 sudo: false
-cache: packages
+cache: packages # sets `R_LIBS_USER`
 warnings_are_errors: false # turn this back on for more severe testing
 
 # Next three settings (latex, r_build_args, and r_check_args -- though, the
@@ -43,11 +43,11 @@ before_install:
   # pwd = <repo>/<repo-name>, here DrylandEcology/rSFSW2
   # Don't install heavy-weight `devtools`, instead use `remotes` to
   #   detect/install/update package dependencies
-  - Rscript -e 'utils::install.packages("remotes")'
+  - Rscript -e 'utils::install.packages("remotes", lib = Sys.getenv("R_LIBS_USER"))'
   # Install/update dependencies of rSOILWAT2 (because rSOILWAT2 is installed
   #   'before install' and thus dependencies are not installed and r_packages
   #   has not taken effect yet)
-  - Rscript -e 'remotes::update_packages(c("blob", "DBI", "RSQLite"), upgrade = TRUE)'
+  - Rscript -e 'remotes::update_packages(c("blob", "DBI", "RSQLite"), upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
   # Obtain source code of rSOILWAT2 from github and save at
   #   'DrylandEcology/rSOILWAT2'
   - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git ../rSOILWAT2
@@ -56,7 +56,7 @@ before_install:
 
 install:
   # Install rSFSW2 dependencies, but remove `Rmpi` etc.
-  - Rscript -e 'pkgs <- remotes::dev_package_deps(dependencies = TRUE); ids_not <- pkgs[, "package"] %in% c("rSOILWAT2", "Rmpi", "weathergen", "lubridate", "zoo", "dplyr"); remotes::update_packages(pkgs[!ids_not, ], upgrade = TRUE)'
+  - Rscript -e 'pkgs <- remotes::dev_package_deps(dependencies = TRUE); ids_not <- pkgs[, "package"] %in% c("rSOILWAT2", "Rmpi", "weathergen", "lubridate", "zoo", "dplyr"); update(pkgs[!ids_not, ], upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
 
 script:
   - R CMD build --no-build-vignettes --no-manual .
