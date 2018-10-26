@@ -10,7 +10,7 @@ dir_backup <- sub("TestPrj4", "TestPrj4_backup", dir_testprj)
 dtestin <- file.path(dir_testprj, "1_Input")
 
 # List of files that need manual checking/updating
-fupdate_manual <- c()
+fupdate_manual <- NULL
 
 #--- Backup
 print(paste("Create backup of", shQuote(dir_testprj), "as",
@@ -40,7 +40,7 @@ for (k in seq_along(fnew)) {
     if (!identical(col_new, col_prev)) {
       # file header not identical --> file needs updating:
       #  - TODO: should write function based on
-      #    R/upgraders.R/upgrade_datafile()
+      #    function `R/upgraders.R/upgrade_datafile`
       #  - but for now simply add file name to list of those which need manual
       #    work
       fupdate_manual <- c(fupdate_manual, fnew[k])

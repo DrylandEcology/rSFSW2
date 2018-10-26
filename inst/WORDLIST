@@ -1,9 +1,14 @@
 ###---- Spell checking
+
+# Keep this list as short as possible
+
+# Avoid false positive hits, e.g., for object names in documentation, by
+# wrapping them in \var{}.
+
 # Sections:
 #   - Jargon
-#   - Abbreviations
-#   - Names of people, e.g., authors of cited articles
-#   - Stupid stuff to avoid false positive hits
+#   - Abbreviations (mostly from cited articles)
+#   - Names of people (mostly from cited articles)
 
 
 #------------------------------------
@@ -68,8 +73,7 @@ windspeed
 
 
 #------------------------------------
-#------ Abbreviations (mostly from cited articles)
-# Keep as short as possible, use \var{} etc. instead
+#------ Abbreviations
 al
 ASCE
 CFSR
@@ -88,7 +92,6 @@ UNEP
 
 #------------------------------------
 #------ Names
-# Keep as short as possible, use \var{} etc. instead
 Anandhi
 Artemisia tridentata
 Batjes
@@ -152,7 +155,6 @@ Technometrics
 Teeri
 Terray
 Themessl
-Thermessl # wrong spelling; correct is Themessl
 Tohver
 Trewartha
 Vose
@@ -162,9 +164,4 @@ Wilby
 Wythers
 Yoder
 Zach
-
-
-#------------------------------------
-#------ Stupid stuff to avoid false positive hits
-# Keep as short as possible, use \var{} etc. instead
 
