@@ -3,8 +3,8 @@
 language: R
 
 # Set environmental variables
-#   - _R_CHECK_FORCE_SUGGESTS_=false: because of Rmpi, ncdf4, hydromat, and
-#     weathergen
+#   - _R_CHECK_FORCE_SUGGESTS_=false: don't fail if suggested packages fail
+#     to install: for us, Rmpi, ncdf4, hydromat, and weathergen
 #   - I attempted to set `NOT_CRAN` to false to match `as-cran` option of
 #     checks; however, this currently appears to have no bearing for the actual
 #     tests; note, travis default is true
@@ -28,7 +28,6 @@ warnings_are_errors: false # turn this back on for more severe testing
 latex: false
 r_build_args: '--no-build-vignettes --no-manual'
 r_check_args: '--as-cran --ignore-vignettes --no-manual'
-#r_packages: hunspell
 
 addons:
   apt:
@@ -42,19 +41,22 @@ addons:
 
 before_install:
   # pwd = <repo>/<repo-name>, here DrylandEcology/rSFSW2
-  # Install dependencies of rSOILWAT2 (because rSOILWAT2 is installed
+  # Don't install heavy-weight `devtools`, instead use `remotes` to
+  #   detect/install/update package dependencies
+  - Rscript -e 'utils::install.packages("remotes")'
+  # Install/update dependencies of rSOILWAT2 (because rSOILWAT2 is installed
   #   'before install' and thus dependencies are not installed and r_packages
   #   has not taken effect yet)
-  - Rscript -e 'pkgs <- setdiff(c("blob", "DBI", "RSQLite"), installed.packages()); if (length(pkgs) > 0) utils::install.packages(pkgs)'
+  - Rscript -e 'remotes::update_packages(c("blob", "DBI", "RSQLite"), upgrade = TRUE)'
   # Obtain source code of rSOILWAT2 from github and save at
   #   'DrylandEcology/rSOILWAT2'
   - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git ../rSOILWAT2
   # Install rSOILWAT2 without help pages and without vignettes
   - R CMD INSTALL --no-docs --no-help ../rSOILWAT2
-  # Instead of `r_packages`, install dependencies of unit tests only if not
-  #   already available in cached packages
-  - Rscript -e 'pkgs <- setdiff(c("hunspell"), installed.packages()); if (length(pkgs) > 0) utils::install.packages(pkgs)'
 
+install:
+  # Install rSFSW2 dependencies, but remove `Rmpi` etc.
+  - Rscript -e 'pkgs <- remotes::dev_package_deps(dependencies = TRUE); ids_not <- pkgs[, "package"] %in% c("rSOILWAT2", "Rmpi", "weathergen", "lubridate", "zoo", "dplyr"); remotes::update_packages(pkgs[!ids_not, ], upgrade = TRUE)'
 
 script:
   - R CMD build --no-build-vignettes --no-manual .

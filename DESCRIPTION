@@ -43,6 +43,7 @@ Suggests:
     rmarkdown,
     testthat (>= 2.0.0),
     spelling (>= 1.1),
+    hunspell (>= 2.9),
     covr,
     lintr
 Remotes:
