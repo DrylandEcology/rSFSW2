@@ -3,20 +3,28 @@
 language: R
 
 # Set environmental variables
-#   - _R_CHECK_FORCE_SUGGESTS_=false: because of Rmpi, ncdf4, hydromat, and weathergen
-#   - I attempt to set to false to match `as-cran` option of checks; however,
-#     this currently appears to have no bearing for the actual tests; note, travis default is true
+#   - _R_CHECK_FORCE_SUGGESTS_=false: because of Rmpi, ncdf4, hydromat, and
+#     weathergen
+#   - I attempted to set `NOT_CRAN` to false to match `as-cran` option of
+#     checks; however, this currently appears to have no bearing for the actual
+#     tests; note, travis default is true
 env:
-  - _R_CHECK_FORCE_SUGGESTS_=false NOT_CRAN=false
+  global:
+    - _R_CHECK_FORCE_SUGGESTS_=false
+    - NOT_CRAN=false
+    # secure `GITHUB_PAT` for drs to increase "GitHub API rate limit"
+    - secure: "rq8iu0qkN0QYa1CF3zx/ub2eXJ1vc6XmOSqWPUSCHQTOuftUnKjbysAo0a8Cj1GqHPltXyIx8ZfLSJpN/zIsW919B3XBPSVeoStdpvJ/omUdGf8g4/0k2jlLQx0JpfFuIjOaFBlL5Kg5iAm3Xg1dxA/+cgx57KLbbF91HEvCE22g5NgO5ZEWsKH6iyVzEkz5o3sxvIxDEniiJSKdxfZLe8jrZNmqG+H2tKn1GbiDfunN8ynYE5Enwamr6y46E8Q2Bm7BR4FX3syxjvhz/JOi44vy88E50wKpMU+y9/lxpqMjQxM8lU0L5ZAxsSe08fM6jvEzOVZgsEVS3tMJHdCy9mQ3YktVl7l4hce4+OI866ZkkfpX2nBoGcjLe9LVbbGLet7UoC8DNv5XF1eJU+9sn5Ynr94YFaNhlFP2H+PoqWgyt7SLpgYjogrd8/X8a/oQeIMhriqNVbddc6oB2rkBsjRA9kGo+8jcHei80Xm/ZaIafMoa9KZV4Aw7Uhd/RP0JiaRQmL8mBf09/LOJD24LIpqYzgHJg6q6pHa/XS+9qcbjoObzbdy1rBtGiS5f1eXrCefTmsvSsOvRWlyZcGLrX2VbTFiLTjFCDWLjYNMUVCxhislsxZCrvRuMaS9IIep8rD+p8EDjUIr/UTq/vl64E1jfd3+3wA4rcW3nbQ6iiYg="
+
 sudo: false
 cache: packages
 warnings_are_errors: false # turn this back on for more severe testing
 
-# Next three settings (latex, r_build_args, and r_check_args -- though, the latter two
-# are not used because we use our own 'script' section: see there): because unit tests
-# take now too much time due to the extended unit test project; some travis runs fail
-# due to taking longer than the allotted 60-min maximum; for now omit PDF vignettes and
-# manual until we have proper, fast running unit tests
+# Next three settings (latex, r_build_args, and r_check_args -- though, the
+# latter two are not used because we use our own 'script' section: see there):
+# because unit tests take now too much time due to the extended unit test
+# project; some travis runs fail due to taking longer than the allotted 60-min
+# maximum; for now omit PDF vignettes and manual until we have proper, fast
+# running unit tests
 latex: false
 r_build_args: '--no-build-vignettes --no-manual'
 r_check_args: '--as-cran --ignore-vignettes --no-manual'
@@ -34,22 +42,25 @@ addons:
 
 before_install:
   # pwd = <repo>/<repo-name>, here DrylandEcology/rSFSW2
-  # Install dependencies of rSOILWAT2 (because rSOILWAT2 is installed 'before install'
-  #   and thus dependencies are not installed and r_packages has not taken effect yet)
+  # Install dependencies of rSOILWAT2 (because rSOILWAT2 is installed
+  #   'before install' and thus dependencies are not installed and r_packages
+  #   has not taken effect yet)
   - Rscript -e 'pkgs <- setdiff(c("blob", "DBI", "RSQLite"), installed.packages()); if (length(pkgs) > 0) utils::install.packages(pkgs)'
-  # Obtain source code of rSOILWAT2 from github and save at DrylandEcology/rSOILWAT2
+  # Obtain source code of rSOILWAT2 from github and save at
+  #   'DrylandEcology/rSOILWAT2'
   - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git ../rSOILWAT2
   # Install rSOILWAT2 without help pages and without vignettes
   - R CMD INSTALL --no-docs --no-help ../rSOILWAT2
-  # Instead of `r_packages`, install dependencies of unit tests only if not already
-  #   available in cached packages
+  # Instead of `r_packages`, install dependencies of unit tests only if not
+  #   already available in cached packages
   - Rscript -e 'pkgs <- setdiff(c("hunspell"), installed.packages()); if (length(pkgs) > 0) utils::install.packages(pkgs)'
 
 
 script:
   - R CMD build --no-build-vignettes --no-manual .
-  # The extended unit test project (commit db3948e6aa746d012dbc4f25b0e9bb2a4186305f)
-  # takes about 16 min which is too long for the default settings of 10-min and times out
+  # The extended unit test project
+  # (commit db3948e6aa746d012dbc4f25b0e9bb2a4186305f) takes about 16 min which
+  # is too long for the default settings of 10-min and times out
   # On failure, display file 'testthat.Rout.fail' for more information and fail
 #  - travis_wait 30 R CMD check *tar.gz --as-cran --ignore-vignettes --no-manual || { cat rSFSW2.Rcheck/tests/testthat.Rout* && 1; }
   - travis_wait 30 R CMD check *tar.gz --as-cran --ignore-vignettes --no-manual && cat rSFSW2.Rcheck/tests/testthat.Rout*
