@@ -14,10 +14,10 @@ test_that("Package spell checks", {
 
   # Check which package is available for spell-checking
   do_spelling <- requireNamespace("spelling", quietly = TRUE) &&
-    packageVersion("spelling") >= "1.1.0"
+    utils::packageVersion("spelling") >= "1.1.0"
   has_old_devtools <- if (do_spelling) FALSE else {
       requireNamespace("devtools", quietly = TRUE) &&
-      packageVersion("devtools") < "2.0.0"
+      utils::packageVersion("devtools") < "2.0.0"
   }
 
   # Spell check with `hunspell` as backend:
