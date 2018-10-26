@@ -360,8 +360,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     EVCO_done <- TRCO_done <- FALSE  #to check whether we get information for evaporation and transpiration coefficients
     TRRG_done <- FALSE #to check whether we get information for transpiration regions
 
-    # Data objects used also during aggregation
-    grasses.c3c4ann.fractions <- rep(list(rep(NA, 3)), sim_scens[["N"]]) #Init fractions of C3, C4, and annual grasses of grass-vegetation type fraction; used in create and aggregate
+    #--- Data objects used also during aggregation
+    # Init vector with relative composition of C3, C4, and annual grasses
+    temp <- c(Grasses_C3 = NA, Grasses_C4 = NA, Grasses_Annuals = NA)
+    grasses.c3c4ann.fractions <- rep(list(temp), sim_scens[["N"]])
+
     ClimatePerturbationsVals <- matrix(c(rep(1, 12), rep(0, 24)),
       nrow = sim_scens[["N"]], ncol = 12 * 3, byrow = TRUE) #, dimnames = list(NULL, paste0(rep(paste0("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m")), each = 12), SFSW2_glovars[["st_mo"]], rep(c("_none", "_C", "_C"), each = 12), "_const"))
 
@@ -1331,10 +1334,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         isNorth <- i_SWRunInformation$Y_WGS84 >= 0
 
-        #TODO: Include forbs and bareground in estimate_PotNatVeg_composition
-        temp <- try(estimate_PotNatVeg_composition(MAP_mm, MAT_C,
-          mean_monthly_ppt_mm = monthly.ppt, dailyC4vars, isNorth = isNorth,
+        pnv <- try(estimate_PotNatVeg_composition(MAP_mm, MAT_C,
+          mean_monthly_ppt_mm = monthly.ppt, mean_monthly_Temp_C = monthly.temp,
+          dailyC4vars = dailyC4vars, isNorth = isNorth,
           shrub_limit = opt_sim[["shrub_limit"]],
+          fix_succulents = TRUE, Succulents_Fraction = 0,
           fix_annuals = any(create_treatments == "PotentialNaturalVegetation_CompositionAnnuals_Fraction"),
           Annuals_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionAnnuals_Fraction,
           fix_C4grasses = any(create_treatments == "PotentialNaturalVegetation_CompositionC4_Fraction"),
@@ -1343,19 +1347,26 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           C3_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionC3_Fraction,
           fix_shrubs = any(create_treatments == "PotentialNaturalVegetation_CompositionShrubs_Fraction"),
           Shrubs_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubs_Fraction,
-          fix_forbs = any(create_treatments == "PotentialNaturalVegetation_CompositionForb_Fraction"),
-          Forbs_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionForb_Fraction,
+          fix_forbs = TRUE, Forbs_Fraction = 0,
+          fix_trees = TRUE, Trees_Fraction = 0,
           fix_BareGround = any(create_treatments == "PotentialNaturalVegetation_CompositionBareGround_Fraction"),
-          BareGround_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionBareGround_Fraction))
+          BareGround_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionBareGround_Fraction,
+          fill_empty_with_BareGround = TRUE)
+        )
 
-        if (inherits(temp, "try-error")) {
+        if (inherits(pnv, "try-error")) {
           tasks[sc, "create"] <- 0L
           break
 
         } else {
-          grass.fraction <- temp$Composition[1]
-          rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]]) <- temp$Composition
-          grasses.c3c4ann.fractions[[sc]] <- temp$grasses.c3c4ann.fractions
+          # ---- `veg.in`: Composition of vegetation type components
+          # Grasses Shrubs Trees Forbs BareGround
+          ids <- c("SW_GRASS", "SW_SHRUB", "SW_TREES", "SW_FORBS",
+            "SW_BAREGROUND")
+          temp <- pnv[["Rel_Abundance_L1"]][ids]
+          rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]]) <- temp
+
+          grasses.c3c4ann.fractions[[sc]] <- pnv[["Grasses"]]
         }
       }
 

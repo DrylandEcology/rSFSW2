@@ -1,21 +1,37 @@
 
-#' Calculate the composition of a potential natural vegetation based of shrub,
-#' C3 grass, and C4 grass functional group components using climate
-#' relationships
+#' Calculate the composition (land cover) representing a
+#' potential natural vegetation based on climate relationships
 #'
-#' Equations by Paruelo & Lauenroth 1996 are used to estimate shrub, C3 grass,
-#' and C3 grass components. Equations by Teeri & Stowe 1976 are used to limit
-#' occurrence of C4 grasses.
+#' The function returns relative abundance/land cover values that completely
+#' cover the surface (i.e., they sum to 1) of a site specified by climate and/or
+#' fixed input values.
 #'
-#' @section Note: This function does not estimate cover of the tree, forb,
-#'   and bare-ground components; instead, these are set to 0.
+#' @section Note: Some of the land cover/vegetation types, i.e., trees, annual
+#'   grasses, and bare-ground are not estimated from climate relationships; they
+#'   are either set to 0, or alternatively fixed at the value of the input
+#'   argument(s).
 #'
-#' @param MAP_mm A numeric value. Mean annual precipitation in millimeter of the
-#'   location.
+#' @section Note: The remaining vegetation types, i.e., shrubs, C3 grasss, C4
+#'   grasses, forbs, and succulents, are estimated from climate relationships
+#'   using equations developed by Paruelo & Lauenroth 1996, or alternatively
+#'   fixed at the value of the input argument(s). If values for
+#'   \code{dailyC4vars} are provided, then equations developed by Teeri & Stowe
+#'   1976 are used to limit the occurrence of C4 grasses.
+#'
+#' @section Note: The relative abundance values of the the vegetation types
+#'   that can be estimated and are not fixed by inputs, are estimated in two
+#'   steps: (i) as if they cover the entire surface; (ii) scaled to the
+#'   proportion of the surface that is not fixed by inputs.
+#'
+#' @param MAP_mm A numeric value. Mean annual precipitation in millimeter.
 #' @param MAT_C A numeric value. Mean annual temperature in degree Celsius.
 #' @param mean_monthly_ppt_mm A numeric vector of length 12. Mean monthly
 #'   precipitation in millimeter.
-#' @param dailyC4vars A named numeric vector of length 3. \describe{
+#' @param mean_monthly_Temp_C A numeric vector of length 12. Mean monthly
+#'   temperature in degree Celsius.
+#' @param dailyC4vars A named numeric vector of length 3 or \code{NULL}.
+#'   If not \code{NULL}, then a correction for C4-grasses based on
+#'   Teeri & Stowe 1976 is applied based on the variables: \describe{
 #'   \item{\code{Month7th_NSadj_MinTemp_C}}{Mean minimum temperature of July on
 #'     the northern hemisphere and January on the southern hemisphere}
 #'   \item{\code{DegreeDaysAbove65F_NSadj_DaysC}}{Degree days above 65 F = 18.33
@@ -27,6 +43,11 @@
 #'   hemisphere.
 #' @param shrub_limit A numeric value. Default value is 0.2 based on page 1213
 #'   of Paruelo & Lauenroth 1996.
+#' @param fix_succulents A logical value. If \code{TRUE}, then value for the
+#'   succulent component is fixed at \code{Succulents_Fraction} instead of
+#'   calculated from climatic relationships.
+#' @param Succulents_Fraction A numeric value between 0 and 1. \code{NA} is
+#'   treated as if \code{fix_succulents} is \code{FALSE}.
 #' @param fix_annuals A logical value. If \code{TRUE}, then value for the annual
 #'   component is fixed at \code{Annuals_Fraction}.
 #' @param Annuals_Fraction A numeric value. Default value is 0. A value between
@@ -50,20 +71,39 @@
 #'   component is fixed at \code{Forbs_Fraction}.
 #' @param Forbs_Fraction A numeric value. Default value is 0. A value between 0
 #'   and 1.
+#' @param fix_trees A logical value. If \code{TRUE}, then value for the tree
+#'   component is fixed at \code{Forbs_Fraction}.
+#' @param Trees_Fraction A numeric value. Default value is 0. A value between 0
+#'   and 1.
 #' @param fix_BareGround A logical value. If \code{TRUE}, then value for the
 #'   bare ground component is fixed at \code{BareGround_Fraction}.
 #' @param BareGround_Fraction A numeric value. Default value is 0. A value
 #'   between 0 and 1.
+#' @param fill_empty_with_BareGround A logical value. If \code{TRUE}, then
+#'   incomplete land cover is considered (additional) bare-ground. If
+#'   \code{FALSE}, then some hacks are used to "fill in" incomplete land cover
+#'   with grasses and/or shrubs, and additionally,
+#'   if \code{fix_BareGround} is \code{FALSE} with bare-ground.
 #'
-#' @return A list with two named numeric vectors. \describe{
-#'   \item{Composition}{Relative composition [0-1] of the vegetation for
-#'     \code{Grasses}, \code{Shrubs}, \code{Trees}, \code{Forbs}, and
-#'     \code{BareGround}. \code{Grasses} are the sum of C3-grasses, C4-grasses,
-#'     and annuals functional groups. \code{Trees} is set to zero. The sum of
-#'     \code{Composition} is 1.}
-#'   \item{grasses.c3c4ann.fractions}{Relative contribution [0-1] of the
-#'     C3-grasses, C4-grasses, and annuals functional groups. The sum of
-#'     \code{grasses.c3c4ann.fractions} is 1.} }
+#' @return A list with three named numeric vectors. \describe{
+#'   \item{Rel_Abundance_L0}{A numeric vector of length 8 with
+#'     relative abundance/cover [0-1] values of land cover types that sum to 1.
+#'     The names of the 8 types are: \var{Succulents}, \var{Forbs},
+#'     \var{Grasses_C3}, \var{Grasses_C4}, \var{Grasses_Annuals},
+#'     \var{Shrubs}, \var{Trees}, \var{BareGround}.
+#'   }
+#'   \item{Rel_Abundance_L1}{A numeric vector of length 5 with
+#'     relative abundance/cover [0-1] values of \pkg{rSOILWAT2} land cover
+#'     types that sum to 1.
+#'     The names of the 5 types are: \var{SW_TREES}, \var{SW_SHRUBS},
+#'     \var{SW_FORBS}, \var{SW_GRASS}, and \var{SW_BAREGROUND}.
+#'   }
+#'   \item{Grasses}{A numeric vector of length 3 with
+#'     relative abundance/cover [0-1] values of the grass types that sum to 1.
+#'     The names of the 3 sub-types are: \var{Grasses_C3}, \var{Grasses_C4},
+#'     and \var{Grasses_Annuals}.
+#'   }
+#' }
 #'
 #' @references Paruelo J.M., Lauenroth W.K. (1996) Relative abundance of plant
 #'   functional types in grasslands and shrublands of North America. Ecological
@@ -71,220 +111,311 @@
 #' @references Teeri J.A., Stowe L.G. (1976) Climatic patterns and the
 #'   distribution of C4 grasses in North America. Oecologia, 23, 1-12.
 #'
+#' @examples
+#' ## Load weather dataset from rSOILWAT2
+#' data("weatherData", package = "rSOILWAT2")
+#' clim <- calc_SiteClimate(weatherList = weatherData,
+#'   year.start = 1949, year.end = 2010,
+#'    do.C4vars = FALSE, simTime2 = NULL)
+#'
+#' ## All estimable vegetation types are estimated:
+#' estimate_PotNatVeg_composition(
+#'   MAP_mm = 10 * clim[["MAP_cm"]], MAT_C = clim[["MAT_C"]],
+#'   mean_monthly_ppt_mm = 10 * clim[["meanMonthlyPPTcm"]],
+#'   mean_monthly_Temp_C = clim[["meanMonthlyTempC"]])
+#'
+#' ## Some land cover types are fixed and others are estimated:
+#' estimate_PotNatVeg_composition(
+#'   MAP_mm = 10 * clim[["MAP_cm"]], MAT_C = clim[["MAT_C"]],
+#'   mean_monthly_ppt_mm = 10 * clim[["meanMonthlyPPTcm"]],
+#'   mean_monthly_Temp_C = clim[["meanMonthlyTempC"]],
+#'   fix_shrubs = TRUE, Shrubs_Fraction = 0.5,
+#'   fix_BareGround = TRUE, BareGround_Fraction = 0.25)
+#'
 #' @export
 estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
-  mean_monthly_ppt_mm, dailyC4vars, isNorth = TRUE, shrub_limit = 0.2,
+  mean_monthly_ppt_mm, mean_monthly_Temp_C, dailyC4vars = NULL,
+  isNorth = TRUE, shrub_limit = 0.2,
+  fix_succulents = FALSE, Succulents_Fraction = NA,
   fix_annuals = TRUE, Annuals_Fraction = 0,
   fix_C4grasses = FALSE, C4_Fraction = NA,
   fix_C3grasses = FALSE, C3_Fraction = NA,
   fix_shrubs = FALSE, Shrubs_Fraction = NA,
   fix_forbs = FALSE, Forbs_Fraction = NA,
-  fix_BareGround = TRUE, BareGround_Fraction = 0) {
+  fix_trees = TRUE, Trees_Fraction = 0,
+  fix_BareGround = TRUE, BareGround_Fraction = 0,
+  fill_empty_with_BareGround = TRUE) {
 
-  f.digits <- 3
-  tolerance <- 1.1 * 10 ^ -f.digits
+  veg_types <- c("Succulents", "Forbs",
+    "Grasses_C3", "Grasses_C4", "Grasses_Annuals",
+    "Shrubs", "Trees",
+    "BareGround")
+  Nveg <- length(veg_types)
 
-  # Get the user specified fractions, if column is false set to NA
-  tree.fraction <- 0
-  forb.fraction <- 0
-  bareGround.fraction <- 0
-  # Input cover fraction values:
-  # annual grasses, C4-grasses, C3-grasses, shrubs, forbs, bare-ground
-  input_cover <- rep(NA, 6)
+  isuc <- 1 # succulents
+  ifor <- 2 # forbs
+  igc3 <- 3 # grasses-C3
+  igc4 <- 4 # grasses-C4
+  igan <- 5 # grasses-annuals
+  ishr <- 6 # shrubs
+  itre <- 7 # trees
+  ibar <- 8 # bare-ground
 
-  if (fix_annuals) {
-    input_cover[1] <- finite01(Annuals_Fraction)
-  } else {
-    input_cover[1] <- 0 # Annuals can not be NA
+  veg_cover <- rep(0, Nveg)
+
+  # groups without climate-equations, i.e., always set to a specific value
+  iset <- c(igan, itre, ibar)
+
+  # groups with climate-equations to estimate relative abundance
+  iestim <- c(igc4, igc3, ishr, ifor, isuc)
+  igrasses <- c(igc3, igc4, igan)
+
+
+  #--- Get the user specified fractions: input cover fraction values:
+  input_cover <- rep(NA, Nveg)
+
+  # Groups that are either fixed or 0, i.e., cannot be NA = not estimated
+  input_cover[igan] <- if (fix_annuals) finite01(Annuals_Fraction) else 0
+  input_cover[itre] <- if (fix_trees) finite01(Trees_Fraction) else 0
+  input_cover[ibar] <- if (fix_BareGround) finite01(BareGround_Fraction) else 0
+
+  # Groups that are either fixed or estimated based on climate-relationships
+  input_cover[igc4] <- if (fix_C4grasses) C4_Fraction else NA
+  input_cover[igc3] <- if (fix_C3grasses) C3_Fraction else NA
+  input_cover[ishr] <- if (fix_shrubs) Shrubs_Fraction else NA
+  input_cover[ifor] <- if (fix_forbs) Forbs_Fraction else NA
+  input_cover[isuc] <- if (fix_succulents) Succulents_Fraction else NA
+
+  # treat negative input values as if NA
+  input_cover <- cut0Inf(input_cover)
+
+  #--- Decide if all fractions are sufficiently defined or if they need to be
+  # estimated based on climate reltionships
+  input_sum <- sum(input_cover, na.rm = TRUE)
+  ifixed <- unique(c(iset, which(!is.na(input_cover))))
+
+  ids_to_estim <- is.na(input_cover)
+  n_to_estim <- sum(ids_to_estim)
+
+  if (input_sum > 1) {
+    stop("'estimate_PotNatVeg_composition': ",
+        "User defined relative abundance values sum to more than ",
+        "1 = full land cover.")
   }
-  if (fix_C4grasses)
-    input_cover[2] <- C4_Fraction
-  if (fix_C3grasses)
-    input_cover[3] <- C3_Fraction
-  if (fix_shrubs)
-    input_cover[4] <- Shrubs_Fraction
 
-  if (fix_forbs) {
-    input_cover[5] <- finite01(Forbs_Fraction)
-  } else {
-    input_cover[5] <- forb.fraction
-  }
-  if (fix_BareGround) {
-    input_cover[6] <- finite01(BareGround_Fraction)
-  } else {
-    input_cover[6] <- bareGround.fraction
-  }
-  input_cover <- cut0Inf(input_cover) # treat negatives as if NA
-  TotalFraction <- sum(input_cover, na.rm = TRUE)
+  #--- Incomplete surface cover
+  veg_cover <- input_cover
 
-  # Decide if all fractions are sufficiently defined or if they need to be
-  # calculated based on climate variables
-  isna <- is.na(input_cover)
-  isone <- isTRUE(all.equal(TotalFraction, 1, tolerance = tolerance))
-  if (!isone && TotalFraction < 1 && sum(isna) == 0) {
-    stop(" run: User defined fractions of Shrub, C3, C4, Annuals are all set, ",
-      "but less than 1")
-  }
+  if (n_to_estim <= 1) {
+    #--- Less than one component to estimate: no need for equations
 
-  if (isone || TotalFraction > 1 || sum(isna) == 1) {
+    if (n_to_estim == 0) {
+      #--- All fixed, nothing to estimate
+      if (fill_empty_with_BareGround) {
+        veg_cover[ibar] <- 1 - sum(veg_cover[-ibar], na.rm = TRUE)
 
-    if (sum(isna) == 1) {
-      # if only one is NA, then this can be calculated
-      input_cover[which(isna)] <- cut0Inf(1 - TotalFraction, val = 0)
-    } else {
-      # the composition is >= 1, so set eventually remaining NA to 0
-      input_cover <- finite01(input_cover)
+      } else {
+        stop("'estimate_PotNatVeg_composition': ",
+          "User defined relative abundance values are all fixed, ",
+          "but their sum is smaller than 1 = full land cover.")
+      }
+
+    } else if (n_to_estim == 1) {
+      #--- One value to estimate: difference from rest
+      veg_cover[ids_to_estim] <- 1 - input_sum
     }
 
-    TotalFraction <- sum(input_cover, na.rm = TRUE)
-    input_cover <- input_cover / TotalFraction
-
   } else {
-    # i.e., (TotalFraction < 1 &&
-    #   sum(is.na(input_cover)) > 1) is TRUE;
-    # thus, calculate some fractions based on climate variables
-    if (isNorth) {
-      Months_WinterTF <- c(12, 1:2)
-      Months_SummerTF <- c(6:8)
-    } else {
-      Months_WinterTF <- c(6:8)
-      Months_SummerTF <- c(12, 1:2)
-    }
-    ppt.SummerToMAP <- sum(mean_monthly_ppt_mm[Months_SummerTF]) / MAP_mm
-    ppt.WinterToMAP <- sum(mean_monthly_ppt_mm[Months_WinterTF]) / MAP_mm
-
     #---Potential natural vegetation
-    # 1. step: Paruelo JM, Lauenroth WK (1996)
-    if (MAP_mm < 1) {
-      shrubs.fractionNA <- NA
+    # i.e., (input_sum < 1 && sum(is.na(input_cover)) > 1) is TRUE;
+    # thus, estimate relative abundance fractions based on climate relationships
+
+    if (MAP_mm <= 1) {
+      # No precipitation ==> no vegetation, only bare-ground
+      # TODO: what about fog?
+      veg_cover[] <- 0
+      veg_cover[ibar] <- 1
+
     } else {
-      # if NA, then not enough winter precipitation above a given MAP
-      shrubs.fractionNA <- cut0Inf(1.7105 - 0.2918 * log(MAP_mm) +
-        1.5451 * ppt.WinterToMAP)
-    }
 
-    if (MAT_C <= 0) {
-      grass.c4.fractionNA <- 0
-    } else {
-      # if NA, then either MAT < 0 or not enough summer precipitation or
-      # too cold below a given MAP
-      grass.c4.fractionNA <- cut0Inf(-0.9837 + 0.000594 * MAP_mm +
-        1.3528 * ppt.SummerToMAP + 0.2710 * log(MAT_C))
-    }
+      estim_cover <- rep(NA, Nveg)
 
-    if (ppt.WinterToMAP <= 0) {
-      c3_in_grassland <- c3_in_shrubland <- NA
-    } else {
-      # if NA, then not enough winter precipitation or too warm below a
-      # given MAP
-      c3_in_grassland <- cut0Inf(1.1905 - 0.02909 * MAT_C +
-        0.1781 * log(ppt.WinterToMAP) - 0.2383 * 1)
-      c3_in_shrubland <- cut0Inf(1.1905 - 0.02909 * MAT_C +
-        0.1781 * log(ppt.WinterToMAP) - 0.2383 * 2)
-    }
-
-    temp <- shrubs.fractionNA >= shrub_limit && !is.na(shrubs.fractionNA)
-    grass.c3.fractionNA <- ifelse(temp, c3_in_shrubland, c3_in_grassland)
-
-    grass.Annual.fraction <- input_cover[1] #Ann will be 0 or something <= 1
-
-    # 2. step: Teeri JA, Stowe LG (1976)
-    # This equations give percent species/vegetation -> use to limit
-    # Paruelo's C4 equation, i.e., where no C4 species => C4 abundance == 0
-    if (dailyC4vars["LengthFreezeFreeGrowingPeriod_NSadj_Days"] <= 0) {
-      grass.c4.species <- 0
-    } else {
-      x10 <- dailyC4vars["Month7th_NSadj_MinTemp_C"] * 9 / 5 + 32
-      x13 <- dailyC4vars["DegreeDaysAbove65F_NSadj_DaysC"] * 9 / 5
-      x18 <- log(dailyC4vars["LengthFreezeFreeGrowingPeriod_NSadj_Days"])
-      grass.c4.species <- as.numeric(
-        (1.60 * x10 + 0.0086 * x13 - 8.98 * x18 - 22.44) / 100)
-    }
-    grass.c4.fractionNA <- ifelse(grass.c4.species >= 0, grass.c4.fractionNA,
-      NA)
-
-    # 3. step: Replacing missing values: If no or only one successful equation,
-    # then add [these rules are made up arbitrarily by drs, Nov 2012]
-    #   100% C3 if MAT < 10 C,
-    #   100% shrubs if MAP < 600 mm, and
-    #   100% C4 if MAT >= 10C & MAP >= 600 mm
-    temp <- sum(!is.na(shrubs.fractionNA), !is.na(grass.c4.fractionNA),
-      !is.na(grass.c3.fractionNA))
-    if (temp <= 1) {
-      if (MAP_mm < 600) {
-        shrubs.fractionNA <- 1 + ifelse(is.na(shrubs.fractionNA), 0,
-          shrubs.fractionNA)
+      if (isNorth) {
+        Months_WinterTF <- c(12, 1:2)
+        Months_SummerTF <- c(6:8)
+      } else {
+        Months_WinterTF <- c(6:8)
+        Months_SummerTF <- c(12, 1:2)
       }
 
-      if (MAT_C < 10) {
-        grass.c3.fractionNA <- 1 + ifelse(is.na(grass.c3.fractionNA), 0,
-          grass.c3.fractionNA)
+      # Fraction of precipitation falling during summer/winter months
+      ppt.SummerToMAP <- sum(mean_monthly_ppt_mm[Months_SummerTF]) / MAP_mm
+      ppt.WinterToMAP <- sum(mean_monthly_ppt_mm[Months_WinterTF]) / MAP_mm
+
+      # temperature in July minus temperature in January
+      therm_amp <- mean_monthly_Temp_C[Months_SummerTF[2]] -
+        mean_monthly_Temp_C[Months_WinterTF[2]]
+
+      # 1. step: estimate relative abundance based on
+      # Paruelo & Lauenroth (1996): shrub climate-relationship:
+      if (MAP_mm < 1) {
+        estim_cover[ishr] <- 0
+      } else {
+        # if not enough winter precipitation for a given MAP, then equation
+        # results in negative values which we set to 0
+        estim_cover[ishr] <- cut0Inf(1.7105 - 0.2918 * log(MAP_mm) +
+          1.5451 * ppt.WinterToMAP, val = 0)
       }
 
-      if (MAT_C >= 10  & MAP_mm >= 600) {
-        grass.c4.fractionNA <- 1 + ifelse(is.na(grass.c4.fractionNA), 0,
-          grass.c4.fractionNA)
+      # Paruelo & Lauenroth (1996): C4-grass climate-relationship:
+      if (MAT_C <= 0) {
+        estim_cover[igc4] <- 0
+      } else {
+        # if either MAT < 0 or not enough summer precipitation or
+        # too cold for a given MAP, then equation results in negative values
+        # which we set to 0
+        estim_cover[igc4] <- cut0Inf(-0.9837 + 0.000594 * MAP_mm +
+          1.3528 * ppt.SummerToMAP + 0.2710 * log(MAT_C), val = 0)
+
+        # 2. step: Teeri JA, Stowe LG (1976)
+        # This equations give percent species/vegetation -> use to limit
+        # Paruelo's C4 equation, i.e., where no C4 species => C4 abundance == 0
+        if (!is.null(dailyC4vars)) {
+          if (dailyC4vars["LengthFreezeFreeGrowingPeriod_NSadj_Days"] <= 0) {
+            grass_c4_species <- 0
+          } else {
+            x10 <- dailyC4vars["Month7th_NSadj_MinTemp_C"] * 9 / 5 + 32
+            x13 <- dailyC4vars["DegreeDaysAbove65F_NSadj_DaysC"] * 9 / 5
+            x18 <- log(dailyC4vars["LengthFreezeFreeGrowingPeriod_NSadj_Days"])
+            grass_c4_species <- as.numeric(
+              (1.60 * x10 + 0.0086 * x13 - 8.98 * x18 - 22.44) / 100)
+          }
+
+          if (grass_c4_species <= SFSW2_glovars[["tol"]]) {
+            estim_cover[igc4] <- 0
+          }
+        }
+      }
+
+      # Paruelo & Lauenroth (1996): C3-grass climate-relationship:
+      if (ppt.WinterToMAP <= 0) {
+        c3_in_grassland <- c3_in_shrubland <- NA
+      } else {
+        # if not enough winter precipitation or too warm for a
+        # given MAP, then equation results in negative values which we set to 0
+        c3_in_grassland <- cut0Inf(1.1905 - 0.02909 * MAT_C +
+          0.1781 * log(ppt.WinterToMAP) - 0.2383 * 1, val = 0)
+        c3_in_shrubland <- cut0Inf(1.1905 - 0.02909 * MAT_C +
+          0.1781 * log(ppt.WinterToMAP) - 0.2383 * 2, val = 0)
+      }
+
+      temp <- estim_cover[ishr] >= shrub_limit && !is.na(estim_cover[ishr])
+      estim_cover[igc3] <- ifelse(temp, c3_in_shrubland, c3_in_grassland)
+
+      # Paruelo & Lauenroth (1996): forb climate-relationship:
+      if (MAP_mm < 1 || MAT_C <= 0) {
+        estim_cover[ifor] <- 0
+      } else {
+        estim_cover[ifor] <- cut0Inf(-0.2035 + 0.07975 * log(MAP_mm) -
+          0.0623 * log(MAT_C), val = 0)
+      }
+
+      # Paruelo & Lauenroth (1996): succulent climate-relationship:
+      if (therm_amp <= 0 || ppt.WinterToMAP <= 0) {
+        estim_cover[isuc] <- NA
+      } else {
+        estim_cover[isuc] <- cut0Inf(-1 +
+            1.20246 * therm_amp ^ -0.0689 * ppt.WinterToMAP ^ -0.0322, val = 0)
+      }
+
+      # 3. step:
+      ngood <- sum(!is.na(estim_cover[iestim]))
+
+      # Any remaining NAs are set to 0
+      estim_cover[iestim] <- NAto0(estim_cover[iestim])
+
+      if (!fill_empty_with_BareGround && ngood <= 1) {
+        #--- Hack if some of the equations produced NAs:
+        # [these rules are made up arbitrarily by drs, Nov 2012]:
+        # If no or only one successful equation, then add
+        #   100% C3 if MAT < 10 C,
+        #   100% shrubs if MAP < 600 mm, and
+        #   100% C4 if MAT >= 10C & MAP >= 600 mm
+        if (MAP_mm < 600) {
+          estim_cover[ishr] <- 1 + estim_cover[ishr]
+        }
+
+        if (MAT_C < 10) {
+          estim_cover[igc3] <- 1 + estim_cover[igc3]
+        }
+
+        if (MAT_C >= 10  & MAP_mm >= 600) {
+          estim_cover[igc4] <- 1 + estim_cover[igc4]
+        }
+      }
+
+
+      # 4. step: put all together:
+      # i) groups with set values (iset) and groups with estimable but
+      #    fixed values (iestim & !is.na)
+      veg_cover[ifixed] <- input_cover[ifixed]
+
+      # ii) groups with values to estimate (iestim & is.na):
+      veg_cover[ids_to_estim] <- estim_cover[ids_to_estim]
+
+      estim_cover_sum <- sum(estim_cover[ids_to_estim])
+
+      if (estim_cover_sum > 0) {
+        # Scale fractions to 0-1 with a sum equal to 1 that includes
+        # veg_cover[ifixed], but but doesn't scale those that are fixed
+        veg_cover[ids_to_estim] <- veg_cover[ids_to_estim] *
+          (1 - sum(veg_cover[ifixed])) / estim_cover_sum
+
+      } else {
+        # cover to estimate is 0 and fixed_cover_sum < 1
+        if (fill_empty_with_BareGround && !fix_BareGround) {
+          # ==> fill land cover up with bare-ground
+          veg_cover[ibar] <- 1 - sum(veg_cover[-ibar])
+
+        } else {
+          stop("'estimate_PotNatVeg_composition': ",
+            "The estimated vegetation cover values are 0, ",
+            "the user fixed relative abundance values sum to less than 1, ",
+            "and bare-ground is fixed. ",
+            "Thus, the function cannot compute complete land cover composition."
+          )
+        }
       }
     }
-
-    # 4. step: Scale fractions to 0-1 with a sum of 1 including
-    # grass.Annual.fraction, but don't scale grass.Annual.fraction
-    # if na then use calc fraction else use the user defined fraction
-    shrubs.fraction <- NAto0(shrubs.fractionNA)
-    grass.c4.fraction <- NAto0(grass.c4.fractionNA)
-    grass.c3.fraction <- NAto0(grass.c3.fractionNA)
-
-    # scale down to 1-annual fraction:
-    sumVegWithoutAnnuals <- shrubs.fraction + grass.c4.fraction +
-      grass.c3.fraction
-    ann_min1 <- 1 - grass.Annual.fraction
-    shrubs.fraction <- (shrubs.fraction / sumVegWithoutAnnuals) * ann_min1
-    grass.c4.fraction <- (grass.c4.fraction / sumVegWithoutAnnuals) * ann_min1
-    grass.c3.fraction <- (grass.c3.fraction / sumVegWithoutAnnuals) * ann_min1
-
-    calc_cover <- c(grass.Annual.fraction, grass.c4.fraction,
-      grass.c3.fraction, shrubs.fraction)
-    naIndex <- which(is.na(input_cover))
-
-    # replace missing values
-    temp <- sum(input_cover[!naIndex])
-    temp1 <- isTRUE(all.equal(sum(calc_cover[naIndex]), 0))
-    temp2 <- isTRUE(all.equal(temp, 0))
-    if (temp1 && temp2) {
-      # there would be no vegetation, so force vegetation > 0
-      input_cover[naIndex] <- (1 - temp) / length(naIndex)
-    } else {
-      input_cover[naIndex] <- calc_cover[naIndex]
-    }
-
-    # now we need to get the sum and scale the naIndex values accordingly
-    input_cover[naIndex] <- sapply(input_cover[naIndex], function(x)
-      (x / sum(input_cover[naIndex])) * (1 - sum(input_cover[-naIndex])))
   }
 
-  # Scale Grass components to one (or set to 0)
-  grass.fraction <- sum(input_cover[c(1:3)])
+  names(veg_cover) <- veg_types
 
-  sum_temp <- sum(input_cover[4:6])
-  c3c4ann <- rep(0, 3L)
-  if (!isTRUE(all.equal(sum_temp, 1))) {
-    c3c4ann[2L] <- input_cover[2] / (1 - sum_temp)
-    c3c4ann[1L] <- input_cover[3] / (1 - sum_temp)
-    c3c4ann[3L] <- input_cover[1] / (1 - sum_temp)
+  # Scale relative grass components to one (or set to 0)
+  c3c4ann <- veg_cover[igrasses]
+  grass_fraction <- sum(c3c4ann)
+
+  if (grass_fraction > 0) {
+    c3c4ann <- c3c4ann / grass_fraction
   }
+
+  # Return values
+  temp <- unname(veg_cover)
 
   list(
-    Composition = c(
-      Grasses = grass.fraction,
-      Shrubs = input_cover[4],
-      Trees = tree.fraction,
-      Forbs = input_cover[5],
-      BareGround = input_cover[6]),
+    # Full resolution: suitable for STEPWAT2
+    Rel_Abundance_L0 = veg_cover,
 
-    grasses.c3c4ann.fractions = c(
-      C3 = c3c4ann[1L],
-      C4 = c3c4ann[2L],
-      Annuals = c3c4ann[3L])
+    # SOILWAT2 land cover types:
+    Rel_Abundance_L1 = c(
+      SW_TREES = temp[itre],
+      SW_SHRUB = temp[ishr],
+      SW_FORBS = temp[ifor] + temp[isuc],
+      SW_GRASS = grass_fraction,
+      SW_BAREGROUND = temp[ibar]),
+
+    # Relative contributions of sub-types to the grass type
+    Grasses = c3c4ann
   )
 }
 
