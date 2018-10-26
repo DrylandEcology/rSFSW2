@@ -84,6 +84,8 @@ test_that("dbWork: mock simulation in parallel", {
   .node_id <- 0L
 
   if (do_parallel) {
+    skip_if_not_installed("pkgload")
+
     # Parallel setup
     temp <- max(2L, min(10L, parallel::detectCores() - 2L))
     ncores <- if (is.finite(temp)) temp else 2L
@@ -92,8 +94,8 @@ test_that("dbWork: mock simulation in parallel", {
       function(i) assign(".node_id", i, envir = globalenv()))
     parallel::clusterSetRNGStream(cl, iseed = 127)
 
-    parallel::clusterCall(cl, fun = devtools::load_all,
-      pkg = pkg_temp_dir(), reset = FALSE, quiet = TRUE)
+    parallel::clusterCall(cl, fun = pkgload::load_all,
+      path = pkg_temp_dir(), reset = FALSE, quiet = TRUE)
 
   } else {
     fail("dbWork: mock simulation in parallel: cannot run in parallel!")
