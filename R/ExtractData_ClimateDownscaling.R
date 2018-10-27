@@ -565,8 +565,7 @@ applyDelta_oneYear <- function(obs, delta_ts, ppt_fun, daily, monthly,
 
   ppt_type <- match.arg(ppt_type, c(NA, "detailed", "simple"))
 
-  month <- 1 + as.POSIXlt(seq(ISOdate(obs@year, 1, 1, tz = "UTC"),
-                              ISOdate(obs@year, 12, 31, tz = "UTC"), by = "day"))$mon
+  month <- 1 + as.POSIXlt(rSOILWAT2::days_in_years(obs@year, obs@year))$mon
   ydeltas <- delta_ts[delta_ts[, "Year"] == obs@year, -(1:2)]
   add_days <- ppt_fun[month] == "+"
   mult_days <- !add_days

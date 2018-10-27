@@ -534,7 +534,7 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data, # no
   }
 
   # Check requested years
-  year_range <- update_requested_years(start_year, end_year,
+  year_range <- rSOILWAT2::update_requested_years(start_year, end_year,
     has_start_year = 1949, has_end_year = 2010, temp_call = temp_call,
     verbose = verbose)
 
@@ -735,7 +735,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function( # nolin
 
   # Check requested years
   avail_end_year <- as.integer(1900 + as.POSIXlt(Sys.Date())$year - 1)
-  year_range <- update_requested_years(start_year, end_year,
+  year_range <- rSOILWAT2::update_requested_years(start_year, end_year,
     has_start_year = 1980, has_end_year = avail_end_year, temp_call = NULL,
     verbose = FALSE)
 
@@ -795,7 +795,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, # no
 
   # Check requested years
   avail_end_year <- as.integer(1900 + as.POSIXlt(Sys.Date())$year - 1)
-  year_range <- update_requested_years(start_year, end_year,
+  year_range <- rSOILWAT2::update_requested_years(start_year, end_year,
     has_start_year = 1980, has_end_year = avail_end_year, temp_call = temp_call,
     verbose = verbose)
 
@@ -895,7 +895,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids, 
   }
 
   # Check requested years
-  year_range <- update_requested_years(start_year, end_year,
+  year_range <- rSOILWAT2::update_requested_years(start_year, end_year,
     has_start_year = 1950, has_end_year = 2013, temp_call = temp_call,
     verbose = verbose)
 
@@ -1307,7 +1307,7 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, # 
   }
 
   # Check requested years
-  year_range <- update_requested_years(start_year, end_year,
+  year_range <- rSOILWAT2::update_requested_years(start_year, end_year,
     has_start_year = 1979, has_end_year = 2010, temp_call = temp_call,
     verbose = verbose)
 
@@ -1412,7 +1412,7 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids, # no
   }
 
   # Check requested years
-  year_range <- update_requested_years(start_year, end_year,
+  year_range <- rSOILWAT2::update_requested_years(start_year, end_year,
     has_start_year = 1915, has_end_year = 2011, temp_call = temp_call,
     verbose = verbose)
 

@@ -332,7 +332,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       #------simulation timing needs to be adjusted
       isim_time <- setup_simulation_time(isim_time, add_st2 = FALSE)
 
-      simTime2 <- simTiming_ForEachUsedTimeUnit(isim_time,
+      simTime2 <- rSOILWAT2::simTiming_ForEachUsedTimeUnit(
+        useyrs = isim_time[["useyrs"]],
         sim_tscales = c("daily", "monthly", "yearly"),
         latitude = i_SWRunInformation$Y_WGS84,
         account_NorthSouth = opt_agg[["adjust_NorthSouth"]],
@@ -518,7 +519,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           break
 
         } else {
-          trco <- TranspCoeffByVegType(
+          trco <- rSOILWAT2::TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
             soillayer_no = soilLayers_N,
             trco_type = i_sw_input_treatments[1, do_vegs[["flag"]][k]],
@@ -534,7 +535,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             #add data to sw_input_soils
             i_sw_input_soils[i.temp[seq_along(trco)]] <- trco
           } else {
-            print(paste0(tag_simfid, ": the function 'TranspCoeffByVegType' returned NA ",
+            print(paste0(tag_simfid, ": the function 'rSOILWAT2::TranspCoeffByVegType' returned NA ",
               "or does not sum to greater than 0 for type", do_vegs[["adjustType"]][k]))
             tasks[, "create"] <- 0L
             break
@@ -664,9 +665,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
       for (k in c("Grass", "Shrub", "Tree", "Forb")) {
-        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[1]], k) <- update_biomass(
-        fg = k, use = sw_input_prod_use, prod_input = i_sw_input_prod,
-        prod_default = swRunScenariosData[[1]]@prod)
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[1]], k) <-
+          rSOILWAT2::update_biomass(fg = k, use = sw_input_prod_use,
+          prod_input = i_sw_input_prod,
+          prod_default = swRunScenariosData[[1]]@prod)
       }
     }
 
@@ -999,7 +1001,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           do_C4vars <- any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") || isTRUE(prj_todos[["aon"]][["dailyC4_TempVar"]])
           #redo SiteClimate_Ambient
-          SiteClimate_Ambient <- calc_SiteClimate(weatherList = i_sw_weatherList[[1]],
+          SiteClimate_Ambient <- rSOILWAT2::calc_SiteClimate(weatherList = i_sw_weatherList[[1]],
             year.start = min(isim_time$useyrs), year.end = max(isim_time$useyrs),
             do_C4vars = do_C4vars, simTime2 = simTime2)
         }
@@ -1156,12 +1158,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (do_C4vars) {
             SiteClimate_Scenario$dailyTempMin <- SiteClimate_Ambient$dailyTempMin + t_min_f[simTime2$month_ForEachUsedDay]
             SiteClimate_Scenario$dailyTempMean <- SiteClimate_Ambient$dailyTempMean + tmean_f[simTime2$month_ForEachUsedDay]
-            SiteClimate_Scenario$dailyC4vars <- sw_dailyC4_TempVar(SiteClimate_Scenario$dailyTempMin, SiteClimate_Scenario$dailyTempMean, simTime2)
+            SiteClimate_Scenario$dailyC4vars <- rSOILWAT2::sw_dailyC4_TempVar(SiteClimate_Scenario$dailyTempMin, SiteClimate_Scenario$dailyTempMean, simTime2)
           }
         }
 
       } else {
-        SiteClimate_Scenario <- calc_SiteClimate(weatherList = i_sw_weatherList[[sc]],
+        SiteClimate_Scenario <- rSOILWAT2::calc_SiteClimate(weatherList = i_sw_weatherList[[sc]],
           year.start = min(isim_time$useyrs), year.end = max(isim_time$useyrs),
           do_C4vars = do_C4vars, simTime2 = simTime2)
 
@@ -1334,7 +1336,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         isNorth <- i_SWRunInformation$Y_WGS84 >= 0
 
-        pnv <- try(estimate_PotNatVeg_composition(MAP_mm, MAT_C,
+        pnv <- try(rSOILWAT2::estimate_PotNatVeg_composition(MAP_mm, MAT_C,
           mean_monthly_ppt_mm = monthly.ppt, mean_monthly_Temp_C = monthly.temp,
           dailyC4vars = dailyC4vars, isNorth = isNorth,
           shrub_limit = opt_sim[["shrub_limit"]],
@@ -1379,7 +1381,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&
         i_sw_input_treatments$AdjMonthlyBioMass_Precipitation))) {
 
-        temp <- estimate_PotNatVeg_biomass(
+        temp <- rSOILWAT2::estimate_PotNatVeg_biomass(
           tr_VegBiom = tr_VegetationComposition,
           do_adjBiom_by_temp = any(create_treatments == "AdjMonthlyBioMass_Temperature") && i_sw_input_treatments$AdjMonthlyBioMass_Temperature,
           do_adjBiom_by_ppt = any(create_treatments == "AdjMonthlyBioMass_Precipitation") & i_sw_input_treatments$AdjMonthlyBioMass_Precipitation,
@@ -1443,21 +1445,21 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           }
 
         if (rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]])[1] > 0) {
-          C3.trco <- TranspCoeffByVegType(
+          C3.trco <- rSOILWAT2::TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
             soillayer_no = soilLayers_N,
             trco_type = trco_type_C3,
             layers_depth = layers_depth,
             adjustType = "positive")
 
-          C4.trco <- TranspCoeffByVegType(
+          C4.trco <- rSOILWAT2::TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
             soillayer_no = soilLayers_N,
             trco_type = trco_type_C4,
             layers_depth = layers_depth,
             adjustType = "positive")
 
-          Annuals.trco <- TranspCoeffByVegType(
+          Annuals.trco <- rSOILWAT2::TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
             soillayer_no = soilLayers_N,
             trco_type = trco_type_annuals,
@@ -1469,7 +1471,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                         Annuals.trco * grasses.c3c4ann.fractions[[sc]][3]
 
         } else {
-          Grass.trco <- TranspCoeffByVegType(
+          Grass.trco <- rSOILWAT2::TranspCoeffByVegType(
             tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
             soillayer_no = soilLayers_N,
             trco_type = "FILL",
@@ -1480,19 +1482,19 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (anyNA(Grass.trco))
           Grass.trco <- rep(0, soilLayers_N)
 
-        Shrub.trco <- TranspCoeffByVegType(
+        Shrub.trco <- rSOILWAT2::TranspCoeffByVegType(
           tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
           soillayer_no = soilLayers_N,
           trco_type = trco_type_shrubs,
           layers_depth = layers_depth,
           adjustType = "inverse")
-        Tree.trco <- TranspCoeffByVegType(
+        Tree.trco <- rSOILWAT2::TranspCoeffByVegType(
           tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
           soillayer_no = soilLayers_N,
           trco_type = tro_type_tree,
           layers_depth = layers_depth,
           adjustType = "inverse")
-        Forb.trco <- TranspCoeffByVegType(
+        Forb.trco <- rSOILWAT2::TranspCoeffByVegType(
           tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
           soillayer_no = soilLayers_N,
           trco_type = tro_type_forb,
@@ -2786,7 +2788,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyC4_TempVar")
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time)
 
-          resMeans[nv:(nv+2)] <- (temp <- as.numeric(sw_dailyC4_TempVar(dailyTempMin = temp.dy$min, dailyTempMean = temp.dy$mean, simTime2)))[1:3]  #adjust_NorthSouth
+          resMeans[nv:(nv+2)] <- (temp <- as.numeric(rSOILWAT2::sw_dailyC4_TempVar(dailyTempMin = temp.dy$min, dailyTempMean = temp.dy$mean, simTime2)))[1:3]  #adjust_NorthSouth
           resSDs[nv:(nv+2)] <- temp[4:6]
           nv <- nv+3
 

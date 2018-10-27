@@ -13,8 +13,8 @@ setup_simulation_time(sim_time, add_st2 = FALSE, adjust_NS = FALSE,
 two: \var{\dQuote{startyr}} or \var{\dQuote{spinup_N}}.}
 
 \item{add_st2}{A logical value. If \code{TRUE}, the output of calling the
-function \code{\link{simTiming_ForEachUsedTimeUnit}} is appended to the
-returned list.}
+function \code{\link[rSOILWAT2]{simTiming_ForEachUsedTimeUnit}}
+is appended to the returned list.}
 
 \item{adjust_NS}{A logical value. If \code{TRUE}, then the result is
 corrected for locations on the southern vs. northern hemisphere. Only used
