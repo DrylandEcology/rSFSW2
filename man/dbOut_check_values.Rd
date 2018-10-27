@@ -47,17 +47,19 @@ database
       aggregation_overall_mean = c("MAT_C_mean", "MAP_mm_mean"),
       aggregation_overall_sd = c("MAT_C_sd", "MAP_mm_sd"),
     )
+  )
 
-  table <- dbListTables(con_dbCheck)
-  fields <- dbQuoteIdentifier(con_dbCheck, dbListFields(con_dbCheck, table))
+  tables <- dbListTables(con_dbCheck)
+  tables <- tables[1] # example table
+  fields <- dbQuoteIdentifier(con_dbCheck, dbListFields(con_dbCheck, tables))
 
-  # Extract Pids from records that matched up
-  sql <- paste("SELECT P_id FROM", table, "WHERE",
+  # Extract Pids from records that matched up for example table
+  sql <- paste("SELECT P_id FROM", tables, "WHERE",
     paste(fields[-1], "= 1", collapse = " AND "))
   is_good <- dbGetQuery(con_dbCheck, sql)
 
   # Extract Pids from records that did not match up; this should be empty
-  sql <- paste("SELECT P_id FROM", table, "WHERE",
+  sql <- paste("SELECT P_id FROM", tables, "WHERE",
     paste(fields[-1], "= 0", collapse = " OR "))
   is_bad <- dbGetQuery(con_dbCheck, sql)
 }
