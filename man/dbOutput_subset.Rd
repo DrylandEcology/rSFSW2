@@ -5,7 +5,8 @@
 \title{Make a copy of \var{\code{dbOutput}} with a subset of tables and/or fields}
 \usage{
 dbOutput_subset(dbOut_fname, dbNew_fname, fields_include = NULL,
-  fields_exclude = NULL, verbose = FALSE)
+  fields_exclude = NULL, subset_scenarios = NULL,
+  subset_experiments = NULL, verbose = FALSE)
 }
 \arguments{
 \item{dbOut_fname}{A character string. The file path of the main
@@ -25,6 +26,15 @@ the corresponding table are included. Except for those fields listed in
 field names per table to be excluded from the subset. Each table is
 represented by a correspondingly named element. If \code{NULL}, then no
 fields are excluded from the subset operation.}
+
+\item{subset_scenarios}{A vector of character strings. If not \code{NULL},
+then only records are copied with a \var{P_id} that belongs to an
+included scenario.}
+
+\item{subset_experiments}{A vector of character strings. If not \code{NULL},
+then only records are copied with a \var{P_id} that belongs to an
+included experimental treatment label. This and the \code{subset_scenarios}
+condition are combined with a logical \var{AND}.}
 
 \item{verbose}{A logical value.}
 }
