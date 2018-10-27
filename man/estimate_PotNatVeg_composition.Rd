@@ -26,7 +26,7 @@ precipitation in millimeter.}
 \item{mean_monthly_Temp_C}{A numeric vector of length 12. Mean monthly
 temperature in degree Celsius.}
 
-\item{dailyC4vars}{A named numeric vector of length 3 or \code{NULL}.
+\item{dailyC4vars}{A named list of length 3 or \code{NULL}.
 If not \code{NULL}, then a correction for C4-grasses based on
 Teeri & Stowe 1976 is applied based on the variables: \describe{
 \item{\code{Month7th_NSadj_MinTemp_C}}{Mean minimum temperature of July on
@@ -133,7 +133,7 @@ fixed input values.
   are either set to 0, or alternatively fixed at the value of the input
   argument(s).
 
- The remaining vegetation types, i.e., shrubs, C3 grasss, C4
+ The remaining vegetation types, i.e., shrubs, C3 grasses, C4
   grasses, forbs, and succulents, are estimated from climate relationships
   using equations developed by Paruelo & Lauenroth 1996, or alternatively
   fixed at the value of the input argument(s). If values for
@@ -149,21 +149,22 @@ fixed input values.
 \examples{
 ## Load weather dataset from rSOILWAT2
 data("weatherData", package = "rSOILWAT2")
-clim <- calc_SiteClimate(weatherList = weatherData,
-  year.start = 1949, year.end = 2010,
-   do.C4vars = FALSE, simTime2 = NULL)
+clim1 <- calc_SiteClimate(weatherList = weatherData)
+clim2 <- calc_SiteClimate(weatherList = weatherData, do_C4vars = TRUE)
 
 ## All estimable vegetation types are estimated:
 estimate_PotNatVeg_composition(
-  MAP_mm = 10 * clim[["MAP_cm"]], MAT_C = clim[["MAT_C"]],
-  mean_monthly_ppt_mm = 10 * clim[["meanMonthlyPPTcm"]],
-  mean_monthly_Temp_C = clim[["meanMonthlyTempC"]])
+  MAP_mm = 10 * clim1[["MAP_cm"]], MAT_C = clim1[["MAT_C"]],
+  mean_monthly_ppt_mm = 10 * clim1[["meanMonthlyPPTcm"]],
+  mean_monthly_Temp_C = clim1[["meanMonthlyTempC"]])
 
-## Some land cover types are fixed and others are estimated:
+## Some land cover types are fixed and others are estimated, and
+## the C4-grass adjustment is used:
 estimate_PotNatVeg_composition(
-  MAP_mm = 10 * clim[["MAP_cm"]], MAT_C = clim[["MAT_C"]],
-  mean_monthly_ppt_mm = 10 * clim[["meanMonthlyPPTcm"]],
-  mean_monthly_Temp_C = clim[["meanMonthlyTempC"]],
+  MAP_mm = 10 * clim2[["MAP_cm"]], MAT_C = clim2[["MAT_C"]],
+  mean_monthly_ppt_mm = 10 * clim2[["meanMonthlyPPTcm"]],
+  mean_monthly_Temp_C = clim2[["meanMonthlyTempC"]],
+  dailyC4vars = clim2[["dailyC4vars"]],
   fix_shrubs = TRUE, Shrubs_Fraction = 0.5,
   fix_BareGround = TRUE, BareGround_Fraction = 0.25)
 

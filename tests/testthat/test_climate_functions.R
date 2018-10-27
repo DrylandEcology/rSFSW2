@@ -21,7 +21,7 @@ names_sw_dailyC4_TempVar <- c("Month7th_NSadj_MinTemp_C",
 test_that("Climate variables: calc_SiteClimate", {
   # Calculate climate variables for a one-year time period
   expect_silent(x <- calc_SiteClimate(weatherList_year1980, year.start = 1980,
-    year.end = 1980, do.C4vars = FALSE, simTime2 = NULL))
+    year.end = 1980))
   expect_named(x, names_calc_SiteClimate)
   itemp <- !is.na(lengths_calc_SiteClimate)
   expect_equal(unname(lengths(x))[itemp], lengths_calc_SiteClimate[itemp])
@@ -29,7 +29,7 @@ test_that("Climate variables: calc_SiteClimate", {
 
   # Include C4-relevant climate variables
   expect_silent(x <- calc_SiteClimate(weatherList_year1980, year.start = 1980,
-    year.end = 1980, do.C4vars = TRUE, simTime2 = simTime2_year1980))
+    year.end = 1980, do_C4vars = TRUE, simTime2 = simTime2_year1980))
   expect_named(x, names_calc_SiteClimate)
   itemp <- !is.na(lengths_calc_SiteClimate)
   expect_equal(unname(lengths(x))[itemp], lengths_calc_SiteClimate[itemp])
@@ -37,10 +37,18 @@ test_that("Climate variables: calc_SiteClimate", {
   expect_named(x[["dailyC4vars"]], names_sw_dailyC4_TempVar)
 
   # Error because time period does not match with available weather data
-  expect_error(calc_SiteClimate(weatherList_year1980, year.start = 2000,
-    year.end = 2010, do.C4vars = FALSE, simTime2 = NULL))
+  expect_error(calc_SiteClimate(weatherList_year1980,
+    year.start = 2000, year.end = 2010))
 
-  # Error because 'simTime2' argument is missing
-  expect_error(calc_SiteClimate(weatherList_year1980, year.start = 1980,
-    year.end = 1980, do.C4vars = TRUE, simTime2 = NULL))
+
+  if (utils::packageVersion("rSFSW2") <= "3.1.2") {
+    # Error because 'simTime2' argument is missing
+    expect_error(calc_SiteClimate(weatherList_year1980, year.start = 1980,
+      year.end = 1980, do_C4vars = TRUE))
+  } else {
+    # Updated version calculates `simTime2` if needed
+    expect_silent(x2 <- calc_SiteClimate(weatherList_year1980,
+      year.start = 1980, year.end = 1980, do_C4vars = TRUE))
+    expect_identical(x, x2)
+  }
 })

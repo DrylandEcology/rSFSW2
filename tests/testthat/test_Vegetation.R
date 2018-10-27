@@ -4,7 +4,7 @@ context("Vegetation functions")
 data("weatherData", package = "rSOILWAT2")
 clim <- calc_SiteClimate(weatherList = weatherData,
   year.start = 1949, year.end = 2010,
-  do.C4vars = FALSE, simTime2 = NULL)
+  do_C4vars = FALSE, simTime2 = NULL)
 
 # Tests
 test_that("Vegetation: estimate land cover composition", {
