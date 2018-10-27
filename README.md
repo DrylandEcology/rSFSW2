@@ -221,7 +221,8 @@ You can contribute to this project in different ways:
          `tests/testthat/test_WeatherDB_DayMet.R`
       4) Some unit tests are skipped if on CRAN, and/or on travis-ci, and/or
          on appveyor-ci, e.g.,
-         `test/testthat/test_rSFSW2_StyleSpelllingPractices.R`
+         `test/testthat/test_rSFSW2_Spelling.R` and
+         `test/testthat/test_rSFSW2_CodeStylePractices.R`
 
   * __Test code locally during code development:__
     * Interactive execution and exploration
