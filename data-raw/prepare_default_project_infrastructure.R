@@ -1,5 +1,7 @@
 #!/usr/bin/env Rscript
 
+stopifnot(requireNamespace("usethis"))
+
 # default (input) infrastructure of a rSFSW2 simulation project
 
 dir_definf <- file.path("data-raw", "1_Input")
@@ -29,4 +31,4 @@ for (k in seq_along(ftemp)) {
   )
 }
 
-devtools::use_data(definf, internal = TRUE)
+usethis::use_data(definf, internal = TRUE)
