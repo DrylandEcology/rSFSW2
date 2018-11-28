@@ -1814,6 +1814,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 #  #'  \code{DeltaX[2]}: -1 == failed; 0 == no run yet;
 #  #'    1 == deltaX_Param successfully approved; 2 == deltaX_Param successfully modified
   DeltaX <- c(NA, 0L)
+  is_SOILTEMP_INSTABLE <- rep(NA, sim_scens[["N"]])
 
   for (sc in sim_seq_scens) {
     tag_simpidfid <- paste0("[run", i_sim, "/PID", all_Pids[sc], "/sc", sc,
@@ -1831,7 +1832,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     if (tasks[sc, "execute"] == 1L) {
       runDataSC <- NULL
-      is_SOILTEMP_INSTABLE <- rep(NA, sim_scens[["N"]])
 
       scw <- if (opt_sim[["use_dbW_future"]]) sc else 1L
       mDepth <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]
