@@ -973,13 +973,13 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     print_debug(opt_verbosity, tag_simfid, "creating", "daily weather done")
 
-    #Check that extraction of weather data was successful
+    # Check that extraction of weather data was successful
     if (inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
       tasks[, "create"] <- 0L
       print(paste0(tag_simfid, ": i_sw_weatherList ERROR: ", i_sw_weatherList))
     }
 
-    #copy and make climate scenarios from datafiles
+    # Copy and make climate scenarios from datafiles
     if (any(tasks[, "create"] > 0L)) for (sc in seq_len(sim_scens[["N"]])) {
       tag_simpidfid <- paste0("[run", i_sim, "/PID", all_Pids[sc], "/sc", sc,
         "/work", fid, "]")
@@ -1676,8 +1676,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       print_debug(opt_verbosity, tag_simpidfid, "tasks =",
         paste(temp, ", evco = ", EVCO_done, ", trco = ", TRCO_done,
         ", trrg = ", TRRG_done))
-    }#end do scenario creations
+    } #end do scenario creations
 
+
+    # Check that all flags are good across scenarios
     if (!EVCO_done) {
       print(paste0(tag_simfid, ": evaporation coefficients not set for this run."))
     } else if (!TRCO_done) {
@@ -1690,6 +1692,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       tasks[, "create"] <- 0L
     }
 
+    # Check that input data are prepared for each requested scenario
+    n_sc_good <- length(swRunScenariosData)
+    if (n_sc_good < sim_scens[["N"]]) {
+      has_failed <- n_sc_good:sim_scens[["N"]]
+      tasks[has_failed, "create"] <- 0L
+    }
+
+    # Update tasks
     has_failed <- tasks[, "create"] == 0L
     if (any(has_failed)) {
       tasks[has_failed, "execute"] <- tasks[has_failed, "aggregate"] <- -1L
@@ -1697,11 +1707,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     tasks[!has_failed, "create"] <- 2L
 
-
-    if (opt_out_run[["saveRsoilwatInput"]])
+    # Save input data if requested
+    if (opt_out_run[["saveRsoilwatInput"]]) {
       save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
       ClimatePerturbationsVals, isim_time, simTime2, file = f_sw_input)
-  }#end if do create runs
+    }
+  } #end if do create runs
 
   if (opt_out_run[["makeInputForExperimentalDesign"]] && sim_size[["expN"]] > 0 &&
     length(create_experimentals) > 0) {
