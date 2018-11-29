@@ -26,7 +26,6 @@ in_box <- function(xy, xbounds, ybounds, i_use) {
 
 
 cut0Inf <- rSOILWAT2:::cut0Inf
-NAto0 <- rSOILWAT2:::NAto0
 finite01 <- rSOILWAT2:::finite01
 
 

@@ -1365,7 +1365,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           # Grasses Shrubs Trees Forbs BareGround
           ids <- c("SW_GRASS", "SW_SHRUB", "SW_TREES", "SW_FORBS",
             "SW_BAREGROUND")
-          temp <- pnv[["Rel_Abundance_L1"]][ids]
+          temp <- finite01(pnv[["Rel_Abundance_L1"]][ids])
           rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]]) <- temp
 
           grasses.c3c4ann.fractions[[sc]] <- pnv[["Grasses"]]
