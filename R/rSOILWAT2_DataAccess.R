@@ -113,25 +113,31 @@ get_Response_aggL <- function(response,
 get_SWPmatric_aggL <- function(vwcmatric, texture, sand, clay) {
   res <- list()
 
-  res[["top"]] <- VWCtoSWP(vwcmatric$top, texture$sand.top, texture$clay.top)
-  res[["bottom"]] <- VWCtoSWP(vwcmatric$bottom, texture$sand.bottom,
-    texture$clay.bottom)
+  if (!is.null(vwcmatric[["top"]])) {
+    res[["top"]] <- VWCtoSWP(vwcmatric[["top"]], sand = texture[["sand.top"]],
+      clay = texture[["clay.top"]])
+  }
 
-  if (!is.null(vwcmatric$aggMean.top)) {
-    res[["aggMean.top"]] <- VWCtoSWP(vwcmatric$aggMean.top, texture$sand.top,
-      texture$clay.top)
-    res[["aggMean.bottom"]] <- VWCtoSWP(vwcmatric$aggMean.bottom,
-      texture$sand.bottom, texture$clay.bottom)
+  if (!is.null(vwcmatric$bottom)) {
+    res[["bottom"]] <- VWCtoSWP(vwcmatric[["bottom"]],
+      sand = texture[["sand.bottom"]], clay = texture[["clay.bottom"]])
+  }
+
+  if (!is.null(vwcmatric[["aggMean.top"]])) {
+    res[["aggMean.top"]] <- VWCtoSWP(vwcmatric[["aggMean.top"]],
+      sand = texture[["sand.top"]], clay = texture[["clay.top"]])
+    res[["aggMean.bottom"]] <- VWCtoSWP(vwcmatric[["aggMean.bottom"]],
+      sand = texture[["sand.bottom"]], clay = texture[["clay.bottom"]])
   }
 
   if (!is.null(vwcmatric$val)) {
     if (all(as.integer(vwcmatric$val[, 2]) == vwcmatric$val[, 2])) {
-      index.header <- 1:2
+      index.header <- 1:2 # daily, weekly, monthly
     } else {
-      index.header <- 1
+      index.header <- 1 # yearly
     }
-    res[["val"]] <- cbind(vwcmatric$val[, index.header],
-      VWCtoSWP(vwcmatric$val[, -index.header], sand, clay))
+    res[["val"]] <- cbind(vwcmatric[["val"]][, index.header],
+      VWCtoSWP(vwcmatric[["val"]][, -index.header], sand, clay))
   }
 
   res
