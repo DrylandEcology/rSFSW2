@@ -789,6 +789,12 @@ dbWork_check_design <- function(path, use_granular_control = FALSE) {
 #'
 #' @return A logical vector indicating success.
 #'
+#' @examples
+#' \dontrun{
+#' # `SFSW2_prj_meta` object as produced, e.g., for `TestPrj4`
+#' recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
+#' }
+#'
 #' @export
 recreate_dbWork <- function(path, dbOutput, use_granular_control,
   SFSW2_prj_meta = NULL, verbose = FALSE, print.debug = FALSE) {
