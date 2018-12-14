@@ -27,7 +27,9 @@
 #'     one character string \code{referenceDB} of the reference database name
 #'     against which this run of the test project was compared.}
 #'   \item{report}{A character vector describing differences between
-#'     test and reference databases} }
+#'     test and reference databases including the output of a call to
+#'     \code{\link{compare_test_output}}}
+#'   }
 #' @export
 run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
   dir_prev = NULL, which_tests_torun = seq_along(dir_tests),
@@ -486,6 +488,17 @@ check_aggregated_output <- function(x) {
 #' }
 #'
 #' @seealso \code{\link{compare_two_dbOutput}}
+#'
+#' @examples
+#' \dontrun{
+#'   # Run test project 4 inside development version of package
+#'   # Assume that working directory is `tests/test_data/TestPrj4/`
+#'   source("SFSW2_project_code.R")
+#'
+#'   # Compare output database with reference database
+#'   comp <- compare_test_output(".", dir_ref = "../0_ReferenceOutput/")
+#' }
+#'
 #' @export
 compare_test_output <- function(dir_test, dir_ref = NULL) {
   diff_msgs <- list()

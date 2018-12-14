@@ -47,7 +47,9 @@ A list with two elements: \describe{
     one character string \code{referenceDB} of the reference database name
     against which this run of the test project was compared.}
   \item{report}{A character vector describing differences between
-    test and reference databases} }
+    test and reference databases including the output of a call to
+    \code{\link{compare_test_output}}}
+  }
 }
 \description{
 Run test projects
