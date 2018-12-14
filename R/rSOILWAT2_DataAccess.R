@@ -3,7 +3,7 @@
 #' @param x An object of class
 #'   \code{\link[rSOILWAT2:swOutput-class]{rSOILWAT2::swOutput}}.
 #' @param st An object as returned from the function
-#'   \code{\link{setup_simulation_time}}.
+#'   \code{\link{setup_time_simulation_project}}.
 #'
 #' @name swOutput_access
 NULL
@@ -114,20 +114,21 @@ get_SWPmatric_aggL <- function(vwcmatric, texture, sand, clay) {
   res <- list()
 
   if (!is.null(vwcmatric[["top"]])) {
-    res[["top"]] <- VWCtoSWP(vwcmatric[["top"]], sand = texture[["sand.top"]],
-      clay = texture[["clay.top"]])
+    res[["top"]] <- rSOILWAT2::VWCtoSWP(vwcmatric[["top"]],
+      sand = texture[["sand.top"]], clay = texture[["clay.top"]])
   }
 
   if (!is.null(vwcmatric$bottom)) {
-    res[["bottom"]] <- VWCtoSWP(vwcmatric[["bottom"]],
+    res[["bottom"]] <- rSOILWAT2::VWCtoSWP(vwcmatric[["bottom"]],
       sand = texture[["sand.bottom"]], clay = texture[["clay.bottom"]])
   }
 
   if (!is.null(vwcmatric[["aggMean.top"]])) {
-    res[["aggMean.top"]] <- VWCtoSWP(vwcmatric[["aggMean.top"]],
+    res[["aggMean.top"]] <- rSOILWAT2::VWCtoSWP(vwcmatric[["aggMean.top"]],
       sand = texture[["sand.top"]], clay = texture[["clay.top"]])
-    res[["aggMean.bottom"]] <- VWCtoSWP(vwcmatric[["aggMean.bottom"]],
-      sand = texture[["sand.bottom"]], clay = texture[["clay.bottom"]])
+    res[["aggMean.bottom"]] <- rSOILWAT2::VWCtoSWP(vwc =
+      vwcmatric[["aggMean.bottom"]], sand = texture[["sand.bottom"]],
+      clay = texture[["clay.bottom"]])
   }
 
   if (!is.null(vwcmatric$val)) {
@@ -137,7 +138,7 @@ get_SWPmatric_aggL <- function(vwcmatric, texture, sand, clay) {
       index.header <- 1 # yearly
     }
     res[["val"]] <- cbind(vwcmatric[["val"]][, index.header],
-      VWCtoSWP(vwcmatric[["val"]][, -index.header], sand, clay))
+      rSOILWAT2::VWCtoSWP(vwcmatric[["val"]][, -index.header], sand, clay))
   }
 
   res

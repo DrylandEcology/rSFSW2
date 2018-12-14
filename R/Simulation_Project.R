@@ -302,7 +302,7 @@ init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE,
     init_timer(SFSW2_prj_meta[["fnames_out"]][["timerfile"]])
 
     #--- Update simulation time
-    SFSW2_prj_meta[["sim_time"]] <- setup_simulation_time(
+    SFSW2_prj_meta[["sim_time"]] <- setup_time_simulation_project(
       SFSW2_prj_meta[["sim_time"]], add_st2 = TRUE,
       adjust_NS = SFSW2_prj_meta[["opt_agg"]][["adjust_NorthSouth"]],
       use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],

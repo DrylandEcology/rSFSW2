@@ -2222,7 +2222,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     } else {
       simulation_years[, "EndYear"] <- SFSW2_prj_meta[["sim_time"]][["endyr"]]
     }
-    simulation_years[, "StartYear"] <- getStartYear(
+    simulation_years[, "StartYear"] <- rSOILWAT2::getStartYear(
       simulation_years[, "simulationStartYear"],
       SFSW2_prj_meta[["sim_time"]][["spinup_N"]])
 

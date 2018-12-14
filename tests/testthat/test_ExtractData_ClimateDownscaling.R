@@ -111,9 +111,9 @@ doy_ranges <- list(
   defaultWateryear_S = c(92, 180)
 )
 
-sim_time <- setup_simulation_time(sim_time, add_st2 = TRUE, adjust_NS = TRUE,
-  use_doy_range = TRUE,
-doy_ranges = doy_ranges)
+sim_time <- setup_time_simulation_project(sim_time, add_st2 = TRUE,
+  adjust_NS = TRUE, use_doy_range = TRUE, doy_ranges = doy_ranges)
+
 names_sim_time <- c("Run", "Slice", "Time", "Year")
 names_getYears <- c("n_first", "first", "n_second", "second", "first_dates",
   "second_dates", "first_dpm", "second_dpm")

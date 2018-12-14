@@ -9,7 +9,7 @@ get_simulation_time(st, SFSW2_prj_inputs)
 }
 \arguments{
 \item{st}{An object as returned from the function
-\code{\link{setup_simulation_time}}.}
+\code{\link{setup_time_simulation_project}}.}
 
 \item{SFSW2_prj_inputs}{An object as returned from function
 \code{\link{process_inputs}}.}

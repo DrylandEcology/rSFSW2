@@ -63,28 +63,16 @@ input_sim_timeE[["future_yrs"]] <- list(
 
 #--- TESTS
 test_that("Obtain time information", {
-  # Spinup of simulation
-  expect_equal(getStartYear(1980), 1981L)
-  expect_equal(getStartYear(0), 1L)
-  expect_equal(getStartYear(0, 10), 10L)
-
-
-  # Leap years
-  expect_true(isLeapYear(2000))
-  expect_true(isLeapYear(2016))
-  expect_false(isLeapYear(2100))
-  expect_false(isLeapYear(2003))
-
-
 
   # Setup simulation time
-  expect_error(setup_simulation_time(input_sim_timeE),
+  expect_error(setup_time_simulation_project(input_sim_timeE),
     regexp = "incorrect format of 'future_yrs'")
+
   sim_time <- list()
   for (k in seq_along(input_sim_time)) {
     info <- names(input_sim_time)[k]
-    expect_silent(sim_time[[k]] <- setup_simulation_time(input_sim_time[[k]],
-      use_doy_range = TRUE, doy_ranges = doy_ranges,
+    expect_silent(sim_time[[k]] <- setup_time_simulation_project(
+      input_sim_time[[k]], use_doy_range = TRUE, doy_ranges = doy_ranges,
       add_st2 = TRUE, adjust_NS = TRUE))
 
     N_names <- names(doy_ranges)[!grepl("_S", names(doy_ranges))]
@@ -106,8 +94,8 @@ test_that("Obtain time information", {
     expect_true(all(req_simtime_elems %in% names(sim_time[[k]])),
       info = info)
 
-    expect_silent(sim_time[[k]] <- setup_simulation_time(input_sim_time[[k]],
-      use_doy_range = FALSE, doy_ranges = doy_ranges,
+    expect_silent(sim_time[[k]] <- setup_time_simulation_project(
+      input_sim_time[[k]], use_doy_range = FALSE, doy_ranges = doy_ranges,
       add_st2 = TRUE, adjust_NS = TRUE))
 
     # test if doy_range names were NOT created when use_doy_range = FALSE

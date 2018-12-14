@@ -1,11 +1,6 @@
 #------ FUNCTIONS THAT DEAL WITH SIMULATION TIME
 
 
-getStartYear <- function(simstartyr, spinup_N = 1L) {
-  as.integer(simstartyr + spinup_N)
-}
-
-
 
 isLeapYear <- rSOILWAT2:::isLeapYear
 
@@ -14,7 +9,7 @@ isLeapYear <- rSOILWAT2:::isLeapYear
 #' treatments
 #'
 #' @param st An object as returned from the function
-#'   \code{\link{setup_simulation_time}}.
+#'   \code{\link{setup_time_simulation_project}}.
 #' @param SFSW2_prj_inputs An object as returned from function
 #'   \code{\link{process_inputs}}.
 #' @return The object \code{st} augmented with two named elements \itemize{
@@ -63,9 +58,10 @@ get_simulation_time <- function(st, SFSW2_prj_inputs) {
 
 #' Describe the time of a simulation project
 #'
-#' @param sim_time A list with at least values for three named elements:
-#'   \var{\dQuote{simstartyr}} and \var{\dQuote{endyr}} and one of the following
-#'   two: \var{\dQuote{startyr}} or \var{\dQuote{spinup_N}}.
+#' @param sim_time A list with at least values for four named elements:
+#'   \var{\dQuote{simstartyr}} and \var{\dQuote{endyr}}, one of the following
+#'   two: \var{\dQuote{startyr}} or \var{\dQuote{spinup_N}}, and
+#'   \var{dQuote{future_yrs}}.
 #' @param add_st2 A logical value. If \code{TRUE}, the output of calling the
 #'   function \code{\link[rSOILWAT2]{simTiming_ForEachUsedTimeUnit}}
 #'   is appended to the returned list.
@@ -78,21 +74,12 @@ get_simulation_time <- function(st, SFSW2_prj_inputs) {
 #'   corrected for locations on the southern vs. northern hemisphere. Only used
 #'   if \code{add_st2} is \code{TRUE}.
 #' @param A named list, i.e., the updated version of \code{sim_time}.
-setup_simulation_time <- function(sim_time, add_st2 = FALSE,
+#'
+#' @seealso \code{\link[rSOILWAT2]{setup_time_simulation_run}}
+setup_time_simulation_project <- function(sim_time, add_st2 = FALSE,
   adjust_NS = FALSE, use_doy_range = FALSE, doy_ranges = list()) {
 
-  if (is.null(sim_time[["spinup_N"]])) {
-    sim_time[["spinup_N"]] <- sim_time[["startyr"]] - sim_time[["simstartyr"]]
-
-  } else {
-    sim_time[["startyr"]] <- getStartYear(sim_time[["simstartyr"]],
-      sim_time[["spinup_N"]])
-  }
-
-  stopifnot(!is.null(sim_time[["spinup_N"]]),
-    !is.null(sim_time[["simstartyr"]]),
-    !is.null(sim_time[["startyr"]]),
-    !is.null(sim_time[["endyr"]]))
+  sim_time <- rSOILWAT2::setup_time_simulation_run(sim_time = sim_time)
 
   if (is.matrix(sim_time[["future_yrs"]])) {
     stopifnot(dim(sim_time[["future_yrs"]])[2] == 3)
@@ -108,27 +95,10 @@ setup_simulation_time <- function(sim_time, add_st2 = FALSE,
     sim_time[["future_yrs"]] <- temp
 
   } else {
-    stop("'setup_simulation_time': incorrect format of 'future_yrs'")
+    stop("'setup_time_simulation_project': incorrect format of 'future_yrs'")
   }
 
   sim_time[["future_N"]] <- dim(sim_time[["future_yrs"]])[1]
-
-  temp <- ISOdate(sim_time[["startyr"]], 1, 1, tz = "UTC")
-  discarddy <- as.numeric(temp - ISOdate(sim_time[["simstartyr"]], 1, 1,
-    tz = "UTC"))
-
-  sim_time[["useyrs"]] <- sim_time[["startyr"]]:sim_time[["endyr"]]
-
-  sim_time[["no.useyr"]] <- sim_time[["endyr"]] - sim_time[["startyr"]] + 1
-  sim_time[["no.usemo"]] <- sim_time[["no.useyr"]] * 12
-  sim_time[["no.usedy"]] <- as.numeric(ISOdate(sim_time[["endyr"]], 12, 31,
-    tz = "UTC") - temp) + 1
-
-  sim_time[["index.useyr"]] <- sim_time[["spinup_N"]] +
-    seq_len(sim_time[["no.useyr"]])
-  sim_time[["index.usemo"]] <- sim_time[["spinup_N"]] * 12 +
-    seq_len(sim_time[["no.usemo"]])
-  sim_time[["index.usedy"]] <- discarddy + seq_len(sim_time[["no.usedy"]])
 
   if (add_st2) {
     sim_time[["sim_time2_North"]] <-

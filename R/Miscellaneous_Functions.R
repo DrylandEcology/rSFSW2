@@ -353,38 +353,7 @@ vpd <- function(Tmin, Tmax, RHmean = NULL) {
 }
 
 
-
-
-max_duration <- function(x, target_val = 1L, return_doys = FALSE) {
-  r <- rle(x)
-  rgood <- r$values == target_val
-  igood <- which(rgood)
-
-  if (length(igood) > 0) {
-    len <- max(r$lengths[igood])
-
-    if (return_doys) {
-      imax <- which(rgood & r$lengths == len)[1]
-
-      rdoys <- cumsum(r$lengths)
-      doys <- if (imax == 1L) {
-          c(start = 1L, end = rdoys[1])
-        } else {
-          c(start = rdoys[imax - 1] + 1,
-            end = rdoys[imax])
-        }
-    }
-
-  } else {
-    len <- 0L
-    doys <- c(start = NA, end = NA)
-  }
-
-  if (return_doys)
-    return(c(len, doys))
-
-  len
-}
+max_duration <- rSOILWAT2:::max_duration
 
 startDoyOfDuration <- function(x, duration = 10) {
   r <- rle(x)
@@ -903,7 +872,7 @@ setup_scenarios <- function(sim_scens, future_yrs) {
 
     # ConcScen = concentration scenarios, e.g., SRESs, RCPs
     colnames(climScen) <- c("Downscaling", "DeltaStr_yrs", "ConcScen", "Model")
-    # see 'setup_simulation_time' for how 'future_yrs' is created
+    # see 'setup_time_simulation_project' for how 'future_yrs' is created
     climScen[, "Delta_yrs"] <- as.integer(substr(climScen[, "DeltaStr_yrs"], 2,
       nchar(climScen[, "DeltaStr_yrs"]) - 3))
 
