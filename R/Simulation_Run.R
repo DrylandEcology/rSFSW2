@@ -43,10 +43,6 @@ print_debugN <- function(opt_verbosity, tag_id, prj_todos, n, tag_section) {
   }
 }
 
-debug_stop <- function(stop_number){
-  print(paste0("debug_stop #", stop_number))
-}
-
 #' The main simulation function which does all the heavy lifting
 #'
 #' @details For contributors only: This function cannot return prematurely because
@@ -73,7 +69,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   # P_id  =   is a unique id number for each scenario in each run
 
   t.do_OneSite <- Sys.time()
-  debug_stop(1)
   # ID of worker
   fid <- if (SFSW2_glovars[["p_has"]]) {
       if (SFSW2_glovars[["p_type"]] == "mpi") {
@@ -1833,12 +1828,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (DeltaX[2] == 2L)
           rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- DeltaX[1]
       }
-      debug_stop(3)
       runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
                      weatherList = i_sw_weatherList[[scw]],
                 echo = FALSE, quiet = TRUE),
               silent = TRUE)
-      debug_stop(4)
       # Testing for error in soil temperature module
       is_SOILTEMP_INSTABLE[sc] <- rSOILWAT2::has_soilTemp_failed()
 
@@ -1861,12 +1854,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(DeltaX[1], mDepth)
           print_debug(opt_verbosity, tag_simpidfid, "SOILWAT2 called again with deltaX (cm) =",
             rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"])
-          debug_stop(1)
           runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
                      weatherList = i_sw_weatherList[[scw]],
                 echo = FALSE, quiet = TRUE),
               silent = TRUE)
-          debug_stop(2)
           ## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
           is_SOILTEMP_INSTABLE[sc] <- rSOILWAT2::has_soilTemp_failed()
           i_soil_rep <- i_soil_rep + 1
