@@ -314,7 +314,8 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
     on.exit({
             print(paste0("rSFSW2's ", temp_call, ": ended after ",
                           round(difftime(Sys.time(), t1, units = "secs"), 2),
-                          " s")) ; cat("\n")}, add = TRUE)
+                          " s"))
+      cat("\n")}, add = TRUE)
   }
   # set up data files for extraction =============================
   # set temp variable show_site_info
@@ -365,7 +366,6 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
         }
       }
       # start extraction process =============================
-      
         if (show_site_info) {
           print(paste("Soils data from 'ISRIC_SoilGrids250m' will be extracted
                       for n =", n_extract, "sites"))
