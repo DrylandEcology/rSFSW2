@@ -323,7 +323,6 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
   if (!dir.exists(dir.ex.gridded)) stop(paste0("Folder '", dir.ex.gridded,
                                                "' does not exist"))
   file_in_gridded <- list.files(dir.ex.gridded, pattern = ".tif$")
-  MMC[["source"]] <- "ISRIC_SoilGrids250m"
   ldepth_gridded <- c(0, 5, 15, 30, 60, 100, 200) #in cm
   todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "ISRIC_SoilGrids250m"
   stopifnot(requireNamespace("rgdal"))
