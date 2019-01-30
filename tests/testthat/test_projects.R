@@ -19,6 +19,7 @@ test_that("Test projects structure", {
 
 
 test_that("Test projects", {
+  skip_if_not(identical(tolower(Sys.getenv("RSFSW2_ALLTESTS")), "true"))
   skip_on_cran()
 
   # Run test projects
@@ -41,7 +42,8 @@ test_that("Test projects", {
   info_env <- paste("Environmental variables:",
     paste(names(temp), "=", shQuote(temp), collapse = " / "))
 
-  # Unit tests
+  # Unit tests: all but first unit test pass if `tp` is `NULL`
+  expect_true(!is.null(tp), info = info_res)
   expect_false(inherits(tp, "try-error"))
   expect_true(all(tp[["res"]][, "has_run"]), info = info_res)
   expect_false(any(tp[["res"]][, "has_problems"]), info = info_res)
@@ -49,8 +51,10 @@ test_that("Test projects", {
 
   # Print environmental variables if any problem occurred
   expect_true(
+    identical(!is.null(tp), TRUE) &&
+    identical(inherits(tp, "try-error"), FALSE) &&
     identical(all(tp[["res"]][, "has_run"]), TRUE) &&
     identical(any(tp[["res"]][, "has_problems"]), FALSE) &&
     is.null(tp[["report"]]),
-    info = info_env)
+    info = c(info_res, info_env))
 })

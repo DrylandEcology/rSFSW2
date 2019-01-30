@@ -9,6 +9,7 @@ context("netCDF file interaction")
 # Check values of the ENV variables directly as a work-around:
 
 do_skip <- c(
+  !identical(tolower(Sys.getenv("RSFSW2_ALLTESTS")), "true"),
   # whereas skip_on_cran() skips if not "true", I believe it should skip only
   # if "false" (i.e., not "" and not "true")
   identical(tolower(Sys.getenv("NOT_CRAN")), "false"),

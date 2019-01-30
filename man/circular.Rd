@@ -5,9 +5,6 @@
 \alias{circ_mean}
 \alias{circ_range}
 \alias{circ_sd}
-\alias{circ_mean}
-\alias{circ_range}
-\alias{circ_sd}
 \title{Functions for circular descriptive statistics}
 \usage{
 circ_mean(x, int, na.rm = FALSE)

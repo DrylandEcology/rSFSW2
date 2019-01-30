@@ -5,8 +5,9 @@
 \title{Extract gridded daily weather from NR Canada for Canadian sites}
 \usage{
 ExtractGriddedDailyWeatherFromNRCan_10km_Canada(dir_data, site_ids,
-  site_ids_by_dbW, coords_WGS84, start_year, end_year, dir_temp = tempdir(),
-  dbW_compression_type = "gzip", dbW_digits, verbose = FALSE)
+  site_ids_by_dbW, coords_WGS84, start_year, end_year,
+  dir_temp = tempdir(), dbW_compression_type = "gzip", dbW_digits,
+  verbose = FALSE)
 }
 \value{
 An invisible zero. A list of which each element represents one year

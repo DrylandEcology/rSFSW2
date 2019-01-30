@@ -183,9 +183,11 @@ add_delta_to_PPT <- function(data, ind_events = NULL, addDelta = NULL, deltaPerE
     newRainyValues <- data[ind_events] + deltaPerEvent
     posRainyDays <- newRainyValues >= 0
 
-    if (all(posRainyDays)) { # all ok
+    if (all(posRainyDays)) {
+      # all ok
       data[ind_events] <- newRainyValues
-    } else { # Some rainy days would now be negative; this is not ok
+    } else {
+      # Some rainy days would now be negative; this is not ok
       negRainyDays <- !posRainyDays
       data[ind_events][posRainyDays] <- newRainyValues[posRainyDays]
       data[ind_events][negRainyDays] <- 0
@@ -3122,7 +3124,8 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta, SFSW2_pr
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   #--- SET UP PARALLELIZATION
@@ -3225,7 +3228,8 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   if (SFSW2_prj_meta[["sim_scens"]][["N"]] > 1) {
@@ -3359,7 +3363,8 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs, opt_parall
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")}, add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   climDB_metas <- climscen_metadata()

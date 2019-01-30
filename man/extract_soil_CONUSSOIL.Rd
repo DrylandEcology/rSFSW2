@@ -5,8 +5,8 @@
 \title{\var{\sQuote{CONUS-SOIL}} is a rasterized and controlled
 \var{\sQuote{STATSGO}} dataset; information for 11 soil are layers available.}
 \usage{
-extract_soil_CONUSSOIL(MMC, sim_size, sim_space, dir_ex_soil, fnames_in, resume,
-  verbose, default_TOC_GperKG = 0)
+extract_soil_CONUSSOIL(MMC, sim_size, sim_space, dir_ex_soil, fnames_in,
+  resume, verbose, default_TOC_GperKG = 0)
 }
 \arguments{
 \item{default_TOC_GperKG}{A numeric value. The default value is

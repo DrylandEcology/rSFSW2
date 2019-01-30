@@ -4,7 +4,8 @@
 \alias{calc_BareSoilEvapCoefs}
 \title{Calculate potential bare-soil evaporation coefficients}
 \usage{
-calc_BareSoilEvapCoefs(layers_depth, sand, clay, depth_max_bs_evap_cm = 15)
+calc_BareSoilEvapCoefs(layers_depth, sand, clay,
+  depth_max_bs_evap_cm = 15)
 }
 \arguments{
 \item{layers_depth}{A numeric vector, matrix, or data.frame. Values describe
