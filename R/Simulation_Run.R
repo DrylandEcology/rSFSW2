@@ -94,7 +94,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   if (SimParams[["opt_verbosity"]][["verbose"]]) {
     print(paste0(tag_funid, ": started at ", t.do_OneSite))
 
-    on.exit({print(paste0(tag_funid, ": ended prematurely")); cat("\n")}, add = TRUE)
+    on.exit({print(paste0(tag_funid, ": ended prematurely"))
+      cat("\n")}, add = TRUE)
   }
 
   temp <- difftime(t.do_OneSite, SimParams[["t_job_start"]], units = "secs")
@@ -5719,8 +5720,9 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       SFSW2_glovars[["p_workersN"]], " cores"))
 
     on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s for ", runs.completed,
-      " runs")); cat("\n")}, add = TRUE)
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s for ",
+        runs.completed, " runs"))
+      cat("\n")}, add = TRUE)
   }
 
   i_sites <- it_site(MoreArgs[["sim_size"]][["runIDs_todo"]],

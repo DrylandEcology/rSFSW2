@@ -18,9 +18,8 @@ find_sites_with_bad_weather <- function(fdbWeather, site_labels = NULL,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   # The pairs of arguments should be both NULL; if they both are not NULL,

@@ -2,12 +2,34 @@
 % Please edit documentation in R/OutputDatabase.R
 \name{dbOutput_Tables_have_SoilLayers}
 \alias{dbOutput_Tables_have_SoilLayers}
-\title{List the available output tables of \var{\sQuote{dbOutput}} which
-record output of variables per soil layer}
+\title{Checks whether output tables of \var{\sQuote{dbOutput}} store output of
+variables for each soil layer}
 \usage{
-dbOutput_Tables_have_SoilLayers(tables = NULL, con = NULL, dbname = NULL)
+dbOutput_Tables_have_SoilLayers(tables = NULL, con = NULL,
+  dbname = NULL)
+}
+\arguments{
+\item{tables}{A vector of character strings. The names of those tables that
+should be checked for the presence of a field named \var{\code{Soil_Layer}}.
+If \code{NULL}, then all output tables will be checked.}
+
+\item{con}{A valid \code{SQLiteConnection} database connection to
+\var{\sQuote{dbOutput}} or \code{NULL}.}
+
+\item{dbname}{A character string. The path including name to
+\var{\sQuote{dbOutput}} or \code{NULL}.}
+}
+\value{
+A named logical vector where names are tables. \code{TRUE} indicates
+  that a table has records by soil layers.
 }
 \description{
-List the available output tables of \var{\sQuote{dbOutput}} which
-record output of variables per soil layer
+Checks whether output tables of \var{\sQuote{dbOutput}} store output of
+variables for each soil layer
 }
+\section{Note}{
+ At least one of \code{con} and \code{dbname} must be provided.
+ Argument \code{con} has priority if both arguments are provided and
+ \code{con} is valid.
+}
+

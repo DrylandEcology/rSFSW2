@@ -4,8 +4,8 @@
 \alias{check_rSFSW2_project_input_data}
 \title{Attempt to check input data of a \pkg{rSFSW2} project for consistency}
 \usage{
-check_rSFSW2_project_input_data(SFSW2_prj_meta, SFSW2_prj_inputs, opt_chunks,
-  opt_verbosity)
+check_rSFSW2_project_input_data(SFSW2_prj_meta, SFSW2_prj_inputs,
+  opt_chunks, opt_verbosity)
 }
 \description{
 Attempt to check input data of a \pkg{rSFSW2} project for consistency

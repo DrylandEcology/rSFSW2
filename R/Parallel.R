@@ -129,9 +129,8 @@ export_parallel_glovars <- function(verbose = FALSE) {
 
       on.exit({
         print(paste0("rSFSW2's ", temp_call, ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-        },
-        add = TRUE)
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+        cat("\n")}, add = TRUE)
     }
 
     p_varnames <- grep("p_", ls(envir = SFSW2_glovars), value = TRUE)
@@ -319,9 +318,8 @@ exit_SFSW2_cluster <- function(verbose = FALSE) {
 
       on.exit({
         print(paste0("rSFSW2's ", temp_call, ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-        },
-        add = TRUE)
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+        cat("\n")}, add = TRUE)
     }
 
     if (verbose) {
@@ -442,9 +440,8 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
       on.exit({
         print(paste0("rSFSW2's ", temp_call, ": ended after ",
         round(difftime(Sys.time(), t1, units = "secs"), 2), " s and prepared ",
-        SFSW2_glovars[["p_workersN"]], " worker(s)")); cat("\n")
-        },
-        add = TRUE)
+        SFSW2_glovars[["p_workersN"]], " worker(s)"))
+        cat("\n")}, add = TRUE)
     }
 
     SFSW2_glovars[["p_type"]] <- switch(opt_parallel[["parallel_backend"]],

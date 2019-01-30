@@ -6,7 +6,8 @@
 \usage{
 downscale.raw(obs.hist.daily, obs.hist.monthly, scen.fut.monthly, itime,
   years = NULL, sim_time = NULL, opt_DS = list(ppt_type = "detailed",
-  sigmaN = 6, PPTratioCutoff = 10), dailyPPTceiling, do_checks = TRUE, ...)
+  sigmaN = 6, PPTratioCutoff = 10), dailyPPTceiling, do_checks = TRUE,
+  ...)
 }
 \arguments{
 \item{obs.hist.daily}{A list. Each element corresponds to one year of

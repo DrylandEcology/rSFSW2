@@ -6,8 +6,8 @@
 by Schlaepfer et al. (2014) by making time to germinate dependent on
 mean January temperature and soil water potential}
 \usage{
-get_modifiedHardegree2006NLR(RYdoy, Estimate_TimeToGerminate, TmeanJan, a, b, c,
-  d, k1_meanJanTemp, k2_meanJanTempXIncubationTemp, k3_IncubationSWP,
+get_modifiedHardegree2006NLR(RYdoy, Estimate_TimeToGerminate, TmeanJan, a,
+  b, c, d, k1_meanJanTemp, k2_meanJanTempXIncubationTemp, k3_IncubationSWP,
   Tgerm.year, SWPgerm.year, durations, rec.delta = 1, nrec.max = 10L)
 }
 \description{

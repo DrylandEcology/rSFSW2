@@ -245,14 +245,14 @@ dbWork_update_IncludeYN <- function(con, table, id_name, has_include_YN,
     iwork <- which(has_include_YN == Yes & should_include_YN == No)
     n <- length(iwork)
     if (n > 0) {
-      dbBind(rs, param = list(yn = rep(No, n), x = iwork))
+      dbBind(rs, params = list(yn = rep(No, n), x = iwork))
     }
 
     # now included and previously excluded
     iwork <- which(has_include_YN == No & should_include_YN == Yes)
     n <- length(iwork)
     if (n > 0) {
-      dbBind(rs, param = list(yn = rep(Yes, n), x = iwork))
+      dbBind(rs, params = list(yn = rep(Yes, n), x = iwork))
     }
 
     dbClearResult(rs)
@@ -548,7 +548,7 @@ dbWork_redo <- function(path, runIDs, verbose = FALSE) {
         sql <- paste("UPDATE work SET completed = 0, failed = 0,",
           "inwork = 0, time_s = 0 WHERE include_YN = 1 AND runID_total = :x")
         rs <- dbSendStatement(con, sql)
-        dbBind(rs, param = list(x = runIDs))
+        dbBind(rs, params = list(x = runIDs))
         res <- dbClearResult(rs)
       }
     }
@@ -578,7 +578,7 @@ dbWork_check_run <- function(path, runIDs) {
 
     sql <- "SELECT completed, failed, inwork FROM work WHERE runID_total = :x"
     rs <- dbSendStatement(con, sql)
-    dbBind(rs, param = list(x = runIDs))
+    dbBind(rs, params = list(x = runIDs))
     res <- dbFetch(rs)
     dbClearResult(rs)
 
@@ -672,7 +672,7 @@ dbWork_check_granular <- function(path, runIDs) {
   if (length(runIDs) > 0) {
     sql <- "SELECT * FROM need_outputs WHERE runID_total = :x"
     rs <- dbSendStatement(con, sql)
-    dbBind(rs, param = list(x = runIDs))
+    dbBind(rs, params = list(x = runIDs))
     res <- dbFetch(rs)
     dbClearResult(rs)
 
@@ -953,7 +953,7 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
       }
       sql <- paste("UPDATE work SET time_s = :t WHERE runID_total = :x")
       rs <- dbSendStatement(con_dbWork, sql)
-      dbBind(rs, param = list(t = old_timing_s[ids_use, "time_s"],
+      dbBind(rs, params = list(t = old_timing_s[ids_use, "time_s"],
         x = old_timing_s[ids_use, "runID_total"]))
       dbClearResult(rs)
     }
@@ -991,7 +991,7 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
           sql <- paste("UPDATE work SET completed = 1, failed = 0, inwork = 0",
             "WHERE runID_total = :x")
           rs <- dbSendStatement(con_dbWork, sql)
-          dbBind(rs, param = list(x = has_complete_runIDs))
+          dbBind(rs, params = list(x = has_complete_runIDs))
           dbClearResult(rs)
         }
       }

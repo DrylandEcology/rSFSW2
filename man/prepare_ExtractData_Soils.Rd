@@ -5,8 +5,8 @@
 \title{Preparations for the extraction of external soil datasets}
 \usage{
 prepare_ExtractData_Soils(SWRunInformation, sim_size, field_sources,
-  field_include, how_determine_sources, sw_input_soillayers, sw_input_soils_use,
-  sw_input_soils)
+  field_include, how_determine_sources, sw_input_soillayers,
+  sw_input_soils_use, sw_input_soils)
 }
 \description{
 Preparations for the extraction of external soil datasets

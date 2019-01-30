@@ -10,12 +10,6 @@
 \alias{lock_access}
 \alias{check_lock_content}
 \alias{remove_lock}
-\alias{lock_init}
-\alias{check_lock_content}
-\alias{remove_lock}
-\alias{unlock_access}
-\alias{lock_attempt}
-\alias{lock_access}
 \title{Synchronicity with backing store locks}
 \usage{
 lock_init(fname_lock, id)
@@ -61,18 +55,6 @@ The updated \code{lock} object of class \code{SFSW2_lock}.
 The updated \code{lock} object of class \code{SFSW2_lock}.
 }
 \description{
-Synchronicity with backing store locks
-
-Create and initialize an object of class \code{SFSW2_lock}
-
-Check content of a backing store lock
-
-Remove the files associated with a backing store lock
-
-Unlock a backing store lock
-
-Attempt to obtain access of a backing store lock
-
 Access to the backing store lock is attempted until successfully obtained.
 }
 \section{Note}{

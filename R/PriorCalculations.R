@@ -23,9 +23,8 @@ calc_RequestedSoilLayers <- function(SFSW2_prj_meta,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   # How to add different soil variables
@@ -278,9 +277,8 @@ get_BareSoilEvapCoefs <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   icol_bsE <- grep("EvapCoeff", names(SFSW2_prj_inputs[["sw_input_soils_use"]]))
@@ -359,9 +357,8 @@ do_prior_TableLookups <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s")); cat("\n")
-      },
-      add = TRUE)
+      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
   }
 
   do_prior_lookup <- list(
