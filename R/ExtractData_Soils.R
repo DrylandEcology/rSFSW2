@@ -318,8 +318,6 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
       cat("\n")}, add = TRUE)
   }
   # set up data files for extraction =============================
-  # set temp variable show_site_info
-  show_site_info <- verbose
   soil_layer <- 1
   dir.ex.gridded <- file.path(dir_ex_soil, "ISRIC", "GriddedGlobalV5")
   # stop program execution if folder path is incorrect
@@ -340,6 +338,10 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
   # set this once now to avoid extracting data that already exists
   n_extract <- sum(todos)
   if (n_extract > 0) {
+    if (verbose) {
+      print(paste("Soils data from 'ISRIC_SoilGrids250m' will be extracted",
+                  "for n =", n_extract, "sites"))
+    }
     # main loop, does extraction for matricd, clay, sand, gravel, depth
     for (tif in seq_along(file_in_gridded)) {
       # get next tif file
@@ -366,11 +368,6 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
         }
       }
       # start extraction process =============================
-        if (show_site_info) {
-          print(paste("Soils data from 'ISRIC_SoilGrids250m' will be extracted
-                      for n =", n_extract, "sites"))
-          show_site_info <- FALSE
-        }
         tif_file <- file.path(dir.ex.gridded, tif_file)
         if (!file.exists(tif_file)) stop(paste0("File '", tif_file,
                                                "' does not exist"))
