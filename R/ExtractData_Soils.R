@@ -262,8 +262,7 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
   MMC
 }
 
-#' Extracts soils data (clay, sand, \var{bd}, gravel, depth, ...) from \var{.tif} files in
-#' \var{dir_ex_soil} to a list
+#' Extracts soils data (clay, sand, \var{bd}, gravel, depth, ...) from ISRIC's SoilGrids250m dataset.
 #' @param \var{MMC} A list containing the structure for extracted data to be
 #'   extracted to
 #' @param sim_size A list containing information on the runs.
