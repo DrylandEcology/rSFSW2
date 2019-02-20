@@ -45,7 +45,7 @@ Suggests:
     spelling (>= 1.1),
     hunspell (>= 2.9),
     covr,
-    lintr
+    lintr (>= 1.0.3.9000)
 Remotes:
     github::dschlaep/weathergen
 LinkingTo:
