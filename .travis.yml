@@ -56,7 +56,7 @@ before_install:
 
 install:
   # Install rSFSW2 dependencies, but remove `Rmpi` etc.
-  - Rscript -e 'pkgs <- remotes::dev_package_deps(dependencies = TRUE); ids_not <- pkgs[, "package"] %in% c("rSOILWAT2", "Rmpi", "weathergen", "lubridate", "zoo", "dplyr"); remotes::update_packages(pkgs[!ids_not, ], upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
+  - Rscript -e 'pkgs <- remotes::dev_package_deps(dependencies = TRUE); ids_not <- pkgs[, "package"] %in% c("rSOILWAT2", "Rmpi", "weathergen", "lubridate", "zoo", "dplyr"); update(pkgs[!ids_not, ], upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
 
 script:
   - R CMD build --no-build-vignettes --no-manual .
