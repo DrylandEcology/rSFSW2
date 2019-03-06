@@ -42,6 +42,10 @@ print_debugN <- function(opt_verbosity, tag_id, prj_todos, n, tag_section) {
       " but dbOutput expects n' = ", prj_todos[["aon_fields"]][tag_section, "N"])
   }
 }
+convert_to_numerics <- function(obj){
+  obj@site@TranspirationRegions[1, 1] <- as.numeric(obj@site@TranspirationRegions[1, 1])
+  obj
+}
 
 #' The main simulation function which does all the heavy lifting
 #'
@@ -1829,7 +1833,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (DeltaX[2] == 2L)
           rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- DeltaX[1]
       }
-      runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
+      runDataSC <- try(rSOILWAT2::sw_exec(inputData = convert_to_numerics(swRunScenariosData[[sc]]),
                      weatherList = i_sw_weatherList[[scw]],
                 echo = FALSE, quiet = TRUE),
               silent = TRUE)
@@ -1855,7 +1859,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(DeltaX[1], mDepth)
           print_debug(opt_verbosity, tag_simpidfid, "SOILWAT2 called again with deltaX (cm) =",
             rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"])
-          runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
+          runDataSC <- try(rSOILWAT2::sw_exec(inputData = convert_to_numerics(swRunScenariosData[[sc]]),
                      weatherList = i_sw_weatherList[[scw]],
                 echo = FALSE, quiet = TRUE),
               silent = TRUE)
