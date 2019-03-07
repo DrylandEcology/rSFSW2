@@ -1837,11 +1837,16 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
   if (!all(any(temp),
         any(SFSW2_prj_inputs[["create_treatments"]] == fieldname_weatherf))) {
-
     if (any(!is.na(SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))) {
-
-      temp <- unique(stats::na.exclude(
-        SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))
+      # enforce that NA appears as a string instead of a logical
+      runSWFolder <- SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder
+      for (id_index in seq(runSWFolder)){
+        if (is.na(runSWFolder[id_index])){
+          SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder[id_index] <- "NA"
+        }
+      }
+      temp <- unique(
+        SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder)
 
       sql <- "INSERT INTO weatherfolders VALUES(NULL, :folder)"
       rs <- dbSendStatement(con_dbOut, sql)
@@ -1864,6 +1869,12 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     index_sites], row.names = NULL, check.rows = FALSE, check.names = FALSE,
     stringsAsFactors = FALSE)
 
+  # enforce that NA appears as a string instead of a logical
+  for (i in seq(sites_data$WeatherFolder)){
+    if (is.na(sites_data$WeatherFolder[i])){
+      sites_data$WeatherFolder[i] <- "NA"
+    }
+  }
   # Get WeatherFolder_id from table weatherfolders
   sites_data$WeatherFolder <- getSiteIds(con_dbOut, sites_data$WeatherFolder)
   colnames(sites_data) <- sub(pattern = "WeatherFolder",
