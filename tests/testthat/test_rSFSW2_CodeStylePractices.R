@@ -10,10 +10,12 @@ test_that("Package code style", {
   skip_if_not(identical(tolower(Sys.getenv("RSFSW2_ALLTESTS")), "true"))
   skip_on_cran()
   skip_on_appveyor()
-  # minimum version of lintr required for:
+  # as of 2019-03-01 development is minimum version of lintr required for:
   #  - empty commas in multi-dimensional array subsetting, e.g., x[, , 1:3]
-  skip_if_not_installed("lintr", minimum_version = "1.0.2.9000")
-
+  lintr_v <- unlist(utils::packageVersion("lintr"))
+  if (length(lintr_v) < 4 || isTRUE(lintr_v[4L] < 9000)) {
+    skip("Installed version of lintr is insufficient.")
+  }
 
   # Files that are not checked for lints
   files_not_tolint <- c(
@@ -48,7 +50,10 @@ test_that("Package code style", {
     files_tolint <- pkg_code_files[ids]
 
     for (k in seq_along(files_tolint)) {
-      badstyle <- lintr::lint(files_tolint[k])
+      # 2019 Feb 27: this call to `lint` generates a number of warnings
+      # "argument is not a function" --> ignore for now because we include
+      # with `pkg_code_files` code that includes scripts etc.
+      suppressWarnings(badstyle <- lintr::lint(files_tolint[k]))
       expect_identical(length(badstyle), 0L, info = print(badstyle))
     }
   }
