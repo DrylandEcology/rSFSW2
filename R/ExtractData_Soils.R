@@ -371,9 +371,13 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
                                                "' does not exist"))
         layer_N <- length(ldepth_gridded) - 1
         ils <- seq_len(layer_N)
-        g <- tryCatch({raster::brick(tif_file)}, error = function(e) {
-                                      print(paste(e))
-                                      stop(paste0("Please verify the file contents of '", tif_file, "'"))})
+        g <- tryCatch({
+              raster::brick(tif_file)},
+                      error = function(e) {
+                        print(paste(e))
+                        stop(paste0("Please verify the file contents of '",
+                         tif_file, "'"))
+                      })
         soil_data <- raster::crs(g)
 
         if (!raster::compareCRS(sim_space[["crs_sites"]], soil_data)) {

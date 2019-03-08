@@ -3,31 +3,27 @@ skip_on_travis();
 skip_on_appveyor();
 skip_on_cran();
 # whether or not these tests should be run
-run_tests = FALSE;
+run_tests <- FALSE;
+
 # =============================================================================
-# The tests contained here are not all inclusive (yet, meaning they don't test)
-# every function Extract_Soils.R)
-# they do not check for individual value correctness for extraction functions,
-# instead the goal here is to provide tests that are general enough that
-# changing the files from which to extract data from won't cause the tests to
-# fail. Ie. the tests are designed to test the underlining structures created
-# from these functions.
+# Tests designed to test the underlining structures created
+# from soil extraction functions.
 # =============================================================================
 
 # set stage manually so that future changes won't cause the test to fail ======
 # setup file paths
-fnames_in <- environment();
-fnames_in$fslayers <- file.path("/home/natemccauslin/Desktop/Dryland Ecology/rSFSW2/tests/test_data/TestPrj4/1_Input/SWRuns_InputData_SoilLayers_v9.csv")
-fnames_in$fsoils <- "/home/natemccauslin/Desktop/Dryland Ecology/rSFSW2/tests/test_data//TestPrj4/1_Input/datafiles/SWRuns_InputData_soils_v12.csv"
-dir_ex_soil <- "/media/natemccauslin/SOILWAT_DATA/GIS/Data/Soils"
+fnames_in <- environment()
+fnames_in$fslayers <- file.path("YOUR_PATH/SWRuns_InputData_SoilLayers_v9.csv")
+fnames_in$fsoils <- "YOUR_PATH/SWRuns_InputData_soils_v12.csv"
+dir_ex_soil <- "/YOUR_PATH_SOILS_DATA/"
 resume <- TRUE
 verbose <- FALSE
-MMC <- environment();
-sim_size <- environment();
-sim_space <- environment();
-SFSW2_glovars <- environment();
-SFSW2_glovars[["slyrs_ids"]] <- seq.int(1, 20, 1);
-SFSW2_glovars[["slyrs_maxN"]] <- 20;
+MMC <- environment()
+sim_size <- environment()
+sim_space <- environment()
+SFSW2_glovars <- environment()
+SFSW2_glovars[["slyrs_ids"]] <- seq.int(1, 20, 1)
+SFSW2_glovars[["slyrs_maxN"]] <- 20
 SWRunInformation <- data.frame(row.names <- c(1, 2, 3, 4, 5, 6))
 SWRunInformation[, 1] <- c(-106.2995, -106.2748, -106.2813, -106.2875,
                           -106.2875, -106.2875)
@@ -79,17 +75,17 @@ input_soils_use_colnames <- list("Matricd_L", "GravelContent_L", "EvapCoeff_L",
                                 "TOC_GperKG_L", "Imperm_L", "SoilTemp_L")
 newList <- vector("list", (length(input_soils_use_colnames) * 20) + 1)
 j <- 1
-counter <- 1;
+counter <- 1
 while (j <= length(newList)){
   for (i in c(1:20)){
     newList[j] <- paste0(input_soils_use_colnames[[counter]], i)
     if (counter >= length(input_soils_use_colnames)) {
-      counter <- 1;
+      counter <- 1
     }
     else{
-      counter <- counter + 1;
+      counter <- counter + 1
     }
-    j <- j + 1;
+    j <- j + 1
   }
 }
 newList <- c("Label", newList)
@@ -124,12 +120,12 @@ while (j <= length(newList)){
   for (i in c(1:20)){
     newList[j] <- paste0(input_soils[[counter]], i)
     if (counter >= length(input_soils)) {
-      counter <- 1;
+      counter <- 1
     }
     else{
-      counter <- counter + 1;
+      counter <- counter + 1
     }
-    j <- j + 1;
+    j <- j + 1
   }
 }
 newList <- c("Label", newList)
