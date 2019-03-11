@@ -17,6 +17,11 @@ test_that("Package code style", {
     skip("Installed version of lintr is insufficient.")
   }
 
+  # as of 2019-03-11 `lintr` fails R-devel `_R_CHECK_LENGTH_1_LOGIC2_`, see
+  # https://github.com/jimhester/lintr/issues/377 (undo once this is fixed)
+  rctemp <- Sys.getenv("_R_CHECK_LENGTH_1_LOGIC2_")
+  Sys.setenv(`_R_CHECK_LENGTH_1_LOGIC2_` = "false")
+
   # Files that are not checked for lints
   files_not_tolint <- c(
     "ExtractData_ClimateDownscaling.R", # needs linting
@@ -57,6 +62,9 @@ test_that("Package code style", {
       expect_identical(length(badstyle), 0L, info = print(badstyle))
     }
   }
+
+  # reset
+  Sys.setenv(`_R_CHECK_LENGTH_1_LOGIC2_` = rctemp)
 })
 
 
