@@ -195,7 +195,9 @@ You can contribute to this project in different ways:
     [Wickham's book 'R packages'](http://r-pkgs.had.co.nz/man.html)
   * Use [roxygen2](https://CRAN.R-project.org/package=roxygen2/vignettes/formatting.html)
     to write inline code documentation
-  * Update help pages and NAMESPACE with the command `devtools::document()`
+  * Update help pages and NAMESPACE with the command `devtools::document()`;
+    note: you may need to compile dynamic libraries first with
+    `pkgbuild::compile_dll()`.
   * Ideally, add examples to function documentation and check these examples
     with the command `devtools::run_examples()`
   * Ideally, expand and/or add vignettes.
@@ -268,6 +270,7 @@ You can contribute to this project in different ways:
 
     1. Make sure that the documentation is up-to-date with:
        ```{r}
+       pkgbuild::compile_dll()
        devtools::document()
        ```
 
