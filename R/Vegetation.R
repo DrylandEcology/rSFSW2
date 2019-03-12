@@ -116,6 +116,7 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
     input_cover[6] <- bareGround.fraction
   }
   if (fix_trees) {
+    # bounds Trees_Fraction to [0, 1]
     input_cover[7] <- finite01(Trees_Fraction)
   } else {
     input_cover[7] <- tree.fraction
@@ -271,7 +272,7 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
   # Scale Grass components to one (or set to 0)
   grass.fraction <- sum(input_cover[c(1:3)])
 
-  sum_temp <- sum(input_cover[4:6])
+  sum_temp <- sum(input_cover[4:7])
   c3c4ann <- rep(0, 3L)
   if (!isTRUE(all.equal(sum_temp, 1))) {
     c3c4ann[2L] <- input_cover[2] / (1 - sum_temp)
