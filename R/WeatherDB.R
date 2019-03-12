@@ -218,12 +218,15 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     ids_DayMet_extraction <- which(dw_source == "DayMet_NorthAmerica")
     ids_NRCan_extraction <- which(dw_source == "NRCan_10km_Canada")
     ids_NCEPCFSR_extraction <- which(dw_source == "NCEPCFSR_Global")
-    ids_Livneh_extraction <- which(dw_source == "Livneh2013_NorthAmerica")
+    ids_Livneh2013_extraction <- which(dw_source == "Livneh2013_NorthAmerica")
+    ids_Livneh2016_extraction <- which(dw_source == "Livneh2016_NorthAmerica")
+
 
     # Weather extraction with parallel support
     if (length(ids_NRCan_extraction) > 0 ||
       length(ids_NCEPCFSR_extraction) > 0 ||
-      length(ids_Livneh_extraction) > 0) {
+      length(ids_Livneh2013_extraction) > 0 ||
+      length(ids_Livneh2016_extraction) > 0) {
 
       #--- Set up parallelization
       setup_SFSW2_cluster(opt_parallel,
@@ -271,13 +274,33 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
         verbose = verbose)
     }
 
-    if (length(ids_Livneh_extraction) > 0) {
-      irow <- add_runIDs_sites[ids_Livneh_extraction]
+    if (length(ids_Livneh2013_extraction) > 0) {
+      irow <- add_runIDs_sites[ids_Livneh2013_extraction]
       extract_daily_weather_from_livneh(
+        version      = 'v2013',
         dir_data     = SFSW2_prj_meta[["project_paths"]][["dir.ex.Livneh2013"]],
         dir_temp     = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
         site_ids     = SWRunInformation$site_id[irow],
-        site_ids_by_dbW = add_siteIDs_by_dbW[ids_Livneh_extraction],
+        site_ids_by_dbW = add_siteIDs_by_dbW[ids_Livneh2013_extraction],
+        coords       = SWRunInformation[irow, c("X_WGS84", "Y_WGS84"),
+          drop = FALSE],
+        start_year   = SFSW2_prj_meta[["sim_time"]][["overall_simstartyr"]],
+        end_year     = SFSW2_prj_meta[["sim_time"]][["overall_endyr"]],
+        f_check      = TRUE,
+        backup       = TRUE,
+        comp_type    = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+        dbW_digits   = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+        verbose     = verbose)
+    }
+
+    if (length(ids_Livneh2016_extraction) > 0) {
+      irow <- add_runIDs_sites[ids_Livneh2016_extraction]
+      extract_daily_weather_from_livneh(
+        version      = 'v2016',
+        dir_data     = SFSW2_prj_meta[["project_paths"]][["dir.ex.Livneh2016"]],
+        dir_temp     = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+        site_ids     = SWRunInformation$site_id[irow],
+        site_ids_by_dbW = add_siteIDs_by_dbW[ids_Livneh2016_extraction],
         coords       = SWRunInformation[irow, c("X_WGS84", "Y_WGS84"),
           drop = FALSE],
         start_year   = SFSW2_prj_meta[["sim_time"]][["overall_simstartyr"]],
@@ -1360,22 +1383,30 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, # 
 ########################################################
 # Livneh Gridded, Daily Weather Data Extraction
 #
-# Author - Charles Duso
-# Date   - December 5th, 2016
+# Author - Charles Duso & Caitlin Andrews
 ########################################################
 
-#' @title Extract Gridded Weather Data from a Livneh Database
+#' @title Extract daily gridded weather data from Livneh netcdf4 files.
 #'
 #' @description Extracts daily gridded weather data, including precipitation,
-#'              maximum temperature and minimum temperature from the Livneh
-#'              database: a 1/16 degree gridded weather database that contains
-#'              data for the years 1915 - 2011.
+#'              maximum temperature and minimum temperature from Livneh
+#'              files:
+#'              Spatial resolution: 1/16 degree
+#'              Spatial extent:
+#'                2013 Version: CONUS & Canadian portion of Columbia River
+#'                2016 Version: CONUS, Mexico, & Canada below 53 degrees N
+#'              Temporal extend:
+#'                2013 Version: 1915 - 2011
+#'                2016 Version: 1915 - 2015
 # nolint start
-#' @references  \href{http://www.esrl.noaa.gov/psd/data/gridded/data.livneh.html}{Livneh Weather Website}
+#' @references  \href{http://www.esrl.noaa.gov/psd/data/gridded/data.livneh.html}{Livneh2013 info}
+#' @references  \href{ftp://livnehpublicstorage.colorado.edu/public/Livneh.2016.Dataset/}{Livneh2016 data}
+#' @references  \href{https://www.nature.com/articles/sdata201542}{Livneh2016 reference}
 # nolint end
 #'
+#' @param    version         version of Livneh data. v2013 or v2016.
 #' @param    dir_data        directory containing Livneh data
-#' @param    dir_temp          the database directory
+#' @param    dir_temp        the database directory
 #' @param    site_ids        the sites to gather weather data for
 #' @param    coords          the coordinates for each site in \var{WGS84} format
 #' @param    start_year      the start year in the sequence of data to gather
@@ -1392,11 +1423,10 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, # 
 #' @param    run_parallel    whether the extraction should be ran in parallel
 #' @param    num_cores       the number of cores to use if parallel
 #'
-#' @author   Charles Duso    \email{cd622@@nau.edu}
 #' @export
-extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids, # nolint
-  site_ids_by_dbW, coords, start_year, end_year, f_check = TRUE, backup = TRUE,
-  comp_type = "gzip", dbW_digits = 2, verbose = FALSE) {
+extract_daily_weather_from_livneh <- function(version, dir_data, dir_temp, # nolint
+  site_ids, site_ids_by_dbW, coords, start_year, end_year, f_check = TRUE,
+  backup = TRUE, comp_type = "gzip", dbW_digits = 2, verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -1411,9 +1441,21 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids, # no
     temp_call <- NULL
   }
 
+  # Set up version based differences - years and tags
+  if(version == 'v2013') {
+    end_year_livneh = 2011
+    tag_livneh <- "Meteorology_Livneh_CONUSExt_v.1.2_2013"
+    tag_livneh_esc <- gsub(".", "\\.", tag_livneh, fixed = TRUE)
+  }
+
+  if(version == 'v2016') {
+    end_year_livneh = 2015
+    tag_livneh <- tag_livneh_esc <- "livneh_NAmerExt_1Sep2016"
+  }
+
   # Check requested years
   year_range <- update_requested_years(start_year, end_year,
-    has_start_year = 1915, has_end_year = 2011, temp_call = temp_call,
+    has_start_year = 1915, has_end_year = end_year_livneh, temp_call = temp_call,
     verbose = verbose)
 
 
@@ -1432,9 +1474,6 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids, # no
     #########################
     # Configuration settings
     #########################
-    tag_livneh <- "Meteorology_Livneh_CONUSExt_v.1.2_2013"
-    tag_livneh_esc <- gsub(".", "\\.", tag_livneh, fixed = TRUE)
-
     # Start timer for timing the extraction process
     t_elapsed        <- proc.time()
     if (verbose) {
@@ -1451,10 +1490,22 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids, # no
         print("Verifying data integrity.")
       }
       temp <- strsplit(db_files, ".", fixed = TRUE)
-      temp <- unlist(lapply(temp, function(x)
+      # Months
+      if (version == 'v2013') {
+        temp <- unlist(lapply(temp, function(x)
         if (length(x) == 5 && x[5] == "nc") x[4]))
+
+        db_months <- formatC(SFSW2_glovars[["st_mo"]], width = 2, flag = "0")
+      }
+
+      if (version == 'v2016') {
+        temp <- unlist(lapply(temp, function(x)
+        if (length(x) == 3 && x[3] == "nc") x[2]))
+
+        db_months <- formatC(SFSW2_glovars[["st_mo"]], width = 2, flag = "0")
+      }
+
       db_years <- unique(substr(temp, 1, 4))
-      db_months <- formatC(SFSW2_glovars[["st_mo"]], width = 2, flag = "0")
 
       etemp <- as.vector(outer(db_years, db_months, paste0))
       ltemp <- sapply(etemp, function(tag) any(grepl(tag, db_files)))
@@ -1816,6 +1867,38 @@ dw_Livneh2013_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
   list(source = dw_source, name = dw_names, n = sum(there))
 }
 
+dw_Livneh2016_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
+  sim_time, path = NULL, MoreArgs = NULL) {
+
+  if (!dir.exists(path))
+    stop("'dw_Livneh2016_NorthAmerica': ", path, " does not exist.")
+
+  there <- 0
+
+  if (exinfo$GriddedDailyWeatherFromLivneh2016_NorthAmerica) {
+    # Check which requested Livneh2016 weather data are available
+    there <- sim_time[["overall_simstartyr"]] <= 2015 &&
+      sim_time[["overall_endyr"]] >= 1915
+    ftemp <- file.path(path, "livneh_NAmerExt_1Sep2016.191501.nc")
+
+    if (any(there) && file.exists(ftemp)) {
+      livneh_test <- raster::raster(ftemp, varname = "Prec")
+      sp_locs <- sp::SpatialPoints(coords = site_dat[, c("X_WGS84", "Y_WGS84")],
+        proj4string = sp::CRS(paste("+proj=longlat +ellps=WGS84 +datum=WGS84",
+          "+no_defs +towgs84=0,0,0")))
+      there <- !is.na(raster::extract(livneh_test, y = sp_locs))
+
+      if (any(there)) {
+        dw_source[there] <- "Livneh2016_NorthAmerica"
+        dw_names[there] <- with(site_dat[there, ], paste0(Label, "_Livneh2016_",
+          formatC(X_WGS84, digits = 5, format = "f"), "_",
+          formatC(Y_WGS84, digits = 5, format = "f")))
+      }
+    }
+  }
+
+  list(source = dw_source, name = dw_names, n = sum(there))
+}
 
 dw_NCEPCFSR_Global <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
@@ -1878,6 +1961,7 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources,
       file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"),
     NCEPCFSR_Global = project_paths[["dir.ex.NCEPCFSR"]],
     Livneh2013_NorthAmerica = project_paths[["dir.ex.Livneh2013"]],
+    Livneh2016_NorthAmerica = project_paths[["dir.ex.Livneh2016"]],
     DayMet_NorthAmerica = project_paths[["dir_daymet"]])
 
   MoreArgs <- list(LookupWeatherFolder = list(
@@ -1948,6 +2032,9 @@ set_paths_to_dailyweather_datasources <- function(SFSW2_prj_meta) { # nolint
 
   SFSW2_prj_meta[["project_paths"]][["dir.ex.Livneh2013"]] <- file.path(dir_dW,
     "Livneh_NA_2013", "MONTHLY_GRIDS")
+
+  SFSW2_prj_meta[["project_paths"]][["dir.ex.Livneh2016"]] <- file.path(dir_dW,
+    "Livneh_NA_2016")
 
   SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]] <- file.path(dir_dW,
     "NCEPCFSR_Global", "CFSR_weather_prog08032012")
