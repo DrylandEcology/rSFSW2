@@ -1022,7 +1022,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
       fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
   }
 
-  if (exinfo$ExtractSoilDataFromISRICSoilGrid_Global_250m){
+  if (exinfo$ExtractSoilDataFromISRICSoilGrid_Global_250m) {
     MMC <- extract_soil_ISRIC250m(MMC, sim_size = SFSW2_prj_meta[["sim_size"]],
             sim_space = SFSW2_prj_meta[["sim_space"]],
             dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],

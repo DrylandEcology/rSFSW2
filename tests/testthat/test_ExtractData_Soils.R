@@ -1,4 +1,5 @@
 context("Soil data extraction")
+
 skip_on_travis()
 skip_on_appveyor()
 skip_on_cran()
@@ -76,8 +77,8 @@ input_soils_use_colnames <- list("Matricd_L", "GravelContent_L", "EvapCoeff_L",
 newList <- vector("list", (length(input_soils_use_colnames) * 20) + 1)
 j <- 1
 counter <- 1
-while (j <= length(newList)){
-  for (i in c(1:20)){
+while (j <= length(newList)) {
+  for (i in c(1:20)) {
     newList[j] <- paste0(input_soils_use_colnames[[counter]], i)
     if (counter >= length(input_soils_use_colnames)) {
       counter <- 1
@@ -97,12 +98,12 @@ sw_input_soillayers <- data.frame(row.names = c(1, 2, 3, 4, 5, 6))
 soillayer_names <- vector("list", 22)
 soillayer_names[[1]] <- "Label"
 soillayer_names[[2]] <- "SoilDepth_cm"
-for (i in (3:22)){
+for (i in (3:22)) {
   soillayer_names[[i]] <- paste0("depth_L", (i - 2))
 }
 sw_input_soillayers[, 1] <- c("Site01", "Site02", "Site03", "Site04", "Site05",
                              "Site06")
-for (i in (2:22)){
+for (i in (2:22)) {
   sw_input_soillayers[, i] <- NA
 }
 colnames(sw_input_soillayers) <- soillayer_names
@@ -116,8 +117,8 @@ input_soils <- list("Matricd_L", "GravelContent_L", "EvapCoeff_L",
 newList <- vector("list", (length(input_soils) * 20) + 1)
 j <- 1
 counter <- 1;
-while (j <= length(newList)){
-  for (i in c(1:20)){
+while (j <= length(newList)) {
+  for (i in c(1:20)) {
     newList[j] <- paste0(input_soils[[counter]], i)
     if (counter >= length(input_soils)) {
       counter <- 1
@@ -132,7 +133,7 @@ newList <- c("Label", newList)
 sw_input_soils <- data.frame(row.names = c(1, 2, 3, 4, 5, 6))
 sw_input_soils[, 1] <- c("Site01", "Site02", "Site03", "Site04", "Site05",
                         "Site06")
-for (i in (2:281)){
+for (i in (2:281)) {
   sw_input_soils[, i] <- NA
 }
 colnames(sw_input_soils) <- newList
@@ -232,7 +233,7 @@ test_that("Extract 250m Gridded Data", {
   gravel_vals <- MMC[["data"]][todos, grep("rock", MMC[["cn"]])[1]]
   carbon_vals <- MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[1]]
   depth_vals <- MMC[["data"]][todos, grep("depth", MMC[["cn"]])[1]]
-  for (i in c(1, length(density_vals))){
+  for (i in c(1, length(density_vals))) {
     expect_lte(density_vals[[i]], 2.5)
     expect_gte(density_vals[[i]], 0)
     expect_lte(sand_vals[[i]], 1)
@@ -248,9 +249,9 @@ test_that("Extract 250m Gridded Data", {
 
   # test that if one soil type is extracted for a layer, then they all should
   # be layers 2 - 6, we already checked that layer 1 has all soils above
-  for (j in c(2, 6)){
-    for (i in c(1, length(sand_vals))){
-      if (!is.na(MMC[["data"]][todos, grep("sand", MMC[["cn"]])[j]][[i]])){
+  for (j in c(2, 6)) {
+    for (i in c(1, length(sand_vals))) {
+      if (!is.na(MMC[["data"]][todos, grep("sand", MMC[["cn"]])[j]][[i]])) {
         expect_type(MMC[["data"]][todos, grep("clay", MMC[["cn"]])[j]][[i]],
                     "double")
         expect_type(MMC[["data"]][todos, grep("density", MMC[["cn"]])[j]][[i]],
