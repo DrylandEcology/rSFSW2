@@ -1,9 +1,9 @@
 context("Soil data extraction")
-skip_on_travis();
-skip_on_appveyor();
-skip_on_cran();
+skip_on_travis()
+skip_on_appveyor()
+skip_on_cran()
 # whether or not these tests should be run
-run_tests <- FALSE;
+run_tests <- FALSE
 
 # =============================================================================
 # Tests designed to test the underlining structures created
