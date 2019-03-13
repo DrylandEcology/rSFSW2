@@ -397,8 +397,7 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
         args_extract <- list(y = cell_res_conus, coords = sites_conus,
                              method = "block", type = sim_space[["scorp"]])
       }
-      cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA,
-                                                    v))
+      cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA, v))
       g <- if (file.exists(tif_file)) {
         raster::brick(tif_file)
       } else {
@@ -410,12 +409,12 @@ extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
                                                          x = list(g)))
         # write density data, MMC[["data"]] requires a different column
         # name to be written then the rest
+        percent_div <- 100
         if (file_type == "matricd") {
           percent_div <- 1000
           MMC[["data"]][todos, grep("density", MMC[["cn"]])[ils]][,
                                     soil_layer] <- soil_frame / percent_div
         } else if (file_type == "GravelContent") {
-          percent_div <- 100
           soil_frame <- pmax(pmin(soil_frame / percent_div, 1), 0)
           # write gravel data to "data
           # gravel is already in form we want so no need to divide
