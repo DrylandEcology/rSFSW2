@@ -214,11 +214,6 @@ opt_input <- list(
       #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b",
       #     "Grid", "smw5by5min")
       "ExtractSoilDataFromISRICWISEv12_Global", 0,
-      #   - Contains information about soil as collected by the
-      #     National Cooperative Soil Survey. Data was collected at scales
-      #     ranging from 1:12,000 to 1:63,360. Site-specific data will be
-      #     checked for and downloaded to at project_paths[["dir_to_SSURGO"]]
-      "ExtractSoilDataFromSSURGO", 0,
       #   - ISRIC-WISE 30-arsec v1.0 (2016): 30-arcsec re-gridded; data expected
       #     at project_paths[["dir_ex_soil"]], "WISE", "WISE30sec_v1a")
       "ExtractSoilDataFromISRICWISE30secV1a_Global", 0
