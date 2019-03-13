@@ -50,6 +50,10 @@
 #'   component is fixed at \code{Forbs_Fraction}.
 #' @param Forbs_Fraction A numeric value. Default value is 0. A value between 0
 #'   and 1.
+#' @param fix_trees A logical value. If \code{TRUE}, then value for the
+#'   tree component is fixed at \code{Trees_Fraction}.
+#' @param Trees_Fraction A numeric value between 0 and 1. \code{NA} is treated as
+#'   if \code{fix_trees} is \code{FALSE}.
 #' @param fix_BareGround A logical value. If \code{TRUE}, then value for the
 #'   bare ground component is fixed at \code{BareGround_Fraction}.
 #' @param BareGround_Fraction A numeric value. Default value is 0. A value
@@ -59,7 +63,7 @@
 #'   \item{Composition}{Relative composition [0-1] of the vegetation for
 #'     \code{Grasses}, \code{Shrubs}, \code{Trees}, \code{Forbs}, and
 #'     \code{BareGround}. \code{Grasses} are the sum of C3-grasses, C4-grasses,
-#'     and annuals functional groups. \code{Trees} is set to zero. The sum of
+#'     and annuals functional groups. The sum of
 #'     \code{Composition} is 1.}
 #'   \item{grasses.c3c4ann.fractions}{Relative contribution [0-1] of the
 #'     C3-grasses, C4-grasses, and annuals functional groups. The sum of
