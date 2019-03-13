@@ -75,6 +75,7 @@ set_options_warn_error <- function(debug.warn.level = 1L,
 }
 
 
+
 #' Expression for dumping of objects from an evaluation stack
 #'
 #' Create an expression for functions 'f' to set \code{on.exit()} such that all
