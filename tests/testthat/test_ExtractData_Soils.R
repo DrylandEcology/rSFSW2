@@ -8,6 +8,7 @@ context("Soil data extraction")
 #   - "Error: On Travis"
 # Check values of the ENV variables directly as a work-around:
 
+# whether or not these tests should be run on the CIs
 do_skip <- c(
   !identical(tolower(Sys.getenv("RSFSW2_ALLTESTS")), "true"),
   # whereas skip_on_cran() skips if not "true", I believe it should skip only
@@ -18,23 +19,26 @@ do_skip <- c(
   # mimmics skip_on_appveyor():
   identical(tolower(Sys.getenv("APPVEYOR")), "true"))
 
-suppressWarnings(is_online <-
-                   !inherits(try(close(url(getOption("repos"), open = "r")), silent = TRUE),
-                             "try-error"))
 
-
-if (!any(do_skip) && is_online) {
+if (!any(do_skip)) {
   # =============================================================================
   # Tests designed to test the underlining structures created
   # from soil extraction functions.
   # =============================================================================
   
-  # set stage manually so that future changes won't cause the test to fail ======
   # setup file paths
   fnames_in <- environment()
   fnames_in$fslayers <- file.path("/home/natemccauslin/Desktop/Dryland Ecology/rSFSW2/tests/test_data/TestPrj4/1_Input/SWRuns_InputData_SoilLayers_v9.csv")
   fnames_in$fsoils <- "/home/natemccauslin/Desktop/Dryland Ecology/rSFSW2/tests/test_data/TestPrj4/1_Input/datafiles/SWRuns_InputData_soils_v12.csv"
+  # directory where extertnal soils data is located
   dir_ex_soil <- "/media/natemccauslin/SOILWAT_DATA/GIS/Data/Soils/"
+  
+  # if any of the file paths above are invalid, skip all tests and setup
+  if (!all(file.exists(c(fnames_in$fslayers, fnames_in$fsoils, dir_ex_soil)))) {
+    skip("File paths incorrectly configured for Soils Extraction tests")
+  }
+  
+  # set stage manually so that future changes won't cause the test to fail ======
   resume <- TRUE
   verbose <- FALSE
   MMC <- environment()
