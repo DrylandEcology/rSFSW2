@@ -76,8 +76,8 @@ fnames_in <- list(
   fmaster = "SWRuns_InputMaster_Test_v11.csv",
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
-  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v16.csv",
-  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v08.csv",
+  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v17.csv",
+  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v09.csv",
 
   fclimnorm = "SWRuns_InputData_cloud_v10.csv",
   fvegetation = "SWRuns_InputData_prod_v11.csv",
