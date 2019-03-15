@@ -195,9 +195,14 @@ You can contribute to this project in different ways:
     [Wickham's book 'R packages'](http://r-pkgs.had.co.nz/man.html)
   * Use [roxygen2](https://CRAN.R-project.org/package=roxygen2/vignettes/formatting.html)
     to write inline code documentation
-  * Update help pages and NAMESPACE with the command `devtools::document()`
+  * Update help pages and NAMESPACE with the command `devtools::document()`;
+    note: you may need to compile dynamic libraries first with
+    `pkgbuild::compile_dll()`.
   * Ideally, add examples to function documentation and check these examples
-    with the command `devtools::run_examples()`
+    with the command `devtools::run_examples()`.
+    Note: "devtools" v2.0.1 mixed up the logic for "dontrun" examples (see
+    https://github.com/r-lib/devtools/issues/2003); until this is fixed,
+    use `devtools::run_examples(run = FALSE)`.
   * Ideally, expand and/or add vignettes.
 
 
@@ -268,6 +273,7 @@ You can contribute to this project in different ways:
 
     1. Make sure that the documentation is up-to-date with:
        ```{r}
+       pkgbuild::compile_dll()
        devtools::document()
        ```
 
@@ -275,6 +281,9 @@ You can contribute to this project in different ways:
        ```{r}
        devtools::run_examples()
        ```
+       Note: "devtools" v2.0.1 mixed up the logic for "dontrun" examples (see
+       https://github.com/r-lib/devtools/issues/2003); until this is fixed,
+       use `devtools::run_examples(run = FALSE)`.
 
     1. Run tests as if not on CRAN, in an interactive R session,
        and with a sequential schedule.

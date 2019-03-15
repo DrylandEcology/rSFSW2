@@ -1,6 +1,6 @@
 Package: rSFSW2
 Title: Simulation Framework for SOILWAT2
-Version: 3.1.4
+Version: 3.1.5
 Date: 2019-03-14
 Authors@R: c(
   person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@yale.edu",
@@ -57,6 +57,7 @@ NeedsCompilation: yes
 License: GPL-3 + file LICENSE
 URL: https://github.com/DrylandEcology/rSFSW2
 BugReports: https://github.com/DrylandEcology/rSFSW2/issues
-RoxygenNote: 6.1.0
+RoxygenNote: 6.1.1
 VignetteBuilder: knitr
 Language: en-US
+Encoding: UTF-8
