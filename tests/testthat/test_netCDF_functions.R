@@ -77,20 +77,35 @@ if (!any(do_skip) && is_online) {
   )
 
   # Download test files
-  has_test_ncs <- lapply(test_ncs, function(x) {
+  is_nc <- function(filename) {
+    .local <- function() {
+      stopifnot(requireNamespace("ncdf4"))
+
+      nc <- ncdf4::nc_open(filename = filename, write = FALSE, readunlim = TRUE,
+        verbose = FALSE)
+      ncdf4::nc_close(nc)
+    }
+
+    try(.local(), silent = TRUE)
+  }
+
+  # suppress warnings if a download fails (e.g., "cannot open URL",
+  #   "NetCDF: Unknown file format")
+  has_test_ncs <- suppressWarnings(lapply(test_ncs, function(x) {
     if (is.na(x[["url"]]) || is.na(x[["expect"]])) {
       FALSE
     } else {
       has <- try(utils::download.file(url = x[["url"]],
         destfile = x[["filename"]], quiet = TRUE), silent = TRUE)
-      if (isTRUE(has == 0)) {
+
+      if (isTRUE(has == 0) && isTRUE(is_nc(x[["filename"]]))) {
         TRUE
       } else {
         unlink(x[["filename"]])
         FALSE
       }
     }
-  })
+  }))
 
   #--- Tests
   test_that("read_time_netCDF:", {

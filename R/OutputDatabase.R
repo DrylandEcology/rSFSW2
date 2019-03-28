@@ -1837,11 +1837,16 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
   if (!all(any(temp),
         any(SFSW2_prj_inputs[["create_treatments"]] == fieldname_weatherf))) {
-
     if (any(!is.na(SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))) {
-
-      temp <- unique(stats::na.exclude(
-        SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))
+      # enforce that NA appears as a string instead of a logical
+      runSWFolder <- SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder
+      for (id_index in seq(runSWFolder)){
+        if (is.na(runSWFolder[id_index])){
+          SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder[id_index] <- "NA"
+        }
+      }
+      temp <- unique(
+        SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder)
 
       sql <- "INSERT INTO weatherfolders VALUES(NULL, :folder)"
       rs <- dbSendStatement(con_dbOut, sql)
@@ -1864,6 +1869,12 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     index_sites], row.names = NULL, check.rows = FALSE, check.names = FALSE,
     stringsAsFactors = FALSE)
 
+  # enforce that NA appears as a string instead of a logical
+  for (i in seq(sites_data$WeatherFolder)){
+    if (is.na(sites_data$WeatherFolder[i])){
+      sites_data$WeatherFolder[i] <- "NA"
+    }
+  }
   # Get WeatherFolder_id from table weatherfolders
   sites_data$WeatherFolder <- getSiteIds(con_dbOut, sites_data$WeatherFolder)
   colnames(sites_data) <- sub(pattern = "WeatherFolder",
@@ -3216,17 +3227,19 @@ dbOut_prepare1 <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 #'       aggregation_overall_mean = c("MAT_C_mean", "MAP_mm_mean"),
 #'       aggregation_overall_sd = c("MAT_C_sd", "MAP_mm_sd"),
 #'     )
+#'   )
 #'
-#'   table <- dbListTables(con_dbCheck)
-#'   fields <- dbQuoteIdentifier(con_dbCheck, dbListFields(con_dbCheck, table))
+#'   tables <- dbListTables(con_dbCheck)
+#'   tables <- tables[1] # example table
+#'   fields <- dbQuoteIdentifier(con_dbCheck, dbListFields(con_dbCheck, tables))
 #'
-#'   # Extract Pids from records that matched up
-#'   sql <- paste("SELECT P_id FROM", table, "WHERE",
+#'   # Extract Pids from records that matched up for example table
+#'   sql <- paste("SELECT P_id FROM", tables, "WHERE",
 #'     paste(fields[-1], "= 1", collapse = " AND "))
 #'   is_good <- dbGetQuery(con_dbCheck, sql)
 #'
 #'   # Extract Pids from records that did not match up; this should be empty
-#'   sql <- paste("SELECT P_id FROM", table, "WHERE",
+#'   sql <- paste("SELECT P_id FROM", tables, "WHERE",
 #'     paste(fields[-1], "= 0", collapse = " OR "))
 #'   is_bad <- dbGetQuery(con_dbCheck, sql)
 #' }
@@ -3529,11 +3542,19 @@ paste_SQLite_CREATETABLE <- function(sql, field_info, subset) {
 #'   field names per table to be excluded from the subset. Each table is
 #'   represented by a correspondingly named element. If \code{NULL}, then no
 #'   fields are excluded from the subset operation.
+#' @param subset_scenarios A vector of character strings. If not \code{NULL},
+#'   then only records are copied with a \var{P_id} that belongs to an
+#'   included scenario.
+#' @param subset_experiments A vector of character strings. If not \code{NULL},
+#'   then only records are copied with a \var{P_id} that belongs to an
+#'   included experimental treatment label. This and the \code{subset_scenarios}
+#'   condition are combined with a logical \var{AND}.
 #' @param verbose A logical value.
 #'
 #' @export
 dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
-  fields_exclude = NULL, verbose = FALSE) {
+  fields_exclude = NULL, subset_scenarios = NULL, subset_experiments = NULL,
+  verbose = FALSE) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -3660,8 +3681,23 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 
   names(result_fields) <- tables
 
+  # Determine record subset conditions
+  do_record_subset <- FALSE
+
+  if (!is.null(subset_scenarios)) {
+    do_record_subset <- TRUE
+    scenarios <- paste(dbQuoteString(con_dbNew, subset_scenarios),
+      collapse = ",")
+  }
+
+  if (!is.null(subset_experiments)) {
+    do_record_subset <- TRUE
+    experiments <- paste(dbQuoteString(con_dbNew, subset_experiments),
+      collapse = ",")
+  }
 
   #--- Create, subset and copy output tables
+
   for (k in seq_len(NROW(sql_tables))) {
     if (sql_tables[k, "tbl_name"] %in% tables &&
         isTRUE(nchar(sql_tables[k, "sql"]) > 0) &&
@@ -3670,7 +3706,14 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
       table <- dbQuoteIdentifier(con_dbNew, sql_tables[k, "tbl_name"])
       rfields <- result_fields[[sql_tables[k, "tbl_name"]]]
       tfields <- dbQuoteIdentifier(con_dbNew, rfields)
-      sql_fields <- paste0(tfields, collapse = ",")
+      sql_fields1 <- paste0(tfields, collapse = ",")
+      sql_fields2 <- if (do_record_subset) {
+        # Avoid `ambiguous column name: P_id`
+        paste0(paste0("dbOut.", table, ".P_id"), ",",
+          paste0(tfields[-1], collapse = ","))
+        } else {
+          sql_fields1
+        }
 
       # Subset fields
       temp <- split_SQLite_CREATETABLE(sql_tables[k, "sql"])
@@ -3686,14 +3729,32 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 
       dbExecute(con_dbNew, sql_subset)
 
-      # Copy subsetted values from dbOut to dbNew
+      # Copy values of subsetted records/fields from dbOut to dbNew
       if (verbose) {
         print(paste(Sys.time(), "copying values into table",
           shQuote(sql_tables[k, "tbl_name"])))
       }
 
-      sql <- paste0("INSERT INTO ", table, " (", sql_fields, ") ",
-          "SELECT ", sql_fields, " FROM dbOut.", table, "")
+      sql <- paste0("INSERT INTO ", table, " (", sql_fields1, ") ",
+        "SELECT ", sql_fields2, " FROM dbOut.", table)
+
+      if (do_record_subset) {
+        # Subset records to specified scenarios and experimental levels
+        sql <- paste0(sql,
+          " INNER JOIN header ON dbOut.", table, ".P_id = header.P_id",
+          " WHERE",
+          if (!is.null(subset_scenarios)) {
+            paste0(" header.Scenario IN (", scenarios, ")")
+          },
+          if (!is.null(subset_scenarios) && !is.null(subset_experiments)) {
+            " AND"
+          },
+          if (!is.null(subset_experiments)) {
+            paste0(" header.Experimental_Label IN (", experiments, ")")
+          }
+        )
+      }
+
       dbExecute(con_dbNew, sql)
     }
   }

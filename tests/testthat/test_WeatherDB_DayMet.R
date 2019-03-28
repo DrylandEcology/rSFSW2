@@ -41,11 +41,11 @@ if (!any(do_skip) && is_online) {
     repeat {
       # Make sure that `avail_end_year` is indeed available
       # (e.g., during first days of a new year)
-      testavail <- get_DayMet_NorthAmerica(dir_data = dm_path,
+      testavail <- try(get_DayMet_NorthAmerica(dir_data = dm_path,
         cellID = "daymet_pixel_+002083_+000426",
         Xdm_WGS84 = -105.5934, Ydm_WGS84 = 41.31557,
         start_year = avail_end_year, end_year = avail_end_year,
-        dbW_digits = 2L)
+        dbW_digits = 2L), silent = TRUE)
 
       if (inherits(testavail, "try-error") && avail_end_year > 1980) {
         avail_end_year <- avail_end_year - 1L
