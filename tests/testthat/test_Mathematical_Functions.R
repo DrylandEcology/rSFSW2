@@ -42,10 +42,15 @@ test_that("Monotonicity:", {
       x
     }
   good_strict_matrices[["x4"]] <- {
-      x <- test_matrices[["x4"]]
-      x[2, 3] <- replacement
-      x
-    }
+    x <- test_matrices[["x4"]]
+    x[2, 3] <- replacement
+    x
+  }
+  good_strict_matrices[["x5"]] <- {
+    x <- test_matrices[["x5"]]
+    x[2, 2:3] <- replacement
+    x
+  }
   good_strict_matrices[["x6"]] <- {
       x <- test_matrices[["x6"]]
       x[2, 3] <- replacement

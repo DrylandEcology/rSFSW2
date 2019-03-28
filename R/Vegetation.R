@@ -50,6 +50,10 @@
 #'   component is fixed at \code{Forbs_Fraction}.
 #' @param Forbs_Fraction A numeric value. Default value is 0. A value between 0
 #'   and 1.
+#' @param fix_trees A logical value. If \code{TRUE}, then value for the
+#'   tree component is fixed at \code{Trees_Fraction}.
+#' @param Trees_Fraction A numeric value between 0 and 1. \code{NA} is treated as
+#'   if \code{fix_trees} is \code{FALSE}.
 #' @param fix_BareGround A logical value. If \code{TRUE}, then value for the
 #'   bare ground component is fixed at \code{BareGround_Fraction}.
 #' @param BareGround_Fraction A numeric value. Default value is 0. A value
@@ -59,7 +63,7 @@
 #'   \item{Composition}{Relative composition [0-1] of the vegetation for
 #'     \code{Grasses}, \code{Shrubs}, \code{Trees}, \code{Forbs}, and
 #'     \code{BareGround}. \code{Grasses} are the sum of C3-grasses, C4-grasses,
-#'     and annuals functional groups. \code{Trees} is set to zero. The sum of
+#'     and annuals functional groups. The sum of
 #'     \code{Composition} is 1.}
 #'   \item{grasses.c3c4ann.fractions}{Relative contribution [0-1] of the
 #'     C3-grasses, C4-grasses, and annuals functional groups. The sum of
@@ -79,6 +83,7 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
   fix_C3grasses = FALSE, C3_Fraction = NA,
   fix_shrubs = FALSE, Shrubs_Fraction = NA,
   fix_forbs = FALSE, Forbs_Fraction = NA,
+  fix_trees = FALSE, Trees_Fraction = NA,
   fix_BareGround = TRUE, BareGround_Fraction = 0) {
 
   f.digits <- 3
@@ -90,7 +95,7 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
   bareGround.fraction <- 0
   # Input cover fraction values:
   # annual grasses, C4-grasses, C3-grasses, shrubs, forbs, bare-ground
-  input_cover <- rep(NA, 6)
+  input_cover <- rep(NA, 7)
 
   if (fix_annuals) {
     input_cover[1] <- finite01(Annuals_Fraction)
@@ -113,6 +118,12 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
     input_cover[6] <- finite01(BareGround_Fraction)
   } else {
     input_cover[6] <- bareGround.fraction
+  }
+  if (fix_trees) {
+    # bounds Trees_Fraction to [0, 1]
+    input_cover[7] <- finite01(Trees_Fraction)
+  } else {
+    input_cover[7] <- tree.fraction
   }
   input_cover <- cut0Inf(input_cover) # treat negatives as if NA
   TotalFraction <- sum(input_cover, na.rm = TRUE)
@@ -265,7 +276,7 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
   # Scale Grass components to one (or set to 0)
   grass.fraction <- sum(input_cover[c(1:3)])
 
-  sum_temp <- sum(input_cover[4:6])
+  sum_temp <- sum(input_cover[4:7])
   c3c4ann <- rep(0, 3L)
   if (!isTRUE(all.equal(sum_temp, 1))) {
     c3c4ann[2L] <- input_cover[2] / (1 - sum_temp)
@@ -277,7 +288,7 @@ estimate_PotNatVeg_composition <- function(MAP_mm, MAT_C,
     Composition = c(
       Grasses = grass.fraction,
       Shrubs = input_cover[4],
-      Trees = tree.fraction,
+      Trees = input_cover[7],
       Forbs = input_cover[5],
       BareGround = input_cover[6]),
 
