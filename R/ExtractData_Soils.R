@@ -262,6 +262,208 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
   MMC
 }
 
+#' Extracts soils data (clay, sand, \var{bd}, gravel, depth, ...) from ISRIC's SoilGrids250m dataset.
+#' @param \var{MMC} A list containing the structure for extracted data to be
+#'   extracted to
+#' @param sim_size A list containing information on the runs.
+#' @param sim_space A list containing information on site locations and
+#'   extraction type, i.e. cell or point.
+#' @param \var{dir_ex_soil} String for the location of the soil files to be
+#'  extracted.
+#' @param fnames_in A list containing output file locations.
+#' @param resume Logical whether or not to resume the project if it failed
+#'  partially through before.
+#' @param verbose Logical whether to see additional messages or not as the
+#'  function executes.
+#' @param default_TOC_GperKG A numeric value. The default value is
+#'   0 g \var{TOC} per kg soil.
+#' @return \var{MMC} A list containing the extracted data.
+#' @references Hengl. T. et al, 2017. SoilGrids250m: Global gridded soil
+#'  information based on machine learning.
+#' @references Shangguan, W. et al, 2016. Mapping the global depth to bedrock
+#' for land surface modeling.
+#' @author Nathan Payton- McCauslin. July 2018.
+#' @section Note: \enumerate{
+#' \item All data is taken at a resolution of 250m, downloadable at
+#' \var{ftp://ftp.soilgrids.org/data/recent/}
+#'    \item Data Extracted Using Hengl. T. et al, 2017: \itemize{
+#'      \item Sand
+#'      \item Clay
+#'      \item Bulk Density
+#'      \item Gravel
+#'    }
+#'    \item Data Extracted Using Shangguan, W. et al, 2016: \itemize{
+#'      \item Depth to Bedrock
+#'    }
+#'    \item Filenames expected to be in format 
+#'    \var{soiltype_M_sllayernumber_250m.tif}
+#'    Examples: \itemize{
+#'       \item Layer 2 clay = \var{clay_M_sl2_250m.tif}
+#'       \item Layer 4 bulk density = \var{bd_M_sl4_250m.tif}
+#'       }
+#'  }
+extract_soil_ISRIC250m <- function(MMC, sim_size, sim_space,
+                                       dir_ex_soil, fnames_in, resume, verbose,
+                                       default_TOC_GperKG = 0) {
+  # print stats
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+    on.exit({
+            print(paste0("rSFSW2's ", temp_call, ": ended after ",
+                          round(difftime(Sys.time(), t1, units = "secs"), 2),
+                          " s"))
+      cat("\n")}, add = TRUE)
+  }
+  # set up data files for extraction =============================
+  soil_layer <- 1
+  dir.ex.gridded <- file.path(dir_ex_soil, "ISRIC", "GriddedGlobalV5")
+  # stop program execution if folder path is incorrect
+  if (!dir.exists(dir.ex.gridded)) stop(paste0("Folder '", dir.ex.gridded,
+                                               "' does not exist"))
+  file_in_gridded <- list.files(dir.ex.gridded, pattern = ".tif$")
+  ldepth_gridded <- c(0, 5, 15, 30, 60, 100, 200) #in cm
+  todos <- is.na(MMC[["source"]]) | MMC[["source"]] == "ISRIC_SoilGrids250m"
+  stopifnot(requireNamespace("rgdal"))
+  # set the todo list to only extract data that doesn't already exist
+  if (resume) {
+    todos <- adjust_soils_todos(todos, MMC, sim_size)
+  }
+  names(todos) <- NULL
+  # get locations of simulation runs
+  sites_conus <- sim_space[["run_sites"]][todos, ]
+  # set this once now to avoid extracting data that already exists
+  n_extract <- sum(todos)
+  if (n_extract > 0) {
+    if (verbose) {
+      print(paste("Soils data from 'ISRIC_SoilGrids250m' will be extracted",
+                  "for n =", n_extract, "sites"))
+    }
+    # main loop, does extraction for matricd, clay, sand, gravel, depth
+    for (tif in seq_along(file_in_gridded)) {
+      # get next tif file
+      tif_file <- file_in_gridded[tif]
+      # set soil types based on tif filenames
+      if (grepl("^bd", tif_file)) {
+        file_type <- "matricd"
+      } else if (grepl("^gravel", tif_file)) {
+        # switch file_type to match with MMC for insertion
+        file_type <- "GravelContent"
+      } else {
+        file_type <- substr(tif_file, 1, regexpr("_", tif_file) - 1)
+      }
+      # find the layer number of the current file ===================
+      ltemp <- strsplit(tif_file, "")
+      found_layer <- FALSE
+      i <- 1
+      while (!found_layer) {
+        if (grepl("[[:digit:]]", ltemp[[1]][i])) {
+          soil_layer <- type.convert(ltemp[[1]][i]) - 1
+          found_layer <- TRUE
+        } else {
+          i <- i + 1
+        }
+      }
+      # start extraction process =============================
+      tif_file <- file.path(dir.ex.gridded, tif_file)
+      if (!file.exists(tif_file)) stop(paste0("File '", tif_file,
+                                             "' does not exist"))
+      layer_N <- length(ldepth_gridded) - 1
+      ils <- seq_len(layer_N)
+      g <- tryCatch({
+            raster::brick(tif_file)},
+                    error = function(e) {
+                      print(paste(e))
+                      stop(paste0("Please verify the file contents of '",
+                       tif_file, "'"))
+                    })
+      soil_data <- raster::crs(g)
+
+      if (!raster::compareCRS(sim_space[["crs_sites"]], soil_data)) {
+        #transform graphics::points to grid-coords
+        sites_conus <- sp::spTransform(sites_conus, CRS = soil_data)
+      }
+      if (sim_space[["scorp"]] == "point") {
+        cell_res_conus <- NULL
+        args_extract <- list(y = sites_conus, type = sim_space[["scorp"]])
+      } else if (sim_space[["scorp"]] == "cell") {
+        cell_res_conus <- align_with_target_res(
+                                    res_from = sim_space[["sim_res"]],
+                                    crs_from = sim_space[["sim_crs"]],
+                                    sp = sim_space[["run_sites"]][todos, ],
+                                    crs_sp = sim_space[["crs_sites"]],
+                                    crs_to = soil_data)
+        args_extract <- list(y = cell_res_conus, coords = sites_conus,
+                             method = "block", type = sim_space[["scorp"]])
+      }
+      cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA, v))
+      g <- if (file.exists(tif_file)) {
+        raster::brick(tif_file)
+      } else {
+        raster::calc(g, fun = cond30, filename = tif_file)
+      }
+      if (file_type != "depth") {
+        # get soil data as a dataframe
+        soil_frame <- do.call("extract_rSFSW2", args = c(args_extract,
+                                                         x = list(g)))
+        # write density data, MMC[["data"]] requires a different column
+        # name to be written then the rest
+        percent_div <- 100
+        if (file_type == "matricd") {
+          percent_div <- 1000
+          MMC[["data"]][todos, grep("density", MMC[["cn"]])[ils]][,
+                                    soil_layer] <- soil_frame / percent_div
+        } else if (file_type == "GravelContent") {
+          soil_frame <- pmax(pmin(soil_frame / percent_div, 1), 0)
+          # write gravel data to "data
+          # gravel is already in form we want so no need to divide
+          MMC[["data"]][todos, grep("rock",
+                              MMC[["cn"]])[ils]][, soil_layer] <- soil_frame
+        } else {
+          # write sand or clay data to "data
+          MMC[["data"]][todos, grep(file_type, MMC[["cn"]])[ils]][,
+                                    soil_layer] <- soil_frame / percent_div
+        }
+        # There is no organic carbon data, set all values to a default
+        MMC[["data"]][todos, grep("carbon",
+                                  MMC[["cn"]])[ils]] <- default_TOC_GperKG
+        MMC[["idone"]]["ISRIC_SoilGrids250m"] <- TRUE
+      } else {
+        # get max depths for site soil profiles
+        ftemp_d <- file.path(dir.ex.gridded, "depth_M_250m.tif")
+        gd <- if (file.exists(ftemp_d)) {
+          raster::brick(ftemp_d)
+        } else {
+          raster::calc(gd, fun = cond30, filename = ftemp_d)
+        }
+        soil_frame_depth <- do.call("extract_rSFSW2", args = c(args_extract,
+                                                               x = list(gd)))
+        MMC[["data"]][todos, grep("depth", MMC[["cn"]])] <- soil_frame_depth
+      }
+    }
+    # Determine successful extractions =============================
+    i_good <- stats::complete.cases(MMC[["data"]][todos, "depth"])
+    MMC[["source"]][which(todos)[!i_good]] <- NA
+    lys <- seq_len(max(findInterval(MMC[["data"]][todos, "depth"],
+                                    ldepth_gridded[-1]), na.rm = TRUE))
+    if (any(i_good)) {
+      i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]])
+      i_Done[which(todos)[i_good]] <- TRUE
+      MMC[["source"]][i_Done] <- "ISRIC_SoilGrids250m"
+      MMC <- update_soils_input(MMC, sim_size, digits = 2, i_Done,
+                                ldepths_cm = ldepth_gridded[-1], lys,
+                                fnames_in)
+    }
+    # print stats
+    if (verbose) {
+        print(paste("Soil data from 'ISRIC_SoilGrids250m' was extracted for",
+                    soil_layer, "layers and n =", sum(i_good), "out of",
+                    n_extract, "sites"))
+    }
+  }
+  MMC
+}
 
 #' A wrapper for \code{reaggregate_raster} designed to work with the rasters of
 #' the \var{\sQuote{ISRIC-WISE}} datasets versions 5-arcmin v1.2 and 30-arcsec
@@ -377,7 +579,7 @@ max_depth_byPRIDs <- function(this_soil, var_ids, val_rocks) {
 #'   returned by \code{\link{ISRICWISE_extract_SUIDs}}.
 #' @param sim_soils A named numeric vector. First element is 'i' and second is
 #'   'depth'. The following elements represent the soil variables (currently,
-#'   "density", "sand", "clay", "rock", "carbon"; see
+#'   "density", "sand", "clay", "rock", "carbon" see
 #'   \code{\link{prepare_ExtractData_Soils}}) for each of the maximally possible
 #'   soil layers (see \code{SFSW2_glovars[["slyrs_maxN"]]}). Input is an empty
 #'   template.
@@ -817,6 +1019,13 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
       sim_space = SFSW2_prj_meta[["sim_space"]],
       dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
       fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
+  }
+
+  if (exinfo$ExtractSoilDataFromISRICSoilGrid_Global_250m) {
+    MMC <- extract_soil_ISRIC250m(MMC, sim_size = SFSW2_prj_meta[["sim_size"]],
+            sim_space = SFSW2_prj_meta[["sim_space"]],
+            dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
+            fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
   }
 
   if (exinfo$ExtractSoilDataFromISRICWISE30secV1a_Global) {

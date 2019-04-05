@@ -1079,7 +1079,6 @@ get_datasource_includefield <- function(SWRunInformation, field_include,
   }
 }
 
-
 get_datasource_masterfield <- function(SWRunInformation, field_sources,
   sim_size, how_determine_sources) {
 

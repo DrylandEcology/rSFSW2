@@ -161,10 +161,11 @@ run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
           }
 
           if (SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
-            SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]]) {
+              SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICSoilGrid_Global_250m"]] ||
+              SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]]) {
 
-            temp <- c(temp, SFSW2_prj_meta[["fnames_in"]][["fslayers"]],
-              SFSW2_prj_meta[["fnames_in"]][["fsoils"]])
+              temp <- c(temp, SFSW2_prj_meta[["fnames_in"]][["fslayers"]],
+                SFSW2_prj_meta[["fnames_in"]][["fsoils"]])
           }
           # nolint end
 
