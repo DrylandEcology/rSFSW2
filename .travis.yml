@@ -63,11 +63,16 @@ install:
 script:
   - R CMD build --no-build-vignettes --no-manual .
   # The extended unit test project
-  # (commit db3948e6aa746d012dbc4f25b0e9bb2a4186305f) takes about 16 min which
-  # is too long for the default settings of 10-min and times out
-  # On failure, display file 'testthat.Rout.fail' for more information and fail
-#  - travis_wait 30 R CMD check *tar.gz --as-cran --ignore-vignettes --no-manual || { cat rSFSW2.Rcheck/tests/testthat.Rout* && 1; }
-  - travis_wait 30 R CMD check *tar.gz --as-cran --ignore-vignettes --no-manual && cat rSFSW2.Rcheck/tests/testthat.Rout*
+  #   (commit db3948e6aa746d012dbc4f25b0e9bb2a4186305f) takes about 16 min which
+  #   is too long for the default settings of 10-min and times out --> use `travis_wait`
+  - travis_wait 30 R CMD check *tar.gz --as-cran --ignore-vignettes --no-manual
 
 after_success:
+  # Display testthat log file for more information if it exists and has content
+  - fname="rSFSW2.Rcheck/tests/testthat.Rout" && [ -s $fname ] && cat $fname
+  # Perform code cover estimate
   - travis_wait 30 Rscript -e 'covr::codecov()'
+
+after_failure:
+  # Display failed testthat log file for more information if it exists and has content
+  - fname="rSFSW2.Rcheck/tests/testthat.Rout.fail" && [ -s $fname ] && cat $fname

@@ -217,8 +217,8 @@ whereNearest <- function(val, matrix) {
 #' @return A logical value.
 is.natural <- function(x) {
   typeof(x) %in% c("integer", "double", "complex") &&
-  !is.null(x) && length(x) > 0 && !is.na(x) &&
-  isTRUE(all.equal(x, round(x))) && x > 0
+  !is.null(x) && length(x) > 0 && !anyNA(x) &&
+  isTRUE(all.equal(x, round(x))) && all(x > 0)
 }
 
 #' The intersection on any number of vectors
@@ -346,9 +346,8 @@ check_monotonic_increase <- function(x, MARGIN = 1, increase = TRUE,
     }
 
   ord <- !match.fun(mfun)(x[, -1, drop = FALSE], x[, -ncol(x), drop = FALSE])
-  has_na <- is.na(x)
 
-  if (any(ord, na.rm = TRUE) || (has_na && !na.rm && strictly)) {
+  if ((!na.rm && strictly && anyNA(x)) || any(ord, na.rm = TRUE)) {
     if (fail) {
       stop(paste0("'check_monotonic_increase': data are not ",
         if (strictly) "strictly ", "monotonically ",

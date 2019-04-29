@@ -61,7 +61,7 @@ There are several options:
 'rSFSW2' will compile some c code via 'Rcpp'. Your computer must be set up
 adequately.
 - If you use a Windows OS, then you need the
-  [Rtools](http://cran.us.r-project.org/bin/windows/Rtools/)
+  [Rtools](https://cran.r-project.org/bin/windows/Rtools/)
   installed that match your R version; please find further information for
   instance [here](https://www.biostat.wisc.edu/~kbroman/Rintro/Rwinpack.html).
 - If you use a macOS, then you need [Xcode](https://developer.apple.com/xcode/)
@@ -88,7 +88,7 @@ someone without development tools) for a platform to which you do not have
 access, then you may consider using one of the cloud services (no endorsements):
 - [r-hub](https://builder.r-hub.io) offers different Linux, Windows, and mac OS
   flavors as targets
-- [win-builder](http://win-builder.r-project.org/) offers Windows OS as target
+- [win-builder](https://win-builder.r-project.org/) offers Windows OS as target
 
 Alternatively, you may access the previous binary package version for Windows
 OS from our CI appveyor service if the build was successful and an artifact was
@@ -193,11 +193,16 @@ You can contribute to this project in different ways:
 - __Code documentation__
   * Read the section 'Object documentation' in
     [Wickham's book 'R packages'](http://r-pkgs.had.co.nz/man.html)
-  * Use [roxygen2](https://cran.r-project.org/web/packages/roxygen2/vignettes/formatting.html)
+  * Use [roxygen2](https://CRAN.R-project.org/package=roxygen2/vignettes/formatting.html)
     to write inline code documentation
-  * Update help pages and NAMESPACE with the command `devtools::document()`
+  * Update help pages and NAMESPACE with the command `devtools::document()`;
+    note: you may need to compile dynamic libraries first with
+    `pkgbuild::compile_dll()`.
   * Ideally, add examples to function documentation and check these examples
-    with the command `devtools::run_examples()`
+    with the command `devtools::run_examples()`.
+    Note: "devtools" v2.0.1 mixed up the logic for "dontrun" examples (see
+    https://github.com/r-lib/devtools/issues/2003); until this is fixed,
+    use `devtools::run_examples(run = FALSE)`.
   * Ideally, expand and/or add vignettes.
 
 
@@ -268,6 +273,7 @@ You can contribute to this project in different ways:
 
     1. Make sure that the documentation is up-to-date with:
        ```{r}
+       pkgbuild::compile_dll()
        devtools::document()
        ```
 
@@ -275,6 +281,9 @@ You can contribute to this project in different ways:
        ```{r}
        devtools::run_examples()
        ```
+       Note: "devtools" v2.0.1 mixed up the logic for "dontrun" examples (see
+       https://github.com/r-lib/devtools/issues/2003); until this is fixed,
+       use `devtools::run_examples(run = FALSE)`.
 
     1. Run tests as if not on CRAN, in an interactive R session,
        and with a sequential schedule.

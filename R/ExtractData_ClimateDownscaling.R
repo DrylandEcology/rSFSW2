@@ -1174,7 +1174,7 @@ doQmapQUANT.default_drs <- function(x, fobj, type = NULL, lin_extrapol = NULL,
       }
     } else if (identical(type, "tricub")) {
       sfun <- stats::splinefun(x = fobj[["par"]]$modq[, 1], y = fobj[["par"]]$fitq[, 1],
-        method = spline_method)
+        method = spline_method, ties = mean)
       temp <- sfun(x[wet])
 
       if (!is.null(monthly_extremes) && !identical(fix_spline, "none")) {
@@ -1187,7 +1187,8 @@ doQmapQUANT.default_drs <- function(x, fobj, type = NULL, lin_extrapol = NULL,
             stop("Out-of-range splinefun values and 'fix_spline' set to fail")
           }
           sfun <- stats::splinefun(x = jitter(fobj[["par"]]$modq[, 1]),
-            y = jitter(fobj[["par"]]$fitq[, 1]), method = spline_method)
+            y = jitter(fobj[["par"]]$fitq[, 1]), method = spline_method,
+            ties = mean)
           temp <- sfun(x[wet])
           icount <- icount + 1
         }
