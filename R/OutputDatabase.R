@@ -2023,13 +2023,24 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     temp_df <- SFSW2_prj_inputs[["sw_input_treatments"]][, temp, drop = FALSE]
     db_treatments <- unique(temp_df)
     db_treatments_rows <- nrow(db_treatments)
+
     #this maps locations from reduced
-    temp <- duplicated(temp_df)
+    temp2 <- data.frame(t(temp_df), stringsAsFactors = FALSE)
     treatments_unique_map <- rep(NA, nrow(temp_df))
-    temp2 <- data.frame(t(temp_df))
-    treatments_unique_map[temp] <- match(data.frame(t(temp_df[temp, ])), temp2)
-    treatments_unique_map[!temp] <- match(data.frame(t(temp_df[!temp, ])),
-      temp2)
+
+    temp <- duplicated(temp_df)
+    tempno <- !temp
+    if (any(temp)) {
+      treatments_unique_map[temp] <- match(
+        x = data.frame(t(temp_df[temp, ]), stringsAsFactors = FALSE),
+        table = temp2)
+    }
+    if (any(tempno)) {
+      treatments_unique_map[tempno] <- match(
+        x = data.frame(t(temp_df[tempno, ]), stringsAsFactors = FALSE),
+        table = temp2)
+    }
+
     db_treatments_map <- unique(treatments_unique_map)
     treatments_unique_map <- sapply(treatments_unique_map, function(x)
       which(db_treatments_map == x))
