@@ -787,7 +787,9 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave, # noli
     if (todo_intracker(SFSW2_prj_meta, "req_soillayers", "prepared")) {
 
       temp <- calc_RequestedSoilLayers(SFSW2_prj_meta, SFSW2_prj_inputs,
-        runIDs_adjust, verbose = opt_verbosity[["verbose"]])
+        runIDs_adjust,
+        keep_old_depth = SFSW2_prj_meta[["opt_input"]][["keep_old_depth"]],
+        verbose = opt_verbosity[["verbose"]])
 
       SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
       SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
