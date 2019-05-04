@@ -1,7 +1,7 @@
 Package: rSFSW2
 Title: Simulation Framework for SOILWAT2
-Version: 3.1.5
-Date: 2019-03-14
+Version: 4.0.0
+Date: 2019-05-03
 Authors@R: c(
   person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@yale.edu",
     comment = c(ORCID = "0000-0001-9973-2065"), role = c("aut", "cre")),
@@ -12,9 +12,9 @@ Authors@R: c(
 Description: Setting up, carrying out, and analyzing ecosystem water balance
     simulation experiments with SOILWAT2.
 Depends:
-    R (>= 3.4.0)
+    R (>= 3.5.0)
 Imports:
-    rSOILWAT2 (>= 2.3.5),
+    rSOILWAT2 (>= 3.0.0),
     RSQLite (>= 2.1.1),
     DBI (>= 1.0),
     Rcpp (>= 0.12.12),
@@ -45,7 +45,7 @@ Suggests:
     spelling (>= 1.1),
     hunspell (>= 2.9),
     covr,
-    lintr (>= 1.0.3),
+    lintr (>= 1.0.3.9000),
     goodpractice
 Remotes:
     github::dschlaep/weathergen

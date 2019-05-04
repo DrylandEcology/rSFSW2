@@ -92,7 +92,7 @@ get_CO2effects_yr(x, st)
 \code{\link[rSOILWAT2:swOutput-class]{rSOILWAT2::swOutput}}.}
 
 \item{st}{An object as returned from the function
-\code{\link{setup_simulation_time}}.}
+\code{\link{setup_time_simulation_project}}.}
 }
 \description{
 \pkg{rSOILWAT2} data access functions

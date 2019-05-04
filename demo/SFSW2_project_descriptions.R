@@ -152,6 +152,10 @@ opt_input <- list(
 
   # Interpolate and add soil layers if not available if 'AddRequestedSoilLayers'
   requested_soil_layers = c(5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150),
+  # Approach existing soil depth is less than 'requested_soil_layers'
+  #   - [TRUE] keep input soil depth
+  #   - [FALSE] adjust soil depth to 'max(requested_soil_layers)'
+  keep_old_depth = TRUE,
 
   # Request data from datasets ('external' to a rSFSW2-project)
   req_data = c(

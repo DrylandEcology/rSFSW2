@@ -2023,13 +2023,24 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     temp_df <- SFSW2_prj_inputs[["sw_input_treatments"]][, temp, drop = FALSE]
     db_treatments <- unique(temp_df)
     db_treatments_rows <- nrow(db_treatments)
+
     #this maps locations from reduced
-    temp <- duplicated(temp_df)
+    temp2 <- data.frame(t(temp_df), stringsAsFactors = FALSE)
     treatments_unique_map <- rep(NA, nrow(temp_df))
-    temp2 <- data.frame(t(temp_df))
-    treatments_unique_map[temp] <- match(data.frame(t(temp_df[temp, ])), temp2)
-    treatments_unique_map[!temp] <- match(data.frame(t(temp_df[!temp, ])),
-      temp2)
+
+    temp <- duplicated(temp_df)
+    tempno <- !temp
+    if (any(temp)) {
+      treatments_unique_map[temp] <- match(
+        x = data.frame(t(temp_df[temp, ]), stringsAsFactors = FALSE),
+        table = temp2)
+    }
+    if (any(tempno)) {
+      treatments_unique_map[tempno] <- match(
+        x = data.frame(t(temp_df[tempno, ]), stringsAsFactors = FALSE),
+        table = temp2)
+    }
+
     db_treatments_map <- unique(treatments_unique_map)
     treatments_unique_map <- sapply(treatments_unique_map, function(x)
       which(db_treatments_map == x))
@@ -2233,7 +2244,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     } else {
       simulation_years[, "EndYear"] <- SFSW2_prj_meta[["sim_time"]][["endyr"]]
     }
-    simulation_years[, "StartYear"] <- getStartYear(
+    simulation_years[, "StartYear"] <- rSOILWAT2::getStartYear(
       simulation_years[, "simulationStartYear"],
       SFSW2_prj_meta[["sim_time"]][["spinup_N"]])
 
@@ -2394,57 +2405,74 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
 
   #------ CREATE VIEW
+  sites_columns1 <- req_fields_SWRunInformation()
   if (length(SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]]) > 0) {
-    sites_columns <- colnames(SFSW2_prj_inputs[["SWRunInformation"]])[
-      SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]]]
+    sites_columns2 <- colnames(SFSW2_prj_inputs[["SWRunInformation"]])[
+        SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]]]
 
-    for (k_excl in c("label", "WeatherFolder", "Include_YN")) {
-      icol <- grep(k_excl, sites_columns, ignore.case = TRUE)
+    for (k_excl in sites_columns1) {
+      icol <- grep(k_excl, sites_columns2, ignore.case = TRUE)
       if (length(icol) > 0)
-        sites_columns <- sites_columns[-icol]
+        sites_columns2 <- sites_columns2[-icol]
     }
-
   } else {
-    sites_columns <- NULL
+    sites_columns2 <- NULL
   }
+
+  for (k_excl in c("Labels", "Experimental_Label", "WeatherFolder")) {
+    icol <- grep(k_excl, sites_columns1, ignore.case = TRUE)
+    if (length(icol) > 0)
+      sites_columns1 <- sites_columns1[-icol]
+  }
+
   treatment_columns <- colnames(db_combined_exp_treatments)[- (1:3)]
-  if (useTreatmentWeatherFolder)
+
+  if (useTreatmentWeatherFolder) {
     treatment_columns <- treatment_columns[-grep("WeatherFolder",
       treatment_columns)]
+  }
+
   header_columns <- paste(c(
       "runs.P_id",
       "run_labels.label AS Labels",
-      "sites.Include_YN AS Include_YN",
-      if (!is.null(sites_columns))
-        paste0("sites.\"", sites_columns, "\"", collapse = ", "),
-      if (useExperimentals)
-        "experimental_labels.label AS Experimental_Label",
+      paste0("sites.\"", sites_columns1, "\" AS \"", sites_columns1, "\"",
+        collapse = ", "),
+      if (!is.null(sites_columns2)) {
+        paste0("sites.\"", sites_columns2, "\"", collapse = ", ")
+      },
+      if (useExperimentals) {
+        "experimental_labels.label AS Experimental_Label"
+      },
       "weatherfolders.folder AS WeatherFolder",
-      if (useExperimentals || useTreatments)
-        paste("treatments", treatment_columns, sep = ".", collapse = ", "),
+      if (useExperimentals || useTreatments) {
+        paste("treatments", treatment_columns, sep = ".", collapse = ", ")
+      },
       "simulation_years.StartYear",
-      "simulation_years.simulationStartYear AS SimStartYear",
+      "simulation_years.simulationStartYear",
       "simulation_years.EndYear",
       "scenario_labels.label AS Scenario"),
     collapse = ", ")
 
   dbExecute(con_dbOut, paste0(
-    "CREATE VIEW header AS SELECT ", header_columns,
-    " FROM runs, run_labels, sites, ",
-    if (useExperimentals)
-      "experimental_labels, ",
-    "treatments, scenario_labels, simulation_years, weatherfolders",
-    " WHERE runs.label_id=run_labels.id AND runs.site_id=sites.id AND",
-    " runs.treatment_id=treatments.id AND",
-    " runs.scenario_id=scenario_labels.id AND ",
-    if (useTreatmentWeatherFolder) {
-      "treatments.LookupWeatherFolder_id=weatherfolders.id AND "
-    } else {
-      "sites.WeatherFolder_id=weatherfolders.id AND "
-    },
-    if (useExperimentals)
-      "treatments.experimental_id=experimental_labels.id AND ",
-    "treatments.simulation_years_id=simulation_years.id;"
+    "CREATE VIEW header ",
+    "AS SELECT ", header_columns, " ",
+    "FROM runs, run_labels, sites, ",
+      if (useExperimentals) "experimental_labels, ",
+      "treatments, scenario_labels, simulation_years, weatherfolders ",
+    "WHERE ",
+      "runs.label_id=run_labels.id AND ",
+      "runs.site_id=sites.id AND ",
+      "runs.treatment_id=treatments.id AND ",
+      "runs.scenario_id=scenario_labels.id AND ",
+      if (useTreatmentWeatherFolder) {
+        "treatments.LookupWeatherFolder_id=weatherfolders.id AND "
+      } else {
+        "sites.WeatherFolder_id=weatherfolders.id AND "
+      },
+      if (useExperimentals) {
+        "treatments.experimental_id=experimental_labels.id AND "
+      },
+    "treatments.simulation_years_id=simulation_years.id"
   ))
 
   invisible(NULL)

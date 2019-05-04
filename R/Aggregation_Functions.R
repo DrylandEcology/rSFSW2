@@ -780,9 +780,9 @@ fields_dailyNRCS_SoilMoistureTemperatureRegimes <- function(aon, ...) { # nolint
 
   if (isTRUE(aon[[id]])) {
     temp <- paste0("NRCS_", c(
-      paste0("SoilTemperatureRegime_", STR_names()),
-      paste0("SoilMoistureRegime_", SMR_names()),
-      paste0("SoilMoistureRegimeQualifier_", SMRq_names())))
+      paste0("SoilTemperatureRegime_", rSOILWAT2::STR_names()),
+      paste0("SoilMoistureRegime_", rSOILWAT2::SMR_names()),
+      paste0("SoilMoistureRegimeQualifier_", rSOILWAT2::SMRq_names())))
   }
 
   list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))

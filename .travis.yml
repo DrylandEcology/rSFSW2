@@ -53,6 +53,8 @@ before_install:
   - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git ../rSOILWAT2
   # Install rSOILWAT2 without help pages and without vignettes
   - R CMD INSTALL --no-docs --no-help ../rSOILWAT2
+  # Use git-lfs to pull reference files for package checking
+  - git lfs pull
 
 install:
   # Install rSFSW2 dependencies, but remove `Rmpi` etc.

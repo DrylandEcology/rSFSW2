@@ -21,6 +21,17 @@ A list with at least one element:\enumerate{
 Reference database is identified by containing \code{basename(dir_test)} in
 the file name.
 }
+\examples{
+\dontrun{
+  # Run test project 4 inside development version of package
+  # Assume that working directory is `tests/test_data/TestPrj4/`
+  source("SFSW2_project_code.R")
+
+  # Compare output database with reference database
+  comp <- compare_test_output(".", dir_ref = "../0_ReferenceOutput/")
+}
+
+}
 \seealso{
 \code{\link{compare_two_dbOutput}}
 }

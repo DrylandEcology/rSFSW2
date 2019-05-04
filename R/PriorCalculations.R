@@ -11,7 +11,7 @@
 #'
 #' @export
 calc_RequestedSoilLayers <- function(SFSW2_prj_meta,
-  SFSW2_prj_inputs, runIDs_adjust, verbose = FALSE) {
+  SFSW2_prj_inputs, runIDs_adjust, keep_old_depth = TRUE, verbose = FALSE) {
 
   requested_soil_layers <-
     SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]]
@@ -64,8 +64,10 @@ calc_RequestedSoilLayers <- function(SFSW2_prj_meta,
   if (length(layer_sets) > 0) {
     has_changed <- FALSE
     sw_input_soils_data <- lapply(var_layers, function(x)
-      as.matrix(SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust_ws,
-      grep(x, names(SFSW2_prj_inputs[["sw_input_soils"]]))[ids_layers]]))
+      as.matrix(SFSW2_prj_inputs[["sw_input_soils"]][
+          runIDs_adjust_ws,
+          grep(x, names(SFSW2_prj_inputs[["sw_input_soils"]]))[ids_layers],
+          drop = FALSE]))
     sw_input_soils_data2 <- NULL
 
     for (ils in seq_along(layer_sets)) {
@@ -74,13 +76,15 @@ calc_RequestedSoilLayers <- function(SFSW2_prj_meta,
 
       # Identify which requested layers to add
       ldset <- stats::na.exclude(layers_depth[which(il_set)[1], ])
-      req_sl_toadd <- setdiff(requested_soil_layers, ldset)
-      req_sd_toadd <- req_sl_toadd[req_sl_toadd < max(ldset)]
+      req_sd_toadd <- setdiff(requested_soil_layers, ldset)
+      if (isTRUE(keep_old_depth)) {
+        req_sd_toadd <- req_sd_toadd[req_sd_toadd < max(ldset)]
+      }
       if (length(req_sd_toadd) == 0) next
 
       # Add identified layers
-      sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
-        sw_input_soils_data[[iv]][il_set, ])
+      sw_input_soils_data2 <- lapply(seq_along(var_layers),
+        function(iv) sw_input_soils_data[[iv]][il_set, , drop = FALSE])
       for (lnew in req_sd_toadd) {
         ilnew <- findInterval(lnew, ldset)
         il_weight <- calc_weights_from_depths(ilnew, lnew, ldset)
