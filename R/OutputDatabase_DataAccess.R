@@ -22,6 +22,10 @@
 #'   The number must match the number of columns returned by \code{FUN}.
 #' @param FUN A function. See details.
 #' @param ... Additional named arguments to \code{FUN}. See details.
+#' @param overwrite A logical value. If \code{vars_new} already exists and
+#'   \code{overwrite} is \code{TRUE}, then the content of the fields
+#'   \code{vars_new} will be replaced. If \code{vars_new} already exists and
+#'   \code{overwrite} is \code{FALSE}, then the function stops with an error.
 #' @param verbose A logical value.
 #' @param chunk_size An integer value.
 #'
@@ -68,7 +72,8 @@
 #'
 #' @export
 dbOutput_add_calculated_field <- function(dbOut_fname, table,
-  vars_orig, vars_new, FUN, ..., verbose = FALSE, chunk_size = 1e5) {
+  vars_orig, vars_new, FUN, ..., overwrite = FALSE, verbose = FALSE,
+  chunk_size = 1e5) {
 
   #--- Preparations
   con <- dbConnect(SQLite(), dbname = dbOut_fname)
@@ -84,15 +89,22 @@ dbOutput_add_calculated_field <- function(dbOut_fname, table,
   stopifnot(vars_orig %in% has_fields)
 
   # Check new variable(s) don't already exist
-  stopifnot(!(vars_new %in% has_fields))
+  has_new <- vars_new %in% has_fields
 
+  if (has_new) {
+    if (!overwrite) {
+      stop("Requested variable(s): ", paste(shQuote(vars_new), collapse = ", "),
+        " already exist(s) as field(s) in database.")
+    }
 
-  #--- Add new variables as empty fields
-  sql <- paste(
-    "ALTER TABLE", tableq,
-    "ADD COLUMN", paste0(vars_newq, " REAL", collapse = ", "))
+  } else {
+    #--- Add new variables
+    sql <- paste(
+      "ALTER TABLE", tableq,
+      "ADD COLUMN", paste0(vars_newq, " REAL", collapse = ", "))
 
-  dbExecute(con, sql)
+    dbExecute(con, sql)
+  }
 
 
   #--- Calculate new variable(s)
