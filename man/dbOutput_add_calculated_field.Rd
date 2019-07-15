@@ -6,7 +6,7 @@
 calculation of values from (an) existing field(s)}
 \usage{
 dbOutput_add_calculated_field(dbOut_fname, table, vars_orig, vars_new, FUN,
-  ..., verbose = FALSE, chunk_size = 1e+05)
+  ..., overwrite = FALSE, verbose = FALSE, chunk_size = 1e+05)
 }
 \arguments{
 \item{dbOut_fname}{A character string. The path to the output database.}
@@ -23,6 +23,11 @@ The number must match the number of columns returned by \code{FUN}.}
 \item{FUN}{A function. See details.}
 
 \item{...}{Additional named arguments to \code{FUN}. See details.}
+
+\item{overwrite}{A logical value. If \code{vars_new} already exists and
+\code{overwrite} is \code{TRUE}, then the content of the fields
+\code{vars_new} will be replaced. If \code{vars_new} already exists and
+\code{overwrite} is \code{FALSE}, then the function stops with an error.}
 
 \item{verbose}{A logical value.}
 

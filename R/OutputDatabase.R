@@ -262,7 +262,7 @@ get_fieldnames <- function(responseName, fields.header, fields.iTable) {
 #' Get data of variables in the overall aggregation table for one of the
 #' scenarios
 #' @export
-get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName, # nolint
+get.SeveralOverallVariables_Scenario_old <- function(fdbrSFSW2, responseName, # nolint
   MeanOrSD = "Mean", scenario = "Current", whereClause = NULL) {
 
   dat <- NULL
@@ -310,6 +310,157 @@ get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName, # noli
 
   dat[, iColumns[["outOrder"]]]
 }
+
+
+#' Get data of variables in the overall aggregation table for one of the
+#' scenarios
+#' @export
+get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName, # nolint
+  MeanOrSD = "Mean", scenario = "Current", whereClause = NULL) {
+
+  .Deprecated("dbOut_read_variables_from_scenario")
+
+  dbOut_read_variables_from_scenario(
+    fname_dbOut = fdbrSFSW2,
+    variables = responseName,
+    MeanOrSD = MeanOrSD,
+    scenario = scenario,
+    whereClause = whereClause)
+}
+
+
+#' Reads variables/fields from the header view or from tables including sites,
+#' runs and one of the overall aggregation tables for one of the scenarios
+#' and optionally subsets rows by a where-clause
+#'
+#' @param fname_dbOut A character string. The path to the output database.
+#' @param variables A vector of character strings. The (partial) names of
+#'   variables/columns/fields to be read.
+#' @param MeanOrSD A character string. Identify which type of overall aggregated
+#'   table to read.
+#' @param scenario A character string. This must be one of the values from the
+#'   \var{Scenario} values from the \var{header} view.
+#' @param whereClause A character string. This must be of the structure
+#'   \var{field_name='value'} or \code{NULL}
+#'
+#' @return A \code{data.frame}
+#'
+#' @export
+dbOut_read_variables_from_scenario <- function(fname_dbOut, variables = NULL,
+  MeanOrSD = c("Mean", "SD"), scenario = "Current", whereClause = NULL) {
+
+  MeanOrSD <- match.arg(MeanOrSD)
+
+  dat <- as.data.frame(matrix(NA, nrow = 0, ncol = length(variables),
+    dimnames = list(NULL, variables)))
+
+  if (length(variables) > 0) {
+    con <- dbConnect(SQLite(), fname_dbOut, flags = SQLITE_RO)
+    on.exit(dbDisconnect(con), add = TRUE)
+
+    db_tables <- dbListTables(con)
+    header_fields <- dbListFields(con, "header")
+
+    extract_tables <- c("header", "sites", "runs", paste0("overall_", MeanOrSD))
+    db_setup <- lapply(extract_tables, function(table) {
+        tn <- grep(table, db_tables, ignore.case = TRUE, fixed = FALSE,
+          value = TRUE)
+        has <- length(tn) > 0
+        icols <- if (has) get_fieldnames(variables,
+          fields.header = header_fields,
+          fields.iTable = dbListFields(con, tn))
+        c(list(name = dbQuoteIdentifier(con, tn), has = has), icols = icols)
+      })
+    names(db_setup) <- extract_tables
+
+    has_columns <- sapply(db_setup, function(x)
+      x[["has"]] && x[["icols.has_columns"]])
+    add_Pid <- any(sapply(db_setup, function(x)
+      x[["has"]] && x[["icols.addPid"]]))
+    outOrder <- unlist(lapply(db_setup, function(x) x[["icols.outOrder"]]))
+
+    if (any(has_columns) || add_Pid) {
+      need_sep <- FALSE
+
+      sql <- paste0("SELECT ",
+        # Add `P_id` if requested
+        if (add_Pid) {
+          need_sep <- TRUE
+          "header.P_id AS P_id"
+        },
+        if (add_Pid && any(has_columns)) ", ",
+
+        # Add fields from header table if requested
+        if (length(db_setup[["header"]][["icols.header"]]) > 0) {
+          temp <- dbQuoteIdentifier(con,
+            db_setup[["header"]][["icols.header"]])
+          temp <- paste0("header.", temp, " AS ", temp, collapse = ", ")
+          if (need_sep) {
+            paste(",", temp)
+          } else {
+            need_sep <- TRUE
+            temp
+          }
+        },
+
+        # Add fields from runs table if requested
+        if (length(db_setup[["runs"]][["icols.iTable"]]) > 0) {
+          temp <- dbQuoteIdentifier(con,
+            db_setup[["runs"]][["icols.iTable"]])
+          temp <- paste0("runs.", temp, " AS ", temp, collapse = ", ")
+          if (need_sep) {
+            paste(",", temp)
+          } else {
+            need_sep <- TRUE
+            temp
+          }
+        },
+
+        # Add fields from sites table if requested
+        if (length(db_setup[["sites"]][["icols.iTable"]]) > 0) {
+          temp <- dbQuoteIdentifier(con,
+            db_setup[["sites"]][["icols.iTable"]])
+          temp <- paste0("sites.", temp, " AS ", temp, collapse = ", ")
+          if (need_sep) {
+            paste(",", temp)
+          } else {
+            need_sep <- TRUE
+            temp
+          }
+        },
+
+        # Add fields from aggregation output table if requested
+        if (length(db_setup[[4]][["icols.iTable"]]) > 0) {
+          temp <- dbQuoteIdentifier(con,
+            db_setup[[4]][["icols.iTable"]])
+          temp <- paste0(db_setup[[4]][["name"]], ".", temp, " AS ", temp,
+            collapse = ", ")
+          if (need_sep) {
+            paste(",", temp)
+          } else {
+            temp
+          }
+        },
+
+        " FROM header",
+          " INNER JOIN ", db_setup[[4]][["name"]],
+            " ON header.P_id = ", db_setup[[4]][["name"]], ".P_id",
+          " INNER JOIN runs ON header.P_id = runs.P_id",
+          " INNER JOIN sites ON runs.site_id = sites.id",
+        " WHERE header.Scenario = ", shQuote(scenario),
+        if (length(whereClause) > 0)
+          paste0(" AND ", addHeaderToWhereClause(whereClause,
+            headers = header_fields)),
+        " ORDER BY header.P_id")
+
+      dat <- dbGetQuery(con, sql)[, outOrder]
+    }
+  }
+
+  dat
+}
+
+
 
 #' Get data of variables in the overall aggregation table for one of the
 #' ensembles
