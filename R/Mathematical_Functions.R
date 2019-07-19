@@ -99,6 +99,90 @@ circ_sd <- function(x, int, na.rm = FALSE) {
   }
 }
 
+
+#' Calculate the circular subtraction \var{x - y}
+#'
+#' @param x A numeric vector or array.
+#' @param y A numeric vector or array.
+#' @param int A numeric value. The number of units of \code{x} in a full circle,
+#'   e.g., for unit days: \code{int = 365}; for unit months: \code{int = 12}.
+#' @examples
+#' # Days of year
+#' circ_minus(260, 240, int = 365) ## expected: +20
+#' circ_minus(240, 260, int = 365) ## expected: -20
+#' circ_minus(10, 360, int = 365) ## expected: +15
+#' circ_minus(360, 10, int = 365) ## expected: -15
+#' circ_minus(0, 360, int = 365) ## expected: +5
+#' circ_minus(360, 0, int = 365) ## expected: -5
+#'
+#' # Matrix examples
+#' x <- matrix(c(260, 240, 10, 360, 0, 360), nrow = 3, ncol = 2)
+#' y <- matrix(c(240, 260, 360, 10, 360, 0), nrow = 3, ncol = 2)
+#' circ_minus(x, y, int = 365)
+#' y2 <- y
+#' y2[1, 1] <- NA
+#' circ_minus(y2, x, int = 365)
+#' @export
+circ_minus <- function(x, y, int) {
+  stopifnot(all(dim(x) == dim(y)))
+
+  if (requireNamespace("circular", quietly = TRUE)) {
+    circ <- 2 * pi / int
+    d_circ <- circular::circular((x - y) * circ,
+      type = "angles", units = "radians", rotation = "clock", modulo = "asis")
+    res <- as.numeric(circular::minusPiPlusPi(d_circ) / circ)
+
+  } else {
+    res <- rep(NA, length(x))
+  }
+
+  if (is.array(x)) {
+    array(res, dim = dim(x), dimnames = dimnames(x))
+  } else {
+    res
+  }
+}
+
+
+#' Calculate the circular addition \var{x + y}
+#'
+#' @param x A numeric vector or array.
+#' @param y A numeric vector or array.
+#' @param int A numeric value. The number of units of \code{x} in a full circle,
+#'   e.g., for unit days: \code{int = 365}; for unit months: \code{int = 12}.
+#' @examples
+#' # Matrix examples: day of year
+#' x <- matrix(c(260, 240, 10, 360, 0, 360), nrow = 3, ncol = 2)
+#' y <- matrix(c(240, 260, 360, 10, 360, 0), nrow = 3, ncol = 2)
+#' circ_add(x, y, int = 365)
+#'
+#' # Circular addition and subtraction
+#' r1 <- circ_add(circ_minus(x, y, int = 365), y, int = 365)
+#' r2 <- circ_minus(circ_add(x, y, int = 365), y, int = 365)
+#' all.equal(r1, r2)
+#'
+#' @export
+circ_add <- function(x, y, int) {
+  stopifnot(all(dim(x) == dim(y)))
+
+  if (requireNamespace("circular", quietly = TRUE)) {
+    circ <- 2 * pi / int
+    d_circ <- circular::circular((x + y) * circ,
+      type = "angles", units = "radians", rotation = "clock", modulo = "asis")
+    res <- as.numeric(circular::minusPiPlusPi(d_circ) / circ)
+
+  } else {
+    res <- rep(NA, length(x))
+  }
+
+  if (is.array(x)) {
+    array(res, dim = dim(x), dimnames = dimnames(x))
+  } else {
+    res
+  }
+}
+
+
 #' Find the \code{k}-largest/smallest values (and apply a function to these
 #' values)
 #'
