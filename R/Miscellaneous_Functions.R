@@ -459,6 +459,48 @@ calc_drylandindices <- function(annualPPT, annualPET, monthlyTemp,
 }
 
 
+#' Main climate classification according to Trewartha
+#'
+#' The main climate classifications based on mean monthly temperature, i.e.,
+#' without group B--dry, include \describe{
+#'   \item Group A (tropical): sum(months >= 18 C) == 12
+#'   \item Group C (subtropical):
+#'     sum(months >= 10 C) >= 8 & sum(months >= 18 C) < 12
+#'   \item Group D (temperate and continental): sum(months >= 10 C) %in% 4:7
+#'   \item Group E (boreal): sum(months >= 10 C) %in% 1:3
+#'   \item Group F (polar): sum(months >= 10 C) == 0
+#' }
+#'
+#' @param meanTmonthly_C A numeric vector of length 12. Mean monthly air
+#'   temperature in degree Celsius.
+#'
+#' @seealso \code{\link[ClimClass](koeppen_geiger)}
+#' @references Trewartha, G.T. and Lyle, H.H., 1980: An Introduction to Climate.
+#'   MacGraw - Hill, 5th Ed. Appendix: Koeppen's Classification of Climates
+trewartha_climate <- function(meanTmonthly_C) {
+  stopifnot(length(meanTmonthly_C) == 12)
+
+  temp18 <- sum(meanTmonthly_C >= 18)
+
+  if (temp18 == 12) {
+    "tropical"
+  } else {
+    temp10 <- sum(meanTmonthly_C >= 10)
+
+    if (temp10 >= 8) {
+      "subtropical"
+    } else if (temp10 >= 4) {
+      "temperate"
+    } else if (temp10 >= 1) {
+      "boreal"
+    } else {
+      "polar"
+    }
+  }
+}
+
+
+
 extreme_values_and_doys <- function(x, na.rm = FALSE) {
   tmax <- max(x, na.rm = na.rm)
   tmin <- min(x, na.rm = na.rm)
