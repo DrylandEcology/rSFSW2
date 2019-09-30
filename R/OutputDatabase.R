@@ -388,7 +388,6 @@ dbOut_read_variables_from_scenario <- function(fname_dbOut, variables = NULL,
           need_sep <- TRUE
           "header.P_id AS P_id"
         },
-        if (add_Pid && any(has_columns)) ", ",
 
         # Add fields from header table if requested
         if (length(db_setup[["header"]][["icols.header"]]) > 0) {
