@@ -1271,8 +1271,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       #- Initial soil temperatures adjusted to climatic conditions
       print_debug(opt_verbosity, tag_simpidfid, "creating", "soil temperature")
 
-      if (exists("soilTUpper"))
+      if (exists("soilTUpper")) {
         rm(soilTUpper)
+      }
 
       if (prj_todos[["EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature"]]) {
         rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["ConstMeanAirTemp"] <- mean(SiteClimate_Scenario$meanMonthlyTempC)
