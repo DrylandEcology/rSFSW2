@@ -650,6 +650,59 @@ applyDeltas2 <- function(daily, monthly, years, delta_ts, ppt_fun,
 }
 
 
+#' \code{rbind} two objects, but make sure that there is no duplication in two
+#' indicator columns.
+#'
+#' @param x1 A two dimensional numeric object; the first two columns (e.g.,
+#'   years, months) are matched up against \code{x2}.
+#' @param x2 Same as \code{x1}.
+#'
+#' @return The object that would result from \code{rbind(x1, x2)} but where
+#'   any duplication, as determined by the first two columns, is resolved, i.e.,
+#'   copy with \code{NAs} is ignored or arithmetic mean across \code{x1} and
+#'   \code{x2}.
+rbind_2cols_nonoverlapping <- function(x1, x2) {
+  if (is.null(x1) || nrow(x1) == 0) {
+    res <- x2
+
+  } else if (is.null(x2) || nrow(x2) == 0) {
+    res <- x1
+
+  } else {
+    # Check whether there is a year-month overlap
+    ids1 <- apply(x1[, 1:2], 1, paste, collapse = "-")
+    ids2 <- apply(x2[, 1:2], 1, paste, collapse = "-")
+
+    idso1 <- ids1 %in% ids2
+    if (any(idso1)) {
+      # handle overlap
+      idso2 <- ids2 %in% ids1
+
+      # Check whether there is one uniquely non-NA set
+      if (all(is.na(x1[idso1, -(1:2)]))) {
+        res <- rbind(x1[!idso1, ], x2)
+
+      } else if (all(is.na(x2[idso2, -(1:2)]))) {
+        res <- rbind(x1, x2[!idso2, ])
+
+      } else {
+        # both sets have values for overlap: take mean
+        tmp <- x1
+        tmp[idso1, -(1:2)] <-
+          (x1[idso1, -(1:2)] + x2[idso2, -(1:2)]) / 2
+        res <- rbind(tmp, x2[!idso2, -(1:2)])
+      }
+
+    } else {
+      # there is no overlap
+      res <- rbind(x1, x2)
+    }
+  }
+
+  res
+}
+
+
 
 #' Downscale and temporal disaggregation
 #'
@@ -2384,12 +2437,17 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
       #  not provide data for the last month of a time slice (e.g. December 2005 may be NA)
       scen.hist.monthly <- NULL
       if (!all(df_wdataOut[["downscaling"]][k] == "raw")) {
-        for (itt in which(assocYears[["historical"]]$first))
-          scen.hist.monthly <- rbind(scen.hist.monthly, scen.monthly[1, itt][[1]])
+        for (itt in which(assocYears[["historical"]]$first)) {
+          scen.hist.monthly <- rbind_2cols_nonoverlapping(
+            scen.hist.monthly,
+            scen.monthly[1, itt][[1]])
+        }
 
-        for (itt in which(assocYears[["historical"]]$second))
-          scen.hist.monthly <- rbind(scen.hist.monthly,
+        for (itt in which(assocYears[["historical"]]$second)) {
+          scen.hist.monthly <- rbind_2cols_nonoverlapping(
+            scen.hist.monthly,
             scen.monthly[1 + ir, getYears$n_first + itt][[1]])
+        }
       }
 
       if (print.debug && !is.null(scen.hist.monthly)) {
@@ -2403,11 +2461,17 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
 
       # Put future data together
       scen.fut.monthly <- NULL
-      for (itt in which(assocYears[[df_wdataOut[["tag"]][k]]]$first))
-        scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1, itt][[1]])
+      for (itt in which(assocYears[[df_wdataOut[["tag"]][k]]]$first)) {
+          scen.fut.monthly <- rbind_2cols_nonoverlapping(
+            scen.fut.monthly,
+            scen.monthly[1, itt][[1]])
+      }
 
-      for (itt in which(assocYears[[df_wdataOut[["tag"]][k]]]$second))
-        scen.fut.monthly <- rbind(scen.fut.monthly, scen.monthly[1 + ir, getYears$n_first + itt][[1]])
+      for (itt in which(assocYears[[df_wdataOut[["tag"]][k]]]$second)) {
+          scen.fut.monthly <- rbind_2cols_nonoverlapping(
+            scen.fut.monthly,
+            scen.monthly[1 + ir, getYears$n_first + itt][[1]])
+      }
 
       if (print.debug) {
         scen.fut.monthly_mean <- stats::aggregate(scen.fut.monthly[, -(1:2)],
