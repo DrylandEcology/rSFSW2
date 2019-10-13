@@ -462,7 +462,7 @@ calc_drylandindices <- function(annualPPT, annualPET, monthlyTemp,
 #' Main climate classification according to Trewartha
 #'
 #' The main climate classifications based on mean monthly temperature, i.e.,
-#' without group B--dry, include \describe{
+#' without group B--dry, include \itemize{
 #'   \item Group A (tropical): sum(months >= 18 C) == 12
 #'   \item Group C (subtropical):
 #'     sum(months >= 10 C) >= 8 & sum(months >= 18 C) < 12
@@ -474,7 +474,7 @@ calc_drylandindices <- function(annualPPT, annualPET, monthlyTemp,
 #' @param meanTmonthly_C A numeric vector of length 12. Mean monthly air
 #'   temperature in degree Celsius.
 #'
-#' @seealso \code{\link[ClimClass](koeppen_geiger)}
+#' @seealso \code{\link[ClimClass]{koeppen_geiger}}
 #' @references Trewartha, G.T. and Lyle, H.H., 1980: An Introduction to Climate.
 #'   MacGraw - Hill, 5th Ed. Appendix: Koeppen's Classification of Climates
 trewartha_climate <- function(meanTmonthly_C) {
