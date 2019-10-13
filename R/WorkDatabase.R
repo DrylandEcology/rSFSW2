@@ -869,8 +869,6 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
     out_tables <- dbOutput_ListOutputTables(con = con_dbOut)
 
     # Extract information from dbOutput table 'runs'
-    infer_expN <- as.integer(dbGetQuery(con_dbOut,
-      "SELECT MAX(treatment_id) FROM runs"))
     infer_scN <- as.integer(dbGetQuery(con_dbOut,
       "SELECT MAX(scenario_id) FROM runs"))
     infer_runsN_total <- as.integer(dbGetQuery(con_dbOut,
@@ -884,6 +882,12 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
       "SELECT Include_YN FROM sites")[, 1])
     infer_runIDmax_sites <- as.integer(dbGetQuery(con_dbOut,
       "SELECT MAX(site_id) FROM sites"))
+
+    # Extract information from dbOutput table 'experimental_labels'
+    infer_expN <- if (dbExistsTable(con_dbOut, "experimental_labels")) {
+        as.integer(dbGetQuery(con_dbOut,
+          "SELECT COUNT(*) FROM experimental_labels"))
+      } else 1
 
 
     #--- If dbWork exists, then copy timing information if design is current
