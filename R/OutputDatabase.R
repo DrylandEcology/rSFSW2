@@ -2353,9 +2353,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
         #Get experimental_label_id
         db_combined_exp_treatments[irows, "experimental_id"] <- irows2
         #insert all of the rows from experimentals
-        temp <- db_treatments_column_types[
-          db_treatments_column_types[, "table"] == 1, "column"]
-        db_combined_exp_treatments[irows, temp] <- db_experimentals[irows2, ]
+        db_combined_exp_treatments[irows, SFSW2_prj_inputs[["create_experimentals"]]] <- db_experimentals[irows2, ]
       }
     }
   } else {
