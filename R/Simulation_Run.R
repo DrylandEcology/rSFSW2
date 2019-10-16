@@ -2021,15 +2021,21 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         if (isTRUE(prj_todos[["aon"]][["input_VegetationBiomassTrends"]])) {
           nv0 <- nv
-          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_VegetationBiomassMonthly")
+          print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_VegetationBiomassTrends")
 
-          if (!exists("veg.yr")) veg.yr <- get_Vegetation_yr(runDataSC, isim_time)
+          if (!exists("veg.yr")) {
+            veg.yr <- get_Vegetation_yr(runDataSC, isim_time)
+          }
 
-          nv_add <- ncol(veg.yr[["val"]])
-          nv_new <- nv + nv_add
-          resMeans[nv:(nv_new - 1)] <- .colMeans(veg.yr[["val"]], isim_time$no.useyr, nv_add)
-          resSDs[nv:(nv_new - 1)] <- apply(veg.yr[["val"]], 2, stats::sd)
-          nv <- nv_new
+          for (vcomp in c("totalbiomass", "livebiomass", "litter")) {
+            nv_add <- ncol(veg.yr[[vcomp]])
+            nv_new <- nv + nv_add
+            resMeans[nv:(nv_new - 1)] <- .colMeans(veg.yr[[vcomp]],
+              m = isim_time$no.useyr, n = nv_add)
+            resSDs[nv:(nv_new - 1)] <- apply(veg.yr[[vcomp]],
+              MARGIN = 2, FUN = stats::sd)
+            nv <- nv_new
+          }
 
           print_debugN(opt_verbosity, tag_simpidfid, prj_todos, nv - nv0, "input_VegetationBiomassTrends")
         }
@@ -2125,12 +2131,16 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_CO2Effects")
 
-          if (!exists("co2effects.yr")) co2effects.yr <- get_CO2effects_yr(runDataSC, isim_time)
+          if (!exists("co2effects.yr")) {
+            co2effects.yr <- get_CO2effects_yr(runDataSC, isim_time)
+          }
 
           nv_add <- ncol(co2effects.yr[["val"]])
           nv_new <- nv + nv_add
-          resMeans[nv:(nv_new - 1)] <- .colMeans(co2effects.yr[["val"]], isim_time$no.useyr, nv_add)
-          resSDs[nv:(nv_new - 1)] <- apply(co2effects.yr[["val"]], 2, stats::sd)
+          resMeans[nv:(nv_new - 1)] <- .colMeans(co2effects.yr[["val"]],
+            m = isim_time$no.useyr, n = nv_add)
+          resSDs[nv:(nv_new - 1)] <- apply(co2effects.yr[["val"]],
+            MARGIN = 2, FUN = stats::sd)
           nv <- nv_new
 
           print_debugN(opt_verbosity, tag_simpidfid, prj_todos, nv - nv0, "input_CO2Effects")

@@ -346,14 +346,22 @@ get_RunOnOff_yr <- function(x, st) {
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_Vegetation_yr <- function(x, st) {
-  x <- slot(slot(x, "CO2EFFECTS"), "Year")[st$index.useyr, , drop = FALSE]
-  list(val = x[, 1 + seq_len(2 * 5), drop = FALSE])
+  tmp <- slot(slot(x, "BIOMASS"), "Year")[st$index.useyr, , drop = FALSE]
+  ids <- seq_len(5L)
+  list(
+    cover = tmp[, 1L + ids, drop = FALSE],
+    litter = tmp[, 12L, drop = FALSE],
+    totalbiomass = tmp[, 6L + ids, drop = FALSE],
+    livebiomass = tmp[, 12L + ids, drop = FALSE]
+  )
 }
 
 
 #' @inheritParams swOutput_access
 #' @rdname swOutput_access
 get_CO2effects_yr <- function(x, st) {
-  x <- slot(slot(x, "CO2EFFECTS"), "Year")[st$index.useyr, , drop = FALSE]
-  list(val = x[, 11 + seq_len(2 * 4), drop = FALSE])
+  tmp <- slot(slot(x, "CO2EFFECTS"), "Year")[st$index.useyr, , drop = FALSE]
+  list(
+    val = tmp[, -1, drop = FALSE]
+  )
 }

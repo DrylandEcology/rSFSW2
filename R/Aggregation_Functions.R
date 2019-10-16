@@ -102,9 +102,15 @@ fields_input_VegetationBiomassTrends <- function(aon, ...) { # nolint
   id <- "input_VegetationBiomassTrends"
 
   if (isTRUE(aon[[id]])) {
-    vtemp <- c("Grass", "Shrub", "Tree", "Forb")
-    temp <- paste0(rep(c(vtemp, "Total"), 2), "_",
-      rep(c("Total", "Live"), each = 5), "Biomass_gPERm2_mean")
+    vtemp <- c("Tree", "Shrub", "Forb", "Grass")
+    temp <- paste0(
+      c(paste0(
+         rep(c("Total", vtemp), 2), "_",
+         rep(c("Total", "Live"), each = 1 + length(vtemp))
+        ),
+        "Litter_"
+      ),
+      "Biomass_gPERm2_mean")
   }
 
   list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
@@ -211,9 +217,13 @@ fields_input_CO2Effects <- function(aon, ...) { # nolint
   id <- "input_CO2Effects"
 
   if (isTRUE(aon[[id]])) {
-    vtemp <- c("Grass", "Shrub", "Tree", "Forb")
-    temp <- paste0(rep(vtemp, 2), "_",
-      rep(c("Biomass", "WUE"), each = 4), "_CO2multiplier_fraction_mean")
+    vtemp <- c("Tree", "Shrub", "Forb", "Grass")
+    temp <- paste0(
+      rep(vtemp, 2),
+      "_",
+      rep(c("Biomass", "WUE"), each = 4),
+      "_CO2multiplier_fraction_mean"
+    )
   }
 
   list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
