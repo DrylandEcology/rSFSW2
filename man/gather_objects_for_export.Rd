@@ -2,15 +2,15 @@
 % Please edit documentation in R/Parallel.R
 \name{gather_objects_for_export}
 \alias{gather_objects_for_export}
-\title{Export R objects to MPI/socket workers}
+\title{Export \var{R} objects to \var{MPI} or socket workers}
 \usage{
 gather_objects_for_export(varlist, list_envs)
 }
 \arguments{
-\item{varlist}{A vector of R object names to export}
+\item{varlist}{A vector of R object names to export.}
 
-\item{list_envs}{A list of environments in which to search for the R objects}
+\item{list_envs}{A list of environments in which to search for the R objects.}
 }
 \description{
-Export R objects to MPI/socket workers
+Export \var{R} objects to \var{MPI} or socket workers
 }

@@ -12,6 +12,7 @@ test_that("dbOutput_add_calculated_field:", {
   data(iris)
   x <- data.frame(P_id = seq_len(nrow(iris)), iris)
   dbWriteTable(con, "iris", x)
+  dbDisconnect(con)
 
   # Test 1: 2 variables -> 1 variable, 1 additional parameter
   # Define function
@@ -29,11 +30,12 @@ test_that("dbOutput_add_calculated_field:", {
     FUN = example_calc, delta = 2)
 
   # Check the new field
+  con <- dbConnect(SQLite(), dbOut_tmp)
   xout <- dbReadTable(con, "iris")
+  dbDisconnect(con)
   res2 <- example_calc(x[, vars_orig], delta = 2)
   expect_equivalent(xout[, "calc1"], res2)
 
   # Cleanup
-  dbDisconnect(con)
   unlink(dbOut_tmp)
 })

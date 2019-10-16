@@ -35,3 +35,5 @@ src/*.o
 src/*.so
 src/*.dll
 .Rproj.user
+doc
+Meta

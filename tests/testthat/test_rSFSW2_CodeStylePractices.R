@@ -10,17 +10,7 @@ test_that("Package code style", {
   skip_if_not(identical(tolower(Sys.getenv("RSFSW2_ALLTESTS")), "true"))
   skip_on_cran()
   skip_on_appveyor()
-  # as of 2019-03-01 development is minimum version of lintr required for:
-  #  - empty commas in multi-dimensional array subsetting, e.g., x[, , 1:3]
-  lintr_v <- unlist(utils::packageVersion("lintr"))
-  if (length(lintr_v) < 4 || isTRUE(lintr_v[4L] < 9000)) {
-    skip("Installed version of lintr is insufficient.")
-  }
-
-  # as of 2019-03-11 `lintr` fails R-devel `_R_CHECK_LENGTH_1_LOGIC2_`, see
-  # https://github.com/jimhester/lintr/issues/377 (undo once this is fixed)
-  rctemp <- Sys.getenv("_R_CHECK_LENGTH_1_LOGIC2_")
-  Sys.setenv(`_R_CHECK_LENGTH_1_LOGIC2_` = "false")
+  skip_if_not_installed("lintr", minimum_version = "2.0.0")
 
   # Files that are not checked for lints
   files_not_tolint <- c(
@@ -45,26 +35,22 @@ test_that("Package code style", {
   } else {
     # easier to work with interactively than `lintr::expect_lint_free`
     # additionally, `lintr::expect_lint_free` calls `lintr:::lint_package`
-    # which only considers code in "R", "tests", "inst", but not in "data-raw"
-    # or "demo"
-    dir_code <- file.path(pkg_path, c("data-raw", "demo", "R", "tests", "inst"))
+    # which only considers code in "R", "tests", "inst", but not in "data-raw",
+    # "doc", or "demo"
+    dir_code <- file.path(pkg_path,
+      c("data-raw", "demo", "R", "tests", "inst"))
     pkg_code_files <- list.files(path = dir_code, pattern = "\\.R$",
       ignore.case = TRUE, full.names = TRUE, recursive = TRUE)
+    pkg_code_files <- normalizePath(pkg_code_files)
 
     ids <- !(basename(pkg_code_files) %in% files_not_tolint)
     files_tolint <- pkg_code_files[ids]
 
     for (k in seq_along(files_tolint)) {
-      # 2019 Feb 27: this call to `lint` generates a number of warnings
-      # "argument is not a function" --> ignore for now because we include
-      # with `pkg_code_files` code that includes scripts etc.
-      suppressWarnings(badstyle <- lintr::lint(files_tolint[k]))
+      badstyle <- lintr::lint(files_tolint[k])
       expect_identical(length(badstyle), 0L, info = print(badstyle))
     }
   }
-
-  # reset
-  Sys.setenv(`_R_CHECK_LENGTH_1_LOGIC2_` = rctemp)
 })
 
 

@@ -132,7 +132,7 @@ set_options_warn_error <- function(debug.warn.level = 1L,
 #'
 #' @export
 enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
-  { # nolint
+  {
     op_prev <- options("warn")
     options(warn = 0)
     env_tosave <- new.env()
@@ -149,7 +149,7 @@ enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
       file = file.path(dir_out, paste0("last.dump.", as.character(file_tag),
         ".RData")))
     options(op_prev)
-  }  # nolint
+  }
 }
 
 #' Remove one of possibly several expressions recorded by \code{on.exit}
@@ -476,7 +476,7 @@ calc_drylandindices <- function(annualPPT, annualPET, monthlyTemp,
 #'
 #' @seealso \code{\link[ClimClass]{koeppen_geiger}}
 #' @references Trewartha, G.T. and Lyle, H.H., 1980: An Introduction to Climate.
-#'   MacGraw - Hill, 5th Ed. Appendix: Koeppen's Classification of Climates
+#'   McGraw - Hill, 5th Ed. Appendix: Koeppen's Classification of Climates
 trewartha_climate <- function(meanTmonthly_C) {
   stopifnot(length(meanTmonthly_C) == 12)
 

@@ -459,7 +459,7 @@ writeMonthlyClimate <- function(id, siteDirsC) {
   1L
 }
 
-create_filename_for_Maurer2002_NorthAmerica <- function(X_WGS84, Y_WGS84) { # nolint
+create_filename_for_Maurer2002_NorthAmerica <- function(X_WGS84, Y_WGS84) {
   origin <- 28.8125
   res <- 0.125
   xtemp <- origin + round((X_WGS84 - origin) / res, 0) * res
@@ -517,7 +517,7 @@ ExtractLookupWeatherFolder <- function(dir.weather, weatherfoldername,
 #'   fluxes and states for the conterminous United States. Journal of Climate
 #'   15:3237-3251.
 #' @export
-ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data, # nolint
+ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data,
   cellname, start_year, end_year, dbW_digits, verbose = FALSE) {
 
   if (verbose) {
@@ -730,7 +730,7 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84,
 #'   objects.
 #' @rdname ExtractDayMet
 #' @export
-ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function( # nolint
+ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(
   dir_data, site_ids, coords_WGS84, start_year, end_year, dbW_digits) {
 
   # Check requested years
@@ -775,7 +775,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function( # nolin
 #'
 #' @name ExtractDayMet
 #' @export
-ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, # nolint
+ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data,
   site_ids, site_ids_by_dbW, coords_WGS84, start_year, end_year,
   dir_temp = tempdir(), dbW_compression_type = "gzip", dbW_digits,
   verbose = FALSE) {
@@ -877,7 +877,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(dir_data, # no
 #'   list is copied to the weather database. Units are [degree Celsius] for
 #'   temperature and [cm / day] and for precipitation.
 #' @export
-ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids, # nolint
+ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
   site_ids_by_dbW, coords_WGS84, start_year, end_year, dir_temp = tempdir(),
   dbW_compression_type = "gzip", dbW_digits, verbose = FALSE) {
 
@@ -1287,7 +1287,7 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE,
 #'   Computational and Information Systems Laboratory.
 #'   \url{http://dx.doi.org/10.5065/D6513W89}.
 #' @export
-GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, # nolint
+GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW,
   dat_sites, tag_WeatherFolder, start_year, end_year, meta_cfsr,
   n_site_per_core = 100, rm_temp = TRUE, resume = FALSE, dir_temp = tempdir(),
   dbW_compression_type = "gzip", dbW_digits, verbose = FALSE,
@@ -1394,7 +1394,7 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW, # 
 #'
 #' @author   Charles Duso    \email{cd622@@nau.edu}
 #' @export
-extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids, # nolint
+extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids,
   site_ids_by_dbW, coords, start_year, end_year, f_check = TRUE, backup = TRUE,
   comp_type = "gzip", dbW_digits = 2, verbose = FALSE) {
 
@@ -1933,7 +1933,7 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources,
 }
 
 
-set_paths_to_dailyweather_datasources <- function(SFSW2_prj_meta) { # nolint
+set_paths_to_dailyweather_datasources <- function(SFSW2_prj_meta) {
 
   dir_dW <- SFSW2_prj_meta[["project_paths"]][["dir_ex_weather"]]
 

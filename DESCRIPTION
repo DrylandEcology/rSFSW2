@@ -1,7 +1,7 @@
 Package: rSFSW2
 Title: Simulation Framework for SOILWAT2
-Version: 4.0.0
-Date: 2019-05-03
+Version: 4.1.0
+Date: 2019-10-16
 Authors@R: c(
   person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@yale.edu",
     comment = c(ORCID = "0000-0001-9973-2065"), role = c("aut", "cre")),
@@ -45,7 +45,7 @@ Suggests:
     spelling (>= 1.1),
     hunspell (>= 2.9),
     covr,
-    lintr (>= 1.0.3.9000),
+    lintr (>= 2.0.0),
     goodpractice
 Remotes:
     github::dschlaep/weathergen

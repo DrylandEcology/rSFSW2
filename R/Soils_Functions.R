@@ -1,7 +1,8 @@
-
+# nolint start
 getLayersWidth <- rSOILWAT2:::getLayersWidth
 calc_weights_from_depths <- rSOILWAT2:::calc_weights_from_depths
 add_layer_to_soil <- rSOILWAT2:::add_layer_to_soil
+# nolint end
 
 #' The wrapper only handles 1-cm resolution of soil depths
 #' (mainly because of the \var{trco})
@@ -118,8 +119,8 @@ assign_aggregation_soillayers <- function(layers_depth, daily_lyr_agg) {
 init_soiltemperature <- function(layers_depth, lower.Tdepth, soilTupper,
   soilTlower) {
 
-  sl <- c(0, lower.Tdepth) # nolint
-  st <- c(soilTupper, soilTlower) # nolint
+  sl <- c(0, lower.Tdepth)
+  st <- c(soilTupper, soilTlower)
 
   stats::predict(stats::lm(st ~ sl), data.frame(sl = layers_depth))
 }

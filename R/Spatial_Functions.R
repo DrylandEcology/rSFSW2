@@ -57,7 +57,7 @@ setGeneric("extract_rSFSW2", function(x, y, type, ...)
 #' @return A matrix with rows corresponding to the \code{!NA} cells of \code{y}
 #'   and columns to layers of \code{x}.
 #' @export
-extract_SFSW2_cells_from_raster <- function(x, y, ...) { # nolint
+extract_SFSW2_cells_from_raster <- function(x, y, ...) {
 
   stopifnot(inherits(x, "Raster"))
 
@@ -411,7 +411,7 @@ extract_blocks <- function(x, y, weights = FALSE) {
   vals
 }
 
-extract2_Raster_SpatialPolygons <- function(x, ...) { # nolint
+extract2_Raster_SpatialPolygons <- function(x, ...) {
   stop("Function 'extract2_Raster_SpatialPolygons' is not defined")
 }
 
@@ -621,7 +621,7 @@ weighted.agg <- function(reagg, probs = NA) {
 #' @return A vector or matrix with length/rows corresponding to the \code{!NA}
 #'   cells of \code{x} and columns to layers of \code{data}.
 #' @export
-extract_from_external_raster_old <- function(x, data, ...) { # nolint
+extract_from_external_raster_old <- function(x, data, ...) {
 
   .Deprecated(new = "extract_rSFSW2")
 

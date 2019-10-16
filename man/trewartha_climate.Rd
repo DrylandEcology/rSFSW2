@@ -23,7 +23,7 @@ without group B--dry, include \itemize{
 }
 \references{
 Trewartha, G.T. and Lyle, H.H., 1980: An Introduction to Climate.
-  MacGraw - Hill, 5th Ed. Appendix: Koeppen's Classification of Climates
+  McGraw - Hill, 5th Ed. Appendix: Koeppen's Classification of Climates
 }
 \seealso{
 \code{\link[ClimClass]{koeppen_geiger}}

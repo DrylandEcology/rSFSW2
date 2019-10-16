@@ -125,7 +125,7 @@ dbOutput_ListOutputTables <- function(con = NULL, dbname = NULL) {
 #'   that a table has records by soil layers.
 #'
 #' @export
-dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, # nolint
+dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL,
   dbname = NULL) {
 
   use_con <- !is.null(con) && inherits(con, "SQLiteConnection") &&
@@ -262,7 +262,7 @@ get_fieldnames <- function(responseName, fields.header, fields.iTable) {
 #' Get data of variables in the overall aggregation table for one of the
 #' scenarios
 #' @export
-get.SeveralOverallVariables_Scenario_old <- function(fdbrSFSW2, responseName, # nolint
+get.SeveralOverallVariables_Scenario_old <- function(fdbrSFSW2, responseName,
   MeanOrSD = "Mean", scenario = "Current", whereClause = NULL) {
 
   dat <- NULL
@@ -315,7 +315,7 @@ get.SeveralOverallVariables_Scenario_old <- function(fdbrSFSW2, responseName, # 
 #' Get data of variables in the overall aggregation table for one of the
 #' scenarios
 #' @export
-get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName, # nolint
+get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName,
   MeanOrSD = "Mean", scenario = "Current", whereClause = NULL) {
 
   .Deprecated("dbOut_read_variables_from_scenario")
@@ -464,7 +464,7 @@ dbOut_read_variables_from_scenario <- function(fname_dbOut, variables = NULL,
 #' Get data of variables in the overall aggregation table for one of the
 #' ensembles
 #' @export
-get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, # nolint
+get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens,
   responseName, MeanOrSD = "Mean", fam, level, whereClause = NULL) {
 
   dat <- NULL
@@ -1385,7 +1385,7 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start,
 #'      \file{SQL_tmptxt_repeats.txt}.}
 #'
 #' @rdname move_temporary_to_outputDB
-move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, # nolint
+move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start,
   opt_parallel, opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L,
   check_if_Pid_present = TRUE, dir_out_temp = NULL) {
 
@@ -1545,7 +1545,7 @@ move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, #
             ids <- OKs[[tg]][["hasSL"]]
             sl <- OK_ndefault
             stop("I don't know variable 'dat' in: ",
-              'sl[ids] <- as.integer(dat[["val"]][, 2L])') # nolint
+              'sl[ids] <- as.integer(dat[["val"]][, 2L])')
 
             OKs[[tg]][["hasSL"]][ids] <- OK_line[ids] & is.finite(sl[ids])
             ids <- OKs[[tg]][["hasSL"]]
@@ -1674,7 +1674,7 @@ move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, #
 
 
 
-do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current, # nolint
+do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
   verbose = FALSE) {
 
   if (verbose)
@@ -1990,8 +1990,8 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     if (any(!is.na(SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))) {
       # enforce that NA appears as a string instead of a logical
       runSWFolder <- SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder
-      for (id_index in seq(runSWFolder)){
-        if (is.na(runSWFolder[id_index])){
+      for (id_index in seq(runSWFolder)) {
+        if (is.na(runSWFolder[id_index])) {
           SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder[id_index] <- "NA"
         }
       }
@@ -2020,8 +2020,8 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     stringsAsFactors = FALSE)
 
   # enforce that NA appears as a string instead of a logical
-  for (i in seq(sites_data$WeatherFolder)){
-    if (is.na(sites_data$WeatherFolder[i])){
+  for (i in seq(sites_data$WeatherFolder)) {
+    if (is.na(sites_data$WeatherFolder[i])) {
       sites_data$WeatherFolder[i] <- "NA"
     }
   }
@@ -2353,7 +2353,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
         #Get experimental_label_id
         db_combined_exp_treatments[irows, "experimental_id"] <- irows2
         #insert all of the rows from experimentals
-        db_combined_exp_treatments[irows, SFSW2_prj_inputs[["create_experimentals"]]] <- db_experimentals[irows2, ]
+        db_combined_exp_treatments[irows, SFSW2_prj_inputs[["create_experimentals"]]] <- db_experimentals[irows2, ] #nolint
       }
     }
   } else {
@@ -2626,7 +2626,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   invisible(NULL)
 }
 
-dbOutput_create_OverallAggregationTable <- function(con_dbOut, fields) { # nolint
+dbOutput_create_OverallAggregationTable <- function(con_dbOut, fields) {
 
   ncol_dbOut_overall <- sum(fields[, "N"])
 
@@ -2651,7 +2651,7 @@ dbOutput_create_OverallAggregationTable <- function(con_dbOut, fields) { # nolin
     sdString = sdString)
 }
 
-dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) { # nolint
+dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) {
   dailySQL <- dailyLayersSQL <- NULL
 
   if (req_aggs[["N"]] > 0) {
@@ -3025,7 +3025,7 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
 #' @param verbose A logical value.
 #'
 #' @export
-dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, # nolint
+dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta,
   col_ids = NULL, chunksize = 1000, verbose = FALSE) {
 
   con_dbOut <- dbConnect(SQLite(),
