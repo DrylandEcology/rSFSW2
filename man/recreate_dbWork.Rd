@@ -30,8 +30,9 @@ Re-create or update \var{\sQuote{dbWork}} based on \var{\sQuote{dbOutput}}
 }
 \examples{
 \dontrun{
-# `SFSW2_prj_meta` object as produced, e.g., for `TestPrj4`
-recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
-}
+if (exists("SFSW2_prj_meta")) {
+  # `SFSW2_prj_meta` object as produced, e.g., for `TestPrj4`
+  recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
+}}
 
 }

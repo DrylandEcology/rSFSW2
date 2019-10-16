@@ -39,6 +39,7 @@ Update values of \var{dbOutput} based on a new database
 }
 \examples{
 \dontrun{
+if (requireNamespace("RSQLite") && exists("SFSW2_prj_meta")) {
   table <- dbOut_update_values(
     dbOut_fname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
     dbNew_fname = "path/to/new.sqlite3",
@@ -46,15 +47,16 @@ Update values of \var{dbOutput} based on a new database
       aggregation_overall_mean = c("MAT_C_mean", "MAP_mm_mean"),
       aggregation_overall_sd = c("MAT_C_sd", "MAP_mm_sd")))
 
-  con <- dbConnect(SQLite(), SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-  fields <- dbQuoteIdentifier(con, dbListFields(con, table))
+  con <- RSQLite::dbConnect(RSQLite::SQLite(),
+    SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+  fields <- RSQLite::dbQuoteIdentifier(con, RSQLite::dbListFields(con, table))
 
   # Extract Pids from records that were updated
   sql <- paste("SELECT P_id FROM", table, "WHERE",
     paste(fields[-1], "= 1", collapse = " AND "))
-  is_good <- dbGetQuery(con, sql)
+  is_good <- RSQLite::dbGetQuery(con, sql)
 
-  dbDisconnect(con)
-}
+  RSQLite::dbDisconnect(con)
+}}
 
 }

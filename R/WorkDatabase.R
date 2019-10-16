@@ -607,12 +607,13 @@ dbWork_check_run <- function(path, runIDs) {
 #' @examples
 #' \dontrun{
 #' # `SFSW2_prj_meta` object as produced, e.g., for `TestPrj4`
-#' dbWork_report_completion(
-#'   path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-#'   use_granular_control =
-#'     SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]],
-#'   SFSW2_prj_meta = SFSW2_prj_meta)
-#' }
+#' if (exists("SFSW2_prj_meta")) {
+#'   dbWork_report_completion(
+#'     path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+#'     use_granular_control =
+#'       SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]],
+#'     SFSW2_prj_meta = SFSW2_prj_meta)
+#' }}
 #'
 #' @export
 dbWork_report_completion <- function(path, use_granular_control = FALSE,
@@ -791,9 +792,10 @@ dbWork_check_design <- function(path, use_granular_control = FALSE) {
 #'
 #' @examples
 #' \dontrun{
-#' # `SFSW2_prj_meta` object as produced, e.g., for `TestPrj4`
-#' recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
-#' }
+#' if (exists("SFSW2_prj_meta")) {
+#'   # `SFSW2_prj_meta` object as produced, e.g., for `TestPrj4`
+#'   recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
+#' }}
 #'
 #' @export
 recreate_dbWork <- function(path, dbOutput, use_granular_control,

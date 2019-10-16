@@ -25,6 +25,8 @@ installed \pkg{rSFSW2}-package version
 }
 \examples{
 \dontrun{
-is_project_script_file_recent(
-  dir_prj = SFSW2_prj_meta[["project_paths"]][["dir_prj"]])}
+if (exists("SFSW2_prj_meta")) {
+  is_project_script_file_recent(
+    dir_prj = SFSW2_prj_meta[["project_paths"]][["dir_prj"]])
+}}
 }

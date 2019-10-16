@@ -3395,6 +3395,7 @@ dbOut_prepare1 <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 #'
 #' @examples
 #' \dontrun{
+#' if (requireNamespace("RSQLite") && exists("SFSW2_prj_meta")) {
 #'   con_dbCheck <- dbOut_check_values(
 #'     dbOut_fname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
 #'     dbNew_fname = "path/to/new.sqlite3",
@@ -3404,20 +3405,21 @@ dbOut_prepare1 <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 #'     )
 #'   )
 #'
-#'   tables <- dbListTables(con_dbCheck)
+#'   tables <- RSQLite::dbListTables(con_dbCheck)
 #'   tables <- tables[1] # example table
-#'   fields <- dbQuoteIdentifier(con_dbCheck, dbListFields(con_dbCheck, tables))
+#'   fields <- RSQLite::dbQuoteIdentifier(con_dbCheck,
+#'     RSQLite::dbListFields(con_dbCheck, tables))
 #'
 #'   # Extract Pids from records that matched up for example table
 #'   sql <- paste("SELECT P_id FROM", tables, "WHERE",
 #'     paste(fields[-1], "= 1", collapse = " AND "))
-#'   is_good <- dbGetQuery(con_dbCheck, sql)
+#'   is_good <- RSQLite::dbGetQuery(con_dbCheck, sql)
 #'
 #'   # Extract Pids from records that did not match up; this should be empty
 #'   sql <- paste("SELECT P_id FROM", tables, "WHERE",
 #'     paste(fields[-1], "= 0", collapse = " OR "))
-#'   is_bad <- dbGetQuery(con_dbCheck, sql)
-#' }
+#'   is_bad <- RSQLite::dbGetQuery(con_dbCheck, sql)
+#' }}
 #'
 #' @export
 dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
@@ -3540,6 +3542,7 @@ dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
 #'
 #' @examples
 #' \dontrun{
+#' if (requireNamespace("RSQLite") && exists("SFSW2_prj_meta")) {
 #'   table <- dbOut_update_values(
 #'     dbOut_fname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
 #'     dbNew_fname = "path/to/new.sqlite3",
@@ -3547,16 +3550,17 @@ dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
 #'       aggregation_overall_mean = c("MAT_C_mean", "MAP_mm_mean"),
 #'       aggregation_overall_sd = c("MAT_C_sd", "MAP_mm_sd")))
 #'
-#'   con <- dbConnect(SQLite(), SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-#'   fields <- dbQuoteIdentifier(con, dbListFields(con, table))
+#'   con <- RSQLite::dbConnect(RSQLite::SQLite(),
+#'     SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+#'   fields <- RSQLite::dbQuoteIdentifier(con, RSQLite::dbListFields(con, table))
 #'
 #'   # Extract Pids from records that were updated
 #'   sql <- paste("SELECT P_id FROM", table, "WHERE",
 #'     paste(fields[-1], "= 1", collapse = " AND "))
-#'   is_good <- dbGetQuery(con, sql)
+#'   is_good <- RSQLite::dbGetQuery(con, sql)
 #'
-#'   dbDisconnect(con)
-#' }
+#'   RSQLite::dbDisconnect(con)
+#' }}
 #'
 #' @export
 dbOut_update_values <- function(dbOut_fname, dbNew_fname, fields_update = NULL,

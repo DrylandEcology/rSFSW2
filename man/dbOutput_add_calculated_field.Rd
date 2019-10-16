@@ -51,12 +51,14 @@ calculation of values from (an) existing field(s)
 }
 
 \examples{
-# Prepare databse
+if (requireNamespace("RSQLite")) {
+# Prepare database
 dbOut_tmp <- tempfile(fileext = ".sqlite")
-con <- dbConnect(SQLite(), dbOut_tmp)
+con <- RSQLite::dbConnect(RSQLite::SQLite(), dbOut_tmp)
 data(iris)
 x <- data.frame(P_id = seq_len(nrow(iris)), iris)
-dbWriteTable(con, "iris", x)
+RSQLite::dbWriteTable(con, "iris", x)
+RSQLite::dbDisconnect(con)
 
 # Define calculation function
 vars_orig <- c("Sepal.Length", "Sepal.Width")
@@ -73,12 +75,15 @@ dbOutput_add_calculated_field(
   FUN = example_calc, delta = 2)
 
 # Check the new field
-xout <- dbReadTable(con, "iris")
+con <- RSQLite::dbConnect(RSQLite::SQLite(), dbOut_tmp)
+xout <- RSQLite::dbReadTable(con, "iris")
+RSQLite::dbDisconnect(con)
+
 res2 <- example_calc(x[, vars_orig], delta = 2)
 all.equal(xout[, "calc"], res2)
 
 # Cleanup
-dbDisconnect(con)
 unlink(dbOut_tmp)
+}
 
 }

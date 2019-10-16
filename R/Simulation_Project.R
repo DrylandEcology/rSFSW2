@@ -116,8 +116,10 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
 #'
 #' @examples
 #' \dontrun{
-#' is_project_script_file_recent(
-#'   dir_prj = SFSW2_prj_meta[["project_paths"]][["dir_prj"]])}
+#' if (exists("SFSW2_prj_meta")) {
+#'   is_project_script_file_recent(
+#'     dir_prj = SFSW2_prj_meta[["project_paths"]][["dir_prj"]])
+#' }}
 is_project_script_file_recent <- function(dir_prj,
   script = "SFSW2_project_descriptions.R", ...) {
 

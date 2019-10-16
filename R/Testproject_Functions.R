@@ -505,10 +505,12 @@ check_aggregated_output <- function(x) {
 #' \dontrun{
 #'   # Run test project 4 inside development version of package
 #'   # Assume that working directory is `tests/test_data/TestPrj4/`
-#'   source("SFSW2_project_code.R")
+#'   if (file.exists("SFSW2_project_code.R")) {
+#'     source("SFSW2_project_code.R")
 #'
-#'   # Compare output database with reference database
-#'   comp <- compare_test_output(".", dir_ref = "../0_ReferenceOutput/")
+#'     # Compare output database with reference database
+#'     comp <- compare_test_output(".", dir_ref = "../0_ReferenceOutput/")
+#'   }
 #' }
 #'
 #' @export
