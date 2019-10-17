@@ -3552,7 +3552,8 @@ dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
 #'
 #'   con <- RSQLite::dbConnect(RSQLite::SQLite(),
 #'     SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-#'   fields <- RSQLite::dbQuoteIdentifier(con, RSQLite::dbListFields(con, table))
+#'   fields <- RSQLite::dbQuoteIdentifier(con,
+#'     RSQLite::dbListFields(con, table))
 #'
 #'   # Extract Pids from records that were updated
 #'   sql <- paste("SELECT P_id FROM", table, "WHERE",
