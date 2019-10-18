@@ -15,8 +15,7 @@ test_that("Package spell checks", {
 
   # Spell check with `hunspell` as backend:
   # TODO: turn spell-checking on for vignettes
-  temp <- spelling::spell_check_package(pkg_path, vignettes = FALSE)
-  misspelled <- temp[["word"]]
+  misspelled <- spelling::spell_check_package(pkg_path, vignettes = FALSE)
 
-  expect_identical(length(misspelled), 0L, info = print(misspelled))
+  expect_identical(length(misspelled[["word"]]), 0L, info = print(misspelled))
 })

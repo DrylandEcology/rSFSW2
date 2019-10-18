@@ -14,6 +14,7 @@ env:
     - NOT_CRAN=false
     # secure `GITHUB_PAT` for drs to increase "GitHub API rate limit"
     - secure: "rq8iu0qkN0QYa1CF3zx/ub2eXJ1vc6XmOSqWPUSCHQTOuftUnKjbysAo0a8Cj1GqHPltXyIx8ZfLSJpN/zIsW919B3XBPSVeoStdpvJ/omUdGf8g4/0k2jlLQx0JpfFuIjOaFBlL5Kg5iAm3Xg1dxA/+cgx57KLbbF91HEvCE22g5NgO5ZEWsKH6iyVzEkz5o3sxvIxDEniiJSKdxfZLe8jrZNmqG+H2tKn1GbiDfunN8ynYE5Enwamr6y46E8Q2Bm7BR4FX3syxjvhz/JOi44vy88E50wKpMU+y9/lxpqMjQxM8lU0L5ZAxsSe08fM6jvEzOVZgsEVS3tMJHdCy9mQ3YktVl7l4hce4+OI866ZkkfpX2nBoGcjLe9LVbbGLet7UoC8DNv5XF1eJU+9sn5Ynr94YFaNhlFP2H+PoqWgyt7SLpgYjogrd8/X8a/oQeIMhriqNVbddc6oB2rkBsjRA9kGo+8jcHei80Xm/ZaIafMoa9KZV4Aw7Uhd/RP0JiaRQmL8mBf09/LOJD24LIpqYzgHJg6q6pHa/XS+9qcbjoObzbdy1rBtGiS5f1eXrCefTmsvSsOvRWlyZcGLrX2VbTFiLTjFCDWLjYNMUVCxhislsxZCrvRuMaS9IIep8rD+p8EDjUIr/UTq/vl64E1jfd3+3wA4rcW3nbQ6iiYg="
+    - LINTR_COMMENT_BOT=false
 
 sudo: false
 cache: packages # sets `R_LIBS_USER`

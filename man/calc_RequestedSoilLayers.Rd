@@ -6,7 +6,7 @@
 soil data input file}
 \usage{
 calc_RequestedSoilLayers(SFSW2_prj_meta, SFSW2_prj_inputs, runIDs_adjust,
-  verbose = FALSE)
+  keep_old_depth = TRUE, verbose = FALSE)
 }
 \description{
 Add soil layers (by interpolation) if not already present and store in

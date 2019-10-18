@@ -25,8 +25,10 @@ dir_delete <- file.path(dir_prj, "to_delete")
 dir_scrutinize <- file.path(dir_prj, "to_scrutinize")
 dir_out <- file.path(dir_prj, "..", "ClimateScenarios", "CMIP5",
   "ESGF_Global")
-prepare_climatedata_netCDFs(dir_code, dir_data, dir_duplicates,
-  dir_concatables, dir_delete, dir_scrutinize, dir_out,
-  climDB_tag = "CMIP5_ESGF_Global")
-}
+if (all(dir.exists(dir_prj))) {
+  prepare_climatedata_netCDFs(dir_code, dir_data, dir_duplicates,
+    dir_concatables, dir_delete, dir_scrutinize, dir_out,
+    climDB_tag = "CMIP5_ESGF_Global")
+}}
+
 }

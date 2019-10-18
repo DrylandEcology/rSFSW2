@@ -132,7 +132,7 @@ set_options_warn_error <- function(debug.warn.level = 1L,
 #'
 #' @export
 enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
-  { # nolint
+  {
     op_prev <- options("warn")
     options(warn = 0)
     env_tosave <- new.env()
@@ -149,7 +149,7 @@ enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
       file = file.path(dir_out, paste0("last.dump.", as.character(file_tag),
         ".RData")))
     options(op_prev)
-  }  # nolint
+  }
 }
 
 #' Remove one of possibly several expressions recorded by \code{on.exit}
@@ -457,6 +457,48 @@ calc_drylandindices <- function(annualPPT, annualPET, monthlyTemp,
 
   list(ai = ai, temperateness = TD, criteria12 = criteria12)
 }
+
+
+#' Main climate classification according to Trewartha
+#'
+#' The main climate classifications based on mean monthly temperature, i.e.,
+#' without group B--dry, include \itemize{
+#'   \item Group A (tropical): sum(months >= 18 C) == 12
+#'   \item Group C (subtropical):
+#'     sum(months >= 10 C) >= 8 & sum(months >= 18 C) < 12
+#'   \item Group D (temperate and continental): sum(months >= 10 C) %in% 4:7
+#'   \item Group E (boreal): sum(months >= 10 C) %in% 1:3
+#'   \item Group F (polar): sum(months >= 10 C) == 0
+#' }
+#'
+#' @param meanTmonthly_C A numeric vector of length 12. Mean monthly air
+#'   temperature in degree Celsius.
+#'
+#' @seealso \code{\link[ClimClass]{koeppen_geiger}}
+#' @references Trewartha, G.T. and Lyle, H.H., 1980: An Introduction to Climate.
+#'   McGraw - Hill, 5th Ed. Appendix: Koeppen's Classification of Climates
+trewartha_climate <- function(meanTmonthly_C) {
+  stopifnot(length(meanTmonthly_C) == 12)
+
+  temp18 <- sum(meanTmonthly_C >= 18)
+
+  if (temp18 == 12) {
+    "tropical"
+  } else {
+    temp10 <- sum(meanTmonthly_C >= 10)
+
+    if (temp10 >= 8) {
+      "subtropical"
+    } else if (temp10 >= 4) {
+      "temperate"
+    } else if (temp10 >= 1) {
+      "boreal"
+    } else {
+      "polar"
+    }
+  }
+}
+
 
 
 extreme_values_and_doys <- function(x, na.rm = FALSE) {

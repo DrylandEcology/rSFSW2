@@ -1,7 +1,10 @@
-#' Export R objects to MPI/socket workers
+# nolint start
+#' Export \var{R} objects to \var{MPI} or socket workers
+# nolint end
 #'
-#' @param varlist A vector of R object names to export
-#' @param list_envs A list of environments in which to search for the R objects
+#' @param varlist A vector of R object names to export.
+#' @param list_envs A list of environments in which to search for the R objects.
+#'
 #' @export
 gather_objects_for_export <- function(varlist, list_envs) {
   #---Determine environments
@@ -36,7 +39,7 @@ do_import_objects <- function(obj_env) {
 #' Export objects to workers
 #'
 #' @param obj_env An environment containing R objects to export.
-#' @param parallel_backend A character vector, either \var{\dQuote{mpi}}' or
+#' @param parallel_backend A character vector, either \var{\dQuote{mpi}} or
 #'   \var{\dQuote{socket}}
 #' @param cl A parallel (socket) cluster object
 #'

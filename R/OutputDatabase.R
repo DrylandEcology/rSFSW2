@@ -125,7 +125,7 @@ dbOutput_ListOutputTables <- function(con = NULL, dbname = NULL) {
 #'   that a table has records by soil layers.
 #'
 #' @export
-dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL, # nolint
+dbOutput_Tables_have_SoilLayers <- function(tables = NULL, con = NULL,
   dbname = NULL) {
 
   use_con <- !is.null(con) && inherits(con, "SQLiteConnection") &&
@@ -262,7 +262,7 @@ get_fieldnames <- function(responseName, fields.header, fields.iTable) {
 #' Get data of variables in the overall aggregation table for one of the
 #' scenarios
 #' @export
-get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName, # nolint
+get.SeveralOverallVariables_Scenario_old <- function(fdbrSFSW2, responseName,
   MeanOrSD = "Mean", scenario = "Current", whereClause = NULL) {
 
   dat <- NULL
@@ -311,10 +311,160 @@ get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName, # noli
   dat[, iColumns[["outOrder"]]]
 }
 
+
+#' Get data of variables in the overall aggregation table for one of the
+#' scenarios
+#' @export
+get.SeveralOverallVariables_Scenario <- function(fdbrSFSW2, responseName,
+  MeanOrSD = "Mean", scenario = "Current", whereClause = NULL) {
+
+  .Deprecated("dbOut_read_variables_from_scenario")
+
+  dbOut_read_variables_from_scenario(
+    fname_dbOut = fdbrSFSW2,
+    variables = responseName,
+    MeanOrSD = MeanOrSD,
+    scenario = scenario,
+    whereClause = whereClause)
+}
+
+
+#' Reads variables/fields from the header view or from tables including sites,
+#' runs and one of the overall aggregation tables for one of the scenarios
+#' and optionally subsets rows by a where-clause
+#'
+#' @param fname_dbOut A character string. The path to the output database.
+#' @param variables A vector of character strings. The (partial) names of
+#'   variables/columns/fields to be read.
+#' @param MeanOrSD A character string. Identify which type of overall aggregated
+#'   table to read.
+#' @param scenario A character string. This must be one of the values from the
+#'   \var{Scenario} values from the \var{header} view.
+#' @param whereClause A character string. This must be of the structure
+#'   \var{field_name='value'} or \code{NULL}
+#'
+#' @return A \code{data.frame}
+#'
+#' @export
+dbOut_read_variables_from_scenario <- function(fname_dbOut, variables = NULL,
+  MeanOrSD = c("Mean", "SD"), scenario = "Current", whereClause = NULL) {
+
+  MeanOrSD <- match.arg(MeanOrSD)
+
+  dat <- as.data.frame(matrix(NA, nrow = 0, ncol = length(variables),
+    dimnames = list(NULL, variables)))
+
+  if (length(variables) > 0) {
+    con <- dbConnect(SQLite(), fname_dbOut, flags = SQLITE_RO)
+    on.exit(dbDisconnect(con), add = TRUE)
+
+    db_tables <- dbListTables(con)
+    header_fields <- dbListFields(con, "header")
+
+    extract_tables <- c("header", "sites", "runs", paste0("overall_", MeanOrSD))
+    db_setup <- lapply(extract_tables, function(table) {
+        tn <- grep(table, db_tables, ignore.case = TRUE, fixed = FALSE,
+          value = TRUE)
+        has <- length(tn) > 0
+        icols <- if (has) get_fieldnames(variables,
+          fields.header = header_fields,
+          fields.iTable = dbListFields(con, tn))
+        c(list(name = dbQuoteIdentifier(con, tn), has = has), icols = icols)
+      })
+    names(db_setup) <- extract_tables
+
+    has_columns <- sapply(db_setup, function(x)
+      x[["has"]] && x[["icols.has_columns"]])
+    add_Pid <- any(sapply(db_setup, function(x)
+      x[["has"]] && x[["icols.addPid"]]))
+    outOrder <- unlist(lapply(db_setup, function(x) x[["icols.outOrder"]]))
+
+    if (any(has_columns) || add_Pid) {
+      need_sep <- FALSE
+
+      sql <- paste0("SELECT ",
+        # Add `P_id` if requested
+        if (add_Pid) {
+          need_sep <- TRUE
+          "header.P_id AS P_id"
+        },
+
+        # Add fields from header table if requested
+        if (length(db_setup[["header"]][["icols.header"]]) > 0) {
+          temp <- dbQuoteIdentifier(con,
+            db_setup[["header"]][["icols.header"]])
+          temp <- paste0("header.", temp, " AS ", temp, collapse = ", ")
+          if (need_sep) {
+            paste(",", temp)
+          } else {
+            need_sep <- TRUE
+            temp
+          }
+        },
+
+        # Add fields from runs table if requested
+        if (length(db_setup[["runs"]][["icols.iTable"]]) > 0) {
+          temp <- dbQuoteIdentifier(con,
+            db_setup[["runs"]][["icols.iTable"]])
+          temp <- paste0("runs.", temp, " AS ", temp, collapse = ", ")
+          if (need_sep) {
+            paste(",", temp)
+          } else {
+            need_sep <- TRUE
+            temp
+          }
+        },
+
+        # Add fields from sites table if requested
+        if (length(db_setup[["sites"]][["icols.iTable"]]) > 0) {
+          temp <- dbQuoteIdentifier(con,
+            db_setup[["sites"]][["icols.iTable"]])
+          temp <- paste0("sites.", temp, " AS ", temp, collapse = ", ")
+          if (need_sep) {
+            paste(",", temp)
+          } else {
+            need_sep <- TRUE
+            temp
+          }
+        },
+
+        # Add fields from aggregation output table if requested
+        if (length(db_setup[[4]][["icols.iTable"]]) > 0) {
+          temp <- dbQuoteIdentifier(con,
+            db_setup[[4]][["icols.iTable"]])
+          temp <- paste0(db_setup[[4]][["name"]], ".", temp, " AS ", temp,
+            collapse = ", ")
+          if (need_sep) {
+            paste(",", temp)
+          } else {
+            temp
+          }
+        },
+
+        " FROM header",
+          " INNER JOIN ", db_setup[[4]][["name"]],
+            " ON header.P_id = ", db_setup[[4]][["name"]], ".P_id",
+          " INNER JOIN runs ON header.P_id = runs.P_id",
+          " INNER JOIN sites ON runs.site_id = sites.id",
+        " WHERE header.Scenario = ", shQuote(scenario),
+        if (length(whereClause) > 0)
+          paste0(" AND ", addHeaderToWhereClause(whereClause,
+            headers = header_fields)),
+        " ORDER BY header.P_id")
+
+      dat <- dbGetQuery(con, sql)[, outOrder]
+    }
+  }
+
+  dat
+}
+
+
+
 #' Get data of variables in the overall aggregation table for one of the
 #' ensembles
 #' @export
-get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens, # nolint
+get.SeveralOverallVariables_Ensemble <- function(fdbrSFSW2, fdbrSFSW2ens,
   responseName, MeanOrSD = "Mean", fam, level, whereClause = NULL) {
 
   dat <- NULL
@@ -1235,7 +1385,7 @@ move_temporary_to_outputDB <- function(SFSW2_prj_meta, t_job_start,
 #'      \file{SQL_tmptxt_repeats.txt}.}
 #'
 #' @rdname move_temporary_to_outputDB
-move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, # nolint
+move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start,
   opt_parallel, opt_behave, opt_out_run, opt_verbosity, chunk_size = 1000L,
   check_if_Pid_present = TRUE, dir_out_temp = NULL) {
 
@@ -1395,7 +1545,7 @@ move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, #
             ids <- OKs[[tg]][["hasSL"]]
             sl <- OK_ndefault
             stop("I don't know variable 'dat' in: ",
-              'sl[ids] <- as.integer(dat[["val"]][, 2L])') # nolint
+              'sl[ids] <- as.integer(dat[["val"]][, 2L])')
 
             OKs[[tg]][["hasSL"]][ids] <- OK_line[ids] & is.finite(sl[ids])
             ids <- OKs[[tg]][["hasSL"]]
@@ -1524,7 +1674,7 @@ move_temporary_to_outputDB_withChecks <- function(SFSW2_prj_meta, t_job_start, #
 
 
 
-do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current, # nolint
+do_copyCurrentConditionsFromDatabase <- function(dbOutput, dbOutput_current,
   verbose = FALSE) {
 
   if (verbose)
@@ -1840,8 +1990,8 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     if (any(!is.na(SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))) {
       # enforce that NA appears as a string instead of a logical
       runSWFolder <- SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder
-      for (id_index in seq(runSWFolder)){
-        if (is.na(runSWFolder[id_index])){
+      for (id_index in seq(runSWFolder)) {
+        if (is.na(runSWFolder[id_index])) {
           SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder[id_index] <- "NA"
         }
       }
@@ -1870,8 +2020,8 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     stringsAsFactors = FALSE)
 
   # enforce that NA appears as a string instead of a logical
-  for (i in seq(sites_data$WeatherFolder)){
-    if (is.na(sites_data$WeatherFolder[i])){
+  for (i in seq(sites_data$WeatherFolder)) {
+    if (is.na(sites_data$WeatherFolder[i])) {
       sites_data$WeatherFolder[i] <- "NA"
     }
   }
@@ -2203,9 +2353,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
         #Get experimental_label_id
         db_combined_exp_treatments[irows, "experimental_id"] <- irows2
         #insert all of the rows from experimentals
-        temp <- db_treatments_column_types[
-          db_treatments_column_types[, "table"] == 1, "column"]
-        db_combined_exp_treatments[irows, temp] <- db_experimentals[irows2, ]
+        db_combined_exp_treatments[irows, SFSW2_prj_inputs[["create_experimentals"]]] <- db_experimentals[irows2, ] #nolint
       }
     }
   } else {
@@ -2478,7 +2626,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   invisible(NULL)
 }
 
-dbOutput_create_OverallAggregationTable <- function(con_dbOut, fields) { # nolint
+dbOutput_create_OverallAggregationTable <- function(con_dbOut, fields) {
 
   ncol_dbOut_overall <- sum(fields[, "N"])
 
@@ -2503,7 +2651,7 @@ dbOutput_create_OverallAggregationTable <- function(con_dbOut, fields) { # nolin
     sdString = sdString)
 }
 
-dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) { # nolint
+dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) {
   dailySQL <- dailyLayersSQL <- NULL
 
   if (req_aggs[["N"]] > 0) {
@@ -2877,7 +3025,7 @@ make_dbTempOut <- function(dbOutput, dir_out_temp, fields, adaily,
 #' @param verbose A logical value.
 #'
 #' @export
-dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta, # nolint
+dbOutput_update_OverallAggregationTable <- function(SFSW2_prj_meta,
   col_ids = NULL, chunksize = 1000, verbose = FALSE) {
 
   con_dbOut <- dbConnect(SQLite(),
@@ -3247,6 +3395,7 @@ dbOut_prepare1 <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 #'
 #' @examples
 #' \dontrun{
+#' if (requireNamespace("RSQLite") && exists("SFSW2_prj_meta")) {
 #'   con_dbCheck <- dbOut_check_values(
 #'     dbOut_fname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
 #'     dbNew_fname = "path/to/new.sqlite3",
@@ -3256,20 +3405,21 @@ dbOut_prepare1 <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 #'     )
 #'   )
 #'
-#'   tables <- dbListTables(con_dbCheck)
+#'   tables <- RSQLite::dbListTables(con_dbCheck)
 #'   tables <- tables[1] # example table
-#'   fields <- dbQuoteIdentifier(con_dbCheck, dbListFields(con_dbCheck, tables))
+#'   fields <- RSQLite::dbQuoteIdentifier(con_dbCheck,
+#'     RSQLite::dbListFields(con_dbCheck, tables))
 #'
 #'   # Extract Pids from records that matched up for example table
 #'   sql <- paste("SELECT P_id FROM", tables, "WHERE",
 #'     paste(fields[-1], "= 1", collapse = " AND "))
-#'   is_good <- dbGetQuery(con_dbCheck, sql)
+#'   is_good <- RSQLite::dbGetQuery(con_dbCheck, sql)
 #'
 #'   # Extract Pids from records that did not match up; this should be empty
 #'   sql <- paste("SELECT P_id FROM", tables, "WHERE",
 #'     paste(fields[-1], "= 0", collapse = " OR "))
-#'   is_bad <- dbGetQuery(con_dbCheck, sql)
-#' }
+#'   is_bad <- RSQLite::dbGetQuery(con_dbCheck, sql)
+#' }}
 #'
 #' @export
 dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
@@ -3392,6 +3542,7 @@ dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
 #'
 #' @examples
 #' \dontrun{
+#' if (requireNamespace("RSQLite") && exists("SFSW2_prj_meta")) {
 #'   table <- dbOut_update_values(
 #'     dbOut_fname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
 #'     dbNew_fname = "path/to/new.sqlite3",
@@ -3399,16 +3550,18 @@ dbOut_check_values <- function(dbOut_fname, dbNew_fname, fields_check = NULL,
 #'       aggregation_overall_mean = c("MAT_C_mean", "MAP_mm_mean"),
 #'       aggregation_overall_sd = c("MAT_C_sd", "MAP_mm_sd")))
 #'
-#'   con <- dbConnect(SQLite(), SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-#'   fields <- dbQuoteIdentifier(con, dbListFields(con, table))
+#'   con <- RSQLite::dbConnect(RSQLite::SQLite(),
+#'     SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+#'   fields <- RSQLite::dbQuoteIdentifier(con,
+#'     RSQLite::dbListFields(con, table))
 #'
 #'   # Extract Pids from records that were updated
 #'   sql <- paste("SELECT P_id FROM", table, "WHERE",
 #'     paste(fields[-1], "= 1", collapse = " AND "))
-#'   is_good <- dbGetQuery(con, sql)
+#'   is_good <- RSQLite::dbGetQuery(con, sql)
 #'
-#'   dbDisconnect(con)
-#' }
+#'   RSQLite::dbDisconnect(con)
+#' }}
 #'
 #' @export
 dbOut_update_values <- function(dbOut_fname, dbNew_fname, fields_update = NULL,

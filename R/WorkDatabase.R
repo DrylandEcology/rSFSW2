@@ -94,7 +94,7 @@ colnames_work_dbWork <- function() {
     "inwork", "time_s")
 }
 
-colnames_modification_status_dbWork <- function() { # nolint
+colnames_modification_status_dbWork <- function() {
   c("status", "time_stamp")
 }
 
@@ -607,12 +607,13 @@ dbWork_check_run <- function(path, runIDs) {
 #' @examples
 #' \dontrun{
 #' # `SFSW2_prj_meta` object as produced, e.g., for `TestPrj4`
-#' dbWork_report_completion(
-#'   path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-#'   use_granular_control =
-#'     SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]],
-#'   SFSW2_prj_meta = SFSW2_prj_meta)
-#' }
+#' if (exists("SFSW2_prj_meta")) {
+#'   dbWork_report_completion(
+#'     path = SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+#'     use_granular_control =
+#'       SFSW2_prj_meta[["opt_out_fix"]][["use_granular_control"]],
+#'     SFSW2_prj_meta = SFSW2_prj_meta)
+#' }}
 #'
 #' @export
 dbWork_report_completion <- function(path, use_granular_control = FALSE,
@@ -791,9 +792,10 @@ dbWork_check_design <- function(path, use_granular_control = FALSE) {
 #'
 #' @examples
 #' \dontrun{
-#' # `SFSW2_prj_meta` object as produced, e.g., for `TestPrj4`
-#' recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
-#' }
+#' if (exists("SFSW2_prj_meta")) {
+#'   # `SFSW2_prj_meta` object as produced, e.g., for `TestPrj4`
+#'   recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta)
+#' }}
 #'
 #' @export
 recreate_dbWork <- function(path, dbOutput, use_granular_control,
@@ -869,8 +871,6 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
     out_tables <- dbOutput_ListOutputTables(con = con_dbOut)
 
     # Extract information from dbOutput table 'runs'
-    infer_expN <- as.integer(dbGetQuery(con_dbOut,
-      "SELECT MAX(treatment_id) FROM runs"))
     infer_scN <- as.integer(dbGetQuery(con_dbOut,
       "SELECT MAX(scenario_id) FROM runs"))
     infer_runsN_total <- as.integer(dbGetQuery(con_dbOut,
@@ -884,6 +884,12 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
       "SELECT Include_YN FROM sites")[, 1])
     infer_runIDmax_sites <- as.integer(dbGetQuery(con_dbOut,
       "SELECT MAX(site_id) FROM sites"))
+
+    # Extract information from dbOutput table 'experimental_labels'
+    infer_expN <- if (dbExistsTable(con_dbOut, "experimental_labels")) {
+        as.integer(dbGetQuery(con_dbOut,
+          "SELECT COUNT(*) FROM experimental_labels"))
+      } else 1
 
 
     #--- If dbWork exists, then copy timing information if design is current

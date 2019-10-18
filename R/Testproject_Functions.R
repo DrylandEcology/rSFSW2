@@ -391,7 +391,7 @@ check_aggregated_output <- function(x) {
 
   #--- Water balance checks
   # (1) AET <= PET
-  temp <- with(x, all(AET_mm_mean <= PET_mm_mean)) # nolint
+  temp <- all(x[, "AET_mm_mean"] <= x[, "PET_mm_mean"])
 
   if (!isTRUE(temp)) {
     temp <- list("(1) AET <= PET" = temp)
@@ -402,8 +402,10 @@ check_aggregated_output <- function(x) {
 
 
   # (2) AET == E(total) + T(total)
-  temp <- with(x, all.equal(AET_mm_mean, Transpiration_Total_mm_mean +
-    Evaporation_Total_mm_mean))
+  temp <- all.equal(
+    x[, "AET_mm_mean"],
+    x[, "Transpiration_Total_mm_mean"] + x[, "Evaporation_Total_mm_mean"]
+  )
 
   if (!isTRUE(temp)) {
     temp <- list("AET == Ttotal + Etotal" = temp)
@@ -414,8 +416,11 @@ check_aggregated_output <- function(x) {
 
 
   # (3) T(total) = sum of T(veg-type i from soil layer j)
-  temp <- with(x, all.equal(Transpiration_Total_mm_mean,
-    Transpiration_topLayers_mm_mean + Transpiration_bottomLayers_mm_mean))
+  temp <- all.equal(
+    x[, "Transpiration_Total_mm_mean"],
+    x[, "Transpiration_topLayers_mm_mean"] +
+      x[, "Transpiration_bottomLayers_mm_mean"]
+  )
 
   if (!isTRUE(temp)) {
     temp <- list("Total == sum of T(veg-type i from soil layer j)" = temp)
@@ -428,10 +433,14 @@ check_aggregated_output <- function(x) {
   # (4) E(total) = E(total bare-soil) + E(ponded water) +
   #            + E(total litter-intercepted) +
   #            + E(total veg-intercepted) + E(snow sublimation)
-  temp <- with(x, all.equal(Evaporation_Total_mm_mean,
-    Evaporation_Soil_Total_mm_mean + Evaporation_SurfaceWater_mm_mean +
-    Evaporation_InterceptedByVegetation_mm_mean +
-    Evaporation_InterceptedByLitter_mm_mean + Snowloss_mm_mean))
+  temp <- all.equal(
+    x[, "Evaporation_Total_mm_mean"],
+    x[, "Evaporation_Soil_Total_mm_mean"] +
+      x[, "Evaporation_SurfaceWater_mm_mean"] +
+      x[, "Evaporation_InterceptedByVegetation_mm_mean"] +
+      x[, "Evaporation_InterceptedByLitter_mm_mean"] +
+      x[, "Snowloss_mm_mean"]
+  )
 
   if (!isTRUE(temp)) {
     temp <- list("Etotal == Esoil + Eponded + Eveg + Elitter + Esnow" = temp)
@@ -449,9 +458,12 @@ check_aggregated_output <- function(x) {
 
 
   # (7) E(soil) + Ttotal = infiltration - (deepDrainage + delta(swc))
-  temp <- with(x, all.equal(Evaporation_Soil_Total_mm_mean +
-    Transpiration_Total_mm_mean, Infiltration_mm_mean -
-    (DeepDrainage_mm_mean + SWC_StorageChange_mm_mean)))
+  temp <- all.equal(
+    x[, "Evaporation_Soil_Total_mm_mean"] +
+      x[, "Transpiration_Total_mm_mean"],
+    x[, "Infiltration_mm_mean"] -
+      (x[, "DeepDrainage_mm_mean"] + x[, "SWC_StorageChange_mm_mean"])
+  )
 
   if (!isTRUE(temp)) {
     temp <- list("Esoil + Ttotal == infiltration - (deepDrainage + delta(swc))"
@@ -493,10 +505,12 @@ check_aggregated_output <- function(x) {
 #' \dontrun{
 #'   # Run test project 4 inside development version of package
 #'   # Assume that working directory is `tests/test_data/TestPrj4/`
-#'   source("SFSW2_project_code.R")
+#'   if (file.exists("SFSW2_project_code.R")) {
+#'     source("SFSW2_project_code.R")
 #'
-#'   # Compare output database with reference database
-#'   comp <- compare_test_output(".", dir_ref = "../0_ReferenceOutput/")
+#'     # Compare output database with reference database
+#'     comp <- compare_test_output(".", dir_ref = "../0_ReferenceOutput/")
+#'   }
 #' }
 #'
 #' @export

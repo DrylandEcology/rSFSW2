@@ -40,6 +40,7 @@ database
 }
 \examples{
 \dontrun{
+if (requireNamespace("RSQLite") && exists("SFSW2_prj_meta")) {
   con_dbCheck <- dbOut_check_values(
     dbOut_fname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
     dbNew_fname = "path/to/new.sqlite3",
@@ -49,19 +50,20 @@ database
     )
   )
 
-  tables <- dbListTables(con_dbCheck)
+  tables <- RSQLite::dbListTables(con_dbCheck)
   tables <- tables[1] # example table
-  fields <- dbQuoteIdentifier(con_dbCheck, dbListFields(con_dbCheck, tables))
+  fields <- RSQLite::dbQuoteIdentifier(con_dbCheck,
+    RSQLite::dbListFields(con_dbCheck, tables))
 
   # Extract Pids from records that matched up for example table
   sql <- paste("SELECT P_id FROM", tables, "WHERE",
     paste(fields[-1], "= 1", collapse = " AND "))
-  is_good <- dbGetQuery(con_dbCheck, sql)
+  is_good <- RSQLite::dbGetQuery(con_dbCheck, sql)
 
   # Extract Pids from records that did not match up; this should be empty
   sql <- paste("SELECT P_id FROM", tables, "WHERE",
     paste(fields[-1], "= 0", collapse = " OR "))
-  is_bad <- dbGetQuery(con_dbCheck, sql)
-}
+  is_bad <- RSQLite::dbGetQuery(con_dbCheck, sql)
+}}
 
 }
