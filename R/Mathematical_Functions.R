@@ -254,6 +254,104 @@ circ_add <- function(x, y, int, type = c("minusPiPlusPi", "ZeroPlus2Pi")) {
 }
 
 
+
+
+#' Sequence generation for circular data
+#'
+#' @inheritParams base::seq
+#' @inheritParams circular
+#'
+#' @seealso \code{\link{seq}}
+#'
+#' @examples
+#' circ_seq(5, 8, int = 12)          ## expected c(5, 6, 7, 8)
+#' circ_seq(-7, 8, int = 12)         ## expected c(5, 6, 7, 8)
+#' circ_seq(-2, 3, int = 12)         ## expected c(10, 11, 12, 1, 2, 3)
+#' circ_seq(-2, 3, int = 12, by = 2) ## expected c(10, 12, 2)
+#' circ_seq(-2, 3, int = 12, length.out = 3) ## expected c(10, 0.5, 3)
+#'
+#' @export
+circ_seq <- function(from, to, int, by, length.out = NULL) {
+
+  # Modulo `p`
+  p <- int
+  from <- from %% p
+  to <- to %% p
+
+  # Code from `seq.default`: start
+  is.logint <- function(.) (is.integer(.) || is.logical(.)) && !is.object(.)
+  int <- is.logint(from) && is.logint(to)
+  # Code from `seq.default`: end
+
+  del <- circ_minus(to, from, int = p, type = "ZeroPlus2Pi")
+
+  # Code from `seq.default`: start
+  if (del == 0 && to == 0) {
+    return(to)
+  }
+  # Code from `seq.default`: end
+
+  # Determine `by`
+  if (missing(by) || is.null(by)) {
+    if (is.null(length.out)) {
+      by <- 1L
+    } else {
+      by <- del / (length.out - 1)
+    }
+  }
+
+  # Code from `seq.default`: start
+  if (length(by) != 1L) {
+    stop("'by' must be of length 1")
+  }
+
+  if (!is.logint(by)) {
+    int <- FALSE
+
+  } else if (!int) {
+    storage.mode(by) <- "double"
+  }
+
+  n <- del / by
+
+  if (!is.finite(n)) {
+    if (!is.na(by) && by == 0 && del == 0) {
+      return(from)
+    }
+    stop("invalid '(to - from)/by'")
+  }
+
+  if (n < 0L) {
+    stop("wrong sign in 'by' argument")
+  }
+
+  if (n > .Machine$integer.max) {
+    stop("'by' argument is much too small")
+  }
+
+  dd <- abs(del) / max(abs(to), abs(from))
+  if (dd < 100 * .Machine$double.eps) {
+    return(from)
+  }
+  # Code from `seq.default`: end
+
+  # Code based on `seq.default`: start
+  n <- if (int) {
+    as.integer(n)
+  } else {
+    as.integer(n + SFSW2_glovars[["tol"]])
+  }
+
+  res <- from + (0L:n) * by
+  # Code based on `seq.default`: end
+
+
+  # Modulo `p` type "ZeroPlus2Pi"
+  ZeroPlus2Pi(res, p)
+}
+
+
+
 #' Find the \code{k}-largest/smallest values (and apply a function to these
 #' values)
 #'
