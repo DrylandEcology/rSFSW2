@@ -4,7 +4,7 @@
 \alias{circ_add}
 \title{Calculate the circular addition \var{x + y}}
 \usage{
-circ_add(x, y, int)
+circ_add(x, y, int, type = c("minusPiPlusPi", "ZeroPlus2Pi"))
 }
 \arguments{
 \item{x}{A numeric vector or array.}
@@ -13,6 +13,11 @@ circ_add(x, y, int)
 
 \item{int}{A numeric value. The number of units of \code{x} in a full circle,
 e.g., for unit days: \code{int = 365}; for unit months: \code{int = 12}.}
+
+\item{type}{A character string. If \code{type == "minusPiPlusPi"},
+then the resulting value lies between \code{-int / 2} and \code{int / 2}.
+If \code{type == "ZeroPlus2Pi"},
+then the resulting value lies between \code{0} and \code{int}.}
 }
 \description{
 Calculate the circular addition \var{x + y}

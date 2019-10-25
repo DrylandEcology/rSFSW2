@@ -38,29 +38,73 @@ finite01 <- rSOILWAT2:::finite01
 #'   e.g., for unit days: \code{int = 365}; for unit months: \code{int = 12}.
 #' @param na.rm A logical value indicating whether \code{NA} values should be
 #'   stripped before the computation proceeds.
+#' @param type A character string. If \code{type == "minusPiPlusPi"},
+#'   then the resulting value lies between \code{-int / 2} and \code{int / 2}.
+#'   If \code{type == "ZeroPlus2Pi"},
+#'   then the resulting value lies between \code{0} and \code{int}.
+#'
 #'
 #' @return A numeric value or \code{NA}.
 #'
 #' @seealso \code{\link[circular]{mean.circular}},
-#'   \code{\link[circular]{range.circular}}, \code{\link[circular]{sd.circular}}
+#'   \code{\link[circular]{range.circular}},
+#'   \code{\link[circular]{sd.circular}}
 #'
 #' @aliases circ_mean circ_range circ_sd
 #' @name circular
 NULL
 
+ZeroPlus2Pi <- function(x, int) {
+  SFSW2_glovars[["tol"]] + (x - SFSW2_glovars[["tol"]]) %% int
+}
+
+get_circular_type <- function(x, circ, int,
+  type = c("minusPiPlusPi", "ZeroPlus2Pi")) {
+  type <- match.arg(type)
+
+  if (type == "minusPiPlusPi") {
+    x <- circular::minusPiPlusPi(x)
+  }
+
+  res <- as.numeric(x / circ)
+
+  if (type == "ZeroPlus2Pi") {
+    res <- ZeroPlus2Pi(res, int)
+  }
+
+  res
+}
+
 #' @rdname circular
-circ_mean <- function(x, int, na.rm = FALSE) {
+#' @examples
+#' x <- 1:3
+#' circ_mean(x, int = 12, type = "minusPiPlusPi") ## expected 2
+#' circ_mean(x, int = 12, type = "ZeroPlus2Pi") ## expected 2
+#' x <- (-2):0
+#' circ_mean(x, int = 12, type = "minusPiPlusPi") ## expected -1
+#' circ_mean(x, int = 12, type = "ZeroPlus2Pi") ## expected 11
+#' x <- (-5):5
+#' circ_mean(x, int = 12, type = "minusPiPlusPi") ## expected 0
+#' circ_mean(x, int = 12, type = "ZeroPlus2Pi") ## expected 12
+#' x <- (-5):8
+#' circ_mean(x, int = 12, type = "minusPiPlusPi") ## expected -4.5
+#' circ_mean(x, int = 12, type = "ZeroPlus2Pi") ## expected 7.5
+circ_mean <- function(x, int, type = c("minusPiPlusPi", "ZeroPlus2Pi"),
+  na.rm = FALSE) {
+  type <- match.arg(type)
+
   if (!all(is.na(x)) && requireNamespace("circular", quietly = TRUE)) {
     circ <- 2 * pi / int
-    x_circ <- circular::circular(x * circ, type = "angles", units = "radians",
-      rotation = "clock", modulo = "2pi")
-    x_int <- circular::mean.circular(x_circ, na.rm = na.rm) / circ
+    x_circ <- circular::circular(x * circ,
+      type = "angles",
+      units = "radians",
+      rotation = "clock",
+      modulo = "2pi")
 
-    # map 0 -> int; rounding to 13 digits: 13 was empirically derived for
-    # int = {12, 365} and
-    # x = c((-1):2, seq(x-5, x+5, by = 1), seq(2*x-5, 2*x+5, by = 1)) assuming
-    # that this function will never need to calculate for x > t*int with t>2
-    round(as.numeric(x_int) - 1, 13) %% int + 1
+    res_circ <- circular::mean.circular(x_circ, na.rm = na.rm)
+
+    get_circular_type(res_circ, circ, int, type)
+
   } else {
     NA
   }
@@ -70,8 +114,12 @@ circ_mean <- function(x, int, na.rm = FALSE) {
 circ_range <- function(x, int, na.rm = FALSE) {
   if (!all(is.na(x)) && requireNamespace("circular", quietly = TRUE)) {
     circ <- 2 * pi / int
-    x_circ <- circular::circular(x * circ, type = "angles", units = "radians",
-      rotation = "clock", modulo = "2pi")
+    x_circ <- circular::circular(x * circ,
+      type = "angles",
+      units = "radians",
+      rotation = "clock",
+      modulo = "2pi")
+
     x_int <- range(x_circ, na.rm = na.rm) / circ
     as.numeric(x_int)
 
@@ -87,10 +135,15 @@ circ_sd <- function(x, int, na.rm = FALSE) {
 
     if (stats::sd(x, na.rm = TRUE) > 0) {
       circ <- 2 * pi / int
-      x_circ <- circular::circular(x * circ, type = "angles", units = "radians",
-        rotation = "clock", modulo = "2pi")
+      x_circ <- circular::circular(x * circ,
+        type = "angles",
+        units = "radians",
+        rotation = "clock",
+        modulo = "2pi")
+
       x_int <- circular::sd.circular(x_circ, na.rm = na.rm) / circ
       as.numeric(x_int)
+
     } else {
       0
     }
@@ -104,16 +157,19 @@ circ_sd <- function(x, int, na.rm = FALSE) {
 #'
 #' @param x A numeric vector or array.
 #' @param y A numeric vector or array.
-#' @param int A numeric value. The number of units of \code{x} in a full circle,
-#'   e.g., for unit days: \code{int = 365}; for unit months: \code{int = 12}.
+#' @inheritParams circular
+#'
 #' @examples
 #' # Days of year
 #' circ_minus(260, 240, int = 365) ## expected: +20
 #' circ_minus(240, 260, int = 365) ## expected: -20
+#' circ_minus(240, 260, int = 365, type = "ZeroPlus2Pi") ## expected: 345
 #' circ_minus(10, 360, int = 365) ## expected: +15
 #' circ_minus(360, 10, int = 365) ## expected: -15
+#' circ_minus(360, 10, int = 365, type = "ZeroPlus2Pi") ## expected: 350
 #' circ_minus(0, 360, int = 365) ## expected: +5
 #' circ_minus(360, 0, int = 365) ## expected: -5
+#' circ_minus(360, 0, int = 365, type = "ZeroPlus2Pi") ## expected: 360
 #'
 #' # Matrix examples
 #' x <- matrix(c(260, 240, 10, 360, 0, 360), nrow = 3, ncol = 2)
@@ -122,15 +178,23 @@ circ_sd <- function(x, int, na.rm = FALSE) {
 #' y2 <- y
 #' y2[1, 1] <- NA
 #' circ_minus(y2, x, int = 365)
+#'
 #' @export
-circ_minus <- function(x, y, int) {
+circ_minus <- function(x, y, int, type = c("minusPiPlusPi", "ZeroPlus2Pi")) {
   stopifnot(all(dim(x) == dim(y)))
+
+  type <- match.arg(type)
 
   if (requireNamespace("circular", quietly = TRUE)) {
     circ <- 2 * pi / int
+
     d_circ <- circular::circular((x - y) * circ,
-      type = "angles", units = "radians", rotation = "clock", modulo = "asis")
-    res <- as.numeric(circular::minusPiPlusPi(d_circ) / circ)
+      type = "angles",
+      units = "radians",
+      rotation = "clock",
+      modulo = "asis")
+
+    res <- get_circular_type(d_circ, circ, int, type)
 
   } else {
     res <- rep(NA, length(x))
@@ -146,15 +210,15 @@ circ_minus <- function(x, y, int) {
 
 #' Calculate the circular addition \var{x + y}
 #'
-#' @param x A numeric vector or array.
-#' @param y A numeric vector or array.
-#' @param int A numeric value. The number of units of \code{x} in a full circle,
-#'   e.g., for unit days: \code{int = 365}; for unit months: \code{int = 12}.
+#' @inheritParams circ_minus
+#' @inheritParams circular
+#'
 #' @examples
 #' # Matrix examples: day of year
 #' x <- matrix(c(260, 240, 10, 360, 0, 360), nrow = 3, ncol = 2)
 #' y <- matrix(c(240, 260, 360, 10, 360, 0), nrow = 3, ncol = 2)
 #' circ_add(x, y, int = 365)
+#' circ_add(x, y, int = 365, type = "ZeroPlus2Pi")
 #'
 #' # Circular addition and subtraction
 #' r1 <- circ_add(circ_minus(x, y, int = 365), y, int = 365)
@@ -162,14 +226,21 @@ circ_minus <- function(x, y, int) {
 #' all.equal(r1, r2)
 #'
 #' @export
-circ_add <- function(x, y, int) {
+circ_add <- function(x, y, int, type = c("minusPiPlusPi", "ZeroPlus2Pi")) {
   stopifnot(all(dim(x) == dim(y)))
+
+  type <- match.arg(type)
 
   if (requireNamespace("circular", quietly = TRUE)) {
     circ <- 2 * pi / int
+
     d_circ <- circular::circular((x + y) * circ,
-      type = "angles", units = "radians", rotation = "clock", modulo = "asis")
-    res <- as.numeric(circular::minusPiPlusPi(d_circ) / circ)
+      type = "angles",
+      units = "radians",
+      rotation = "clock",
+      modulo = "asis")
+
+    res <- get_circular_type(d_circ, circ, int, type)
 
   } else {
     res <- rep(NA, length(x))
