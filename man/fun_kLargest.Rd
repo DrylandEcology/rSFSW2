@@ -5,8 +5,7 @@
 \title{Find the \code{k}-largest/smallest values (and apply a function to these
 values)}
 \usage{
-fun_kLargest(x, largest = TRUE, fun = NULL, k = 10L, na.rm = FALSE,
-  ...)
+fun_kLargest(x, largest = TRUE, fun = NULL, k = 10L, na.rm = FALSE, ...)
 }
 \arguments{
 \item{x}{A numeric vector}

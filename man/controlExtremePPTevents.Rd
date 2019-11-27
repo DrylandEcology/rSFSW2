@@ -4,8 +4,14 @@
 \alias{controlExtremePPTevents}
 \title{Check for and handle days with too extreme precipitation values}
 \usage{
-controlExtremePPTevents(data, dailyPPTceiling, sigmaN, do_checks = FALSE,
-  mfact = 10, seed = NA)
+controlExtremePPTevents(
+  data,
+  dailyPPTceiling,
+  sigmaN,
+  do_checks = FALSE,
+  mfact = 10,
+  seed = NA
+)
 }
 \arguments{
 \item{data}{A numeric vector. Daily values of precipitation.}

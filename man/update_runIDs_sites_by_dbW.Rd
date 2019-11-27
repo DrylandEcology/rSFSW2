@@ -4,8 +4,12 @@
 \alias{update_runIDs_sites_by_dbW}
 \title{Lookup IDs of sites as found in a weather database}
 \usage{
-update_runIDs_sites_by_dbW(sim_size, label_WeatherData,
-  fdbWeather = NULL, verbose = FALSE)
+update_runIDs_sites_by_dbW(
+  sim_size,
+  label_WeatherData,
+  fdbWeather = NULL,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{sim_size}{A list with at least one named element \code{runIDs_sites}.}

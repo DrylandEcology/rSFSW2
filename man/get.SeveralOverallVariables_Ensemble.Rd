@@ -5,8 +5,15 @@
 \title{Get data of variables in the overall aggregation table for one of the
 ensembles}
 \usage{
-get.SeveralOverallVariables_Ensemble(fdbrSFSW2, fdbrSFSW2ens, responseName,
-  MeanOrSD = "Mean", fam, level, whereClause = NULL)
+get.SeveralOverallVariables_Ensemble(
+  fdbrSFSW2,
+  fdbrSFSW2ens,
+  responseName,
+  MeanOrSD = "Mean",
+  fam,
+  level,
+  whereClause = NULL
+)
 }
 \description{
 Get data of variables in the overall aggregation table for one of the

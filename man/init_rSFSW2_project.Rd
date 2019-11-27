@@ -4,8 +4,12 @@
 \alias{init_rSFSW2_project}
 \title{Initialize a \pkg{rSFSW2} project (setup description file)}
 \usage{
-init_rSFSW2_project(fmetar, update = FALSE, verbose = TRUE,
-  print.debug = FALSE)
+init_rSFSW2_project(
+  fmetar,
+  update = FALSE,
+  verbose = TRUE,
+  print.debug = FALSE
+)
 }
 \arguments{
 \item{fmetar}{A character string. The path name to the project description

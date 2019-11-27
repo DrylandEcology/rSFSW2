@@ -4,8 +4,13 @@
 \alias{dbOut_update_values}
 \title{Update values of \var{dbOutput} based on a new database}
 \usage{
-dbOut_update_values(dbOut_fname, dbNew_fname, fields_update = NULL,
-  fields_exclude = NULL, verbose = FALSE)
+dbOut_update_values(
+  dbOut_fname,
+  dbNew_fname,
+  fields_update = NULL,
+  fields_exclude = NULL,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{dbOut_fname}{A character string. The file path of the main

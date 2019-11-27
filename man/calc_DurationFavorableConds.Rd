@@ -6,8 +6,12 @@
 upcoming favorable conditions accounting for consequences.unfavorable = 0
 (if conditions become unfavorable, then restart the count), =1 (resume)}
 \usage{
-calc_DurationFavorableConds(RYyear, consequences.unfavorable,
-  Germination_WhileFavorable, RYyear_ForEachUsedDay)
+calc_DurationFavorableConds(
+  RYyear,
+  consequences.unfavorable,
+  Germination_WhileFavorable,
+  RYyear_ForEachUsedDay
+)
 }
 \description{
 Function to calculate for each day of the year, duration in days of

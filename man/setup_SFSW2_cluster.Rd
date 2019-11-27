@@ -4,8 +4,12 @@
 \alias{setup_SFSW2_cluster}
 \title{Set-up a parallel cluster to be used for a \pkg{rSFSW2} simulation project}
 \usage{
-setup_SFSW2_cluster(opt_parallel, dir_out, verbose = FALSE,
-  print.debug = FALSE)
+setup_SFSW2_cluster(
+  opt_parallel,
+  dir_out,
+  verbose = FALSE,
+  print.debug = FALSE
+)
 }
 \description{
 Set-up a parallel cluster to be used for a \pkg{rSFSW2} simulation project

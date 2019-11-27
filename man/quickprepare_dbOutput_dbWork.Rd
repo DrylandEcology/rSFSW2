@@ -5,8 +5,7 @@
 \title{Prepare output database without running proper steps of
 \file{SFSW2_project_code.R}}
 \usage{
-quickprepare_dbOutput_dbWork(actions, path, SFSW2_prj_meta,
-  verbose = FALSE)
+quickprepare_dbOutput_dbWork(actions, path, SFSW2_prj_meta, verbose = FALSE)
 }
 \arguments{
 \item{path}{A character string. The path at which the databases will be

@@ -4,8 +4,13 @@
 \alias{ExtractClimateWizard}
 \title{Extract climate scenarios from downloaded \url{ClimateWizard.org} data}
 \usage{
-ExtractClimateWizard(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs, todos,
-  verbose = FALSE)
+ExtractClimateWizard(
+  climDB_metas,
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs,
+  todos,
+  verbose = FALSE
+)
 }
 \description{
 Extract climate scenarios from downloaded \url{ClimateWizard.org} data

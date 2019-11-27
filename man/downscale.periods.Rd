@@ -4,10 +4,17 @@
 \alias{downscale.periods}
 \title{Time periods for downscaling functions}
 \usage{
-downscale.periods(obs.hist.daily, obs.hist.monthly,
-  scen.hist.monthly = NULL, scen.fut.monthly = NULL, years = NULL,
-  DScur_startyear = NULL, DScur_endyear = NULL,
-  DSfut_startyear = NULL, DSfut_endyear = NULL)
+downscale.periods(
+  obs.hist.daily,
+  obs.hist.monthly,
+  scen.hist.monthly = NULL,
+  scen.fut.monthly = NULL,
+  years = NULL,
+  DScur_startyear = NULL,
+  DScur_endyear = NULL,
+  DSfut_startyear = NULL,
+  DSfut_endyear = NULL
+)
 }
 \arguments{
 \item{obs.hist.daily}{A list. Each element corresponds to one year of

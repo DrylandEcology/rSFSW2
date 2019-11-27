@@ -4,10 +4,18 @@
 \alias{downscale.deltahybrid}
 \title{Downscale with the 'delta-hybrid approach' old version (prior to May 2016)}
 \usage{
-downscale.deltahybrid(obs.hist.daily, obs.hist.monthly, scen.hist.monthly,
-  scen.fut.monthly, itime, years = NULL, sim_time = NULL,
-  opt_DS = list(sigmaN = 6, PPTratioCutoff = 10), do_checks = TRUE,
-  ...)
+downscale.deltahybrid(
+  obs.hist.daily,
+  obs.hist.monthly,
+  scen.hist.monthly,
+  scen.fut.monthly,
+  itime,
+  years = NULL,
+  sim_time = NULL,
+  opt_DS = list(sigmaN = 6, PPTratioCutoff = 10),
+  do_checks = TRUE,
+  ...
+)
 }
 \arguments{
 \item{obs.hist.daily}{A list. Each element corresponds to one year of

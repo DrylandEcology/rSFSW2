@@ -4,8 +4,14 @@
 \alias{reaggregate_raster}
 \title{Extract all raster cell values that occur within each rectangle}
 \usage{
-reaggregate_raster(x, coords, to_res = c(0, 0), with_weights = NULL,
-  method = c("raster", "raster_con", "block"), tol = 0.01)
+reaggregate_raster(
+  x,
+  coords,
+  to_res = c(0, 0),
+  with_weights = NULL,
+  method = c("raster", "raster_con", "block"),
+  tol = 0.01
+)
 }
 \arguments{
 \item{x}{A \code{\link[raster:Raster-class]{raster::Raster}} object from

@@ -4,9 +4,15 @@
 \alias{dbOutput_subset}
 \title{Make a copy of \var{\code{dbOutput}} with a subset of tables and/or fields}
 \usage{
-dbOutput_subset(dbOut_fname, dbNew_fname, fields_include = NULL,
-  fields_exclude = NULL, subset_scenarios = NULL,
-  subset_experiments = NULL, verbose = FALSE)
+dbOutput_subset(
+  dbOut_fname,
+  dbNew_fname,
+  fields_include = NULL,
+  fields_exclude = NULL,
+  subset_scenarios = NULL,
+  subset_experiments = NULL,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{dbOut_fname}{A character string. The file path of the main

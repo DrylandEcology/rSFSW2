@@ -5,9 +5,17 @@
 \title{Function to estimate time to germinate for each day of a given year and
 conditions (temperature, top soil \var{SWP})}
 \usage{
-calc_TimeToGerminate(RYyear, Germination_WhileFavorable,
-  LengthDays_FavorableConditions, RYyear_ForEachUsedDay, soilTmeanSnow,
-  swp.TopMean, TmeanJan, param, seed = NA)
+calc_TimeToGerminate(
+  RYyear,
+  Germination_WhileFavorable,
+  LengthDays_FavorableConditions,
+  RYyear_ForEachUsedDay,
+  soilTmeanSnow,
+  swp.TopMean,
+  TmeanJan,
+  param,
+  seed = NA
+)
 }
 \arguments{
 \item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect

@@ -4,8 +4,7 @@
 \alias{dbExecute2}
 \title{Execute a SQL statement on a database connection with safeguards}
 \usage{
-dbExecute2(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5,
-  seed = NA)
+dbExecute2(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5, seed = NA)
 }
 \arguments{
 \item{con}{A \code{\link[DBI:DBIConnection-class]{DBIConnection}} or

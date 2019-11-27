@@ -64,7 +64,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Daniel Schlaepfer \email{daniel.schlaepfer@yale.edu} (0000-0001-9973-2065)
+\strong{Maintainer}: Daniel Schlaepfer \email{daniel.schlaepfer@yale.edu} (\href{https://orcid.org/0000-0001-9973-2065}{ORCID})
 
 Other contributors:
 \itemize{

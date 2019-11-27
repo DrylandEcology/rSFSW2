@@ -25,7 +25,7 @@ Determine seedling survival in the first season (\var{\sQuote{ss1s}})
 }
 
 \examples{
- # The \\pkg{Rcpp} function is equivalent to the following R version
+ # The \pkg{Rcpp} function is equivalent to the following R version
    kill_seedling_R <- function(ss1s, ry_year_day, ry_useyrs, y,
      doy) {
      ss1s[ry_year_day == ry_useyrs[y]][doy] <- FALSE

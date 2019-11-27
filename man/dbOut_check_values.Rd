@@ -5,8 +5,13 @@
 \title{Check that cells of \var{dbOutput} agree with corresponding cells of another
 database}
 \usage{
-dbOut_check_values(dbOut_fname, dbNew_fname, fields_check = NULL,
-  tol = 0.001, verbose = FALSE)
+dbOut_check_values(
+  dbOut_fname,
+  dbNew_fname,
+  fields_check = NULL,
+  tol = 0.001,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{dbOut_fname}{A character string. The file path of the main

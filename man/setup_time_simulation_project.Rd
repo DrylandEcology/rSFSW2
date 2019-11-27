@@ -4,8 +4,13 @@
 \alias{setup_time_simulation_project}
 \title{Describe the time of a simulation project}
 \usage{
-setup_time_simulation_project(sim_time, add_st2 = FALSE,
-  adjust_NS = FALSE, use_doy_range = FALSE, doy_ranges = list())
+setup_time_simulation_project(
+  sim_time,
+  add_st2 = FALSE,
+  adjust_NS = FALSE,
+  use_doy_range = FALSE,
+  doy_ranges = list()
+)
 }
 \arguments{
 \item{sim_time}{A list with at least values for four named elements:

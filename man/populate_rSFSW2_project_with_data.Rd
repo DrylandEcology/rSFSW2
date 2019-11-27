@@ -4,8 +4,14 @@
 \alias{populate_rSFSW2_project_with_data}
 \title{Populate \pkg{rSFSW2} project with input data}
 \usage{
-populate_rSFSW2_project_with_data(SFSW2_prj_meta, opt_behave, opt_parallel,
-  opt_chunks, opt_out_run, opt_verbosity)
+populate_rSFSW2_project_with_data(
+  SFSW2_prj_meta,
+  opt_behave,
+  opt_parallel,
+  opt_chunks,
+  opt_out_run,
+  opt_verbosity
+)
 }
 \description{
 Populate \pkg{rSFSW2} project with input data

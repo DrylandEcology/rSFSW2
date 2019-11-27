@@ -5,8 +5,14 @@
 \title{Extract gridded daily weather from Maurer et al. 2002 (updated in 2010) for
 North American sites}
 \usage{
-ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(dir_data, cellname,
-  start_year, end_year, dbW_digits, verbose = FALSE)
+ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
+  dir_data,
+  cellname,
+  start_year,
+  end_year,
+  dbW_digits,
+  verbose = FALSE
+)
 }
 \value{
 An invisible zero. A list of which each element represents one year

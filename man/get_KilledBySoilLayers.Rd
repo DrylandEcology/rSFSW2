@@ -41,7 +41,7 @@ Function that checks whether all relevant (those with roots) soil layers
 }
 
 \examples{
- # The \\pkg{Rcpp} function is equivalent to the following R version
+ # The \pkg{Rcpp} function is equivalent to the following R version
     get_KilledBySoilLayers_R <- function(relevantLayers, kill.conditions) {
       vapply(seq_along(relevantLayers), function(k) {
           if (all(is.finite(relevantLayers[k]))) {

@@ -4,8 +4,7 @@
 \alias{process_inputs}
 \title{Load and prepare inputs for a \pkg{rSFSW2} simulation project}
 \usage{
-process_inputs(project_paths, fnames_in, use_preprocin = TRUE,
-  verbose = FALSE)
+process_inputs(project_paths, fnames_in, use_preprocin = TRUE, verbose = FALSE)
 }
 \description{
 Load and prepare inputs for a \pkg{rSFSW2} simulation project

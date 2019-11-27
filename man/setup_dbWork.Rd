@@ -5,8 +5,7 @@
 \title{Setup or connect to \var{SQLite}-database \code{dbWork} to manage runs of a
 \pkg{rSFSW2} simulation project}
 \usage{
-setup_dbWork(path, sim_size, include_YN, resume = FALSE,
-  SFSW2_prj_meta = NULL)
+setup_dbWork(path, sim_size, include_YN, resume = FALSE, SFSW2_prj_meta = NULL)
 }
 \arguments{
 \item{path}{A character string. Path to the folder where the database will be

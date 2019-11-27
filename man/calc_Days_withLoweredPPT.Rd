@@ -4,8 +4,14 @@
 \alias{calc_Days_withLoweredPPT}
 \title{Distribute precipitation among days without too extreme values}
 \usage{
-calc_Days_withLoweredPPT(data_N, this_newPPTevent_N, sigmaN,
-  this_i_extreme, this_pptToDistribute, seed = NA)
+calc_Days_withLoweredPPT(
+  data_N,
+  this_newPPTevent_N,
+  sigmaN,
+  this_i_extreme,
+  this_pptToDistribute,
+  seed = NA
+)
 }
 \arguments{
 \item{data_N}{An integer value. The number of days of the precipitation record to

@@ -4,10 +4,20 @@
 \alias{extract_daily_weather_from_livneh}
 \title{Extract Gridded Weather Data from a Livneh Database}
 \usage{
-extract_daily_weather_from_livneh(dir_data, dir_temp, site_ids,
-  site_ids_by_dbW, coords, start_year, end_year, f_check = TRUE,
-  backup = TRUE, comp_type = "gzip", dbW_digits = 2,
-  verbose = FALSE)
+extract_daily_weather_from_livneh(
+  dir_data,
+  dir_temp,
+  site_ids,
+  site_ids_by_dbW,
+  coords,
+  start_year,
+  end_year,
+  f_check = TRUE,
+  backup = TRUE,
+  comp_type = "gzip",
+  dbW_digits = 2,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{dir_data}{directory containing Livneh data}

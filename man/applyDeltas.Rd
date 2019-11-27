@@ -5,8 +5,14 @@
 \title{Add/multiply deltas to historic daily data to generate future daily
 \pkg{rSOILWAT2}-formatted weather.}
 \usage{
-applyDeltas(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun,
-  sigmaN = 6, do_checks = FALSE)
+applyDeltas(
+  obs.hist.daily,
+  obs.hist.monthly,
+  delta_ts,
+  ppt_fun,
+  sigmaN = 6,
+  do_checks = FALSE
+)
 }
 \description{
 Used by \code{downscale.raw}, \code{downscale.delta}, and \code{downscale.deltahybrid}

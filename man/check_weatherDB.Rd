@@ -4,9 +4,16 @@
 \alias{check_weatherDB}
 \title{Checks data in a weather database}
 \usage{
-check_weatherDB(dir_prj, fdbWeather, repeats = 2L,
-  do_preprocess_tempfiles = TRUE, n_cores = 20L, startyear = 1979,
-  endyear = 2010, seed = NA)
+check_weatherDB(
+  dir_prj,
+  fdbWeather,
+  repeats = 2L,
+  do_preprocess_tempfiles = TRUE,
+  n_cores = 20L,
+  startyear = 1979,
+  endyear = 2010,
+  seed = NA
+)
 }
 \arguments{
 \item{dir_prj}{A character string. The directory path the \pkg{rSFSW2}

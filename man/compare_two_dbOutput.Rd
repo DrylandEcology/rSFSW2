@@ -4,8 +4,13 @@
 \alias{compare_two_dbOutput}
 \title{Compare one output database with another output database}
 \usage{
-compare_two_dbOutput(dbOut1, dbOut2, tol = 0.001, comp_absolute = TRUE,
-  verbose = FALSE)
+compare_two_dbOutput(
+  dbOut1,
+  dbOut2,
+  tol = 0.001,
+  comp_absolute = TRUE,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{dbOut1}{A character string. Path to first output database used as

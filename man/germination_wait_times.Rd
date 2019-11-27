@@ -19,7 +19,7 @@ Determine wait times until germination based on information on favorable
 }
 
 \examples{
- # The \\pkg{Rcpp} function is equivalent to the following R version
+ # The \pkg{Rcpp} function is equivalent to the following R version
    germination_wait_times_R <- function(time_to_germinate, duration_fave_cond) {
      N <- length(time_to_germinate)
      stats::na.exclude(unlist(lapply(seq_len(N), function(t) {

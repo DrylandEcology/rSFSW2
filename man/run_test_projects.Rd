@@ -4,10 +4,18 @@
 \alias{run_test_projects}
 \title{Run test projects}
 \usage{
-run_test_projects(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
-  dir_prev = NULL, which_tests_torun = seq_along(dir_tests),
-  delete_output = FALSE, force_delete_output = FALSE,
-  make_new_ref = FALSE, write_report_to_disk = TRUE, verbose = FALSE)
+run_test_projects(
+  dir_tests,
+  dir_prj_tests = NULL,
+  dir_ref = NULL,
+  dir_prev = NULL,
+  which_tests_torun = seq_along(dir_tests),
+  delete_output = FALSE,
+  force_delete_output = FALSE,
+  make_new_ref = FALSE,
+  write_report_to_disk = TRUE,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{dir_tests}{A vector of character strings. Paths to individual test

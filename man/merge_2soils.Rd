@@ -4,8 +4,18 @@
 \alias{merge_2soils}
 \title{Merge two soil input datafiles}
 \usage{
-merge_2soils(fmaster, fmaster1, fmaster2, fslayer, fslayer1, fslayer2,
-  fstexture, fstexture1, fstexture2, var_from2 = NULL)
+merge_2soils(
+  fmaster,
+  fmaster1,
+  fmaster2,
+  fslayer,
+  fslayer1,
+  fslayer2,
+  fstexture,
+  fstexture1,
+  fstexture2,
+  var_from2 = NULL
+)
 }
 \arguments{
 \item{fmaster}{A character string. Path to the target master file.}
