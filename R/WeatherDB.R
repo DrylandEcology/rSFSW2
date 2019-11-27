@@ -219,6 +219,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     ids_NRCan_extraction <- which(dw_source == "NRCan_10km_Canada")
     ids_NCEPCFSR_extraction <- which(dw_source == "NCEPCFSR_Global")
     ids_Livneh_extraction <- which(dw_source == "Livneh2013_NorthAmerica")
+    ids_gridMET_extraction <- which(dw_source == "gridMET_NorthAmerica")
 
     # Weather extraction with parallel support
     if (length(ids_NRCan_extraction) > 0 ||
@@ -287,6 +288,22 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
         comp_type    = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
         dbW_digits   = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
         verbose     = verbose)
+    }
+
+    if (length(ids_gridMET_extraction) > 0) {
+      irow <- add_runIDs_sites[ids_gridMET_extraction]
+      extract_daily_weather_from_gridMET(
+        dir_data = SFSW2_prj_meta[["project_paths"]][["dir_gridMET"]],
+        dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+        site_ids = SWRunInformation$site_id[irow],
+        site_ids_by_dbW = add_siteIDs_by_dbW[ids_gridMET_extraction],
+        coords = SWRunInformation[irow, c("X_WGS84", "Y_WGS84"), drop = FALSE],
+        start_year = SFSW2_prj_meta[["sim_time"]][["overall_simstartyr"]],
+        end_year = SFSW2_prj_meta[["sim_time"]][["overall_endyr"]],
+        comp_type = SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+        dbW_digits = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+        verbose = verbose
+      )
     }
 
     if (length(ids_NCEPCFSR_extraction) > 0) {
@@ -1613,6 +1630,279 @@ if (!interactive()) {
 ########################################################
 
 
+
+#' Description of the \var{gridMET} dataset
+#' @return A named list.
+#' @export
+gridMET_metadata <- function() {
+  list(
+    # order of variables expected by SOILWAT2
+    vars = c("tmmx", "tmmn", "pr"),
+    # convert to units expected by SOILWAT2: C, C, cm / day
+    funits = list(NULL, NULL, function(x) x / 10),
+    start_year = 1979,
+    end_year = 2018 # updated yearly
+  )
+}
+
+#' List gridMET data files available on disk
+find_gridMET_files <- function(dir_data, vars = gridMET_metadata()[["vars"]]) {
+  x <- lapply(vars, function(var) {
+    list.files(dir_data,
+      pattern = paste0("^(", var, ").+(\\.nc)$"),
+      full.names = TRUE
+    )
+  })
+  names(x) <- vars
+
+  x
+}
+
+#' Prepare script to download all or missing files of the \var{gridMET} dataset
+#'
+#' @param dir_data A character string. Path to where the \var{gridMET} dataset
+#'   is/will be stored on disk.
+#' @param desc A named list. Describing the \var{gridMET} dataset.
+#'
+#' @return If all files are available, then a message is printed to the
+#'  R console with that information. Otherwise, the message points to a
+#'  \var{.sh} script that was created at \code{dir_data} which must be run
+#'  separately to download the missing files.
+#'
+#' @section Notes: The download scripts use \var{wget}, i.e., it must be
+#'   available on your system to work. The scripts are based on the dataset
+#'   repository setup at \url{http://www.climatologylab.org/gridmet.html} as of
+#'   Nov 2019. This dataset has also been know as \var{METDATA}.
+#'
+#' @references Abatzoglou, J. T. (2013) Development of gridded surface
+#'   meteorological data for ecological applications and modelling.
+#'   Int. J. Climatol., 33: 121–131.
+#'
+#' @examples
+#' if (exists("SFSW2_prj_meta")) {
+#'   gridMET_download_and_check(
+#'    dir_data = SFSW2_prj_meta[["project_paths"]][["dir_gridMET"]]
+#'  )
+#' }
+#'
+#' @export
+gridMET_download_and_check <- function(dir_data, desc = gridMET_metadata()) {
+  dir.create(dir_data, recursive = TRUE, showWarnings = FALSE)
+
+  years <- seq(desc[["start_year"]], desc[["end_year"]])
+
+  #--- Check which files are missing
+  fnames_gridMET <- sapply(desc[["vars"]],
+    function(var) paste0(var, "_", years, ".nc")
+  )
+
+  is_missing <- matrix(
+    data = !file.exists(file.path(dir_data, fnames_gridMET)),
+    nrow = length(years),
+    ncol = length(desc[["vars"]])
+  )
+
+
+  #--- Create script to download files if any are missing
+  if (any(is_missing)) {
+    metdata_bash <- "#!/bin/bash"
+
+    for (iv in seq_along(desc[["vars"]])) if (any(is_missing[, iv])) {
+      metdata_bash <- c(metdata_bash,
+        paste0(
+          "wget -nc -c -nd ",
+          "http://www.northwestknowledge.net/metdata/data/",
+         fnames_gridMET[is_missing[, iv], iv]
+        )
+      )
+    }
+
+    fname_bash <- file.path(dir_data,
+      paste0("metdata_wget_", format(Sys.time(), "%Y%m%d%H%M%S"), ".sh")
+    )
+
+    writeLines(metdata_bash, con = fname_bash)
+
+    stop("Please execute script ",
+      shQuote(basename(fname_bash)),
+      " to download missing gridMET data."
+    )
+
+  } else {
+    print("All gridMET files are available.")
+  }
+}
+
+
+#' Extract daily gridded weather data from the \var{gridMET} dataset
+#'
+#' Extracts daily gridded weather data, including precipitation,
+#' maximum temperature and minimum temperature from the gridMET
+#' (Abatzoglou 2013) database: a 1/24 degree gridded weather database that
+#' contains data for the years 1979 - yesterday.
+#'
+#' @section Details: Run the function \code{\link{gridMET_download_and_check}}
+#'   to download and check the dataset.
+#'
+#' @references Abatzoglou, J. T. (2013) Development of gridded surface
+#'   meteorological data for ecological applications and modelling.
+#'   Int. J. Climatol., 33: 121–131.
+#'
+#' @param dir_data A character string. The directory containing the
+#'   \var{gridMET} dataset files.
+#' @param site_ids An integer vector. The indices of sites for which to extract
+#'   \var{gridMET} weather data.
+#' @param coords A two-dimensional numerical object. The coordinates for each
+#'   site in \var{WGS84}.
+#' @param start_year An integer value. The first calendar year for which to
+#'   extract daily weather data.
+#' @param end_year An integer value. The last calendar year for which to
+#'   extract daily weather data.
+#' @param comp_type A character string. The compression type used by the
+#'   weather database.
+#' @param dbW_digits An integer value. The number of digits to which the
+#'   daily weather values are rounded to.
+#' @param verbose A logical value.
+#'
+#' @export
+extract_daily_weather_from_gridMET <- function(dir_data, site_ids,
+  site_ids_by_dbW, coords, start_year, end_year, comp_type = "gzip",
+  dbW_digits = 2, verbose = FALSE) {
+
+  if (verbose) {
+    t1 <- Sys.time()
+    temp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+
+    on.exit({
+      print(paste0("rSFSW2's ", temp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      cat("\n")}, add = TRUE)
+  } else {
+    temp_call <- NULL
+  }
+
+  # gridMET metadata
+  desc <- gridMET_metadata()
+
+  # Check requested years
+  year_range <- rSOILWAT2::update_requested_years(start_year, end_year,
+    has_start_year = desc[["start_year"]],
+    has_end_year = desc[["end_year"]],
+    temp_call = temp_call,
+    verbose = verbose
+  )
+
+  # List gridMET data files
+  fnames_gridMET <- find_gridMET_files(dir_data, desc[["vars"]])
+
+  # Create coordinates as spatial points for extraction with raster layers
+  prj_geographicWGS84 <- sp::CRS(paste("+proj=longlat +ellps=WGS84",
+    "+datum=WGS84 +no_defs +towgs84=0,0,0"))
+  sp_locs  <- sp::SpatialPoints(coords = coords,
+    proj4string = prj_geographicWGS84
+  )
+
+  # Create variables and containers for extraction
+  seq_years <- seq(year_range[["start_year"]], year_range[["end_year"]])
+  seq_leaps <- isLeapYear(seq_years)
+  seq365 <- seq_len(365)
+  seq366 <- seq_len(366)
+
+  #TODO: this uses too much memory if too many sites and/or years are requested
+  # --> group sites into chunks and loop over chunks
+  res <- array(NA,
+    dim = c(length(site_ids), 366, length(desc[["vars"]]), length(seq_years))
+  )
+
+  #--- Extract data for each year and each variable
+  for (iy in seq_along(seq_years)) {
+    if (verbose) {
+      print(paste0(Sys.time(), ": extracting gridMET data for year ",
+        seq_years[iy])
+      )
+    }
+
+    # Data file names for respective year
+    dfiles <- sapply(fnames_gridMET, function(files) {
+      grep(seq_years[iy], files, value = TRUE)
+    })
+
+    days <- if (seq_leaps[iy]) seq366 else seq365
+
+    for (iv in seq_along(desc[["vars"]])) {
+      dbrick <- raster::brick(dfiles[iv])
+
+      res[, days, iv, i] <- raster::extract(
+        x = dbrick,
+        y = sp_locs,
+        method = "simple"
+      )
+    }
+  }
+
+  # Convert units
+  for (iv in seq_along(desc[["funits"]])) {
+    if (!is.null(desc[["funits"]][iv])) {
+      f <- match.fun(desc[["funits"]][[iv]])
+
+      res[, , iv, ] <- f(res[, , iv, ])
+    }
+  }
+
+  # Format data and add it to the weather database
+  if (verbose) {
+    print("Inserting data into weather database.")
+  }
+
+  wd_template <- matrix(NA, nrow = 366, ncol = 4,
+    dimnames = list(NULL, c("DOY", "Tmax_C", "Tmin_C", "PPT_cm"))
+  )
+  wd_template[, "DOY"] <- seq366
+
+
+  for (k in seq_along(site_ids)) {
+    weather_data <- vector("list", length = length(seq_years))
+    names(weather_data) <- seq_years
+
+    for (iy in seq_along(seq_years)) {
+      out <- wd_template
+      days <- if (seq_leaps[iy]) seq366 else seq365
+      out[, -1] <- round(res[k, days, , iy], dbW_digits)
+
+      weather_data[[iy]] <- new("swWeatherData",
+        year = seq_years[iy],
+        data = out
+      )
+    }
+
+
+    # Store site weather data in weather database
+    rSOILWAT2:::dbW_addWeatherDataNoCheck(
+      Site_id = site_ids_by_dbW[i],
+      Scenario_id = 1,
+      StartYear = year_range[["start_year"]],
+      EndYear = year_range[["end_year"]],
+      weather_blob = rSOILWAT2::dbW_weatherData_to_blob(
+        weatherData = weather_data,
+        type = comp_type
+      )
+    )
+  }
+
+  if (verbose) {
+    print("gridMET weather data has successfully been extracted.")
+  }
+
+  # Remove files & clean garbage to free-up RAM
+  rm(res)
+  gc()
+
+  invisible(0)
+}
+
+
+
 #---Functions to determine sources of daily weather
 dw_LookupWeatherFolder <- function(dw_source, dw_names, exinfo, site_dat,
   sim_time, path = NULL, MoreArgs = NULL) {
@@ -1817,6 +2107,44 @@ dw_Livneh2013_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
 }
 
 
+dw_gridMET_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
+  sim_time, path = NULL, MoreArgs = NULL) {
+
+  if (!dir.exists(path))
+    stop("'dw_gridMET_NorthAmerica': ", path, " does not exist.")
+
+  there <- 0
+
+  if (exinfo$GriddedDailyWeatherFromGridMET_NorthAmerica) {
+    # Check which requested gridMET weather data are available
+    there <- sim_time[["overall_simstartyr"]] <= 2011 &&
+      sim_time[["overall_endyr"]] >= 1915
+    ftemp <- file.path(path, "pr_1979.nc")
+
+    if (any(there) && file.exists(ftemp)) {
+      sp_locs <- sp::SpatialPoints(
+        coords = site_dat[, c("X_WGS84", "Y_WGS84")],
+        proj4string = sp::CRS(paste("+proj=longlat +ellps=WGS84 +datum=WGS84",
+          "+no_defs +towgs84=0,0,0"))
+      )
+      ftmp <- raster::raster(ftemp, band = 1)
+      there <- !is.na(raster::extract(ftmp, y = sp_locs))
+
+      if (any(there)) {
+        dw_source[there] <- "gridMET_NorthAmerica"
+        dw_names[there] <- paste0(Label, "_gridMET_",
+          formatC(site_dat[there, "X_WGS84"], digits = 5, format = "f"),
+          "_",
+          formatC(site_dat[there, "Y_WGS84"], digits = 5, format = "f")
+        )
+      }
+    }
+  }
+
+  list(source = dw_source, name = dw_names, n = sum(there))
+}
+
+
 dw_NCEPCFSR_Global <- function(dw_source, dw_names, exinfo, site_dat, sim_time,
   path = NULL, MoreArgs = NULL) {
 
@@ -1878,7 +2206,9 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources,
       file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"),
     NCEPCFSR_Global = project_paths[["dir.ex.NCEPCFSR"]],
     Livneh2013_NorthAmerica = project_paths[["dir.ex.Livneh2013"]],
-    DayMet_NorthAmerica = project_paths[["dir_daymet"]])
+    DayMet_NorthAmerica = project_paths[["dir_daymet"]],
+    gridMET_NorthAmerica = project_paths[["dir_gridMET"]]
+  )
 
   MoreArgs <- list(LookupWeatherFolder = list(
     create_treatments = SFSW2_prj_inputs[["create_treatments"]],
@@ -1948,6 +2278,9 @@ set_paths_to_dailyweather_datasources <- function(SFSW2_prj_meta) {
 
   SFSW2_prj_meta[["project_paths"]][["dir.ex.Livneh2013"]] <- file.path(dir_dW,
     "Livneh_NA_2013", "MONTHLY_GRIDS")
+
+  SFSW2_prj_meta[["project_paths"]][["dir_gridMET"]] <- file.path(dir_dW,
+    "gridMET_4km_NA", "YEARLY_GRIDS")
 
   SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]] <- file.path(dir_dW,
     "NCEPCFSR_Global", "CFSR_weather_prog08032012")
