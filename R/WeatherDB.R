@@ -1638,8 +1638,13 @@ gridMET_metadata <- function() {
   list(
     # order of variables expected by SOILWAT2
     vars = c("tmmx", "tmmn", "pr"),
-    # convert to units expected by SOILWAT2: C, C, cm / day
-    funits = list(NULL, NULL, function(x) x / 10),
+    # convert to units expected by SOILWAT2:
+    #   K -> C, K -> C, mm / day -> cm / day
+    funits = list(
+      function(x) x - 273.15,
+      function(x) x - 273.15,
+      function(x) x / 10
+    ),
     start_year = 1979,
     end_year = 2018 # updated yearly
   )
@@ -1833,7 +1838,7 @@ extract_daily_weather_from_gridMET <- function(dir_data, site_ids,
     for (iv in seq_along(desc[["vars"]])) {
       dbrick <- raster::brick(dfiles[iv])
 
-      res[, days, iv, i] <- raster::extract(
+      res[, days, iv, iy] <- raster::extract(
         x = dbrick,
         y = sp_locs,
         method = "simple"
@@ -1862,12 +1867,18 @@ extract_daily_weather_from_gridMET <- function(dir_data, site_ids,
 
 
   for (k in seq_along(site_ids)) {
+    if (verbose) {
+      print(paste0(Sys.time(), ": inserting gridMET data for site ",
+        site_ids[i])
+      )
+    }
+
     weather_data <- vector("list", length = length(seq_years))
     names(weather_data) <- seq_years
 
     for (iy in seq_along(seq_years)) {
-      out <- wd_template
       days <- if (seq_leaps[iy]) seq366 else seq365
+      out <- wd_template[days, ]
       out[, -1] <- round(res[k, days, , iy], dbW_digits)
 
       weather_data[[iy]] <- new("swWeatherData",
