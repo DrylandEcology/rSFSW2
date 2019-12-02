@@ -1869,7 +1869,7 @@ extract_daily_weather_from_gridMET <- function(dir_data, site_ids,
   for (k in seq_along(site_ids)) {
     if (verbose) {
       print(paste0(Sys.time(), ": inserting gridMET data for site ",
-        site_ids[i])
+        site_ids[k])
       )
     }
 
@@ -1890,7 +1890,7 @@ extract_daily_weather_from_gridMET <- function(dir_data, site_ids,
 
     # Store site weather data in weather database
     rSOILWAT2:::dbW_addWeatherDataNoCheck(
-      Site_id = site_ids_by_dbW[i],
+      Site_id = site_ids_by_dbW[k],
       Scenario_id = 1,
       StartYear = year_range[["start_year"]],
       EndYear = year_range[["end_year"]],
