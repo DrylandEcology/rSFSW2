@@ -7,12 +7,14 @@ do_compare_nc <- function(fnc1, fnc2, var) {
   nc2 <- ncdf4::nc_open(fnc2)
 
   comp <- list()
-  temp <- unlist(do_compare(nc1, nc2))
+  temp <- unlist(rSW2utils::all_equal_recursively(nc1, nc2))
   temp <- temp[!is.na(temp)]
   comp[["layout"]] <- temp[!grepl("id|group_id|filename", names(temp))]
 
-  comp[["var"]] <- do_compare(ncdf4::ncvar_get(nc1, var),
-    ncdf4::ncvar_get(nc2, var))
+  comp[["var"]] <- rSW2utils::all_equal_recursively(
+    ncdf4::ncvar_get(nc1, var),
+    ncdf4::ncvar_get(nc2, var)
+  )
   comp[["varname"]] <- var
 
   ncdf4::nc_close(nc1)
@@ -371,11 +373,11 @@ prepare_climatedata_netCDFs <- function(dir_code, dir_data, dir_duplicates,
 
           # Check that all data are packed/compress identically
           comp_vars <- is.na(sapply(f_attr_var, function(p)
-            do_compare(f_attr_var[[1]], p)))
+            rSW2utils::all_equal_recursively(f_attr_var[[1]], p)))
 
           # Check that calendar and time units are identically
           temp <- is.na(sapply(f_attr_time, function(p)
-            do_compare(f_attr_time[[1]], p)))
+            rSW2utils::all_equal_recursively(f_attr_time[[1]], p)))
           comp_time1 <- apply(temp, 2, all)
 
           # Check that record variable is 'time'
@@ -429,7 +431,10 @@ prepare_climatedata_netCDFs <- function(dir_code, dir_data, dir_duplicates,
               # first (reference) file is by definition identical to itself
               has_identical_dups <- c(TRUE,
                 sapply(f_suit_dupvals, function(x) {
-                  temp <- do_compare(x[["ref1"]], x[["x"]])
+                  temp <- rSW2utils::all_equal_recursively(
+                    x[["ref1"]],
+                    x[["x"]]
+                  )
                   !is.null(x[["ref1"]]) && !is.list(temp) && is.na(temp)
                 }))
 

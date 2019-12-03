@@ -337,7 +337,7 @@ controlExtremePPTevents <- function(data, dailyPPTceiling, sigmaN, do_checks = F
     irep <- irep + 1
   }
 
-  if (do_checks) test_sigmaGamma(data = data, sigmaN)
+  if (do_checks) rSW2utils::test_sigmaGamma(data = data, sigmaN)
 
   data
 }
@@ -354,10 +354,10 @@ applyDeltas <- function(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, sig
         ydelta <- delta_ts[delta_ts[, "Year"] == obs@year, -(1:2)]
         tmax <- obs@data[, "Tmax_C"] + ydelta[month, "Tmax_C"]
 
-        if (do_checks) test_sigmaNormal(data = tmax, sigmaN)
+        if (do_checks) rSW2utils::test_sigmaNormal(data = tmax, sigmaN)
 
         tmin <- obs@data[, "Tmin_C"] + ydelta[month, "Tmin_C"]
-        if (do_checks) test_sigmaNormal(data = tmin, sigmaN)
+        if (do_checks) rSW2utils::test_sigmaNormal(data = tmin, sigmaN)
 
         ppt_data <- unlist(lapply(1:12, function(m) {
                           im_month <- month == m
@@ -572,10 +572,10 @@ applyDelta_oneYear <- function(obs, delta_ts, ppt_fun, daily, monthly,
   PPT_to_remove <- 0
 
   tmax <- obs@data[, "Tmax_C"] + ydeltas[month, "Tmax_C"]
-  if (do_checks) test_sigmaNormal(data = tmax, sigmaN)
+  if (do_checks) rSW2utils::test_sigmaNormal(data = tmax, sigmaN)
 
   tmin <- obs@data[, "Tmin_C"] + ydeltas[month, "Tmin_C"]
-  if (do_checks) test_sigmaNormal(data = tmin, sigmaN)
+  if (do_checks) rSW2utils::test_sigmaNormal(data = tmin, sigmaN)
 
   if (isTRUE(ppt_type == "simple")) {
     ppt <- applyPPTdelta_simple(m = month,
@@ -1071,9 +1071,9 @@ downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly,
       stopifnot(is.finite(scen.fut.xadj))
       if (do_checks) {
         if (iv <= 2)
-          test_sigmaNormal(data = scen.fut.xadj, opt_DS[["sigmaN"]])
+          rSW2utils::test_sigmaNormal(data = scen.fut.xadj, opt_DS[["sigmaN"]])
         if (iv == 3)
-          test_sigmaGamma(data = scen.fut.xadj, opt_DS[["sigmaN"]])
+          rSW2utils::test_sigmaGamma(data = scen.fut.xadj, opt_DS[["sigmaN"]])
       }
 
       # 3. Calculate eCDF of future adjusted scenario
@@ -2420,8 +2420,12 @@ calc.ScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag, clim_source,
       function(obs) max(obs@data[, "PPT_cm"]))))
     # Monthly extremes are used to cut the most extreme spline oscillations; these limits
     # are ad hoc; monthly temperature extremes based on expanded daily extremes
-    temp <- stretch_values(x = range(sapply(obs.hist.daily, function(obs)
-      obs@data[, c("Tmax_C", "Tmin_C")])), lambda = opt_DS[["monthly_limit"]])
+    temp <- rSW2utils::stretch_values(
+      x = range(sapply(obs.hist.daily, function(obs)
+        obs@data[, c("Tmax_C", "Tmin_C")])
+      ),
+      lambda = opt_DS[["monthly_limit"]]
+    )
     monthly_extremes <- list(Tmax = temp, Tmin = temp, PPT = c(0,
       opt_DS[["monthly_limit"]] * max(tapply(obs.hist.monthly[, "PPT_cm"],
       obs.hist.monthly[, 1], sum))))

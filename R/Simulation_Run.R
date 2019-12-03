@@ -802,7 +802,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
                 soil_swdat[luse[[k]], coefs[["sw"]][iv]]
               }
             if (isTRUE(grepl("coeff", coefs[["infile"]][iv], ignore.case = TRUE)))
-              temp <- scale_by_sum(temp)
+              temp <- rSW2utils::scale_by_sum(temp)
             soildat[luse[[k]], coefs[["sw"]][iv]] <- temp
           }
         }
@@ -2612,17 +2612,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           if (!exists("PET.mo")) PET.mo <- get_PET_mo(runDataSC, isim_time)
 
           #in case var(ppt or swp) == 0 => cor is undefined: exclude those years
-          temp <- by(data.frame(PET.mo$val, swpmatric.mo$top), simTime2$yearno_ForEachUsedMonth, cor2)
+          temp <- by(data.frame(PET.mo$val, swpmatric.mo$top), simTime2$yearno_ForEachUsedMonth, rSW2utils::cor2)
           resMeans[nv] <- mean(temp, na.rm = TRUE)
           resSDs[nv] <- stats::sd(temp, na.rm = TRUE)
 
           if (length(bottomL) > 0 && !identical(bottomL, 0)) {
-            temp <- by(data.frame(PET.mo$val, swpmatric.mo$bottom), simTime2$yearno_ForEachUsedMonth, cor2)
+            temp <- by(data.frame(PET.mo$val, swpmatric.mo$bottom), simTime2$yearno_ForEachUsedMonth, rSW2utils::cor2)
             resMeans[nv+1] <- mean(temp, na.rm = TRUE)
             resSDs[nv+1] <- stats::sd(temp, na.rm = TRUE)
           }
 
-          temp <- by(data.frame(temp.mo$mean, prcp.mo$ppt), simTime2$yearno_ForEachUsedMonth, cor2)
+          temp <- by(data.frame(temp.mo$mean, prcp.mo$ppt), simTime2$yearno_ForEachUsedMonth, rSW2utils::cor2)
           resMeans[nv+2] <- mean(temp, na.rm = TRUE)
           resSDs[nv+2] <- stats::sd(temp, na.rm = TRUE)
 
@@ -3949,7 +3949,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               for (d2 in Ns) {
                 # indices (=doy) of k-largest/smallest temperature values per year given soil is dry
                 ids_hotcold <- tapply(Temp_during_Stress1[, d2],
-                  INDEX = simTime2$year_ForEachUsedDay, FUN = fun_kLargest,
+                  INDEX = simTime2$year_ForEachUsedDay,
+                  FUN = rSW2utils::fun_kLargest,
                   largest = extreme[ihot], fun = "index", k = 10L, na.rm = TRUE)
 
                 # values of mean VPD and of mean temperature during k-indices per year
@@ -3962,7 +3963,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
                 # mean temperature during 10 hottest/coldest, snowfree, soil-dry days
                 out_during_Stress[, 2 * N + d2] <- tapply(Temp_during_Stress2[, d2],
-                  INDEX = simTime2$year_ForEachUsedDay, FUN = fun_kLargest,
+                  INDEX = simTime2$year_ForEachUsedDay,
+                  FUN = rSW2utils::fun_kLargest,
                   largest = extreme[ihot], fun = mean, k = 10L, na.rm = TRUE)
               }
 

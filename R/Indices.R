@@ -94,13 +94,13 @@ NULL
 #'   \code{include_YN}.
 #' @export
 it_exp <- function(isim, runN) {
-  stopifnot(sapply(list(isim, runN), is.natural))
+  stopifnot(sapply(list(isim, runN), rSW2utils::is.natural))
   (isim - 1L) %/% runN + 1L
 }
 #' @rdname indices
 #' @export
 it_exp2 <- function(pid, runN, scN) {
-  stopifnot(sapply(list(pid, runN, scN), is.natural))
+  stopifnot(sapply(list(pid, runN, scN), rSW2utils::is.natural))
   it_exp(isim = it_sim2(pid, scN), runN)
 }
 
@@ -110,13 +110,13 @@ it_exp2 <- function(pid, runN, scN) {
 #'   across loops 1+2b; invariant to \code{include_YN}.
 #' @export
 it_site <- function(isim, runN) {
-  stopifnot(sapply(list(isim, runN), is.natural))
+  stopifnot(sapply(list(isim, runN), rSW2utils::is.natural))
   (isim - 1L) %% runN + 1L
 }
 #' @rdname indices
 #' @export
 it_site2 <- function(pid, runN, scN) {
-  stopifnot(sapply(list(pid, runN, scN), is.natural))
+  stopifnot(sapply(list(pid, runN, scN), rSW2utils::is.natural))
   it_site(isim = it_sim2(pid, scN), runN)
 }
 
@@ -127,34 +127,34 @@ it_site2 <- function(pid, runN, scN) {
 #'   the ID for the output database.
 #' @export
 it_Pid <- function(isim, runN, sc, scN) {
-  stopifnot(sapply(list(isim, runN, sc, scN), is.natural))
+  stopifnot(sapply(list(isim, runN, sc, scN), rSW2utils::is.natural))
   (isim - 1L) * scN + sc
 }
 #' @rdname indices
 #' @export
 it_Pid0 <- function(iexp, isite, runN, sc, scN) {
-  stopifnot(sapply(list(iexp, isite, runN, sc, scN), is.natural))
+  stopifnot(sapply(list(iexp, isite, runN, sc, scN), rSW2utils::is.natural))
   it_Pid(isim = it_sim0(iexp, isite, runN), runN, sc, scN)
 }
 
 #' @rdname indices
 #' @export
 it_sim0 <- function(iexp, isite, runN) {
-  stopifnot(sapply(list(iexp, isite, runN), is.natural))
+  stopifnot(sapply(list(iexp, isite, runN), rSW2utils::is.natural))
   (iexp - 1L) * runN + isite
 }
 
 #' @rdname indices
 #' @export
 it_sim2 <- function(pid, scN) {
-  stopifnot(sapply(list(pid, scN), is.natural))
+  stopifnot(sapply(list(pid, scN), rSW2utils::is.natural))
   1L + (pid - 1L) %/% scN
 }
 
 #' @rdname indices
 #' @export
 it_scen2 <- function(pid, scN) {
-  stopifnot(sapply(list(pid, scN), is.natural))
+  stopifnot(sapply(list(pid, scN), rSW2utils::is.natural))
   1L + (pid - 1L) %% scN
 }
 
