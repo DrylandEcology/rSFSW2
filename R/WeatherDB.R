@@ -719,7 +719,7 @@ get_DayMet_NorthAmerica <- function(dir_data, cellID, Xdm_WGS84, Ydm_WGS84,
       irow <- data_all["Year"] == years[y]
       data_sw[1:365, req_cols] <- data_all[irow, req_cols]
 
-      if (isLeapYear(years[y])) {
+      if (rSW2utils::isLeapYear(years[y])) {
         doys <- 1:366
         data_sw[366, ] <- c(366, data_sw[365, -1])
       } else {
@@ -961,7 +961,8 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
     NRC_days <- list.files(path = file.path(dir_temp, NRC_use_years[iy]),
       full.names = TRUE)
     ndays <- length(NRC_days) / length(vars)
-    stopifnot(ndays == if (isLeapYear(NRC_use_years[iy])) 366 else 365)
+    tmp <- if (rSW2utils::isLeapYear(NRC_use_years[iy])) 366 else 365
+    stopifnot(ndays == tmp)
 
     # Stack rasters for each day and extract data
     NRC_stack <- raster::stack(NRC_days, RAT = FALSE, quick = TRUE)
@@ -996,7 +997,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
 
     weatherData <- list()
     for (iy in seq_along(NRC_target_years)) {
-      doys <- if (isLeapYear(NRC_use_years[iy])) 1:366 else 1:365
+      doys <- if (rSW2utils::isLeapYear(NRC_use_years[iy])) 1:366 else 1:365
       #DOY Tmax(C) Tmin(C) PPT(cm) [ppt was converted from mm to cm]
       data_sw <- cbind(doys, NRC_weather[i, doys, iy, ])
       colnames(data_sw) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
@@ -1564,7 +1565,11 @@ if (!interactive()) {
       tmin       <- round(tmin, dbW_digits)
 
       # Add data to global data array
-      ids <- if (isLeapYear(seq_years[i])) seq_len(366) else seq_len(365)
+      ids <- if (rSW2utils::isLeapYear(seq_years[i])) {
+        seq_len(366)
+      } else {
+        seq_len(365)
+      }
       data_sw[, ids, 1, i] <- tmax[, ids]
       data_sw[, ids, 2, i] <- tmin[, ids]
       data_sw[, ids, 3, i] <- prec[, ids]
@@ -1578,7 +1583,11 @@ if (!interactive()) {
     for (i in seq_len(site_length)) {
       weather_data <- list()
       for (k in seq_len(len_years)) {
-        doys <- if (isLeapYear(seq_years[k])) seq_len(366) else seq_len(365)
+        doys <- if (rSW2utils::isLeapYear(seq_years[k])) {
+          seq_len(366)
+        } else {
+          seq_len(365)
+        }
         out  <- cbind(doys, data_sw[i, doys, , k])
         colnames(out) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
         weather_data[[k]] <-
@@ -1810,7 +1819,7 @@ extract_daily_weather_from_gridMET <- function(dir_data, site_ids,
 
   # Create variables and containers for extraction
   seq_years <- seq(year_range[["start_year"]], year_range[["end_year"]])
-  seq_leaps <- isLeapYear(seq_years)
+  seq_leaps <- rSW2utils::isLeapYear(seq_years)
   seq365 <- seq_len(365)
   seq366 <- seq_len(366)
 

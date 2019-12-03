@@ -353,8 +353,6 @@ vpd <- function(Tmin, Tmax, RHmean = NULL) {
 }
 
 
-max_duration <- rSOILWAT2:::max_duration
-
 startDoyOfDuration <- function(x, duration = 10) {
   r <- rle(x)
   res <- NULL
@@ -506,10 +504,17 @@ extreme_values_and_doys <- function(x, na.rm = FALSE) {
   tmin <- min(x, na.rm = na.rm)
 
   c(tmax, tmin,
-    circ_mean(which(abs(x - tmax) < SFSW2_glovars[["tol"]]), int = 365,
-      na.rm = na.rm),
-    circ_mean(which(abs(x - tmin) < SFSW2_glovars[["tol"]]), int = 365,
-      na.rm = na.rm))
+    rSW2utils::circ_mean(
+      which(abs(x - tmax) < SFSW2_glovars[["tol"]]),
+      int = 365,
+      na.rm = na.rm
+    ),
+    rSW2utils::circ_mean(
+      which(abs(x - tmin) < SFSW2_glovars[["tol"]]),
+      int = 365,
+      na.rm = na.rm
+    )
+  )
 }
 
 

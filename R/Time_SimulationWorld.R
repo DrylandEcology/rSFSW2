@@ -2,9 +2,6 @@
 
 
 
-isLeapYear <- rSOILWAT2:::isLeapYear
-
-
 #' Determine maximal span of simulation years across all experimental and design
 #' treatments
 #'

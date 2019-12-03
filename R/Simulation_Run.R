@@ -1368,7 +1368,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           # Grasses Shrubs Trees Forbs BareGround
           ids <- c("SW_GRASS", "SW_SHRUB", "SW_TREES", "SW_FORBS",
             "SW_BAREGROUND")
-          temp <- finite01(pnv[["Rel_Abundance_L1"]][ids])
+          temp <- rSW2utils::finite01(pnv[["Rel_Abundance_L1"]][ids])
           rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]]) <- temp
 
           grasses.c3c4ann.fractions[[sc]] <- pnv[["Grasses"]]
@@ -1595,10 +1595,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 1:3], MARGIN = 2, FUN = "*", tree_LitterTotalLiveScalingFactors)
           rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 1:3], MARGIN = 2, FUN = "*", forb_LitterTotalLiveScalingFactors)
         }
-        rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3] <- finite01(rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
-        rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3] <- finite01(rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
-        rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3] <- finite01(rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
-        rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 3] <- finite01(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
+        rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
+        rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
+        rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
+        rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
       }
 
       if (any(create_treatments == "Vegetation_Height_ScalingFactor")) {
@@ -2055,8 +2055,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           sumWeightedLiveBiomassByMonth <- apply(sweep(tempdat, MARGIN = 2, fracs, FUN = "*"), MARGIN = 1, sum) #sweep out fractionals, and sum over rows
           maxMonth <- which(sumWeightedLiveBiomassByMonth == max(sumWeightedLiveBiomassByMonth)) #returns index, which is the month, of max bio
-          meanPeakMonth <- circ_mean(maxMonth, 12)
-          duration <- circ_range(maxMonth, 12)+1
+          meanPeakMonth <- rSW2utils::circ_mean(maxMonth, 12)
+          duration <- rSW2utils::circ_range(maxMonth, 12)+1
 
           resMeans[nv:(nv+1)] <- c(meanPeakMonth, duration) #just in case we get more then one month
           nv <- nv+2
@@ -2268,13 +2268,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             nvnew <- nv + 7
             if (nrow(res.snow) > 1) {
               resMeans[nv:nvnew] <- c(
-                apply(res.snow[, 2:4], 2, circ_mean, int = 365, na.rm = TRUE),
+                apply(res.snow[, 2:4], 2, rSW2utils::circ_mean, int = 365,
+                  na.rm = TRUE),
                 apply(res.snow[, 5:7], 2, mean, na.rm = TRUE),
-                apply(res.snow[, 8:9], 2, circ_mean, int = 365, na.rm = TRUE))
+                apply(res.snow[, 8:9], 2, rSW2utils::circ_mean, int = 365,
+                  na.rm = TRUE))
               resSDs[nv:nvnew] <- c(
-                apply(res.snow[, 2:4], 2, circ_sd, int = 365, na.rm = TRUE),
+                apply(res.snow[, 2:4], 2, rSW2utils::circ_sd, int = 365,
+                  na.rm = TRUE),
                 apply(res.snow[, 5:7], 2, stats::sd, na.rm = TRUE),
-                apply(res.snow[, 8:9], 2, circ_sd, int = 365, na.rm = TRUE))
+                apply(res.snow[, 8:9], 2, rSW2utils::circ_sd, int = 365,
+                  na.rm = TRUE))
 
             } else {
               resMeans[nv:nvnew] <- res.snow[1, -1]
@@ -2304,10 +2308,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               nvnew <- nv + 2
               if (nrow(res.snow.doy) > 1) {
                 resMeans[nv:nvnew] <- c(
-                  circ_mean(res.snow.doy[, 2], int = 365, na.rm = TRUE),
+                  rSW2utils::circ_mean(res.snow.doy[, 2], int = 365,
+                    na.rm = TRUE),
                   apply(res.snow.doy[, 3:4], 2, mean, na.rm = TRUE))
                 resSDs[nv:nvnew] <- c(
-                  circ_sd(res.snow.doy[, 2], int = 365, na.rm = TRUE),
+                  rSW2utils::circ_sd(res.snow.doy[, 2], int = 365,
+                    na.rm = TRUE),
                   apply(res.snow.doy[, 3:4], 2, stats::sd, na.rm = TRUE))
 
               } else {
@@ -3111,8 +3117,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nv <- nv+2
 
           temp <- extremes[, 3:4, drop = FALSE]
-          resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, circ_mean, int = 365)
-          resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, circ_sd, int = 365)
+          resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
+            int = 365)
+          resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
+            int = 365)
           nv <- nv+2
 
           rm(extremes)
@@ -3137,8 +3145,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nv <- nv+2
 
           temp <- extremes[, 3:4, drop = FALSE]
-          resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, circ_mean, int = 365)
-          resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, circ_sd, int = 365)
+          resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
+            int = 365)
+          resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
+            int = 365)
           nv <- nv+2
 
           rm(extremes)
@@ -3161,8 +3171,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nv <- nv+2
 
           temp <- extremes[, 3:4, drop = FALSE]
-          resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, circ_mean, int = 365)
-          resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, circ_sd, int = 365)
+          resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
+            int = 365)
+          resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
+            int = 365)
           nv <- nv+2
 
           rm(extremes)
@@ -3185,8 +3197,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nv <- nv+2
 
           temp <- extremes[, 3:4, drop = FALSE]
-          resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, circ_mean, int = 365)
-          resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, circ_sd, int = 365)
+          resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
+            int = 365)
+          resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
+            int = 365)
           nv <- nv+2
 
           rm(extremes)
@@ -3209,8 +3223,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nv <- nv+2
 
           temp <- extremes[, 3:4, drop = FALSE]
-          resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, circ_mean, int = 365)
-          resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, circ_sd, int = 365)
+          resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
+            int = 365)
+          resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
+            int = 365)
           nv <- nv+2
 
           rm(extremes)
@@ -3239,8 +3255,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nv <- nv+4
 
           temp <- extremes[, c(3:4, 7:8), drop = FALSE]
-          resMeans[nv:(nv+3)] <- apply(temp, MARGIN = 2, circ_mean, int = 365, na.rm = TRUE)
-          resSDs[nv:(nv+3)] <- apply(temp, MARGIN = 2, circ_sd, int = 365, na.rm = TRUE)
+          resMeans[nv:(nv+3)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
+            int = 365, na.rm = TRUE)
+          resSDs[nv:(nv+3)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
+            int = 365, na.rm = TRUE)
           nv <- nv+4
 
           rm(extremes)
@@ -3272,8 +3290,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           nv <- nv+4
 
           temp <- extremes[, c(3:4, 7:8), drop = FALSE]
-          resMeans[nv:(nv+3)] <- apply(temp, MARGIN = 2, circ_mean, int = 365, na.rm = TRUE)
-          resSDs[nv:(nv+3)] <- apply(temp, MARGIN = 2, circ_sd, int = 365, na.rm = TRUE)
+          resMeans[nv:(nv+3)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
+            int = 365, na.rm = TRUE)
+          resSDs[nv:(nv+3)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
+            int = 365, na.rm = TRUE)
           nv <- nv+4
 
           rm(recharge.dy, extremes)
@@ -3461,14 +3481,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
             temp <- stats::aggregate(cbind(thermaldry.top, thermaldry.bottom),
                   by = list(simTime2$year_ForEachUsedDay_NSadj),
-                  FUN = function(x) max_duration(x, return_doys = TRUE))
+                  FUN = function(x) rSW2utils::max_duration(x, return_doys = TRUE))
 
             resMeans[nv:(nv+3)] <- c(
-              apply(temp$thermaldry.top[, 2:3, drop = FALSE], 2, circ_mean, int = 365),
-              apply(temp$thermaldry.bottom[, 2:3, drop = FALSE], 2, circ_mean, int = 365)) - adjDays
+              apply(temp$thermaldry.top[, 2:3, drop = FALSE], 2,
+                rSW2utils::circ_mean, int = 365),
+              apply(temp$thermaldry.bottom[, 2:3, drop = FALSE], 2,
+                rSW2utils::circ_mean, int = 365)) - adjDays
             resSDs[nv:(nv+3)] <- c(
-              apply(temp$thermaldry.top[, 2:3, drop = FALSE], 2, circ_sd, int = 365),
-              apply(temp$thermaldry.bottom[, 2:3, drop = FALSE], 2, circ_sd, int = 365))
+              apply(temp$thermaldry.top[, 2:3, drop = FALSE], 2,
+                rSW2utils::circ_sd, int = 365),
+              apply(temp$thermaldry.bottom[, 2:3, drop = FALSE], 2,
+                rSW2utils::circ_sd, int = 365))
             nv <- nv+4
           }
 
@@ -3556,10 +3580,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           start.bottom <- apply(drymonths.bottom, MARGIN = 1:2, FUN = match, x = 1, nomatch = 0)
           start.bottom[start.bottom != 0] <- ifelse((temp <- (start.bottom[start.bottom != 0] + adjMonths) %% 12) == 0, 12, temp)
 
-          resMeans[nv:(nv+2*opt_agg[["SWPcrit_N"]]-1)] <- c(apply(start.top, MARGIN = 1, circ_mean, int = 12),
-                                                         apply(start.bottom, MARGIN = 1, circ_mean, int = 12))
-          resSDs[nv:(nv+2*opt_agg[["SWPcrit_N"]]-1)] <- c(apply(start.top, MARGIN = 1, circ_sd, int = 12),
-                                                       apply(start.bottom, MARGIN = 1, circ_sd, int = 12))
+          resMeans[nv:(nv+2*opt_agg[["SWPcrit_N"]]-1)] <- c(apply(start.top, MARGIN = 1, rSW2utils::circ_mean, int = 12),
+                                                         apply(start.bottom, MARGIN = 1, rSW2utils::circ_mean, int = 12))
+          resSDs[nv:(nv+2*opt_agg[["SWPcrit_N"]]-1)] <- c(apply(start.top, MARGIN = 1, rSW2utils::circ_sd, int = 12),
+                                                       apply(start.bottom, MARGIN = 1, rSW2utils::circ_sd, int = 12))
 
           nv <- nv+2*opt_agg[["SWPcrit_N"]]
 
@@ -3599,19 +3623,19 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             res.wet <- matrix(0, nrow = simTime2$no.useyr_NSadj, ncol = 8)
             res.wet[, 1] <- tapply(AtLeastOneWet$top, simTime2$year_ForEachUsedDay_NSadj, sum) # total number of days per year when at least one top layer is wet
             res.wet[, 2] <- tapply(AtLeastOneWet$bottom, simTime2$year_ForEachUsedDay_NSadj, sum) # total number of days per year when at least one top layer is wet
-            res.wet[, 3] <- tapply(AtLeastOneWet$top, simTime2$year_ForEachUsedDay_NSadj, max_duration) # maximum number of continous days when at least one top layers is wet
-            res.wet[, 4] <- tapply(AtLeastOneWet$bottom, simTime2$year_ForEachUsedDay_NSadj, max_duration) # maximum number of continous days when at least one top layers is wet
+            res.wet[, 3] <- tapply(AtLeastOneWet$top, simTime2$year_ForEachUsedDay_NSadj, rSW2utils::max_duration) # maximum number of continous days when at least one top layers is wet
+            res.wet[, 4] <- tapply(AtLeastOneWet$bottom, simTime2$year_ForEachUsedDay_NSadj, rSW2utils::max_duration) # maximum number of continous days when at least one top layers is wet
             res.wet[, 5] <- tapply(AllWet$top, simTime2$year_ForEachUsedDay_NSadj, sum) # total number of days per year when all top layer are wet
             res.wet[, 6] <- tapply(AllWet$bottom, simTime2$year_ForEachUsedDay_NSadj, sum) # total number of days per year when all top layer are wet
-            res.wet[, 7] <- tapply(AllWet$top, simTime2$year_ForEachUsedDay_NSadj, max_duration) # maximum number of continous days when all top layers are wet
-            res.wet[, 8] <- tapply(AllWet$bottom, simTime2$year_ForEachUsedDay_NSadj, max_duration) # maximum number of continous days when all top layers are wet
+            res.wet[, 7] <- tapply(AllWet$top, simTime2$year_ForEachUsedDay_NSadj, rSW2utils::max_duration) # maximum number of continous days when all top layers are wet
+            res.wet[, 8] <- tapply(AllWet$bottom, simTime2$year_ForEachUsedDay_NSadj, rSW2utils::max_duration) # maximum number of continous days when all top layers are wet
 
             #dry periods
             res.dry <- matrix(0, nrow = simTime2$no.useyr_NSadj, ncol = 8)
             res.dry[, 3] <- tapply(AllDry$top, simTime2$year_ForEachUsedDay_NSadj, sum) #total number of days/year when all top layers are dry
             res.dry[, 7] <- tapply(AllDry$bottom, simTime2$year_ForEachUsedDay_NSadj, sum) #total number of days/year when all bottom layers are dry
-            res.dry[, 4] <- tapply(AllDry$top, simTime2$year_ForEachUsedDay_NSadj, max_duration) #maximum number of continous days when all top layers are dry
-            res.dry[, 8] <- tapply(AllDry$bottom, simTime2$year_ForEachUsedDay_NSadj, max_duration) #maximum number of continous days when all bottom layers are dry
+            res.dry[, 4] <- tapply(AllDry$top, simTime2$year_ForEachUsedDay_NSadj, rSW2utils::max_duration) #maximum number of continous days when all top layers are dry
+            res.dry[, 8] <- tapply(AllDry$bottom, simTime2$year_ForEachUsedDay_NSadj, rSW2utils::max_duration) #maximum number of continous days when all bottom layers are dry
             res.dry[, 1] <- tapply(AtLeastOneDry$top, simTime2$year_ForEachUsedDay_NSadj, startDoyOfDuration, duration = durationDryPeriods.min)  # start days/year when at least one of top layers are dry for at least ten days
             res.dry[, 5] <- tapply(AtLeastOneDry$bottom, simTime2$year_ForEachUsedDay_NSadj, startDoyOfDuration, duration = durationDryPeriods.min)  # start days/year when at least one of bottom layers are dry for at least ten days
             res.dry[, 2] <- tapply(AtLeastOneDry$top, simTime2$year_ForEachUsedDay_NSadj, endDoyAfterDuration, duration = durationDryPeriods.min)  # end days/year when at least one of top layers have been dry for at least ten days
@@ -3623,9 +3647,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             #aggregate results
             temp <- data.frame(res.wet, res.dry[, -c(1:2, 5:6)])
             resMeans[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(colMeans(temp, na.rm = TRUE),
-                apply(res.dry[, c(1:2, 5:6), drop = FALSE], 2, circ_mean, int = 365, na.rm = TRUE))
+                apply(res.dry[, c(1:2, 5:6), drop = FALSE], 2, rSW2utils::circ_mean, int = 365, na.rm = TRUE))
             resSDs[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(apply(temp, 2, stats::sd, na.rm = TRUE),
-                apply(res.dry[, c(1:2, 5:6), drop = FALSE], 2, circ_sd, int = 365, na.rm = TRUE))
+                apply(res.dry[, c(1:2, 5:6), drop = FALSE], 2, rSW2utils::circ_sd, int = 365, na.rm = TRUE))
           }
           nv <- nv+16*opt_agg[["SWPcrit_N"]]
 
@@ -3681,11 +3705,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           for (icrit in seq(along = opt_agg[["SWPcrit_MPa"]])) {
             SWCcritT <- rSOILWAT2::SWPtoVWC(opt_agg[["SWPcrit_MPa"]][icrit], texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL])
-            swa.top <- ifelse(suitable, cut0Inf(swcbulk.dy$top - SWCcritT, val = 0), 0)
+            swa.top <- ifelse(suitable, rSW2utils::cut0Inf(swcbulk.dy$top - SWCcritT, val = 0), 0)
 
             if (length(bottomL) > 0 && !identical(bottomL, 0)) {
               SWCcritB <- rSOILWAT2::SWPtoVWC(opt_agg[["SWPcrit_MPa"]][icrit], texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL])
-              swa.bottom <- ifelse(suitable, cut0Inf(swcbulk.dy$bottom - SWCcritB, val = 0), 0)
+              swa.bottom <- ifelse(suitable, rSW2utils::cut0Inf(swcbulk.dy$bottom - SWCcritB, val = 0), 0)
             } else {
               swa.bottom <- rep(0, length(swa.top))
             }
@@ -3736,8 +3760,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             }
 
             temp <- stats::aggregate(cbind(dry.top, dry.bottom), by = list(simTime2$year_ForEachUsedDay_NSadj), FUN = function(x) c(if (any((temp <- rle(x))$values)) c(mean(temp$lengths[temp$values]), max(temp$lengths[temp$values])) else c(0, 0), sum(x), startDoyOfDuration(x, duration = durationDryPeriods.min) - adjDays))
-            resMeans[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3, drop = FALSE], 2, mean), circ_mean(x = temp$dry.top[, 4], int = 365), apply(temp$dry.bottom[, 1:3, drop = FALSE], 2, mean), circ_mean(x = temp$dry.bottom[, 4], int = 365))
-            resSDs[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3, drop = FALSE], 2, stats::sd), circ_sd(x = temp$dry.top[, 4], int = 365), apply(temp$dry.bottom[, 1:3, drop = FALSE], 2, stats::sd), circ_sd(x = temp$dry.bottom[, 4], int = 365))
+            resMeans[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3, drop = FALSE], 2, mean), rSW2utils::circ_mean(x = temp$dry.top[, 4], int = 365), apply(temp$dry.bottom[, 1:3, drop = FALSE], 2, mean), rSW2utils::circ_mean(x = temp$dry.bottom[, 4], int = 365))
+            resSDs[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3, drop = FALSE], 2, stats::sd), rSW2utils::circ_sd(x = temp$dry.top[, 4], int = 365), apply(temp$dry.bottom[, 1:3, drop = FALSE], 2, stats::sd), rSW2utils::circ_sd(x = temp$dry.bottom[, 4], int = 365))
             nv <- nv+8
           }
 
@@ -3847,14 +3871,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           for (icrit in seq(along = opt_agg[["SWPcrit_MPa"]])) {
             #amount of SWC required so that layer wouldn't be dry
             SWCcritT <- rSOILWAT2::SWPtoVWC(opt_agg[["SWPcrit_MPa"]][icrit], texture$sand.top, texture$clay.top) * sum(layers_width[topL])*10
-            missingSWCtop <- cut0Inf(SWCcritT - SWCtop, val = 0)
+            missingSWCtop <- rSW2utils::cut0Inf(SWCcritT - SWCtop, val = 0)
             IntensitySum_top <- c(mean(temp <- sapply(isim_time$useyrs, FUN = function(y) sum(missingSWCtop[simTime2$year_ForEachUsedDay == y])), na.rm = TRUE), stats::sd(temp, na.rm = TRUE))
             IntensityMean_top <- c(mean(temp <- sapply(isim_time$useyrs, FUN = function(y) mean((temp <- missingSWCtop[simTime2$year_ForEachUsedDay == y])[temp > 0], na.rm = TRUE)), na.rm = TRUE), stats::sd(temp, na.rm = TRUE))
             IntensityDurationAndNumber_top <- c(apply(temp <- sapply(isim_time$useyrs, FUN = function(y) c(mean(temp <- (temp <- rle(missingSWCtop[simTime2$year_ForEachUsedDay == y] > 0))$lengths[temp$values]), length(temp))), 1, mean), apply(temp, 1, stats::sd))[c(1, 3, 2, 4)]
 
             if (length(bottomL) > 0 && !identical(bottomL, 0)) {
               SWCcritB <- rSOILWAT2::SWPtoVWC(opt_agg[["SWPcrit_MPa"]][icrit], texture$sand.bottom, texture$clay.bottom) * sum(layers_width[bottomL])*10
-              missingSWCbottom <- cut0Inf(SWCcritB - SWCbottom, val = 0)
+              missingSWCbottom <- rSW2utils::cut0Inf(SWCcritB - SWCbottom, val = 0)
               IntensitySum_bottom <- c(mean(temp <- sapply(isim_time$useyrs, FUN = function(y) sum(missingSWCbottom[simTime2$year_ForEachUsedDay == y])), na.rm = TRUE), stats::sd(temp, na.rm = TRUE))
               IntensityMean_bottom <- c(mean(temp <- sapply(isim_time$useyrs, FUN = function(y) mean((temp <- missingSWCbottom[simTime2$year_ForEachUsedDay == y])[temp > 0], na.rm = TRUE)), na.rm = TRUE), stats::sd(temp, na.rm = TRUE))
               IntensityDurationAndNumber_bottom <- c(apply(temp <- sapply(isim_time$useyrs, FUN = function(y) c(mean(temp <- (temp <- rle(missingSWCbottom[simTime2$year_ForEachUsedDay == y] > 0))$lengths[temp$values]), length(temp))), 1, mean), apply(temp, 1, stats::sd))[c(1, 3, 2, 4)]
