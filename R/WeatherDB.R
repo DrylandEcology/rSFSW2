@@ -294,7 +294,6 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       irow <- add_runIDs_sites[ids_gridMET_extraction]
       extract_daily_weather_from_gridMET(
         dir_data = SFSW2_prj_meta[["project_paths"]][["dir_gridMET"]],
-        dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
         site_ids = SWRunInformation$site_id[irow],
         site_ids_by_dbW = add_siteIDs_by_dbW[ids_gridMET_extraction],
         coords = SWRunInformation[irow, c("X_WGS84", "Y_WGS84"), drop = FALSE],
@@ -1650,7 +1649,7 @@ gridMET_metadata <- function() {
   )
 }
 
-#' List gridMET data files available on disk
+#' List \var{gridMET} data files available on disk
 find_gridMET_files <- function(dir_data, vars = gridMET_metadata()[["vars"]]) {
   x <- lapply(vars, function(var) {
     list.files(dir_data,
@@ -1681,7 +1680,7 @@ find_gridMET_files <- function(dir_data, vars = gridMET_metadata()[["vars"]]) {
 #'
 #' @references Abatzoglou, J. T. (2013) Development of gridded surface
 #'   meteorological data for ecological applications and modelling.
-#'   Int. J. Climatol., 33: 121–131.
+#'   \var{Int. J. Climatol.}, 33: 121–131.
 #'
 #' @examples
 #' if (exists("SFSW2_prj_meta")) {
@@ -1751,7 +1750,7 @@ gridMET_download_and_check <- function(dir_data, desc = gridMET_metadata()) {
 #'
 #' @references Abatzoglou, J. T. (2013) Development of gridded surface
 #'   meteorological data for ecological applications and modelling.
-#'   Int. J. Climatol., 33: 121–131.
+#'   \var{Int. J. Climatol.}, 33: 121–131.
 #'
 #' @param dir_data A character string. The directory containing the
 #'   \var{gridMET} dataset files.

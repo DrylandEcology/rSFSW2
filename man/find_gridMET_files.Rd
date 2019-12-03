@@ -2,10 +2,10 @@
 % Please edit documentation in R/WeatherDB.R
 \name{find_gridMET_files}
 \alias{find_gridMET_files}
-\title{List gridMET data files available on disk}
+\title{List \var{gridMET} data files available on disk}
 \usage{
 find_gridMET_files(dir_data, vars = gridMET_metadata()[["vars"]])
 }
 \description{
-List gridMET data files available on disk
+List \var{gridMET} data files available on disk
 }
