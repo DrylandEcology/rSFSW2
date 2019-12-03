@@ -39,5 +39,5 @@ if (exists("SFSW2_prj_meta")) {
 \references{
 Abatzoglou, J. T. (2013) Development of gridded surface
   meteorological data for ecological applications and modelling.
-  Int. J. Climatol., 33: 121–131.
+  \var{Int. J. Climatol.}, 33: 121–131.
 }
