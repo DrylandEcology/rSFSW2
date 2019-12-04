@@ -17,7 +17,6 @@ Depends:
     rSW2utils
 Imports:
     RSQLite (>= 2.1.1),
-    DBI (>= 1.0),
     Rcpp (>= 0.12.12),
     raster (>= 2.5.8),
     sp (>= 1.2.3),
