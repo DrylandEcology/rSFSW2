@@ -13,4 +13,3 @@ in_box <- function(xy, xbounds, ybounds, i_use) {
 whereNearest <- function(val, matrix) {
   which.min(abs(matrix - val))
 }
-

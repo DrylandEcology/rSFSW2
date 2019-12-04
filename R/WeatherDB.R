@@ -1750,7 +1750,7 @@ gridMET_download_and_check <- function(dir_data, desc = gridMET_metadata()) {
 #' Extract daily gridded weather data from the \var{gridMET} dataset
 #'
 #' Extracts daily gridded weather data, including precipitation,
-#' maximum temperature and minimum temperature from the gridMET
+#' maximum temperature and minimum temperature from the \var{gridMET}
 #' (Abatzoglou 2013) database: a 1/24 degree gridded weather database that
 #' contains data for the years 1979 - yesterday.
 #'

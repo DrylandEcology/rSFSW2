@@ -540,7 +540,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   print(paste0("Unsuccessful extractions: n = ", sum(failed), "; f = ",
     signif(sum(failed) / length(failed), 2)))
   tmp <- climate[failed, ]
-  plot(tmp[, "Site_id_by_dbW"], tmp[, "Scenario_id"])
+  graphics::plot(tmp[, "Site_id_by_dbW"], tmp[, "Scenario_id"])
 
   failed_siteID <- climate[failed, "Site_id_by_dbW"]
   print(paste0("Sites with at least one unsuccessful extractions: n = ",
