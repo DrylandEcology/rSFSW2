@@ -45,10 +45,12 @@ before_install:
   # Don't install heavy-weight `devtools`, instead use `remotes` to
   #   detect/install/update package dependencies
   - Rscript -e 'utils::install.packages("remotes", lib = Sys.getenv("R_LIBS_USER"))'
-  # Install/update dependencies of rSOILWAT2 (because rSOILWAT2 is installed
-  #   'before install' and thus dependencies are not installed and r_packages
-  #   has not taken effect yet)
-  - Rscript -e 'remotes::update_packages(c("blob", "DBI", "RSQLite"), upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
+  # Install/update dependencies of rSW2utils and rSOILWAT2 (because they
+  #   are installed 'before install' and thus dependencies are not installed
+  #   and r_packages has not taken effect yet)
+  - Rscript -e 'remotes::update_packages(c("blob", "DBI", "RSQLite", "circular"), upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
+  # Install rSW2utils (before rSOILWAT2)
+  - Rscript -e 'remotes::install_github("DrylandEcology/rSW2utils", lib = Sys.getenv("R_LIBS_USER"))'
   # Obtain source code of rSOILWAT2 from github and save at
   #   'DrylandEcology/rSOILWAT2'
   - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git ../rSOILWAT2
