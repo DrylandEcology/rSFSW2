@@ -1,9 +1,12 @@
 
 .onAttach <- function(libname, pkgname) {
   if (interactive()) {
-      meta <- utils::packageDescription(pkgname)
-      packageStartupMessage("Package ", shQuote(pkgname), " v", meta$Version,
-        " (", meta$Date, ") attached/loaded.")
+    packageStartupMessage(
+      "Package ", shQuote(pkgname),
+      " v", utils::packageVersion(pkgname),
+      " (", utils::packageDate(pkgname), ")",
+      " attached/loaded."
+    )
   }
 
   invisible()
