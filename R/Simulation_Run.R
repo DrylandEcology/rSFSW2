@@ -1059,46 +1059,56 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           break
         }
 
-        scenario_CO2 <- "Default"
+        # Locate the atmospheric CO2 concentration dataset name
+        if (toupper(i_sw_input_treatments$LookupCO2data) == "FILL") {
+          # Did the user request to use the values associated with the
+          # model scenario names?
+          scenario_CO2 <- sim_scens[["df"]][sc, "ConcScen"]
 
-        # Are we modeling a scenario?
-        if (sc > 1) {
-          # Did the user request to use the built-in scenario information?
-          if (toupper(i_sw_input_treatments$LookupCO2data) == "FILL")
-            scenario_CO2 <- sim_scens[["df"]][sc - 1, "ConcScen"]
+        } else {
+          # Did the user override the scenario name?
+          scenario_CO2 <- i_sw_input_treatments$LookupCO2data
         }
 
-        # Did the user override the scenario name?
-        if (toupper(i_sw_input_treatments$LookupCO2data) != "FILL")
-          scenario_CO2 <- i_sw_input_treatments$LookupCO2data
+        scenario_index <- which(
+          toupper(colnames(tr_input_CO2data)) == toupper(scenario_CO2)
+        )
+
+        # Is the scenario available?
+        if (length(scenario_index) == 0) {
+          tasks[sc, "create"] <- 0L
+          print(paste0(
+            tag_simfid, ": ERROR: CO2-concentration dataset name ",
+            shQuote(scenario_CO2), " was not found in `LookupCO2data` table"
+          ))
+          break
+        }
 
         # Save the scenario to the input object just so that the user can see it
         rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- scenario_CO2
-
-        scenario_index <- which(toupper(colnames(tr_input_CO2data)) == toupper(scenario_CO2))
-
-        # Was a scenario found?
-        if (length(scenario_index) == 0) {
-          tasks[sc, "create"] <- 0L
-          print(paste0(tag_simfid, ": ERROR: Scenario ", scenario_CO2,
-            " was not found in `LookupCO2data` table"))
-          break
-        }
 
         # Normally, we would also check for duplicate scenarios, but when the CSV is read in, duplicate column headers
         # are already accounted for by incrementing the name. For instance, having two RCP85 scenarios result in these
         # headers: RCP85, RCP85.1
 
         # Extract CO2 concentration values in units of ppm into swCarbon
-        ids_years <- match(isim_time$simstartyr:isim_time$endyr + rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]),
-          tr_input_CO2data[, "Year"], nomatch = 0)
+        ids_years <- match(
+          isim_time[[itime]]$simstartyr:isim_time[[itime]]$endyr +
+            rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]),
+          tr_input_CO2data[, "Year"],
+          nomatch = 0
+        )
         # Convert possible integers to numeric
-        tr_input_CO2data[ids_years, scenario_index] <- as.numeric(unlist(tr_input_CO2data[ids_years, scenario_index]))
+        tr_input_CO2data[ids_years, scenario_index] <- as.numeric(unlist(
+          tr_input_CO2data[ids_years, scenario_index]
+        ))
         scenarioCO2_ppm <- tr_input_CO2data[ids_years, c(1, scenario_index)]
         colnames(scenarioCO2_ppm) <- c("Year", "CO2ppm")
 
-        rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- as.matrix(scenarioCO2_ppm,
-          rownames.force = TRUE)
+        rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- as.matrix(
+          scenarioCO2_ppm,
+          rownames.force = TRUE
+        )
       }
       # End CO2 effects -----
 

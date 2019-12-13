@@ -399,6 +399,11 @@ req_scens <- list(
   #   perturbations are all off
   ambient = "Current",
 
+  # Name of atmospheric CO2-concentration dataset to be used for "ambient"
+  # conditions.
+  # The string must match a column name of `LookupCO2data/AtmosCO2.csv`
+  tag_aCO2_ambient = "Fix360ppm", # e.g., "Fix360ppm", etc.
+
   # Names of climate scenarios
   #   - If a simulation project does not include future climate conditions,
   #     then set models = NULL
