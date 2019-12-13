@@ -5,7 +5,7 @@
 #         EXECUTING SIMULATIONS, AND AGGREGATING OUTPUTS
 
 #----- LICENSE
-#    Copyright (C) 2017 by `r packageDescription("rSFSW2")[["Author"]]`
+#    Copyright (C) 2017-2019 by `r packageDescription("rSFSW2")[["Author"]]`
 #    Contact information `r packageDescription("rSFSW2")[["Maintainer"]]`
 
 #    This program is free software: you can redistribute it and/or modify
@@ -19,8 +19,8 @@
 #    GNU General Public License for more details.
 
 #------ NOTES:
-#  - You get an overview by: `r package?rSFSW2`
-#  - An index of functionality is displayed by: `r help(package = "rSFSW2")`
+#  - Display a package overview: `r package?rSFSW2`
+#  - List package functionality: `r help(package = "rSFSW2")`
 #------------------------------------------------------------------------------#
 
 
@@ -68,16 +68,23 @@ actions <- list(
 dir_prj <- getwd()
 
 
-writeLines(c("", "",
+writeLines(c(
+  "", "",
   "###########################################################################",
-  paste("#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)), "run started at",
-    t_job_start),
+  paste(
+    "#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)),
+    "run started at", t_job_start
+  ),
   "###########################################################################",
-  ""))
+  ""
+))
 
 SFSW2_prj_meta <- init_rSFSW2_project(
-  fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"), update = FALSE,
-  verbose = interactive(), print.debug = FALSE)
+  fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"),
+  update = FALSE,
+  verbose = interactive(),
+  print.debug = FALSE
+)
 
 
 
@@ -85,25 +92,42 @@ SFSW2_prj_meta <- init_rSFSW2_project(
 #------ 2) LOAD THE SETTINGS FOR THIS RUN --------------------------------------
 # Setting objects:
 #   opt_behave, opt_parallel, opt_verbosity, opt_out_run, opt_chunks
-source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = interactive(),
-  keep.source = FALSE)
+source(
+  file = file.path(dir_prj, "SFSW2_project_settings.R"),
+  keep.source = FALSE
+)
 
-SFSW2_prj_meta <- update_actions(SFSW2_prj_meta, actions,
-  wipe_dbOutput = opt_out_run[["wipe_dbOutput"]])
+SFSW2_prj_meta <- update_actions(
+  SFSW2_prj_meta,
+  actions,
+  wipe_dbOutput = opt_out_run[["wipe_dbOutput"]]
+)
 
 
 ################################################################################
 #------ 3) POPULATE PROJECT WITH INPUT DATA (REPEAT UNTIL COMPLETE) ------------
 
-temp <- populate_rSFSW2_project_with_data(SFSW2_prj_meta, opt_behave,
-  opt_parallel, opt_chunks, opt_out_run, opt_verbosity)
+temp <- populate_rSFSW2_project_with_data(
+  SFSW2_prj_meta,
+  opt_behave,
+  opt_parallel,
+  opt_chunks,
+  opt_out_run,
+  opt_verbosity
+)
 
-if (isTRUE(opt_verbosity[["verbose"]]) &&
-  !identical(SFSW2_prj_meta, temp[["SFSW2_prj_meta"]])) {
-  warning("'SFSW2_prj_meta' has changed: modify/reset input tracker status ",
+if (
+  isTRUE(opt_verbosity[["verbose"]]) &&
+  !identical(SFSW2_prj_meta, temp[["SFSW2_prj_meta"]])
+) {
+  warning(
+    "'SFSW2_prj_meta' has changed: ",
+    "modify/reset input tracker status ",
     "'SFSW2_prj_meta[['input_status']]', if needed ",
     "(see help `?update_intracker`) and re-run project.",
-    call. = FALSE, immediate. = TRUE)
+    call. = FALSE,
+    immediate. = TRUE
+  )
 }
 
 SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
@@ -116,17 +140,27 @@ SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
 if (isTRUE(actions[["check_inputs"]])) {
 
-  temp <- check_rSFSW2_project_input_data(SFSW2_prj_meta, SFSW2_prj_inputs,
-    opt_chunks, opt_verbosity)
+  temp <- check_rSFSW2_project_input_data(
+    SFSW2_prj_meta,
+    SFSW2_prj_inputs,
+    opt_chunks,
+    opt_verbosity
+  )
 
   SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
   SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
-  if (isTRUE(opt_verbosity[["verbose"]]) &&
-    !all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "checked"]))) {
-    warning("'SFSW2_prj_meta[['input_status']]': some input tracker checks ",
-      "failed; fix inputs, if needed, and re-run project.",
-      call. = FALSE, immediate. = TRUE)
+  if (
+    isTRUE(opt_verbosity[["verbose"]]) &&
+    !all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "checked"]))
+  ) {
+    warning(
+      "'SFSW2_prj_meta[['input_status']]': ",
+      "some input tracker checks failed; ",
+      "fix inputs, if needed, and re-run project.",
+      call. = FALSE,
+      immediate. = TRUE
+    )
   }
 }
 
@@ -137,16 +171,30 @@ if (isTRUE(actions[["check_inputs"]])) {
 
 if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate")]))) {
 
-  SFSW2_prj_meta <- simulate_SOILWAT2_experiment(SFSW2_prj_meta,
-    SFSW2_prj_inputs, opt_behave, opt_parallel, opt_chunks, opt_out_run,
-    opt_verbosity)
+  SFSW2_prj_meta <- simulate_SOILWAT2_experiment(
+    SFSW2_prj_meta,
+    SFSW2_prj_inputs,
+    opt_behave,
+    opt_parallel,
+    opt_chunks,
+    opt_out_run,
+    opt_verbosity
+  )
 }
 
 if (isTRUE(actions[["concat_dbOut"]])) {
 
-  stopifnot(move_output_to_dbOutput(SFSW2_prj_meta, t_job_start, opt_parallel,
-    opt_behave, opt_out_run, opt_verbosity,
-    check_if_Pid_present = opt_verbosity[["print.debug"]]))
+  stopifnot(
+    move_output_to_dbOutput(
+      SFSW2_prj_meta,
+      t_job_start,
+      opt_parallel,
+      opt_behave,
+      opt_out_run,
+      opt_verbosity,
+      check_if_Pid_present = opt_verbosity[["print.debug"]]
+    )
+  )
 }
 
 
@@ -156,8 +204,13 @@ if (isTRUE(actions[["concat_dbOut"]])) {
 
 if (isTRUE(actions[["ensemble"]])) {
 
-  rSFSW2:::generate_ensembles(SFSW2_prj_meta, t_job_start, opt_parallel,
-    opt_chunks, verbose = opt_verbosity[["verbose"]])
+  rSFSW2:::generate_ensembles(
+    SFSW2_prj_meta,
+    t_job_start,
+    opt_parallel,
+    opt_chunks,
+    verbose = opt_verbosity[["verbose"]]
+  )
 }
 
 
@@ -167,8 +220,13 @@ if (isTRUE(actions[["ensemble"]])) {
 
 if (isTRUE(actions[["check_dbOut"]])) {
 
-  info_missing <- check_outputDB_completeness(SFSW2_prj_meta, opt_parallel,
-    opt_behave, opt_out_run, opt_verbosity)
+  info_missing <- check_outputDB_completeness(
+    SFSW2_prj_meta,
+    opt_parallel,
+    opt_behave,
+    opt_out_run,
+    opt_verbosity
+  )
 }
 
 
@@ -182,8 +240,11 @@ exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]])
 #--- Goodbye message
 writeLines(c("",
   "###########################################################################",
-  paste("#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)), "run on",
-    SFSW2_prj_meta[["opt_platform"]][["host"]], "platform ended at",
-    Sys.time()),
+  paste(
+    "#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)),
+    "run on", SFSW2_prj_meta[["opt_platform"]][["host"]], "platform ended at",
+    Sys.time()
+  ),
   "###########################################################################",
-  ""))
+  ""
+))
