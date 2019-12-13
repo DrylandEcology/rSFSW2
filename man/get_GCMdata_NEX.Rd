@@ -6,7 +6,7 @@
 \usage{
 get_GCMdata_NEX(
   i_tag,
-  ts_mons,
+  time,
   dpm,
   gcm,
   scen,

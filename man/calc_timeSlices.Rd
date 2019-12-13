@@ -10,13 +10,13 @@ calc_timeSlices(sim_time, tbox)
 \item{sim_time}{A list with elements \code{future_N}, \code{future_yrs},
 \code{DScur_startyr}, and \code{DScur_endyr}.}
 
-\item{tbox}{A data.frame or matrix with two rows \code{start} and \code{end} and two
-columns \code{first} and \code{second} describing years including in a specific
-climate data source.}
+\item{tbox}{A data.frame or matrix with two rows \code{start} and
+\code{end} and two columns \code{first} and \code{second} describing years
+including in a specific climate data source.}
 }
 \value{
-A data.frame with rows for each extraction run-slice and four columns 'Run',
- 'Slice', 'Time', and 'Year'.
+A data.frame with rows for each extraction run-slice and
+ four columns 'Run', 'Slice', 'Time', and 'Year'.
 }
 \description{
 Calculate historical and future simulation time slices

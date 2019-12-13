@@ -30,6 +30,9 @@ the file name.
 
     # Compare output database with reference database
     comp <- compare_test_output(".", dir_ref = "../0_ReferenceOutput/")
+
+    # Clean up
+    delete_test_output(".")
   }
 }
 

@@ -62,3 +62,13 @@ A list with two elements: \describe{
 \description{
 Run test projects
 }
+\examples{
+\dontrun{
+  # Run test project 4 inside development version of package
+  # Assume that working directory is `tests/test_data/TestPrj4/`
+  if (file.exists("SFSW2_project_code.R")) {
+    res <- run_test_projects(dir_tests = ".", delete_output = TRUE)
+  }
+}
+
+}

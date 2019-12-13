@@ -4,10 +4,13 @@
 \alias{read_time_netCDF}
 \title{Read and interpret time dimension of a \var{netCDF} file with \acronym{CF} 1 or larger}
 \usage{
-read_time_netCDF(filename)
+read_time_netCDF(filename, tres = c("monthly", "daily"))
 }
 \arguments{
-\item{filename}{A character string. The name of a \var{netCDF} file.}
+\item{filename}{A character string, the name of a \var{netCDF} file; or,
+the result of \code{\link[ncdf4]{nc_open}}.}
+
+\item{tres}{A character string. The temporal resolution (time step).}
 }
 \value{
 A list with six elements:

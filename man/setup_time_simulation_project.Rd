@@ -6,6 +6,7 @@
 \usage{
 setup_time_simulation_project(
   sim_time,
+  is_idem = FALSE,
   add_st2 = FALSE,
   adjust_NS = FALSE,
   use_doy_range = FALSE,
