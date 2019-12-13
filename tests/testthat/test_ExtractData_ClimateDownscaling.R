@@ -25,7 +25,8 @@ test_that("Time units", {
 
 # Test 'climscen_metadata'
 req_metadata_fields1 <- c("bbox", "tbox", "var_desc", "sep_fname", "str_fname")
-req_metadata_fields2 <- c("tag", "fileVarTags", "unit_given", "unit_real")
+req_metadata_fields2 <-
+  c("varname", "tag", "fileVarTags", "unit_given", "unit_real")
 
 test_that("Check integrity of 'climscen_metadata'", {
   expect_silent(climDB_metas <- climscen_metadata())
@@ -35,9 +36,12 @@ test_that("Check integrity of 'climscen_metadata'", {
 
   for (k in seq_along(climDB_metas)) {
     expect_type(climDB_metas[[k]], "list")
-    expect_true(all(req_metadata_fields1 %in% names(climDB_metas[[k]])))
-    expect_named(climDB_metas[[k]][["var_desc"]],
-      expected = req_metadata_fields2)
+    expect_true(
+      all(req_metadata_fields1 %in% names(climDB_metas[[k]]))
+    )
+    expect_true(
+      all(req_metadata_fields2 %in% names(climDB_metas[[k]][["var_desc"]]))
+    )
   }
 })
 
@@ -137,24 +141,4 @@ test_that("Check 'climate scenario simulation time slices'", {
   expect_type(unlist(assocYears), "logical")
   expect_equal(length(unlist(assocYears)), 28L)
   expect_equal(sum(unlist(assocYears)), 8L)
-})
-
-
-# Test 'is_ClimateForecastConvention' and 'is_NEX'
-test_that("Check convenction of requested climate data'", {
-  expect_false(
-    is_ClimateForecastConvention("CMIP3_ClimateWizardEnsembles_Global"))
-  expect_false(is_NEX("CMIP3_ClimateWizardEnsembles_Global"))
-  expect_false(is_ClimateForecastConvention("CMIP3_ClimateWizardEnsembles_USA"))
-  expect_false(is_NEX("CMIP3_ClimateWizardEnsembles_USA"))
-  expect_true(is_ClimateForecastConvention("CMIP5_BCSD_GDODCPUCLLNL_USA"))
-  expect_false(is_NEX("CMIP5_BCSD_GDODCPUCLLNL_USA"))
-  expect_true(is_ClimateForecastConvention("CMIP5_BCSD_GDODCPUCLLNL_Global"))
-  expect_false(is_NEX("CMIP5_BCSD_GDODCPUCLLNL_Global"))
-  expect_false(is_ClimateForecastConvention("CMIP5_BCSD_NEX_USA"))
-  expect_true(is_NEX("CMIP5_BCSD_NEX_USA"))
-  expect_true(is_ClimateForecastConvention("CMIP5_BCSD_SageSeer_USA"))
-  expect_false(is_NEX("CMIP5_BCSD_SageSeer_USA"))
-  expect_true(is_ClimateForecastConvention("CMIP5_ESGF_Global"))
-  expect_false(is_NEX("CMIP5_ESGF_Global"))
 })

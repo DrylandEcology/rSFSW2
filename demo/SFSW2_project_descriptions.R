@@ -479,6 +479,8 @@ req_scens <- list(
     #       requires live internet access
     #     - "BCSD_SageSeer_USA": monthly time-series at 1-km resolution for the
     #       western US prepared by Katie Renwick
+    #     - "CMIP5_MACAv2metdata_USA": daily time series at 1/24-degree
+    #       resolution for the US (requires `method_DS = "idem"`)
     #     - "ESGF_Global": monthly time-series at varying resolution
       dataset1 = "CMIP5_BCSD_GDODCPUCLLNL_USA"
   ),

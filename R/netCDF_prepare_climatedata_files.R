@@ -199,7 +199,7 @@ check_nc_time_axis <- function(filename, dim_time = NULL, ztime = NULL) {
 time_agrees_with_ncfilename <- function(filename, ftime) {
   temp <- calc_ncfile_times(ftime)
   ts_yrmo <- as.POSIXlt(temp[["ts_yrmo"]])
-  ctime <- rSFSW2::read_time_netCDF(filename)
+  ctime <- rSFSW2::read_time_netCDF(filename, tres = "monthly")
 
   c(
     step_N = ctime[["N"]] == length(ts_yrmo),
