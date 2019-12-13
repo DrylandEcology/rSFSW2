@@ -161,9 +161,9 @@ opt_input <- list(
       #     "MONTHLY_GRIDS")
       "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
       #   - Abatzoglou et al. 2013: 1/24 degree res. for 1979-yesterday;
-      #     data expected at
-      #     file.path(project_paths[["dir_ex_weather"]], "gridMET_4km_NA",
-      #     "YEARLY_GRIDS")
+      #     data expected at file.path(project_paths[["dir_ex_weather"]],
+      #     "gridMET_4km_NA", "YEARLY_GRIDS");
+      #     obtain data with function `gridMET_download_and_check`
       "GriddedDailyWeatherFromgridMET_NorthAmerica", 0,
 
       # Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL,

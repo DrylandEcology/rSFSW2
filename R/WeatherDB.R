@@ -2015,6 +2015,7 @@ dw_DayMet_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
     stop("'dw_DayMet_NorthAmerica': ", path, " does not exist.")
 
   there <- 0
+
   if (exinfo$GriddedDailyWeatherFromDayMet_NorthAmerica) {
     # Check which of the DayMet weather data are available
     #  - Temperature: 2-meter air temperature in Celsius degrees
@@ -2136,26 +2137,34 @@ dw_gridMET_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
 
   if (exinfo$GriddedDailyWeatherFromGridMET_NorthAmerica) {
     # Check which requested gridMET weather data are available
-    there <- sim_time[["overall_simstartyr"]] <= 2011 &&
-      sim_time[["overall_endyr"]] >= 1915
-    ftemp <- file.path(path, "pr_1979.nc")
+    tmp <- list.files(path, pattern = "(pr_)[[:digit:]]{4}(.nc)")
+    has_years <- range(as.integer(gsub("(pr_)|(.nc)", "", tmp)))
 
-    if (any(there) && file.exists(ftemp)) {
-      sp_locs <- sp::SpatialPoints(
-        coords = site_dat[, c("X_WGS84", "Y_WGS84")],
-        proj4string = sp::CRS(paste("+proj=longlat +ellps=WGS84 +datum=WGS84",
-          "+no_defs +towgs84=0,0,0"))
-      )
-      ftmp <- raster::raster(ftemp, band = 1)
-      there <- !is.na(raster::extract(ftmp, y = sp_locs))
+    if (length(has_years) > 0) {
+      # gridMET should cover 1979-yesterday
+      there <- sim_time[["overall_simstartyr"]] <= has_years[2] &&
+        sim_time[["overall_endyr"]] >= has_years[1]
 
-      if (any(there)) {
-        dw_source[there] <- "gridMET_NorthAmerica"
-        dw_names[there] <- paste0(Label, "_gridMET_",
-          formatC(site_dat[there, "X_WGS84"], digits = 5, format = "f"),
-          "_",
-          formatC(site_dat[there, "Y_WGS84"], digits = 5, format = "f")
+      ftemp <- file.path(path, paste0("pr_", has_years[1], ".nc"))
+
+      if (any(there) && file.exists(ftemp)) {
+        sp_locs <- sp::SpatialPoints(
+          coords = site_dat[, c("X_WGS84", "Y_WGS84")],
+          proj4string = sp::CRS(paste("+proj=longlat +ellps=WGS84 +datum=WGS84",
+            "+no_defs +towgs84=0,0,0"))
         )
+        ftmp <- raster::raster(ftemp, band = 1)
+        there <- !is.na(raster::extract(ftmp, y = sp_locs))
+
+        if (any(there)) {
+          dw_source[there] <- "gridMET_NorthAmerica"
+          dw_names[there] <- paste0(
+            site_dat[there, "Label"], "_gridMET_",
+            formatC(site_dat[there, "X_WGS84"], digits = 5, format = "f"),
+            "_",
+            formatC(site_dat[there, "Y_WGS84"], digits = 5, format = "f")
+          )
+        }
       }
     }
   }
