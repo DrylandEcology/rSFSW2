@@ -817,56 +817,148 @@ convert_to_todo_list <- function(x) {
 
 
 
-setup_scenarios <- function(sim_scens, future_yrs) {
+setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
   #--- Create complete scenario names
   # make sure 'ambient' is not among models
-  temp <- grep(sim_scens[["ambient"]], sim_scens[["models"]],
-    invert = TRUE, value = TRUE)
+  temp <- grep(sim_scens[["ambient"]],
+    sim_scens[["models"]],
+    invert = TRUE,
+    value = TRUE
+  )
 
   if (length(temp) > 0) {
-    # add (multiple) future_yrs
-    temp <- paste0(rownames(future_yrs), ".",
-      rep(temp, each = nrow(future_yrs)))
-    # add (multiple) downscaling.method
-    temp <- paste0(sim_scens[["method_DS"]], ".",
-      rep(temp, each = length(sim_scens[["method_DS"]])))
+    if (is_idem) {
+      # Use all years
+      temp <- paste0("idem.dall.", temp)
+
+    } else {
+      # add (multiple) future_yrs, but only if not using full future daily vals
+      temp <- paste0(
+        rownames(sim_time[["future_yrs"]]), ".",
+        rep(temp, each = nrow(sim_time[["future_yrs"]]))
+      )
+
+      # add (multiple) downscaling.method
+      temp <- paste0(
+        sim_scens[["method_DS"]], ".",
+        rep(temp, each = length(sim_scens[["method_DS"]]))
+      )
+    }
   }
+
 
   # make sure 'ambient' is first entry
   id <- c(sim_scens[["ambient"]], temp)
   N <- length(id)
 
+  itime <- data.frame(
+    simstartyr = sim_time[["simstartyr"]],
+    endyr = sim_time[["endyr"]]
+  )
+
   if (N > 1) {
     #--- Create table with scenario name parts for each scenario
     temp <- strsplit(id[-1], split = ".", fixed = TRUE)
-    if (!all(lengths(temp) == 4L))
-      stop("'climate.conditions' are mal-formed: they must contain ",
-        "4 elements that are concatenated by '.'")
-
-    climScen <- data.frame(matrix(unlist(temp), nrow = N - 1, ncol = 4,
-      byrow = TRUE), stringsAsFactors = FALSE)
+    if (!all(lengths(temp) == 4L)) {
+      stop(
+        "'climate.conditions' are mal-formed: they must contain ",
+        "4 elements that are concatenated by '.'"
+      )
+    }
 
     # ConcScen = concentration scenarios, e.g., SRESs, RCPs
-    colnames(climScen) <- c("Downscaling", "DeltaStr_yrs", "ConcScen", "Model")
-    # see 'setup_time_simulation_project' for how 'future_yrs' is created
-    climScen[, "Delta_yrs"] <- as.integer(substr(climScen[, "DeltaStr_yrs"], 2,
-      nchar(climScen[, "DeltaStr_yrs"]) - 3))
+    ctmp <- c(
+      "Downscaling", "DeltaStr_yrs", "ConcScen", "Model", "Delta_yrs", "itime"
+    )
+
+    climScen <- matrix(
+      NA,
+      nrow = N,
+      ncol = length(ctmp),
+      dimnames = list(NULL, ctmp)
+    )
+
+    climScen[1, "Model"] <- sim_scens[["ambient"]]
+    climScen[1, "ConcScen"] <- if ("tag_aCO2_ambient" %in% names(sim_scens)) {
+      sim_scens[["tag_aCO2_ambient"]]
+    } else {
+      "Fix360ppm"
+    }
+    climScen[-1, ctmp[1:4]] <- do.call(rbind, temp)
+
+    climScen <- data.frame(climScen, stringsAsFactors = FALSE)
+
+    # set `delta_yrs` to 0 (for CO2-concentration data)
+    climScen[, "Delta_yrs"] <- 0L
+    climScen[, "itime"] <- 1L
+
+
+    # set simulation time periods
+    if (is_idem) {
+      #--- Use calendar years for every run (and calculate `itime`)
+
+      # set `itime`
+      tmp <- c("DSfut_startyr", "DSfut_endyr")
+      tmp_itime <- sim_time[["future_yrs"]][-1, tmp]
+      colnames(tmp_itime) <- colnames(itime)
+
+      stopifnot(length(unique(climScen[-1, "ConcScen"])) == NROW(tmp_itime))
+
+      itime <- rbind(itime, unique(tmp_itime))
+      rownames(itime) <- NULL
+
+      # set index for `itime`
+      climScen[1, "itime"] <- 1L
+
+      ids_itime <- match(
+        apply(tmp_itime, 1, paste, collapse = "_"),
+        apply(itime, 1, paste, collapse = "_")
+      )
+
+      climScen[-1, "itime"] <- rep(
+        x = ids_itime,
+        times = table(climScen[-1, "ConcScen"])
+      )
+
+    } else {
+      #--- Use current/ambient years and a delta for future runs
+      # see 'setup_time_simulation_project' for how 'future_yrs' is created
+      climScen[, "Delta_yrs"] <- as.integer(substr(
+        x = climScen[, "DeltaStr_yrs"],
+        start = 2,
+        stop = nchar(climScen[, "DeltaStr_yrs"]) - 3
+      ))
+    }
 
     #--- List unique sets of requested scenario name parts
-    reqMs <- unique(climScen[, "Model"])
-    reqCSs <- unique(climScen[, "ConcScen"])
+    reqMs <- unique(climScen[-1, "Model"])
+    reqCSs <- unique(climScen[-1, "ConcScen"])
     reqCSsPerM <- lapply(reqMs, function(x)
-      unique(climScen[x == climScen[, "Model"], "ConcScen"]))
+      unique(climScen[x == climScen[, "Model"], "ConcScen"])
+    )
     reqDSsPerM <- lapply(reqMs, function(x)
-      unique(climScen[x == climScen[, "Model"], "Downscaling"]))
+      unique(climScen[x == climScen[, "Model"], "Downscaling"])
+    )
 
   } else {
     # Only ambient scenario
-    climScen <- reqMs <- reqCSs <- reqCSsPerM <- reqDSsPerM <- NULL
+    climScen <- data.frame(itime = 1)
+    reqMs <- reqCSs <- reqCSsPerM <- reqDSsPerM <- NULL
   }
 
-  c(sim_scens, list(id = id, N = N, df = climScen, reqMs = reqMs,
-    reqCSs = reqCSs, reqCSsPerM = reqCSsPerM, reqDSsPerM = reqDSsPerM))
+  c(sim_scens,
+    list(
+      id = id,
+      N = N,
+      df = climScen,
+      itime = itime,
+      is_idem = is_idem,
+      reqMs = reqMs,
+      reqCSs = reqCSs,
+      reqCSsPerM = reqCSsPerM,
+      reqDSsPerM = reqDSsPerM
+    )
+  )
 }
 
 setup_meandaily_output <- function(req_mean_daily, opt_agg) {

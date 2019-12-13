@@ -304,8 +304,12 @@ init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE,
     init_timer(SFSW2_prj_meta[["fnames_out"]][["timerfile"]])
 
     #--- Update simulation time
+    is_idem <- isTRUE(SFSW2_prj_meta[["req_scens"]][["method_DS"]] == "idem")
+
     SFSW2_prj_meta[["sim_time"]] <- setup_time_simulation_project(
-      SFSW2_prj_meta[["sim_time"]], add_st2 = TRUE,
+      sim_time = SFSW2_prj_meta[["sim_time"]],
+      is_idem = is_idem,
+      add_st2 = TRUE,
       adjust_NS = SFSW2_prj_meta[["opt_agg"]][["adjust_NorthSouth"]],
       use_doy_range = SFSW2_prj_meta[["opt_agg"]][["use_doy_range"]],
       doy_ranges = SFSW2_prj_meta[["opt_agg"]][["doy_ranges"]]
@@ -313,8 +317,10 @@ init_rSFSW2_project <- function(fmetar, update = FALSE, verbose = TRUE,
 
     #--- Determine scenario names
     SFSW2_prj_meta[["sim_scens"]] <- setup_scenarios(
-      SFSW2_prj_meta[["req_scens"]],
-      SFSW2_prj_meta[["sim_time"]][["future_yrs"]])
+      sim_scens = SFSW2_prj_meta[["req_scens"]],
+      is_idem = is_idem,
+      sim_time = SFSW2_prj_meta[["sim_time"]]
+    )
 
     #--- Determine requested ensembles across climate scenarios
     SFSW2_prj_meta <- update_scenarios_with_ensembles(SFSW2_prj_meta)
@@ -600,13 +606,19 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
     }
 
     if (do_weather_source) {
-      SFSW2_prj_inputs[["SWRunInformation"]] <- dw_determine_sources(dw_source,
-        SFSW2_prj_meta[["exinfo"]],
-        SFSW2_prj_meta[["opt_input"]][["dw_source_priority"]],
-        SFSW2_prj_inputs, SFSW2_prj_inputs[["SWRunInformation"]],
-        SFSW2_prj_meta[["sim_size"]], SFSW2_prj_meta[["sim_time"]],
-        SFSW2_prj_meta[["fnames_in"]],
-        SFSW2_prj_meta[["project_paths"]], verbose = opt_verbosity[["verbose"]])
+      SFSW2_prj_inputs[["SWRunInformation"]] <- dw_determine_sources(
+        dw_source = dw_source,
+        exinfo = SFSW2_prj_meta[["exinfo"]],
+        dw_avail_sources =
+          SFSW2_prj_meta[["opt_input"]][["dw_source_priority"]],
+        SFSW2_prj_inputs = SFSW2_prj_inputs,
+        SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
+        sim_size = SFSW2_prj_meta[["sim_size"]],
+        sim_time = SFSW2_prj_meta[["sim_time"]],
+        fnames_in = SFSW2_prj_meta[["fnames_in"]],
+        project_paths = SFSW2_prj_meta[["project_paths"]],
+        verbose = opt_verbosity[["verbose"]]
+      )
 
         SFSW2_prj_meta[["input_status"]] <- update_intracker(
           SFSW2_prj_meta[["input_status"]], tracker = "load_inputs",
@@ -753,11 +765,17 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
         label_WeatherData =
           SFSW2_prj_inputs[["SWRunInformation"]][, "WeatherFolder"],
         fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-        verbose = opt_verbosity[["verbose"]])
+        verbose = opt_verbosity[["verbose"]]
+      )
 
-      temp <- PrepareClimateScenarios(SFSW2_prj_meta, SFSW2_prj_inputs,
-        opt_parallel, resume = opt_behave[["resume"]], opt_verbosity,
-        opt_chunks)
+      temp <- PrepareClimateScenarios(
+        SFSW2_prj_meta,
+        SFSW2_prj_inputs,
+        opt_parallel,
+        resume = opt_behave[["resume"]],
+        opt_verbosity,
+        opt_chunks
+      )
 
       SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
       # SFSW2_prj_meta is update with random streams for downscaling
@@ -1344,8 +1362,10 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     args_do_OneSite <- gather_args_do_OneSite(SFSW2_prj_meta, SFSW2_prj_inputs)
 
     runs.completed <- run_simulation_experiment(
-      sim_size = SFSW2_prj_meta[["sim_size"]], SFSW2_prj_inputs,
-      MoreArgs = args_do_OneSite)
+      sim_size = SFSW2_prj_meta[["sim_size"]],
+      SFSW2_prj_inputs = SFSW2_prj_inputs,
+      MoreArgs = args_do_OneSite
+    )
 
   } else {
     runs.completed <- 0

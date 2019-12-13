@@ -383,21 +383,31 @@ sim_time <- list(
   startyr = startyr <- 1980,
   endyr = endyr <- 2010,
 
-  #Future time period(s):
-  # Each list element of 'future_yrs' will be applied to every
-  #   climate.conditions
+  #--- Future time period(s):
   # Each list element of 'future_yrs' is a vector with three elements
   #   \code{c(delta, DSfut_startyr, DSfut_endyr)}
-  # future simulation years = delta + simstartyr:endyr
-  # future simulation years downscaled based on
-  #   - current conditions = DScur_startyr:DScur_endyr
-  #   - future conditions = DSfut_startyr:DSfut_endyr
+  #
+  # Daily scenario data "idem" (pass through):
+  #   - Each list element ("row") of 'future_yrs' must match exactly one
+  #     of the scenario experiments of 'req_scens[["models"]]`
+  #     (e.g., "historical", "RCP45", "RCP85") -- in the correct order
+  #   - Value of 'delta' is ignored
+  #
+  # Monthly scenario data:
+  #   - Each list element ("row") of 'future_yrs' will be applied to every
+  #     climate.conditions
+  #   - future simulation years = delta + simstartyr:endyr
+  #   - future simulation years downscaled based on
+  #     - current conditions = DScur_startyr:DScur_endyr
+  #     - future conditions = DSfut_startyr:DSfut_endyr
+  #
   # NOTE: Multiple time periods doesn't work with external type
   #   'ClimateWizardEnsembles'
   DScur_startyr = startyr,
   DScur_endyr = endyr,
 
   future_yrs = list(
+    c(d <- 0, startyr + d, endyr + d), # historical runs of GCMs
     c(d <- 40, startyr + d, endyr + d),
     c(d <- 90, startyr + d, endyr + d - 1) # most GCMs don't have data for 2100
   )
@@ -469,6 +479,8 @@ req_scens <- list(
   ),
 
   # Downscaling method (applied to each each climate.conditions)
+  #   Daily scenario data
+  #   - "idem" (pass through)
   #   Monthly scenario -> daily forcing variables
   #   One or multiple elements of
   #   - "raw"
