@@ -19,8 +19,9 @@ init:
 install:
   - ps: Bootstrap
   - travis-tool.sh install_r blob DBI RSQLite circular mvtnorm
-  - travis-tool.sh install_github DrylandEcology/rSW2utils
-  - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
+  - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSW2utils.git /tmp/rSW2utils
+  - R CMD INSTALL C:/tmp/rSW2utils
+  - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git /tmp/rSOILWAT2
   - R CMD INSTALL C:/tmp/rSOILWAT2
 
 # Adapt as necessary starting from here
