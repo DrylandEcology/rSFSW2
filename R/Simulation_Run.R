@@ -2117,8 +2117,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           sumWeightedLiveBiomassByMonth <- apply(sweep(tempdat, MARGIN = 2, fracs, FUN = "*"), MARGIN = 1, sum) #sweep out fractionals, and sum over rows
           maxMonth <- which(sumWeightedLiveBiomassByMonth == max(sumWeightedLiveBiomassByMonth)) #returns index, which is the month, of max bio
-          meanPeakMonth <- rSW2utils::circ_mean(maxMonth, 12)
-          duration <- rSW2utils::circ_range(maxMonth, 12)+1
+          meanPeakMonth <- rSW2utils::circ_mean(
+            x = maxMonth,
+            int = 12,
+            type = "ZeroPlus2Pi"
+          )
+          duration <- 1 + rSW2utils::circ_range(
+            x = maxMonth,
+            int = 12
+          )
 
           resMeans[nv:(nv+1)] <- c(meanPeakMonth, duration) #just in case we get more then one month
           nv <- nv+2
@@ -2330,17 +2337,30 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             nvnew <- nv + 7
             if (nrow(res.snow) > 1) {
               resMeans[nv:nvnew] <- c(
-                apply(res.snow[, 2:4], 2, rSW2utils::circ_mean, int = 365,
-                  na.rm = TRUE),
+                apply(res.snow[, 2:4], 2, rSW2utils::circ_mean,
+                  int = 365,
+                  type = "ZeroPlus2Pi",
+                  na.rm = TRUE
+                ),
                 apply(res.snow[, 5:7], 2, mean, na.rm = TRUE),
-                apply(res.snow[, 8:9], 2, rSW2utils::circ_mean, int = 365,
-                  na.rm = TRUE))
+                apply(res.snow[, 8:9], 2, rSW2utils::circ_mean,
+                  int = 365,
+                  type = "ZeroPlus2Pi",
+                  na.rm = TRUE
+                )
+              )
+
               resSDs[nv:nvnew] <- c(
-                apply(res.snow[, 2:4], 2, rSW2utils::circ_sd, int = 365,
-                  na.rm = TRUE),
+                apply(res.snow[, 2:4], 2, rSW2utils::circ_sd,
+                  int = 365,
+                  na.rm = TRUE
+                ),
                 apply(res.snow[, 5:7], 2, stats::sd, na.rm = TRUE),
-                apply(res.snow[, 8:9], 2, rSW2utils::circ_sd, int = 365,
-                  na.rm = TRUE))
+                apply(res.snow[, 8:9], 2, rSW2utils::circ_sd,
+                  int = 365,
+                  na.rm = TRUE
+                )
+              )
 
             } else {
               resMeans[nv:nvnew] <- res.snow[1, -1]
@@ -2370,12 +2390,19 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               nvnew <- nv + 2
               if (nrow(res.snow.doy) > 1) {
                 resMeans[nv:nvnew] <- c(
-                  rSW2utils::circ_mean(res.snow.doy[, 2], int = 365,
-                    na.rm = TRUE),
+                  rSW2utils::circ_mean(
+                    x = res.snow.doy[, 2],
+                    int = 365,
+                    type = "ZeroPlus2Pi",
+                    na.rm = TRUE
+                  ),
                   apply(res.snow.doy[, 3:4], 2, mean, na.rm = TRUE))
                 resSDs[nv:nvnew] <- c(
-                  rSW2utils::circ_sd(res.snow.doy[, 2], int = 365,
-                    na.rm = TRUE),
+                  rSW2utils::circ_sd(
+                    x = res.snow.doy[, 2],
+                    int = 365,
+                    na.rm = TRUE
+                  ),
                   apply(res.snow.doy[, 3:4], 2, stats::sd, na.rm = TRUE))
 
               } else {
@@ -3180,9 +3207,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           temp <- extremes[, 3:4, drop = FALSE]
           resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
-            int = 365)
+            int = 365,
+            type = "ZeroPlus2Pi"
+          )
           resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
-            int = 365)
+            int = 365
+          )
           nv <- nv+2
 
           rm(extremes)
@@ -3208,9 +3238,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           temp <- extremes[, 3:4, drop = FALSE]
           resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
-            int = 365)
+            int = 365,
+            type = "ZeroPlus2Pi"
+          )
           resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
-            int = 365)
+            int = 365
+          )
           nv <- nv+2
 
           rm(extremes)
@@ -3234,9 +3267,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           temp <- extremes[, 3:4, drop = FALSE]
           resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
-            int = 365)
+            int = 365,
+            type = "ZeroPlus2Pi"
+          )
           resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
-            int = 365)
+            int = 365
+          )
           nv <- nv+2
 
           rm(extremes)
@@ -3260,9 +3296,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           temp <- extremes[, 3:4, drop = FALSE]
           resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
-            int = 365)
+            int = 365,
+            type = "ZeroPlus2Pi"
+          )
           resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
-            int = 365)
+            int = 365
+          )
           nv <- nv+2
 
           rm(extremes)
@@ -3286,9 +3325,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           temp <- extremes[, 3:4, drop = FALSE]
           resMeans[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
-            int = 365)
+            int = 365,
+            type = "ZeroPlus2Pi"
+          )
           resSDs[nv:(nv+1)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
-            int = 365)
+            int = 365
+          )
           nv <- nv+2
 
           rm(extremes)
@@ -3318,9 +3360,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           temp <- extremes[, c(3:4, 7:8), drop = FALSE]
           resMeans[nv:(nv+3)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
-            int = 365, na.rm = TRUE)
+            int = 365,
+            type = "ZeroPlus2Pi",
+            na.rm = TRUE
+          )
           resSDs[nv:(nv+3)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
-            int = 365, na.rm = TRUE)
+            int = 365,
+            na.rm = TRUE
+          )
           nv <- nv+4
 
           rm(extremes)
@@ -3353,9 +3400,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
           temp <- extremes[, c(3:4, 7:8), drop = FALSE]
           resMeans[nv:(nv+3)] <- apply(temp, MARGIN = 2, rSW2utils::circ_mean,
-            int = 365, na.rm = TRUE)
+            int = 365,
+            type = "ZeroPlus2Pi",
+            na.rm = TRUE
+          )
           resSDs[nv:(nv+3)] <- apply(temp, MARGIN = 2, rSW2utils::circ_sd,
-            int = 365, na.rm = TRUE)
+            int = 365,
+            na.rm = TRUE
+          )
           nv <- nv+4
 
           rm(recharge.dy, extremes)
@@ -3547,14 +3599,28 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
             resMeans[nv:(nv+3)] <- c(
               apply(temp$thermaldry.top[, 2:3, drop = FALSE], 2,
-                rSW2utils::circ_mean, int = 365),
+                rSW2utils::circ_mean,
+                int = 365,
+                type = "ZeroPlus2Pi"
+              ),
               apply(temp$thermaldry.bottom[, 2:3, drop = FALSE], 2,
-                rSW2utils::circ_mean, int = 365)) - adjDays
+                rSW2utils::circ_mean,
+                int = 365,
+                type = "ZeroPlus2Pi"
+              )
+            ) - adjDays
+
             resSDs[nv:(nv+3)] <- c(
               apply(temp$thermaldry.top[, 2:3, drop = FALSE], 2,
-                rSW2utils::circ_sd, int = 365),
+                rSW2utils::circ_sd,
+                int = 365
+              ),
               apply(temp$thermaldry.bottom[, 2:3, drop = FALSE], 2,
-                rSW2utils::circ_sd, int = 365))
+                rSW2utils::circ_sd,
+                int = 365
+              )
+            )
+
             nv <- nv+4
           }
 
@@ -3642,10 +3708,25 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           start.bottom <- apply(drymonths.bottom, MARGIN = 1:2, FUN = match, x = 1, nomatch = 0)
           start.bottom[start.bottom != 0] <- ifelse((temp <- (start.bottom[start.bottom != 0] + adjMonths) %% 12) == 0, 12, temp)
 
-          resMeans[nv:(nv+2*opt_agg[["SWPcrit_N"]]-1)] <- c(apply(start.top, MARGIN = 1, rSW2utils::circ_mean, int = 12),
-                                                         apply(start.bottom, MARGIN = 1, rSW2utils::circ_mean, int = 12))
-          resSDs[nv:(nv+2*opt_agg[["SWPcrit_N"]]-1)] <- c(apply(start.top, MARGIN = 1, rSW2utils::circ_sd, int = 12),
-                                                       apply(start.bottom, MARGIN = 1, rSW2utils::circ_sd, int = 12))
+          resMeans[nv:(nv+2*opt_agg[["SWPcrit_N"]]-1)] <- c(
+            apply(start.top, MARGIN = 1, rSW2utils::circ_mean,
+              int = 12,
+              type = "ZeroPlus2Pi"
+            ),
+            apply(start.bottom, MARGIN = 1, rSW2utils::circ_mean,
+              int = 12,
+              type = "ZeroPlus2Pi"
+            )
+          )
+
+          resSDs[nv:(nv+2*opt_agg[["SWPcrit_N"]]-1)] <- c(
+            apply(start.top, MARGIN = 1, rSW2utils::circ_sd,
+              int = 12
+            ),
+            apply(start.bottom, MARGIN = 1, rSW2utils::circ_sd,
+              int = 12
+            )
+          )
 
           nv <- nv+2*opt_agg[["SWPcrit_N"]]
 
@@ -3708,10 +3789,25 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
             #aggregate results
             temp <- data.frame(res.wet, res.dry[, -c(1:2, 5:6)])
-            resMeans[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(colMeans(temp, na.rm = TRUE),
-                apply(res.dry[, c(1:2, 5:6), drop = FALSE], 2, rSW2utils::circ_mean, int = 365, na.rm = TRUE))
-            resSDs[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(apply(temp, 2, stats::sd, na.rm = TRUE),
-                apply(res.dry[, c(1:2, 5:6), drop = FALSE], 2, rSW2utils::circ_sd, int = 365, na.rm = TRUE))
+
+            resMeans[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(
+              colMeans(temp, na.rm = TRUE),
+              apply(res.dry[, c(1:2, 5:6), drop = FALSE], 2,
+                rSW2utils::circ_mean,
+                int = 365,
+                type = "ZeroPlus2Pi",
+                na.rm = TRUE
+              )
+            )
+
+            resSDs[(nv+16*(icrit-1)):(nv+16*icrit-1)] <- c(
+              apply(temp, 2, stats::sd, na.rm = TRUE),
+              apply(res.dry[, c(1:2, 5:6), drop = FALSE], 2,
+                rSW2utils::circ_sd,
+                int = 365,
+                na.rm = TRUE
+              )
+            )
           }
           nv <- nv+16*opt_agg[["SWPcrit_N"]]
 
@@ -3822,8 +3918,35 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             }
 
             temp <- stats::aggregate(cbind(dry.top, dry.bottom), by = list(simTime2[[itime]]$year_ForEachUsedDay_NSadj), FUN = function(x) c(if (any((temp <- rle(x))$values)) c(mean(temp$lengths[temp$values]), max(temp$lengths[temp$values])) else c(0, 0), sum(x), startDoyOfDuration(x, duration = durationDryPeriods.min) - adjDays))
-            resMeans[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3, drop = FALSE], 2, mean), rSW2utils::circ_mean(x = temp$dry.top[, 4], int = 365), apply(temp$dry.bottom[, 1:3, drop = FALSE], 2, mean), rSW2utils::circ_mean(x = temp$dry.bottom[, 4], int = 365))
-            resSDs[nv:(nv+7)] <- c(apply(temp$dry.top[, 1:3, drop = FALSE], 2, stats::sd), rSW2utils::circ_sd(x = temp$dry.top[, 4], int = 365), apply(temp$dry.bottom[, 1:3, drop = FALSE], 2, stats::sd), rSW2utils::circ_sd(x = temp$dry.bottom[, 4], int = 365))
+
+            resMeans[nv:(nv+7)] <- c(
+              apply(temp$dry.top[, 1:3, drop = FALSE], 2, mean),
+              rSW2utils::circ_mean(
+                x = temp$dry.top[, 4],
+                int = 365,
+                type = "ZeroPlus2Pi"
+              ),
+              apply(temp$dry.bottom[, 1:3, drop = FALSE], 2, mean),
+              rSW2utils::circ_mean(
+                x = temp$dry.bottom[, 4],
+                int = 365,
+                type = "ZeroPlus2Pi"
+              )
+            )
+
+            resSDs[nv:(nv+7)] <- c(
+              apply(temp$dry.top[, 1:3, drop = FALSE], 2, stats::sd),
+              rSW2utils::circ_sd(
+                x = temp$dry.top[, 4],
+                int = 365
+              ),
+              apply(temp$dry.bottom[, 1:3, drop = FALSE], 2, stats::sd),
+              rSW2utils::circ_sd(
+                x = temp$dry.bottom[, 4],
+                int = 365
+              )
+            )
+
             nv <- nv+8
           }
 
