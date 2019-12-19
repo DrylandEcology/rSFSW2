@@ -1,6 +1,7 @@
 # R for travis: see documentation at https://docs.travis-ci.com/user/languages/r
 
-language: R
+language: r
+os: linux
 
 # Set environmental variables
 #   - _R_CHECK_FORCE_SUGGESTS_=false: don't fail if suggested packages fail
@@ -16,7 +17,6 @@ env:
     - secure: "rq8iu0qkN0QYa1CF3zx/ub2eXJ1vc6XmOSqWPUSCHQTOuftUnKjbysAo0a8Cj1GqHPltXyIx8ZfLSJpN/zIsW919B3XBPSVeoStdpvJ/omUdGf8g4/0k2jlLQx0JpfFuIjOaFBlL5Kg5iAm3Xg1dxA/+cgx57KLbbF91HEvCE22g5NgO5ZEWsKH6iyVzEkz5o3sxvIxDEniiJSKdxfZLe8jrZNmqG+H2tKn1GbiDfunN8ynYE5Enwamr6y46E8Q2Bm7BR4FX3syxjvhz/JOi44vy88E50wKpMU+y9/lxpqMjQxM8lU0L5ZAxsSe08fM6jvEzOVZgsEVS3tMJHdCy9mQ3YktVl7l4hce4+OI866ZkkfpX2nBoGcjLe9LVbbGLet7UoC8DNv5XF1eJU+9sn5Ynr94YFaNhlFP2H+PoqWgyt7SLpgYjogrd8/X8a/oQeIMhriqNVbddc6oB2rkBsjRA9kGo+8jcHei80Xm/ZaIafMoa9KZV4Aw7Uhd/RP0JiaRQmL8mBf09/LOJD24LIpqYzgHJg6q6pHa/XS+9qcbjoObzbdy1rBtGiS5f1eXrCefTmsvSsOvRWlyZcGLrX2VbTFiLTjFCDWLjYNMUVCxhislsxZCrvRuMaS9IIep8rD+p8EDjUIr/UTq/vl64E1jfd3+3wA4rcW3nbQ6iiYg="
     - LINTR_COMMENT_BOT=false
 
-sudo: false
 cache: packages # sets `R_LIBS_USER`
 warnings_are_errors: false # turn this back on for more severe testing
 
@@ -42,26 +42,24 @@ addons:
 
 before_install:
   # pwd = <repo>/<repo-name>, here DrylandEcology/rSFSW2
-  # Don't install heavy-weight `devtools`, instead use `remotes` to
-  #   detect/install/update package dependencies
-  - Rscript -e 'utils::install.packages("remotes", lib = Sys.getenv("R_LIBS_USER"))'
-  # Install/update dependencies of rSW2utils and rSOILWAT2 (because they
-  #   are installed 'before install' and thus dependencies are not installed
-  #   and r_packages has not taken effect yet)
-  - Rscript -e 'remotes::update_packages(c("blob", "DBI", "RSQLite", "circular"), upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
-  # Install rSW2utils (before rSOILWAT2)
-  - Rscript -e 'remotes::install_github("DrylandEcology/rSW2utils", lib = Sys.getenv("R_LIBS_USER"))'
-  # Obtain source code of rSOILWAT2 from github and save at
-  #   'DrylandEcology/rSOILWAT2'
+  # Download rSW2utils from github (as dependency of rSOILWAT2)
+  - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSW2utils.git ../rSW2utils
+  # Download rSOILWAT2 from github (as dependency of rSFSW2)
   - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git ../rSOILWAT2
-  # Install rSOILWAT2 without help pages and without vignettes
-  - R CMD INSTALL --no-docs --no-help ../rSOILWAT2
-  # Use git-lfs to pull reference files for package checking
+  # Use git-lfs to pull reference files for rSFSW2 package checking
   - git lfs pull
 
 install:
+  # Use `remotes` to detect/install/update package dependencies
+  - Rscript -e 'utils::install.packages("remotes", lib = Sys.getenv("R_LIBS_USER"))'
+  # Custom install/update dependencies of rSW2utils and rSOILWAT2
+  - Rscript -e 'remotes::update_packages(c("blob", "DBI", "RSQLite", "circular", "mvtnorm"), upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
+  # Install rSW2utils from github (as dependency of rSOILWAT2)
+  - R CMD INSTALL --no-docs --no-help ../rSW2utils
+  # Install rSOILWAT2 from github (as dependency of rSFSW2)
+  - R CMD INSTALL --no-docs --no-help ../rSOILWAT2
   # Install rSFSW2 dependencies, but remove `Rmpi` etc.
-  - Rscript -e 'pkgs <- remotes::dev_package_deps(dependencies = TRUE); ids_not <- pkgs[, "package"] %in% c("rSOILWAT2", "Rmpi", "weathergen", "lubridate", "zoo", "dplyr"); update(pkgs[!ids_not, ], upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
+  - Rscript -e 'pkgs <- remotes::dev_package_deps(dependencies = TRUE); ids_not <- pkgs[, "package"] %in% c("rSW2utils", "rSOILWAT2", "Rmpi", "weathergen", "lubridate", "zoo", "dplyr"); update(pkgs[!ids_not, ], upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
 
 script:
   - R CMD build --no-build-vignettes --no-manual .
