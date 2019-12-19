@@ -1019,7 +1019,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         # The delta year was originaly designed to only be used by swCarbon to grab the correct ppm values,
         # but has since been used to also display the correct years in runDataSC, so this information is
         # extracted regardless of whether or not CO2 effects are being used
-        delta_yr <- sim_scens[["df"]][sc - 1, "Delta_yrs"]
+        delta_yr <- sim_scens[["df"]][sc, "Delta_yrs"]
         if (!is.na(delta_yr))
           rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]) <- as.integer(delta_yr)
 
