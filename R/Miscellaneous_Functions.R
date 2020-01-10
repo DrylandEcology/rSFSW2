@@ -856,8 +856,35 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
     endyr = sim_time[["endyr"]]
   )
 
+  #--- Create table with scenario name parts for each scenario
+  # ConcScen = concentration scenarios, e.g., SRESs, RCPs
+  ctmp <- c(
+    "Downscaling", "DeltaStr_yrs", "ConcScen", "Model", "Delta_yrs", "itime"
+  )
+
+  climScen <- data.frame(matrix(
+    NA,
+    nrow = N,
+    ncol = length(ctmp),
+    dimnames = list(NULL, ctmp)
+  ))
+
+  # set `delta_yrs` to 0 (for CO2-concentration data)
+  climScen[, "Delta_yrs"] <- 0L
+  climScen[, "itime"] <- 1L
+
+
+  # Fill in information for ambient scenario
+  climScen[1, "Model"] <- sim_scens[["ambient"]]
+  climScen[1, "ConcScen"] <- if ("tag_aCO2_ambient" %in% names(sim_scens)) {
+    sim_scens[["tag_aCO2_ambient"]]
+  } else {
+    "Fix360ppm"
+  }
+
+
   if (N > 1) {
-    #--- Create table with scenario name parts for each scenario
+    # Fill in information about model-scenario combinations
     temp <- strsplit(id[-1], split = ".", fixed = TRUE)
     if (!all(lengths(temp) == 4L)) {
       stop(
@@ -866,31 +893,7 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
       )
     }
 
-    # ConcScen = concentration scenarios, e.g., SRESs, RCPs
-    ctmp <- c(
-      "Downscaling", "DeltaStr_yrs", "ConcScen", "Model", "Delta_yrs", "itime"
-    )
-
-    climScen <- matrix(
-      NA,
-      nrow = N,
-      ncol = length(ctmp),
-      dimnames = list(NULL, ctmp)
-    )
-
-    climScen[1, "Model"] <- sim_scens[["ambient"]]
-    climScen[1, "ConcScen"] <- if ("tag_aCO2_ambient" %in% names(sim_scens)) {
-      sim_scens[["tag_aCO2_ambient"]]
-    } else {
-      "Fix360ppm"
-    }
     climScen[-1, ctmp[1:4]] <- do.call(rbind, temp)
-
-    climScen <- data.frame(climScen, stringsAsFactors = FALSE)
-
-    # set `delta_yrs` to 0 (for CO2-concentration data)
-    climScen[, "Delta_yrs"] <- 0L
-    climScen[, "itime"] <- 1L
 
 
     # set simulation time periods
@@ -908,8 +911,6 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
       rownames(itime) <- NULL
 
       # set index for `itime`
-      climScen[1, "itime"] <- 1L
-
       ids_itime <- match(
         apply(tmp_itime, 1, paste, collapse = "_"),
         apply(itime, 1, paste, collapse = "_")
@@ -942,7 +943,6 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
 
   } else {
     # Only ambient scenario
-    climScen <- data.frame(itime = 1)
     reqMs <- reqCSs <- reqCSsPerM <- reqDSsPerM <- NULL
   }
 
