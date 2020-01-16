@@ -353,8 +353,12 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE,
   if (!exists("SFSW2_prj_inputs") || is.null(SFSW2_prj_inputs) ||
     todo_intracker(SFSW2_prj_meta, "load_inputs", "prepared")) {
 
-    SFSW2_prj_inputs <- process_inputs(SFSW2_prj_meta[["project_paths"]],
-      SFSW2_prj_meta[["fnames_in"]], use_preprocin, verbose)
+    SFSW2_prj_inputs <- process_inputs(
+      project_paths = SFSW2_prj_meta[["project_paths"]],
+      fnames_in = SFSW2_prj_meta[["fnames_in"]],
+      use_preprocin,
+      verbose
+    )
 
     #--- Update output aggregation options
     SFSW2_prj_meta[["opt_agg"]] <- setup_aggregation_options(
@@ -1098,7 +1102,9 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     # `PotentialNaturalVegetation_*` columns are turned on
     pnv0_temp <- "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996"
 
-    pnv_temp <- c("PotentialNaturalVegetation_CompositionShrubs_Fraction",
+    pnv_temp <- c(
+      "PotentialNaturalVegetation_CompositionShrubs_Fraction",
+      "PotentialNaturalVegetation_CompositionTotalGrasses_Fraction",
       "PotentialNaturalVegetation_CompositionC3_Fraction",
       "PotentialNaturalVegetation_CompositionC4_Fraction",
       "PotentialNaturalVegetation_CompositionAnnuals_Fraction",
@@ -1112,19 +1118,24 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
       "RootProfile_C4",
       "RootProfile_Annuals",
       "RootProfile_Shrubs",
-      "RootProfile_Forb")
+      "RootProfile_Forb"
+    )
 
     temp1 <- pnv0_temp %in% SFSW2_prj_inputs[["create_treatments"]]
     temp2 <- pnv_temp %in% SFSW2_prj_inputs[["create_treatments"]]
     icheck <- (!temp1 && all(!temp2)) || (temp1 && any(temp2))
 
     if (any(!icheck)) {
-      stop("Calculation and/or adjustement of 'potential natural vegetation' ",
+      stop(
+        "Calculation and/or adjustement of 'potential natural vegetation' ",
         "is requested for some composition/biomass/root components: the ",
         "column ",
         "'PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996' ",
         "is the overall gate-keeper for this suit of functionality and must ",
-        "thus be turned on as well but is currently not.")
+        "thus be turned on as well but is currently not."
+      )
+    }
+
     }
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(

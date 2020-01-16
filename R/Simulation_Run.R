@@ -1393,11 +1393,16 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
         isNorth <- i_SWRunInformation$Y_WGS84 >= 0
 
-        pnv <- try(rSOILWAT2::estimate_PotNatVeg_composition(MAP_mm, MAT_C,
-          mean_monthly_ppt_mm = monthly.ppt, mean_monthly_Temp_C = monthly.temp,
-          dailyC4vars = dailyC4vars, isNorth = isNorth,
+        pnv <- try(rSOILWAT2::estimate_PotNatVeg_composition(
+          MAP_mm, MAT_C,
+          mean_monthly_ppt_mm = monthly.ppt,
+          mean_monthly_Temp_C = monthly.temp,
+          dailyC4vars = dailyC4vars,
+          isNorth = isNorth,
           shrub_limit = opt_sim[["shrub_limit"]],
           fix_succulents = TRUE, Succulents_Fraction = 0,
+          fix_sumgrasses = any(create_treatments == "PotentialNaturalVegetation_CompositionTotalGrasses_Fraction"),
+          SumGrasses_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionTotalGrasses_Fraction,
           fix_annuals = any(create_treatments == "PotentialNaturalVegetation_CompositionAnnuals_Fraction"),
           Annuals_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionAnnuals_Fraction,
           fix_C4grasses = any(create_treatments == "PotentialNaturalVegetation_CompositionC4_Fraction"),
@@ -1411,8 +1416,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           Trees_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionTrees_Fraction,
           fix_BareGround = any(create_treatments == "PotentialNaturalVegetation_CompositionBareGround_Fraction"),
           BareGround_Fraction = i_sw_input_treatments$PotentialNaturalVegetation_CompositionBareGround_Fraction,
-          fill_empty_with_BareGround = TRUE)
-        )
+          fill_empty_with_BareGround = TRUE
+        ))
 
         if (inherits(pnv, "try-error")) {
           tasks[sc, "create"] <- 0L
