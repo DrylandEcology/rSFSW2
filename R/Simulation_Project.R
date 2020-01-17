@@ -1136,8 +1136,6 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
       )
     }
 
-    }
-
     SFSW2_prj_meta[["input_status"]] <- update_intracker(
       SFSW2_prj_meta[["input_status"]], tracker = "prj_todos", checked = icheck)
   }
