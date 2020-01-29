@@ -3314,8 +3314,13 @@ compare_two_dbOutput <- function(dbOut1, dbOut2, tol = 1e-3,
     x_test <- dbGetQuery(testDB, sql)
 
     #---Compare field data and report if differences were found
-    ident <- all.equal(x_ref, x_test, tol = tol,
-      scale = if (comp_absolute) 1 else NULL)
+    ident <- rSW2utils::all_equal_numeric2(
+      target = x_ref,
+      current = x_test,
+      tolerance = tol,
+      scaled = !comp_absolute
+    )
+
     if (!isTRUE(ident)) {
       temp <- list(ident)
       names(temp) <- tocomp_tables[k]
