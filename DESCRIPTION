@@ -56,7 +56,7 @@ NeedsCompilation: yes
 License: GPL-3 + file LICENSE
 URL: https://github.com/DrylandEcology/rSFSW2
 BugReports: https://github.com/DrylandEcology/rSFSW2/issues
-RoxygenNote: 7.0.1
+RoxygenNote: 7.0.2
 VignetteBuilder: knitr
 Language: en-US
 Encoding: UTF-8
