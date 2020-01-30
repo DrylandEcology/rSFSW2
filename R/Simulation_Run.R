@@ -1904,6 +1904,8 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     print_debug(opt_verbosity, tag_simpidfid, "executing", "SOILWAT2")
 
+    itime <- sim_scens[["df"]][sc, "itime"]
+
     if (file.exists(f_sw_output[sc]) && ((tasks[sc, "execute"] == 1L && opt_behave[["resume"]]) ||
       (tasks[sc, "execute"] == -1L && any(tasks[, "aggregate"] == 1L)))) {
 
