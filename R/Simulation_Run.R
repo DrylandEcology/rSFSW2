@@ -267,13 +267,35 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   }
 
   #--- Load previously created rSOILWAT2 run objets
-  if (file.exists(f_sw_input) && ((any(tasks[, "create"] == 1L) && opt_behave[["resume"]]) ||
-    (all(tasks[, "create"] == -1L) && any(tasks[, "execute"] == 1L, tasks[, "aggregate"] == 1L)))) {
+  objnames_saveRsoilwatInput <- c(
+    "swRunScenariosData",
+    "i_sw_weatherList",
+    "grasses.c3c4ann.fractions",
+    "ClimatePerturbationsVals",
+    "isim_time",
+    "simTime2"
+  )
 
-    # load objects: swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
-    #   ClimatePerturbationsVals, isim_time, simTime2
-    load(f_sw_input)
-    tasks[, "create"] <- 2L
+  if (
+    file.exists(f_sw_input) &&
+      ((any(tasks[, "create"] == 1L) && opt_behave[["resume"]]) ||
+        (all(tasks[, "create"] == -1L) &&
+          any(tasks[, "execute"] == 1L, tasks[, "aggregate"] == 1L))
+      )
+  ) {
+
+    # load objects: objnames_saveRsoilwatInput
+    tmp <- try(
+      load(f_sw_input),
+      silent = TRUE
+    )
+
+    if (
+      !inherits(tmp, "try-error") &&
+        all(sapply(objnames_saveRsoilwatInput, exists))
+    ) {
+      tasks[, "create"] <- 2L
+    }
   }
 
 
@@ -1780,8 +1802,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     # Save input data if requested
     if (opt_out_run[["saveRsoilwatInput"]]) {
-      save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
-      ClimatePerturbationsVals, isim_time, simTime2, file = f_sw_input)
+      save(list = objnames_saveRsoilwatInput, file = f_sw_input)
     }
   } #end if do create runs
 
@@ -1906,12 +1927,22 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     itime <- sim_scens[["df"]][sc, "itime"]
 
-    if (file.exists(f_sw_output[sc]) && ((tasks[sc, "execute"] == 1L && opt_behave[["resume"]]) ||
-      (tasks[sc, "execute"] == -1L && any(tasks[, "aggregate"] == 1L)))) {
+    if (
+      file.exists(f_sw_output[sc]) &&
+        ((tasks[sc, "execute"] == 1L && opt_behave[["resume"]]) ||
+          (tasks[sc, "execute"] == -1L && any(tasks[, "aggregate"] == 1L))
+        )
+    ) {
 
-      load(f_sw_output[sc])  # load object: runDataSC
-      if (exists("runDataSC"))
+      # load object: runDataSC
+      tmp <- try(
+        load(f_sw_output[sc]),
+        silent = TRUE
+      )
+
+      if (!inherits(tmp, "try-error") && exists("runDataSC")) {
         tasks[sc, "execute"] <- 2L
+      }
     }
 
     if (tasks[sc, "execute"] == 1L) {
@@ -1968,9 +1999,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         DeltaX[2] <- if (!inherits(runDataSC, "try-error") && !is_SOILTEMP_INSTABLE[sc]) 2L else -1L
 
         #TODO: change deltaX_Param for all [> sc] as well
-        if (opt_out_run[["saveRsoilwatInput"]])
-          save(swRunScenariosData, i_sw_weatherList, grasses.c3c4ann.fractions,
-            ClimatePerturbationsVals, file = f_sw_input)
+        if (opt_out_run[["saveRsoilwatInput"]]) {
+          save(list = objnames_saveRsoilwatInput, file = f_sw_input)
+        }
 
       } else {
         DeltaX <- c(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], 1L)
