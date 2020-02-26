@@ -45,7 +45,8 @@ Suggests:
     hunspell (>= 2.9),
     covr,
     lintr (>= 2.0.0),
-    goodpractice
+    goodpractice,
+    pkgload
 Remotes:
     github::dschlaep/weathergen
 LinkingTo:

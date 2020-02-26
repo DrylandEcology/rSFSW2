@@ -472,8 +472,6 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
 
         Rmpi::mpi.spawn.Rslaves(nslaves = opt_parallel[["num_cores"]])
         Rmpi::mpi.bcast.cmd(library("rSFSW2"))
-        Rmpi::mpi.bcast.cmd(library("rSOILWAT2"))
-        Rmpi::mpi.bcast.cmd(library("rSW2utils"))
 
         SFSW2_glovars[["p_cl"]] <- TRUE
         SFSW2_glovars[["p_pids"]] <- as.integer(

@@ -1341,7 +1341,7 @@ doQmapQUANT.default_drs <- function(x, fobj, type = NULL, lin_extrapol = NULL,
 }
 
 #' @rdname doQmapQUANT
-#' @inheritParams doQmapQUANT
+#'
 #' @param type_map A character vector. The type of interpolation, extrapolation, and
 #'  spline passed to \code{\link{doQmapQUANT.default_drs}}. Possible values include
 #'  \var{\dQuote{linear_Boe}}, \var{\dQuote{linear_Thermessl2012CC.QMv1b}},
@@ -2248,7 +2248,7 @@ extract_monthly_variable_netCDF <- function(filename, variable, unit, ncg, nct,
       filename = nc,
       startyear = startyear,
       endyear = endyear,
-      tres = climDB_meta[["tres"]]
+      tres = "monthly"
     )
     res <- do_ncvar_netCDF(nc, nc_perm, nc_var, ncg, nct)
   }
@@ -3695,6 +3695,8 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
 
 
   } else {
+
+    stopifnot("daily" == climDB_meta[["tres"]])
 
     if (SFSW2_glovars[["p_has"]]) {
       if (!is.na(seed)) set.seed(seed)
