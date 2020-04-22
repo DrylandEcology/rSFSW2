@@ -387,7 +387,7 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data,
   if (!file.exists(wgrib2 <- file.path(dir_ex_cfsr, "wgrib2"))) {
     path_wgrib2 <- if (nchar(temp <- Sys.which("wgrib2")) > 0) {
         temp
-      } else if (file.exists(temp <- "/opt/local/bin/wgrib2")) temp else ""
+      } else if (nchar(temp <- system2(command = "command", args = paste("-v", shQuote("wgrib2")))) > 0) temp else ""
     stopifnot(nchar(path_wgrib2) > 0)
     file.copy(from = path_wgrib2, to = wgrib2)
   }

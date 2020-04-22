@@ -119,8 +119,8 @@ assign_aggregation_soillayers <- function(layers_depth, daily_lyr_agg) {
 init_soiltemperature <- function(layers_depth, lower.Tdepth, soilTupper,
   soilTlower) {
 
-  sl <- c(0, lower.Tdepth)
-  st <- c(soilTupper, soilTlower)
+  sl <- c(0, lower.Tdepth) # nolint
+  st <- c(soilTupper, soilTlower) # nolint
 
   stats::predict(stats::lm(st ~ sl), data.frame(sl = layers_depth))
 }
