@@ -385,9 +385,16 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data,
 
   #Check for wgrib2 (http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/)
   if (!file.exists(wgrib2 <- file.path(dir_ex_cfsr, "wgrib2"))) {
-    path_wgrib2 <- if (nchar(temp <- Sys.which("wgrib2")) > 0) {
-        temp
-      } else if (nchar(temp <- system2(command = "command", args = paste("-v", shQuote("wgrib2")))) > 0) temp else ""
+    tmp <- Sys.which("wgrib2")
+    path_wgrib2 <- if (nchar(tmp) > 0) {
+        tmp
+      } else {
+        tmp <- system2(
+          command = "command",
+          args = paste("-v", shQuote("wgrib2"))
+        )
+        if (nchar(tmp) > 0) tmp else ""
+      }
     stopifnot(nchar(path_wgrib2) > 0)
     file.copy(from = path_wgrib2, to = wgrib2)
   }
