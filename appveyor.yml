@@ -30,9 +30,11 @@ cache:
 build_script:
   - travis-tool.sh install_r blob DBI RSQLite circular mvtnorm
   - travis-tool.sh install_github DrylandEcology/rSW2utils
-  # we cannot use `remotes::install_github` because submodules are not supported by the `remotes` package
-  - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git /tmp/rSOILWAT2
-  - R CMD INSTALL C:/tmp/rSOILWAT2
+  # we cannot use `remotes::install_github` to install `rSOILWAT2`
+  # because submodules are not supported by the `remotes` package
+  - cmd: >-
+      git clone -b master --single-branch --recurse-submodules https://github.com/DrylandEcology/rSOILWAT2.git /tmp/rSOILWAT2
+      && R CMD INSTALL C:/tmp/rSOILWAT2
   - travis-tool.sh install_deps
 
 test_script:
