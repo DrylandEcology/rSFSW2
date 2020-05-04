@@ -1460,30 +1460,31 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
       print_debug(opt_verbosity, tag_simpidfid, "creating", "potential vegetation")
 
-      if (any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") &&
+      if (
+        any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") &&
         i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996 &&
         ((any(create_treatments == "AdjMonthlyBioMass_Temperature") &&
-        i_sw_input_treatments$AdjMonthlyBioMass_Temperature) |
+        i_sw_input_treatments$AdjMonthlyBioMass_Temperature) ||
         (any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&
-        i_sw_input_treatments$AdjMonthlyBioMass_Precipitation))) {
+        i_sw_input_treatments$AdjMonthlyBioMass_Precipitation))
+      ) {
 
-        temp <- rSOILWAT2::estimate_PotNatVeg_biomass(
+        tmp <- rSOILWAT2::estimate_PotNatVeg_biomass(
           tr_VegBiom = tr_VegetationComposition,
-          do_adjBiom_by_temp =
+          do_adjust_phenology =
             any(create_treatments == "AdjMonthlyBioMass_Temperature") &&
             i_sw_input_treatments$AdjMonthlyBioMass_Temperature,
-          do_adjBiom_by_ppt =
+          do_adjust_biomass =
             any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&
             i_sw_input_treatments$AdjMonthlyBioMass_Precipitation,
           fgrass_c3c4ann = grasses.c3c4ann.fractions[[sc]],
-          growing_limit_C = opt_sim[["growseason_Tlimit_C"]],
-          isNorth = isNorth,
           MAP_mm = MAP_mm,
-          mean_monthly_temp_C = monthly.temp
+          ref_temp = opt_sim[["reference_temperature_default_phenology"]],
+          target_temp = monthly.temp
         )
 
-        rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3] <- temp$grass[, 1:3]
-        rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 1:3] <- temp$shrub[, 1:3]
+        rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3] <- tmp[["grass"]][, 1:3]
+        rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 1:3] <- tmp[["shrub"]][, 1:3]
       }
 
       #adjust Root Profile - need composition fractions set above
