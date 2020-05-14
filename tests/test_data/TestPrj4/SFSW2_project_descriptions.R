@@ -293,7 +293,14 @@ opt_sim <- list(
   #     temperate climate := has >=4 & < 8 months with > 10C
   #   - 4 C based standard input of mean monthly biomass values described in
   #   Bradford et al. 2014 Journal of Ecology
-  growseason_Tlimit_C = 4
+  growseason_Tlimit_C = 4,
+  # Mean monthly reference temperature describing default phenology values
+  #   - below values calculated by KP as median across 898 big sagebrush sites
+  #     (see https://github.com/DrylandEcology/rSFSTEP2/issues/195)
+  reference_temperature_default_phenology = c(
+    -4.6768, -2.7282, 1.8257, 6.0538, 10.696, 15.3878,
+    19.7777, 18.8755, 13.7868, 7.2843, 0.4167, -4.6912
+  )
 )
 
 
