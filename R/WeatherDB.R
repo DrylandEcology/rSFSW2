@@ -125,7 +125,8 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
       site_data = site_data,
       Scenarios = SFSW2_prj_meta[["sim_scens"]][["id"]],
       compression_type =
-        SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]]))
+        SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]]
+    ))
     do_add <- TRUE
     add_runIDs_sites <- temp_runIDs_sites
   }
@@ -2149,7 +2150,8 @@ dw_gridMET_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
 
     if (length(has_years) > 0) {
       # gridMET should cover 1979-yesterday
-      there <- sim_time[["overall_simstartyr"]] <= has_years[2] &&
+      there <-
+        sim_time[["overall_simstartyr"]] <= has_years[2] &&
         sim_time[["overall_endyr"]] >= has_years[1]
 
       ftemp <- file.path(path, paste0("pr_", has_years[1], ".nc"))
