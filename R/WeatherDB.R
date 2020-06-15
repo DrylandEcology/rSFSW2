@@ -1661,7 +1661,7 @@ gridMET_metadata <- function() {
       function(x) x / 10
     ),
     start_year = 1979,
-    end_year = 2018 # updated yearly
+    end_year = 2019 # updated yearly
   )
 }
 
@@ -2142,7 +2142,7 @@ dw_gridMET_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
 
   there <- 0
 
-  if (exinfo$GriddedDailyWeatherFromGridMET_NorthAmerica) {
+  if (exinfo$GriddedDailyWeatherFromgridMET_NorthAmerica) {
     # Check which requested gridMET weather data are available
     tmp <- list.files(path, pattern = "(pr_)[[:digit:]]{4}(.nc)")
     has_years <- range(as.integer(gsub("(pr_)|(.nc)", "", tmp)))
@@ -2157,10 +2157,18 @@ dw_gridMET_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
       if (any(there) && file.exists(ftemp)) {
         sp_locs <- sp::SpatialPoints(
           coords = site_dat[, c("X_WGS84", "Y_WGS84")],
-          proj4string = sp::CRS(paste("+proj=longlat +ellps=WGS84 +datum=WGS84",
-            "+no_defs +towgs84=0,0,0"))
+          proj4string = sp::CRS("+init=epsg:4326") # WGS84
         )
+
         ftmp <- raster::raster(ftemp, band = 1)
+
+        # (2020-June-15): raster package does not correctly parse projection
+        # information of gridMET file(s)
+        if (!grepl("+datum=WGS84", raster::crs(ftmp, asText = TRUE))) {
+          warning("`dw_gridMET_NorthAmerica()`: overrides CRS of gridMET data.")
+          raster::crs(ftmp) <- sp::CRS("+init=epsg:4326")
+        }
+
         there <- !is.na(raster::extract(ftmp, y = sp_locs))
 
         if (any(there)) {
