@@ -3,39 +3,70 @@
 
 prepare_ExtractData_Elevation <- function(SWRunInformation, sim_size,
   field_sources, field_include, how_determine_sources, scorp,
-  elev_probs = c(0.025, 0.5, 0.975)) {
+  elev_probs = c(0.025, 0.5, 0.975)
+) {
 
-  sites_elevation_source <- get_datasource_masterfield(SWRunInformation,
-    field_sources, sim_size, how_determine_sources)
+  sites_elevation_source <- get_datasource_masterfield(
+    SWRunInformation,
+    field_sources,
+    sim_size,
+    how_determine_sources
+  )
 
   probs <- if (scorp == "cell") elev_probs else NULL
 
-  dtemp <- matrix(NA, nrow = sim_size[["runsN_sites"]],
-    ncol = 1 + length(probs), dimnames = list(NULL, c("ELEV_m",
-      if (scorp == "cell") paste0("ELEV_m_q", probs))))
+  dtemp <- matrix(
+    NA,
+    nrow = sim_size[["runsN_sites"]],
+    ncol = 1 + length(probs),
+    dimnames = list(
+      NULL,
+      c("ELEV_m", if (scorp == "cell") paste0("ELEV_m_q", probs))
+    )
+  )
 
-  do_include <- get_datasource_includefield(SWRunInformation, field_include,
-    sim_size)
+  do_include <- get_datasource_includefield(
+    SWRunInformation,
+    field_include,
+    sim_size
+  )
 
-  list(source = sites_elevation_source, data = dtemp, idone = vector(),
-    probs = probs, input = SWRunInformation, do_include = do_include)
+  list(
+    source = sites_elevation_source,
+    data = dtemp,
+    idone = vector(),
+    probs = probs,
+    input = SWRunInformation,
+    do_include = do_include
+  )
 }
 
 
 update_elevation_input <- function(MMC, sim_size, digits = 0, fnames_in) {
   icolnew <- !(colnames(MMC[["data"]]) %in% colnames(MMC[["input"]]))
+
   if (any(icolnew)) {
-    MMC[["input"]] <- cbind(MMC[["input"]],
-      matrix(NA, nrow = nrow(MMC[["input"]]), ncol = sum(icolnew),
-        dimnames = list(NULL, colnames(MMC[["data"]])[icolnew])))
+    MMC[["input"]] <- cbind(
+      MMC[["input"]],
+      matrix(
+        NA,
+        nrow = nrow(MMC[["input"]]),
+        ncol = sum(icolnew),
+        dimnames = list(NULL, colnames(MMC[["data"]])[icolnew])
+      )
+    )
   }
 
   i_good <- stats::complete.cases(MMC[["data"]])
+
   MMC[["input"]][sim_size[["runIDs_sites"]][i_good], colnames(MMC[["data"]])] <-
     round(MMC[["data"]][i_good, ], digits)
 
-  utils::write.csv(MMC[["input"]], file = fnames_in[["fmaster"]],
-    row.names = FALSE)
+  utils::write.csv(
+    MMC[["input"]],
+    file = fnames_in[["fmaster"]],
+    row.names = FALSE
+  )
   unlink(fnames_in[["fpreprocin"]])
 
   MMC
@@ -238,34 +269,50 @@ ExtractData_Elevation <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
   field_sources <- "Elevation_source"
   field_include <- "Include_YN_ElevationSources"
 
-  MMC <- prepare_ExtractData_Elevation(SFSW2_prj_inputs[["SWRunInformation"]],
-    sim_size = SFSW2_prj_meta[["sim_size"]], field_sources = field_sources,
+  MMC <- prepare_ExtractData_Elevation(
+    SFSW2_prj_inputs[["SWRunInformation"]],
+    sim_size = SFSW2_prj_meta[["sim_size"]],
+    field_sources = field_sources,
     field_include = field_include,
     how_determine_sources =
       SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
-    SFSW2_prj_meta[["sim_space"]][["scorp"]])
+    scorp = SFSW2_prj_meta[["sim_space"]][["scorp"]]
+  )
 
   if (exinfo$ExtractElevation_NED_USA) {
-    MMC <- do_ExtractElevation_NED_USA(MMC,
+    MMC <- do_ExtractElevation_NED_USA(
+      MMC,
       sim_size = SFSW2_prj_meta[["sim_size"]],
       sim_space = SFSW2_prj_meta[["sim_space"]],
       dir_ex_dem = SFSW2_prj_meta[["project_paths"]][["dir_ex_dem"]],
       fnames_in = SFSW2_prj_meta[["fnames_in"]],
-      resume, verbose)
+      resume,
+      verbose
+    )
   }
 
   if (exinfo$ExtractElevation_HWSD_Global) {
-    MMC <- do_ExtractElevation_HWSD_Global(MMC,
+    MMC <- do_ExtractElevation_HWSD_Global(
+      MMC,
       sim_size = SFSW2_prj_meta[["sim_size"]],
       sim_space = SFSW2_prj_meta[["sim_space"]],
       dir_ex_dem = SFSW2_prj_meta[["project_paths"]][["dir_ex_dem"]],
-      fnames_in = SFSW2_prj_meta[["fnames_in"]], resume, verbose)
+      fnames_in = SFSW2_prj_meta[["fnames_in"]],
+      resume,
+      verbose
+    )
   }
 
-  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_masterfield(MMC,
+  SFSW2_prj_inputs[["SWRunInformation"]] <- MMC[["input"]]
+
+  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_masterfield(
+    MMC,
     sim_size = SFSW2_prj_meta[["sim_size"]],
-    SFSW2_prj_inputs[["SWRunInformation"]], SFSW2_prj_meta[["fnames_in"]],
-    field_sources, field_include)
+    SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
+    fnames_in = SFSW2_prj_meta[["fnames_in"]],
+    field_sources,
+    field_include
+  )
 
   SFSW2_prj_inputs
 }

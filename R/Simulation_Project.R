@@ -827,8 +827,9 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
     if (todo_intracker(SFSW2_prj_meta, "elev_data", "prepared")) {
 
       SFSW2_prj_inputs <- ExtractData_Elevation(
-        SFSW2_prj_meta[["exinfo"]],
-        SFSW2_prj_meta, SFSW2_prj_inputs,
+        exinfo = SFSW2_prj_meta[["exinfo"]],
+        SFSW2_prj_meta,
+        SFSW2_prj_inputs,
         resume = opt_behave[["resume"]],
         verbose = opt_verbosity[["verbose"]]
       )
