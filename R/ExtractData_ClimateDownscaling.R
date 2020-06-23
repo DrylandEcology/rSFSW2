@@ -3696,7 +3696,7 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
 
   } else {
 
-    stopifnot("daily" == climDB_meta[["tres"]])
+    stopifnot("daily" != climDB_meta[["tres"]])
 
     if (SFSW2_glovars[["p_has"]]) {
       if (!is.na(seed)) set.seed(seed)
