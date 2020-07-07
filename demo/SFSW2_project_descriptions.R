@@ -89,7 +89,7 @@ project_paths <- list(
 
 #------ Base names or full names of input files
 fnames_in <- list(
-  fmaster = "SWRuns_InputMaster_YOURPROJECT_v11.csv",
+  fmaster = "SWRuns_InputMaster_YOURPROJECT_v12.csv",
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
   ftreatDesign = "SWRuns_InputData_TreatmentDesign_v18.csv",
@@ -97,7 +97,7 @@ fnames_in <- list(
 
   fclimnorm = "SWRuns_InputData_cloud_v10.csv",
   fvegetation = "SWRuns_InputData_prod_v11.csv",
-  fsite = "SWRuns_InputData_siteparam_v14.csv",
+  fsite = "SWRuns_InputData_siteparam_v15.csv",
   fsoils = "SWRuns_InputData_soils_v12.csv",
   fweathersetup = "SWRuns_InputData_weathersetup_v10.csv",
   fclimscen_delta = "SWRuns_InputData_ClimateScenarios_Change_v11.csv",

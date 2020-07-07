@@ -15,7 +15,8 @@ tr_update <- list(
   tr_prodin = basename(rSOILWAT2::swFiles_Prod(sw_in)),
   tr_siteparamin = basename(rSOILWAT2::swFiles_SiteParams(sw_in)),
   tr_soilsin = basename(rSOILWAT2::swFiles_Soils(sw_in)),
-  tr_weathersetupin = basename(rSOILWAT2::swFiles_WeatherSetup(sw_in)))
+  tr_weathersetupin = basename(rSOILWAT2::swFiles_WeatherSetup(sw_in))
+)
 
 path_demo <- system.file("extdata", "example1", "Input", package = "rSOILWAT2")
 

@@ -732,12 +732,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           as.numeric(i_sw_input_site$Param_UnsaturatedPercolation)
       }
 
-      flags <- c("Latitude", "Altitude", "Slope", "Aspect")
-      site_use <- sw_input_site_use[flags]
-      if (any(site_use))
-        rSOILWAT2::swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[site_use] <-
-          as.numeric(i_sw_input_site[flags][site_use])
-
       if (sw_input_site_use["SoilTemp_Flag"]) {
         rSOILWAT2::swSite_SoilTemperatureFlag(swRunScenariosData[[1]]) <-
           as.logical(i_sw_input_site$SoilTemp_Flag)
@@ -756,12 +750,16 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           as.numeric(i_sw_input_site[flagsIn][site_use])
     }
 
-    rSOILWAT2::swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[1] <-
-      as.numeric(i_SWRunInformation$Y_WGS84 * pi / 180)
 
-    if (is.finite(i_SWRunInformation$ELEV_m))
-      rSOILWAT2::swSite_IntrinsicSiteParams(swRunScenariosData[[1]])[2] <-
-        as.numeric(i_SWRunInformation$ELEV_m)
+    # add site location, elevation, and surface orientation
+    var_loc <- c("X_WGS84", "Y_WGS84", "ELEV_m", "Slope", "Aspect")
+    tmp <- as.numeric(i_SWRunInformation[var_loc])
+    has_aspect <- is.finite(tmp[5]) && abs(tmp[5]) <= 180
+    tmp <- ifelse(is.finite(tmp), tmp, 0)
+    if (!has_aspect) tmp[4:5] <- c(0, 999)
+
+    rSOILWAT2::swSite_IntrinsicSiteParams(swRunScenariosData[[1]]) <- tmp
+
 
     #add soil information to soilsin
     print_debug(opt_verbosity, tag_simfid, "creating", "soils")
