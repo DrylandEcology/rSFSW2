@@ -2,8 +2,11 @@
 #------ datafile-IO functions
 
 req_fields_SWRunInformation <- function() {
-  c("Label", "site_id", "WeatherFolder", "X_WGS84", "Y_WGS84", "ELEV_m",
-    "Include_YN")
+  c(
+    "Label", "site_id", "Include_YN",
+    "WeatherFolder",
+    "X_WGS84", "Y_WGS84", "ELEV_m", "Slope", "Aspect"
+  )
 }
 
 #' Read a comma-separated value (\var{csv}) file
