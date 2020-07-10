@@ -76,7 +76,7 @@ check_rSW2_version <- function(object, strict = TRUE) {
   tmp1 <- get_version(object)
   tmp2 <- SFSW2_glovars[["minVersion_rSOILWAT2"]]
 
-  res <- if (is.na(tmp) || is.na(tmp2)) {
+  res <- if (is.na(tmp1) || is.na(tmp2)) {
     FALSE
   } else {
     as.numeric_version(tmp1) >= as.numeric_version(tmp2)
