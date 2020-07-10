@@ -98,8 +98,8 @@ opt_verbosity <- list(
 #------ Output options
 opt_out_run <- list(
   # Write rSOILWAT2 input and output to disk for each SOILWAT2 simulation
-  saveRsoilwatInput = FALSE,
-  saveRsoilwatOutput = FALSE,
+  saveRsoilwatInput = TRUE,
+  saveRsoilwatOutput = TRUE,
 
   # Enforce that rSOILWAT2 objects meet the current version requirement
   enforce_rSW2_version = TRUE,
