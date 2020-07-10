@@ -293,7 +293,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     if (
       !inherits(tmp, "try-error") &&
         all(sapply(objnames_saveRsoilwatInput, exists)) &&
-        check_rSW2_version(tmp, strict = opt_out_run[["enforce_rSW2_version"]])
+        check_rSW2_version(
+          object = swRunScenariosData[[1]],
+          strict = opt_out_run[["enforce_rSW2_version"]]
+        )
     ) {
       tasks[, "create"] <- 2L
     }
@@ -1943,7 +1946,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       if (
         !inherits(tmp, "try-error") &&
         exists("runDataSC") &&
-        check_rSW2_version(tmp, strict = opt_out_run[["enforce_rSW2_version"]])
+        check_rSW2_version(
+          object = runDataSC,
+          strict = opt_out_run[["enforce_rSW2_version"]]
+        )
       ) {
         tasks[sc, "execute"] <- 2L
       }
