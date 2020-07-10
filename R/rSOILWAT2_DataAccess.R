@@ -1,3 +1,99 @@
+
+# Based on code from \code{\link[tools][.split_dependencies]} and
+# \code{\link[tools][.split_op_version]}
+.split_dependencies <- function(x) {
+  .split_op_version <- function (x)
+  {
+    pat <- "^([^\\([:space:]]+)[[:space:]]*\\(([^\\)]+)\\).*"
+    x1 <- sub(pat, "\\1", x)
+    x2 <- sub(pat, "\\2", x)
+    if (x2 != x1) {
+      pat <- "[[:space:]]*([[<>=!]+)[[:space:]]+(.*)"
+      version <- sub(pat, "\\2", x2)
+      if (!startsWith(version, "r")) {
+        version <- package_version(version)
+      }
+      list(name = x1, op = sub(pat, "\\1", x2), version = version)
+    } else {
+      list(name = x1)
+    }
+  }
+
+  .split2 <- function(x) {
+    x <- sub("[[:space:]]+$", "", x)
+    x <- unique(sub("^[[:space:]]*(.*)", "\\1", x))
+    names(x) <- sub("^([[:alnum:].]+).*$", "\\1", x)
+    x <- x[names(x) != "R"]
+    x <- x[nzchar(x)]
+    x <- x[!duplicated(names(x))]
+    lapply(x, .split_op_version)
+  }
+
+  if (!any(nzchar(x))) {
+    return(list())
+  }
+
+  unlist(
+    x = lapply(strsplit(x, ","), .split2),
+    recursive = FALSE,
+    use.names = FALSE
+  )
+}
+
+get_minVersion_rSOILWAT2 <- function() {
+  tmp <- .split_dependencies(
+    x = utils::packageDescription(pkg = "rSFSW2", fields = c("Depends"))
+  )
+
+  ntmp <- sapply(tmp, function(x) x[["name"]])
+  id <- "rSOILWAT2" == ntmp
+  if (sum(id) == 1) {
+    tmp[id][[1]][["version"]]
+  } else {
+    NA_integer_
+  }
+}
+
+
+
+#' Check version of a \pkg{rSOILWAT2} input or output object compared to
+#' declared dependency in the package \var{DESCRIPTION}
+#'
+#' @param object An object of \pkg{rSOILWAT2} classes
+#'   \code{\linkS4class{swInputData}} or \code{\linkS4class{swOutput}}.
+#' @param strict A logical value. If \code{FALSE} and check would fail, then
+#'   a warning is issued (and \code{TRUE} is returned nevertheless).
+#'
+#' @return A logical value.
+#'   Returns \code{TRUE} if version of \code{object} meets at least the minimal
+#'   required \pkg{rSOILWAT2} version -- or if \code{strict} is \code{FALSE}.
+#'   Returns \code{FALSE} otherwise.
+#'
+#' @seealso \code{\link[rSOILWAT2]{check_version}}
+#'
+#' @export
+check_rSW2_version <- function(object, strict = TRUE) {
+  tmp1 <- get_version(object)
+  tmp2 <- SFSW2_glovars[["minVersion_rSOILWAT2"]]
+
+  res <- if (is.na(tmp) || is.na(tmp2)) {
+    FALSE
+  } else {
+    as.numeric_version(tmp1) >= as.numeric_version(tmp2)
+  }
+
+  if (!strict && !res) {
+    warning(
+      "Code requires 'rSOILWAT2' v", tmp2,
+      ", but ", shQuote(deparse(substitute(object))), "has v", tmp1
+    )
+    res <- TRUE
+  }
+
+  res
+}
+
+
 #' \pkg{rSOILWAT2} data access functions
 #'
 #' @param x An object of class

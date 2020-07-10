@@ -100,6 +100,9 @@ opt_out_run <- list(
   saveRsoilwatInput = FALSE,
   saveRsoilwatOutput = FALSE,
 
+  # Enforce that rSOILWAT2 objects meet the current version requirement
+  enforce_rSW2_version = TRUE,
+
   # Write data to big input files for experimental design x treatment design
   makeInputForExperimentalDesign = FALSE,
 
