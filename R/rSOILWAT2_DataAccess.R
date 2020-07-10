@@ -2,7 +2,7 @@
 # Based on code from \code{\link[tools][.split_dependencies]} and
 # \code{\link[tools][.split_op_version]}
 .split_dependencies <- function(x) {
-  .split_op_version <- function (x)
+  .split_op_version <- function(x)
   {
     pat <- "^([^\\([:space:]]+)[[:space:]]*\\(([^\\)]+)\\).*"
     x1 <- sub(pat, "\\1", x)
@@ -42,7 +42,7 @@
 
 get_minVersion_rSOILWAT2 <- function() {
   tmp <- .split_dependencies(
-    x = utils::packageDescription(pkg = "rSFSW2", fields = c("Depends"))
+    x = utils::packageDescription(pkg = "rSFSW2", fields = "Depends")
   )
 
   ntmp <- sapply(tmp, function(x) x[["name"]])
