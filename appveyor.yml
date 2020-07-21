@@ -35,6 +35,7 @@ build_script:
   - cmd: >-
       git clone -b master --single-branch --recurse-submodules https://github.com/DrylandEcology/rSOILWAT2.git /tmp/rSOILWAT2
       && R CMD INSTALL C:/tmp/rSOILWAT2
+  - travis-tool.sh install_github DrylandEcology/rSW2funs
   - travis-tool.sh install_deps
 
 test_script:

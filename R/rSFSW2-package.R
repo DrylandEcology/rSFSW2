@@ -48,6 +48,7 @@ SFSW2_glovars <- new.env()
 
 ##------ Import from other packages
 #' @import rSW2utils
+#' @import rSW2funs
 #' @import rSOILWAT2
 ## Package uses S3/S4 classes - they are defined in package:methods
 #' @import methods

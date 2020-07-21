@@ -46,6 +46,8 @@ before_install:
   - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSW2utils.git ../rSW2utils
   # Download rSOILWAT2 from github (as dependency of rSFSW2)
   - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git ../rSOILWAT2
+  # Download rSW2funs from github (as dependency of rSFSW2)
+  - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSW2funs.git ../rSW2funs
   # Use git-lfs to pull reference files for rSFSW2 package checking
   - git lfs pull
 
@@ -58,6 +60,8 @@ install:
   - R CMD INSTALL --no-docs --no-help ../rSW2utils
   # Install rSOILWAT2 from github (as dependency of rSFSW2)
   - R CMD INSTALL --no-docs --no-help ../rSOILWAT2
+  # Install rSW2funs from github (as dependency of rSFSW2)
+  - R CMD INSTALL --no-docs --no-help ../rSW2funs
   # Install rSFSW2 dependencies, but remove `Rmpi` etc.
   - Rscript -e 'pkgs <- remotes::dev_package_deps(dependencies = TRUE); ids_not <- pkgs[, "package"] %in% c("rSW2utils", "rSOILWAT2", "Rmpi", "weathergen", "lubridate", "zoo", "dplyr"); update(pkgs[!ids_not, ], upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
 
