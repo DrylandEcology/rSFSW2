@@ -4642,8 +4642,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           tmp_soiltemp <- slot(slot(runDataSC, swof["sw_soiltemp"]), "Day")
 
           sim_vals_daily <- list(
-            years =
-              isim_time[[itime]][["simstartyr"]]:isim_time[[itime]][["endyr"]],
             SWP_MPa = swpmatric.dy.all[["val"]][, 2 + ld, drop = FALSE],
             Snowpack_SWE_mm = 10 * slot(
               slot(runDataSC, swof["sw_snow"]),
@@ -4658,6 +4656,9 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             shallowsoil_Tmax_C = tmp_soiltemp[, "Lyr_1"]
           )
 
+          request_otrace_GISSM <-
+            as.integer(any(prj_todos[["otrace"]] == "dailyRegeneration_GISSM"))
+
           # Loop through each species
           for (sp in seq_len(opt_agg[["GISSM_species_No"]])) {
 
@@ -4668,8 +4669,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               has_soil_temperature = isTRUE(!is_SOILTEMP_INSTABLE[sc]),
               simTime1 = isim_time[[itime]],
               simTime2 = simTime2[[itime]],
-              debug_output =
-                any(prj_todos[["otrace"]] == "dailyRegeneration_GISSM"),
+              debug_output = 1 + request_otrace_GISSM,
               path = project_paths[["dir_out_traces"]],
               filename_tag = paste0(
                 "Scenario",
@@ -4682,9 +4682,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             )
 
             # Frequency of years with success
-            resMeans[nv:(nv+1)] <- colMeans(GISSM[["freq"]], na.rm = TRUE)
+            resMeans[nv:(nv+1)] <- colMeans(
+              x = GISSM[["outcome"]][, -1],
+              na.rm = TRUE
+            )
             resSDs[nv:(nv+1)] <- apply(
-              X = GISSM[["freq"]],
+              X = GISSM[["outcome"]][, -1],
               MARGIN = 2,
               FUN = stats::sd,
               na.rm = TRUE
@@ -4710,10 +4713,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
               FUN = stats::sd
             )
 
-            # Days of year (in normal count) of most frequent successes among years
+            # Days of year of most frequent successes among years
             resMeans[(nv+10):(nv+15)] <- GISSM[["success_mostfrequent_doy"]]
 
-            # Mean number of days when germination is restricted due to conditions
+            # Mean number of days without germination
             resMeans[(nv+16):(nv+20)] <- colMeans(GISSM[["nogermination_days"]])
             resSDs[(nv+16):(nv+20)] <- apply(
               X = GISSM[["nogermination_days"]],
@@ -4745,8 +4748,6 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             )
 
             nv <- nv+31
-
-
           } # end of species loop
 
           print_debugN(opt_verbosity, tag_simpidfid, prj_todos, nv - nv0, "dailyRegeneration_GISSM")
