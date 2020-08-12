@@ -55,7 +55,3 @@ SFSW2_glovars <- new.env()
 ## Package uses methods from 'RSQLite' package (which re-exports 'DBI' methods)
 #' @import RSQLite
 NULL
-
-##------ Support Rcpp
-#' @importFrom Rcpp sourceCpp evalCpp
-NULL

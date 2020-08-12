@@ -17,7 +17,6 @@ Depends:
     rSW2funs
 Imports:
     RSQLite (>= 2.1.1),
-    Rcpp (>= 0.12.12),
     raster (>= 2.5.8),
     sp (>= 1.2.3),
     methods
@@ -30,7 +29,6 @@ Suggests:
     RCurl (>= 1.95.4.8),
     fastmatch (>= 1.0.4),
     iotools (>= 0.1-12),
-    circular (>= 0.4.7),
     Hmisc (>= 4.0-2),
     SPEI (>= 1.6),
     qmap (>= 1.0.4),
@@ -50,8 +48,6 @@ Suggests:
     pkgload
 Remotes:
     github::dschlaep/weathergen
-LinkingTo:
-    Rcpp
 LazyData: true
 ByteCompile: true
 NeedsCompilation: yes
