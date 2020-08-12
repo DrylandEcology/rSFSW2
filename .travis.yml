@@ -41,13 +41,6 @@ addons:
     - netcdf-bin
 
 before_install:
-  # pwd = <repo>/<repo-name>, here DrylandEcology/rSFSW2
-  # Download rSW2utils from github (as dependency of rSOILWAT2)
-  - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSW2utils.git ../rSW2utils
-  # Download rSOILWAT2 from github (as dependency of rSFSW2)
-  - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSOILWAT2.git ../rSOILWAT2
-  # Download rSW2funs from github (as dependency of rSFSW2)
-  - git clone -b master --single-branch --recursive https://github.com/DrylandEcology/rSW2funs.git ../rSW2funs
   # Use git-lfs to pull reference files for rSFSW2 package checking
   - git lfs pull
 
@@ -56,14 +49,15 @@ install:
   - Rscript -e 'utils::install.packages("remotes", lib = Sys.getenv("R_LIBS_USER"))'
   # Custom install/update dependencies of rSW2utils and rSOILWAT2
   - Rscript -e 'remotes::update_packages(c("blob", "DBI", "RSQLite", "circular", "mvtnorm"), upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
-  # Install rSW2utils from github (as dependency of rSOILWAT2)
-  - R CMD INSTALL --no-docs --no-help ../rSW2utils
-  # Install rSOILWAT2 from github (as dependency of rSFSW2)
-  - R CMD INSTALL --no-docs --no-help ../rSOILWAT2
-  # Install rSW2funs from github (as dependency of rSFSW2)
-  - R CMD INSTALL --no-docs --no-help ../rSW2funs
+  # Install rSW2utils as dependency of rSOILWAT2 and rSFSW2
+  - Rscript -e 'remotes::install_github("DrylandEcology/rSW2utils", upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
+  # Install rSOILWAT2 as dependency of rSFSW2
+  # `remotes::install_github` supports submodules since v2.0.0!
+  - Rscript -e 'remotes::install_github("DrylandEcology/rSOILWAT2", upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
+  # Install rSW2funs as dependency of rSFSW2
+  - Rscript -e 'remotes::install_github("DrylandEcology/rSW2funs", upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
   # Install rSFSW2 dependencies, but remove `Rmpi` etc.
-  - Rscript -e 'pkgs <- remotes::dev_package_deps(dependencies = TRUE); ids_not <- pkgs[, "package"] %in% c("rSW2utils", "rSOILWAT2", "Rmpi", "weathergen", "lubridate", "zoo", "dplyr"); update(pkgs[!ids_not, ], upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
+  - Rscript -e 'pkgs <- remotes::dev_package_deps(dependencies = TRUE); ids_not <- pkgs[, "package"] %in% c("rSW2utils", "rSOILWAT2", "rSW2funs", "Rmpi", "weathergen", "lubridate", "zoo", "dplyr"); update(pkgs[!ids_not, ], upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
 
 script:
   - R CMD build --no-build-vignettes --no-manual .
