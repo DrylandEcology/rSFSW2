@@ -4695,12 +4695,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
             # Periods with no successes
             resMeans[(nv+2):(nv+4)] <- stats::quantile(
-              GISSM[["nogermination_periods_days"]],
+              GISSM[["nogermination_periods_yrs"]],
               probs = c(0.05, 0.5, 0.95),
               type = 7
             )
             resMeans[(nv+5):(nv+7)] <- stats::quantile(
-              GISSM[["noseedlings_periods_days"]],
+              GISSM[["noseedlings_periods_yrs"]],
               probs = c(0.05, 0.5, 0.95),
               type = 7
             )
