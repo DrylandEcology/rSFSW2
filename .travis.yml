@@ -50,12 +50,12 @@ install:
   # Custom install/update dependencies of rSW2utils and rSOILWAT2
   - Rscript -e 'remotes::update_packages(c("blob", "DBI", "RSQLite", "circular", "mvtnorm"), upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
   # Install rSW2utils as dependency of rSOILWAT2 and rSFSW2
-  - Rscript -e 'remotes::install_github("DrylandEcology/rSW2utils", upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
+  - Rscript -e 'remotes::install_github("DrylandEcology/rSW2utils", upgrade = TRUE)'
   # Install rSOILWAT2 as dependency of rSFSW2
   # `remotes::install_github` supports submodules since v2.0.0!
-  - Rscript -e 'remotes::install_github("DrylandEcology/rSOILWAT2", upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
+  - Rscript -e 'remotes::install_github("DrylandEcology/rSOILWAT2", upgrade = TRUE)'
   # Install rSW2funs as dependency of rSFSW2
-  - Rscript -e 'remotes::install_github("DrylandEcology/rSW2funs", upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
+  - Rscript -e 'remotes::install_github("DrylandEcology/rSW2funs", upgrade = TRUE)'
   # Install rSFSW2 dependencies, but remove `Rmpi` etc.
   - Rscript -e 'pkgs <- remotes::dev_package_deps(dependencies = TRUE); ids_not <- pkgs[, "package"] %in% c("rSW2utils", "rSOILWAT2", "rSW2funs", "Rmpi", "weathergen", "lubridate", "zoo", "dplyr"); update(pkgs[!ids_not, ], upgrade = TRUE, lib = Sys.getenv("R_LIBS_USER"))'
 
