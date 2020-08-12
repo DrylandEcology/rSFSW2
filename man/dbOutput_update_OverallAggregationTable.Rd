@@ -4,8 +4,12 @@
 \alias{dbOutput_update_OverallAggregationTable}
 \title{Add fields to an existing \var{\sQuote{dbOutput}}}
 \usage{
-dbOutput_update_OverallAggregationTable(SFSW2_prj_meta, col_ids = NULL,
-  chunksize = 1000, verbose = FALSE)
+dbOutput_update_OverallAggregationTable(
+  SFSW2_prj_meta,
+  col_ids = NULL,
+  chunksize = 1000,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{SFSW2_prj_meta}{See elsewhere}

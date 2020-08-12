@@ -4,8 +4,7 @@
 \alias{dbWork_update_IncludeYN}
 \title{Update \var{\sQuote{include_YN}}}
 \usage{
-dbWork_update_IncludeYN(con, table, id_name, has_include_YN,
-  should_include_YN)
+dbWork_update_IncludeYN(con, table, id_name, has_include_YN, should_include_YN)
 }
 \description{
 Update \var{\sQuote{include_YN}}

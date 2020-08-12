@@ -4,8 +4,16 @@
 \alias{extract_soil_ISRICWISE}
 \title{Extract soil data from one of the \var{\sQuote{ISRIC-WISE}} datasets}
 \usage{
-extract_soil_ISRICWISE(MMC, sim_size, sim_space, dir_ex_soil, fnames_in,
-  dataset = c("ISRICWISEv12", "ISRICWISE30secV1a"), resume, verbose)
+extract_soil_ISRICWISE(
+  MMC,
+  sim_size,
+  sim_space,
+  dir_ex_soil,
+  fnames_in,
+  dataset = c("ISRICWISEv12", "ISRICWISE30secV1a"),
+  resume,
+  verbose
+)
 }
 \arguments{
 \item{dataset}{A character string. Identifies the \var{\dQuote{ISRIC-WISE}}

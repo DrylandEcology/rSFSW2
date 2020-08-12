@@ -9,7 +9,7 @@ save_to_rds_with_backup(object, file, tag_backup = "backup", ...)
 \arguments{
 \item{object}{\R object to serialize.}
 
-\item{file}{a \link{connection} or the name of the file where the \R object
+\item{file}{a \link[base]{connection} or the name of the file where the \R object
     is saved to or read from.}
 
 \item{tag_backup}{A character string. A tag that is appended at the end of

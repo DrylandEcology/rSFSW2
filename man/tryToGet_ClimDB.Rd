@@ -2,21 +2,55 @@
 % Please edit documentation in R/ExtractData_ClimateDownscaling.R
 \name{tryToGet_ClimDB}
 \alias{tryToGet_ClimDB}
-\title{Organizes the calls (in parallel) which obtain specified scenario weather for the
- weather database from one of the available \var{GCM} sources}
+\title{Organizes the calls (in parallel) which obtain specified scenario weather
+for the weather database from one of the available \var{GCM} sources}
 \usage{
-tryToGet_ClimDB(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
-  climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations,
-  getYears, assocYears, project_paths, dir_failed, fdbWeather,
-  climate.ambient, dbW_compression_type, sim_time, seeds_DS, opt_DS,
-  resume, verbose, print.debug, seed = NA)
+tryToGet_ClimDB(
+  ids_ToDo,
+  clim_source,
+  use_CF,
+  use_NEX,
+  climDB_meta,
+  climDB_files,
+  reqGCMs,
+  reqRCPsPerGCM,
+  reqDownscalingsPerGCM,
+  locations,
+  getYears,
+  assocYears,
+  project_paths,
+  dir_failed,
+  fdbWeather,
+  climate.ambient,
+  dbW_compression_type,
+  sim_time,
+  seeds_DS,
+  sim_scens,
+  resume,
+  verbose,
+  print.debug,
+  seed = NA
+)
 }
 \arguments{
 \item{seed}{A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
-the state of the \acronym{RNG}; \code{NULL} will re-initialize the \acronym{RNG};
-and all other values are passed to \code{\link{set.seed}}.}
+the state of the \acronym{RNG}; \code{NULL} will re-initialize the
+\acronym{RNG}; and all other values are passed to \code{\link{set.seed}}.}
 }
 \description{
-This function assumes that a whole bunch of global variables exist and contain
- appropriate values.
+This function assumes that a whole bunch of global variables exist and
+contain appropriate values.
 }
+\section{Details}{
+
+The daily extractions parallelize over \var{GCM} x \var{scenario}
+combinations, i.e., data for all \var{locations} are extracted for
+one value of \var{GCM} x \var{scenario} at a time. This is good if
+file handling is slow and memory is not limiting.
+
+The monthly extractions parallelize over \var{GCM} x \var{locations}
+combinations, i.e., data for one \var{location} is extracted for
+all \var{scenarios} of one \var{GCM} at a time. This is good if file
+handling is fast and memory is limiting.
+}
+

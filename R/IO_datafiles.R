@@ -2,8 +2,11 @@
 #------ datafile-IO functions
 
 req_fields_SWRunInformation <- function() {
-  c("Label", "site_id", "WeatherFolder", "X_WGS84", "Y_WGS84", "ELEV_m",
-    "Include_YN")
+  c(
+    "Label", "site_id", "Include_YN",
+    "WeatherFolder",
+    "X_WGS84", "Y_WGS84", "ELEV_m", "Slope", "Aspect"
+  )
 }
 
 #' Read a comma-separated value (\var{csv}) file
@@ -548,9 +551,12 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
       nrowsClasses = nrowsClasses), error = print)
     sw_input_soillayers <- fix_rowlabels(sw_input_soillayers, SWRunInformation,
       verbose = verbose)
-    sw_input_soillayers[, - (1:2)] <- check_monotonic_increase(
-      data.matrix(sw_input_soillayers[, - (1:2)]), strictly = TRUE, fail = TRUE,
-      na.rm = TRUE)
+    sw_input_soillayers[, - (1:2)] <- rSW2utils::check_monotonic_increase(
+      data.matrix(sw_input_soillayers[, - (1:2)]),
+      strictly = TRUE,
+      fail = TRUE,
+      na.rm = TRUE
+    )
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["ftreatDesign"]],
       nrowsClasses = nrowsClasses), error = print)

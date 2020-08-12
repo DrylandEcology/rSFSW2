@@ -27,6 +27,9 @@ calc_RequestedSoilLayers <- function(SFSW2_prj_meta,
       cat("\n")}, add = TRUE)
   }
 
+  # Column name pattern of soil layers, e.g., `depth_L1`
+  cn_depth <- "depth_L"
+
   # How to add different soil variables
   # values will be exhausted:
   sl_vars_sub <- c("EvapCoeff", "TranspCoeff", "Imperm")
@@ -108,8 +111,7 @@ calc_RequestedSoilLayers <- function(SFSW2_prj_meta,
         SFSW2_prj_inputs[["sw_input_soils_use"]][icol] <- TRUE
       }
 
-      icol <- grep("depth_",
-        names(SFSW2_prj_inputs[["sw_input_soillayers"]]))[lyrs]
+      icol <- paste0(cn_depth, lyrs)
       SFSW2_prj_inputs[["sw_input_soillayers"]][irows, icol] <-
         matrix(ldset, nrow = sum(il_set), ncol = length(ldset), byrow = TRUE)
       has_changed <- TRUE

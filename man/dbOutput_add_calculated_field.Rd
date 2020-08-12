@@ -5,8 +5,17 @@
 \title{Add new field(s) to a table in \var{dbOutput} that is/are based on a
 calculation of values from (an) existing field(s)}
 \usage{
-dbOutput_add_calculated_field(dbOut_fname, table, vars_orig, vars_new, FUN,
-  ..., overwrite = FALSE, verbose = FALSE, chunk_size = 1e+05)
+dbOutput_add_calculated_field(
+  dbOut_fname,
+  table,
+  vars_orig,
+  vars_new,
+  FUN,
+  ...,
+  overwrite = FALSE,
+  verbose = FALSE,
+  chunk_size = 1e+05
+)
 }
 \arguments{
 \item{dbOut_fname}{A character string. The path to the output database.}

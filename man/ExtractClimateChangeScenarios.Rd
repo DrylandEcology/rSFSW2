@@ -4,9 +4,17 @@
 \alias{ExtractClimateChangeScenarios}
 \title{Extract climate scenarios}
 \usage{
-ExtractClimateChangeScenarios(climDB_metas, SFSW2_prj_meta,
-  SFSW2_prj_inputs, todos, opt_parallel, opt_chunks, resume,
-  verbose = FALSE, print.debug = FALSE)
+ExtractClimateChangeScenarios(
+  climDB_metas,
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs,
+  todos,
+  opt_parallel,
+  opt_chunks,
+  resume,
+  verbose = FALSE,
+  print.debug = FALSE
+)
 }
 \arguments{
 \item{todos}{A logical vector of length \code{runsN_master}. Element locations with

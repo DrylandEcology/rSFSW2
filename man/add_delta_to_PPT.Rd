@@ -4,8 +4,12 @@
 \alias{add_delta_to_PPT}
 \title{Additive Precipitation adjustment by a delta value}
 \usage{
-add_delta_to_PPT(data, ind_events = NULL, addDelta = NULL,
-  deltaPerEvent = NULL)
+add_delta_to_PPT(
+  data,
+  ind_events = NULL,
+  addDelta = NULL,
+  deltaPerEvent = NULL
+)
 }
 \arguments{
 \item{data}{A numeric vector. Daily values of precipitation.}

@@ -73,15 +73,15 @@ project_paths <- list(
 
 #------ Base names or full names of input files
 fnames_in <- list(
-  fmaster = "SWRuns_InputMaster_Test_v11.csv",
+  fmaster = "SWRuns_InputMaster_Test_v12.csv",
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
-  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v17.csv",
-  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v09.csv",
+  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v18.csv",
+  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v10.csv",
 
   fclimnorm = "SWRuns_InputData_cloud_v10.csv",
   fvegetation = "SWRuns_InputData_prod_v11.csv",
-  fsite = "SWRuns_InputData_siteparam_v14.csv",
+  fsite = "SWRuns_InputData_siteparam_v15.csv",
   fsoils = "SWRuns_InputData_soils_v12.csv",
   fweathersetup = "SWRuns_InputData_weathersetup_v10.csv",
   fclimscen_delta = "SWRuns_InputData_ClimateScenarios_Change_v11.csv",
@@ -160,6 +160,11 @@ opt_input <- list(
       #     file.path(project_paths[["dir_ex_weather"]], "Livneh_NA_2013",
       #     "MONTHLY_GRIDS")
       "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
+      #   - Abatzoglou et al. 2013: 1/24 degree res. for 1979-yesterday;
+      #     data expected at file.path(project_paths[["dir_ex_weather"]],
+      #     "gridMET_4km_NA", "YEARLY_GRIDS");
+      #     obtain data with function `gridMET_download_and_check`
+      "GriddedDailyWeatherFromgridMET_NorthAmerica", 0,
 
       # Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL,
       #   climate condition names must be of the form SCENARIO.GCM with
@@ -222,8 +227,9 @@ opt_input <- list(
   #   etc.
   # Do not change/remove/add entries; only re-order to set different priorities
   dw_source_priority = c("DayMet_NorthAmerica", "LookupWeatherFolder",
-    "Maurer2002_NorthAmerica", "Livneh2013_NorthAmerica", "NRCan_10km_Canada",
-    "NCEPCFSR_Global"),
+    "Maurer2002_NorthAmerica", "Livneh2013_NorthAmerica",
+    "gridMET_NorthAmerica", "NRCan_10km_Canada", "NCEPCFSR_Global"
+  ),
 
   # Creation of dbWeather
   # Compression type of dbWeather; one value of eval(formals(memCompress)[[2]])
@@ -287,7 +293,14 @@ opt_sim <- list(
   #     temperate climate := has >=4 & < 8 months with > 10C
   #   - 4 C based standard input of mean monthly biomass values described in
   #   Bradford et al. 2014 Journal of Ecology
-  growseason_Tlimit_C = 4
+  growseason_Tlimit_C = 4,
+  # Mean monthly reference temperature describing default phenology values
+  #   - below values calculated by KP as median across 898 big sagebrush sites
+  #     (see https://github.com/DrylandEcology/rSFSTEP2/issues/195)
+  reference_temperature_default_phenology = c(
+    -4.6768, -2.7282, 1.8257, 6.0538, 10.696, 15.3878,
+    19.7777, 18.8755, 13.7868, 7.2843, 0.4167, -4.6912
+  )
 )
 
 
@@ -357,15 +370,24 @@ sim_time <- list(
   startyr = startyr <- 1980,
   endyr = endyr <- 2010,
 
-  #Future time period(s):
-  # Each list element of 'future_yrs' will be applied to every
-  #   climate.conditions
+  #--- Future time period(s):
   # Each list element of 'future_yrs' is a vector with three elements
   #   \code{c(delta, DSfut_startyr, DSfut_endyr)}
-  # future simulation years = delta + simstartyr:endyr
-  # future simulation years downscaled based on
-  #   - current conditions = DScur_startyr:DScur_endyr
-  #   - future conditions = DSfut_startyr:DSfut_endyr
+  #
+  # Daily scenario data "idem" (pass through):
+  #   - Each list element ("row") of 'future_yrs' must match exactly one
+  #     of the scenario experiments of 'req_scens[["models"]]`
+  #     (e.g., "historical", "RCP45", "RCP85") -- in the correct order
+  #   - Value of 'delta' is ignored
+  #
+  # Monthly scenario data:
+  #   - Each list element ("row") of 'future_yrs' will be applied to every
+  #     climate.conditions
+  #   - future simulation years = delta + simstartyr:endyr
+  #   - future simulation years downscaled based on
+  #     - current conditions = DScur_startyr:DScur_endyr
+  #     - future conditions = DSfut_startyr:DSfut_endyr
+  #
   # NOTE: Multiple time periods doesn't work with external type
   #   'ClimateWizardEnsembles'
   DScur_startyr = startyr,
@@ -383,6 +405,11 @@ req_scens <- list(
   # Name of climatic conditions of the daily weather input when monthly climate
   #   perturbations are all off
   ambient = "Current",
+
+  # Name of atmospheric CO2-concentration dataset to be used for "ambient"
+  # conditions.
+  # The string must match a column name of `LookupCO2data/AtmosCO2.csv`
+  tag_aCO2_ambient = "Fix360ppm", # e.g., "Fix360ppm", etc.
 
   # Names of climate scenarios
   #   - If a simulation project does not include future climate conditions,
@@ -414,11 +441,15 @@ req_scens <- list(
     #       requires live internet access
     #     - "BCSD_SageSeer_USA": monthly time-series at 1-km resolution for the
     #       western US prepared by Katie Renwick
+    #     - "CMIP5_MACAv2metdata_USA": daily time series at 1/24-degree
+    #       resolution for the US (requires `method_DS = "idem"`)
     #     - "ESGF_Global": monthly time-series at varying resolution
       dataset1 = "CMIP5_BCSD_GDODCPUCLLNL_USA"
   ),
 
   # Downscaling method (applied to each each climate.conditions)
+  #   Daily scenario data
+  #   - "idem" (pass through)
   #   Monthly scenario -> daily forcing variables
   #   One or multiple elements of
   #   - "raw"

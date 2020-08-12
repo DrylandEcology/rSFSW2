@@ -4,8 +4,12 @@
 \alias{set_options_warn_error}
 \title{Setting global 'warn' and 'error' options}
 \usage{
-set_options_warn_error(debug.warn.level = 1L,
-  debug.dump.objects = FALSE, dir_prj = ".", verbose = FALSE)
+set_options_warn_error(
+  debug.warn.level = 1L,
+  debug.dump.objects = FALSE,
+  dir_prj = ".",
+  verbose = FALSE
+)
 }
 \arguments{
 \item{debug.warn.level}{An integer value. Sets the \code{warn} option.}

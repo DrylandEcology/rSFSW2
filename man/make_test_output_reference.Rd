@@ -4,8 +4,7 @@
 \alias{make_test_output_reference}
 \title{Copy output database of a test project to reference folder}
 \usage{
-make_test_output_reference(dir_test, dir_ref = NULL,
-  SFSW2_version = NULL)
+make_test_output_reference(dir_test, dir_ref = NULL, SFSW2_version = NULL)
 }
 \arguments{
 \item{dir_test}{A character string. Path to test project folder.}

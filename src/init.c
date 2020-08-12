@@ -28,21 +28,10 @@ static const R_CMethodDef CEntries[] = {
     {NULL, NULL, 0, NULL}
 };
 
-/* .Call calls: Rcpp v0.12.12 registers these correctly */
-extern SEXP _rSFSW2_germination_wait_times(SEXP, SEXP);
-extern SEXP _rSFSW2_get_KilledBySoilLayers(SEXP, SEXP);
-extern SEXP _rSFSW2_kill_seedling(SEXP, SEXP, SEXP, SEXP, SEXP);
-
-static const R_CallMethodDef CallEntries[] = {
-    {"_rSFSW2_germination_wait_times", (DL_FUNC) &_rSFSW2_germination_wait_times, 2},
-    {"_rSFSW2_get_KilledBySoilLayers", (DL_FUNC) &_rSFSW2_get_KilledBySoilLayers, 2},
-    {"_rSFSW2_kill_seedling", (DL_FUNC) &_rSFSW2_kill_seedling, 5},
-    {NULL, NULL, 0}
-};
 
 /* Register package calls with R */
 void R_init_rSFSW2(DllInfo *dll) {
-    R_registerRoutines(dll, CEntries, CallEntries, NULL, NULL);
+    R_registerRoutines(dll, CEntries, NULL, NULL, NULL);
     R_useDynamicSymbols(dll, FALSE);
     R_forceSymbols(dll, TRUE);
 }

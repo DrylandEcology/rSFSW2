@@ -4,8 +4,14 @@
 \alias{dbConnect2}
 \title{Connect to \var{SQLite}-database}
 \usage{
-dbConnect2(dbname, flags = SQLITE_RW, verbose = FALSE, repeats = 10L,
-  sleep_s = 5, seed = NA)
+dbConnect2(
+  dbname,
+  flags = SQLITE_RW,
+  verbose = FALSE,
+  repeats = 10L,
+  sleep_s = 5,
+  seed = NA
+)
 }
 \arguments{
 \item{dbname}{A character string. The path including name to the database.}

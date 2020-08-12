@@ -64,10 +64,10 @@ if (FALSE) {
   dats <- stats::runif(n)
   vars <- sapply(reps, function(i) var(rep(dats, i)))
 
-  plot(reps, vars, ylim = c(0, max(vars)), xlab = "# data repeats",
+  graphics::plot(reps, vars, ylim = c(0, max(vars)), xlab = "# data repeats",
     ylab = "Variance")
   var0l <- c(var(dats), vars[length(vars)])
-  abline(h = var0l, col = "gray", lty = 2)
+  graphics::abline(h = var0l, col = "gray", lty = 2)
 
   graphics::mtext(side = 3, text = paste("var(data) =", signif(var0l[1], 3),
     "vs.", "var(limit) =", signif(var0l[2], 3), "\n",

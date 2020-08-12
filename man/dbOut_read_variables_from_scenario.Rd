@@ -6,9 +6,13 @@
 runs and one of the overall aggregation tables for one of the scenarios
 and optionally subsets rows by a where-clause}
 \usage{
-dbOut_read_variables_from_scenario(fname_dbOut, variables = NULL,
-  MeanOrSD = c("Mean", "SD"), scenario = "Current",
-  whereClause = NULL)
+dbOut_read_variables_from_scenario(
+  fname_dbOut,
+  variables = NULL,
+  MeanOrSD = c("Mean", "SD"),
+  scenario = "Current",
+  whereClause = NULL
+)
 }
 \arguments{
 \item{fname_dbOut}{A character string. The path to the output database.}

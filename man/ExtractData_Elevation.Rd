@@ -4,8 +4,13 @@
 \alias{ExtractData_Elevation}
 \title{Extract elevation data}
 \usage{
-ExtractData_Elevation(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
-  resume = FALSE, verbose = FALSE)
+ExtractData_Elevation(
+  exinfo,
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs,
+  resume = FALSE,
+  verbose = FALSE
+)
 }
 \description{
 Extract elevation data

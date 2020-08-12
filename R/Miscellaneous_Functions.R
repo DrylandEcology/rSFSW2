@@ -353,8 +353,6 @@ vpd <- function(Tmin, Tmax, RHmean = NULL) {
 }
 
 
-max_duration <- rSOILWAT2:::max_duration
-
 startDoyOfDuration <- function(x, duration = 10) {
   r <- rle(x)
   res <- NULL
@@ -506,10 +504,17 @@ extreme_values_and_doys <- function(x, na.rm = FALSE) {
   tmin <- min(x, na.rm = na.rm)
 
   c(tmax, tmin,
-    circ_mean(which(abs(x - tmax) < SFSW2_glovars[["tol"]]), int = 365,
-      na.rm = na.rm),
-    circ_mean(which(abs(x - tmin) < SFSW2_glovars[["tol"]]), int = 365,
-      na.rm = na.rm))
+    rSW2utils::circ_mean(
+      which(abs(x - tmax) < SFSW2_glovars[["tol"]]),
+      int = 365,
+      na.rm = na.rm
+    ),
+    rSW2utils::circ_mean(
+      which(abs(x - tmin) < SFSW2_glovars[["tol"]]),
+      int = 365,
+      na.rm = na.rm
+    )
+  )
 }
 
 
@@ -799,77 +804,6 @@ benchmark_BLAS <- function(platform, seed = NA) {
 }
 
 
-#' Converts units of precipitation data
-#'
-#' @param x A numeric vector. Precipitation data as monthly series in units of
-#'   \code{unit_from}.
-#' @param dpm A numeric vector. Number of days per month in the time series
-#'   \code{x}.
-#' @param unit_from A character string. Units of data in \code{x}. Currently,
-#'   supported units include "mm/month", "mm month-1", "mm/d", "mm d-1",
-#'   "kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1", "cm/month", "cm month-1".
-#' @param unit_to A character string. Units to which data are converted.
-#'   Currently, supported unit is "cm month-1" respectively "cm/month".
-#'
-#' @return A numeric vector of the same size as \code{x} in units of
-#'   \code{unit_to}.
-#' @export
-convert_precipitation <- function(x, dpm, unit_from, unit_to = "cm month-1") {
-  if (!(unit_to %in% c("cm/month", "cm month-1"))) {
-    stop("'convert_precipitation': only converts to units of 'cm month-1'")
-  }
-
-  if (unit_from %in% c("mm/month", "mm month-1")) {
-    x / 10
-
-  } else if (unit_from %in% c("mm/d", "mm d-1")) {
-    x * dpm / 10
-
-  } else if (unit_from %in% c("cm/d", "cm d-1")) {
-    x * dpm
-
-  } else if (unit_from %in% c("kg/m2/s", "kg m-2 s-1", "mm/s", "mm s-1")) {
-    x * dpm * 8640
-
-  } else if (unit_from %in% c("cm/month", "cm month-1")) {
-    x
-
-  } else {
-    stop("Unknown precipitation unit: ", unit_from)
-  }
-}
-
-#' Converts units of temperature data
-#'
-#' @param x A numeric vector. Temperature data as monthly series in units of
-#'   \code{unit_from}.
-#' @param unit_from A character string. Units of data in \code{x}. Currently,
-#'   supported units include "K", "F", and "C".
-#' @param unit_to A character string. Units to which data are converted.
-#'   Currently, supported unit is "C".
-#'
-#' @return A numeric vector of the same size as \code{x} in units of
-#'   \code{unit_to}.
-#' @export
-convert_temperature <- function(x, unit_from, unit_to = "C") {
-  if (!identical(unit_to, "C")) {
-    stop("'convert_temperature': only converts to units of degree Celsius")
-  }
-
-  if (identical(unit_from, "K")) {
-    x - 273.15
-
-  } else if (identical(unit_from, "F")) {
-    (x - 32) * 0.5555556
-
-  } else if (identical(unit_from, "C")) {
-    x
-
-  } else {
-    stop("Unknown temperature unit: ", unit_from)
-  }
-}
-
 
 
 
@@ -883,56 +817,148 @@ convert_to_todo_list <- function(x) {
 
 
 
-setup_scenarios <- function(sim_scens, future_yrs) {
+setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
   #--- Create complete scenario names
   # make sure 'ambient' is not among models
-  temp <- grep(sim_scens[["ambient"]], sim_scens[["models"]],
-    invert = TRUE, value = TRUE)
+  temp <- grep(sim_scens[["ambient"]],
+    sim_scens[["models"]],
+    invert = TRUE,
+    value = TRUE
+  )
 
   if (length(temp) > 0) {
-    # add (multiple) future_yrs
-    temp <- paste0(rownames(future_yrs), ".",
-      rep(temp, each = nrow(future_yrs)))
-    # add (multiple) downscaling.method
-    temp <- paste0(sim_scens[["method_DS"]], ".",
-      rep(temp, each = length(sim_scens[["method_DS"]])))
+    if (is_idem) {
+      # Use all years
+      temp <- paste0("idem.dall.", temp)
+
+    } else {
+      # add (multiple) future_yrs, but only if not using full future daily vals
+      temp <- paste0(
+        rownames(sim_time[["future_yrs"]]), ".",
+        rep(temp, each = nrow(sim_time[["future_yrs"]]))
+      )
+
+      # add (multiple) downscaling.method
+      temp <- paste0(
+        sim_scens[["method_DS"]], ".",
+        rep(temp, each = length(sim_scens[["method_DS"]]))
+      )
+    }
   }
+
 
   # make sure 'ambient' is first entry
   id <- c(sim_scens[["ambient"]], temp)
   N <- length(id)
 
+  itime <- data.frame(
+    simstartyr = sim_time[["simstartyr"]],
+    endyr = sim_time[["endyr"]]
+  )
+
+  #--- Create table with scenario name parts for each scenario
+  # ConcScen = concentration scenarios, e.g., SRESs, RCPs
+  ctmp <- c(
+    "Downscaling", "DeltaStr_yrs", "ConcScen", "Model", "Delta_yrs", "itime"
+  )
+
+  climScen <- data.frame(matrix(
+    NA,
+    nrow = N,
+    ncol = length(ctmp),
+    dimnames = list(NULL, ctmp)
+  ))
+
+  # set `delta_yrs` to 0 (for CO2-concentration data)
+  climScen[, "Delta_yrs"] <- 0L
+  climScen[, "itime"] <- 1L
+
+
+  # Fill in information for ambient scenario
+  climScen[1, "Model"] <- sim_scens[["ambient"]]
+  climScen[1, "ConcScen"] <- if ("tag_aCO2_ambient" %in% names(sim_scens)) {
+    sim_scens[["tag_aCO2_ambient"]]
+  } else {
+    "Fix360ppm"
+  }
+
+
   if (N > 1) {
-    #--- Create table with scenario name parts for each scenario
+    # Fill in information about model-scenario combinations
     temp <- strsplit(id[-1], split = ".", fixed = TRUE)
-    if (!all(lengths(temp) == 4L))
-      stop("'climate.conditions' are mal-formed: they must contain ",
-        "4 elements that are concatenated by '.'")
+    if (!all(lengths(temp) == 4L)) {
+      stop(
+        "'climate.conditions' are mal-formed: they must contain ",
+        "4 elements that are concatenated by '.'"
+      )
+    }
 
-    climScen <- data.frame(matrix(unlist(temp), nrow = N - 1, ncol = 4,
-      byrow = TRUE), stringsAsFactors = FALSE)
+    climScen[-1, ctmp[1:4]] <- do.call(rbind, temp)
 
-    # ConcScen = concentration scenarios, e.g., SRESs, RCPs
-    colnames(climScen) <- c("Downscaling", "DeltaStr_yrs", "ConcScen", "Model")
-    # see 'setup_time_simulation_project' for how 'future_yrs' is created
-    climScen[, "Delta_yrs"] <- as.integer(substr(climScen[, "DeltaStr_yrs"], 2,
-      nchar(climScen[, "DeltaStr_yrs"]) - 3))
+
+    # set simulation time periods
+    if (is_idem) {
+      #--- Use calendar years for every run (and calculate `itime`)
+
+      # set `itime`
+      tmp <- c("DSfut_startyr", "DSfut_endyr")
+      tmp_itime <- sim_time[["future_yrs"]][-1, tmp]
+      colnames(tmp_itime) <- colnames(itime)
+
+      stopifnot(length(unique(climScen[-1, "ConcScen"])) == NROW(tmp_itime))
+
+      itime <- rbind(itime, unique(tmp_itime))
+      rownames(itime) <- NULL
+
+      # set index for `itime`
+      ids_itime <- match(
+        apply(tmp_itime, 1, paste, collapse = "_"),
+        apply(itime, 1, paste, collapse = "_")
+      )
+
+      climScen[-1, "itime"] <- rep(
+        x = ids_itime,
+        times = table(climScen[-1, "ConcScen"])
+      )
+
+    } else {
+      #--- Use current/ambient years and a delta for future runs
+      # see 'setup_time_simulation_project' for how 'future_yrs' is created
+      climScen[, "Delta_yrs"] <- as.integer(substr(
+        x = climScen[, "DeltaStr_yrs"],
+        start = 2,
+        stop = nchar(climScen[, "DeltaStr_yrs"]) - 3
+      ))
+    }
 
     #--- List unique sets of requested scenario name parts
-    reqMs <- unique(climScen[, "Model"])
-    reqCSs <- unique(climScen[, "ConcScen"])
+    reqMs <- unique(climScen[-1, "Model"])
+    reqCSs <- unique(climScen[-1, "ConcScen"])
     reqCSsPerM <- lapply(reqMs, function(x)
-      unique(climScen[x == climScen[, "Model"], "ConcScen"]))
+      unique(climScen[x == climScen[, "Model"], "ConcScen"])
+    )
     reqDSsPerM <- lapply(reqMs, function(x)
-      unique(climScen[x == climScen[, "Model"], "Downscaling"]))
+      unique(climScen[x == climScen[, "Model"], "Downscaling"])
+    )
 
   } else {
     # Only ambient scenario
-    climScen <- reqMs <- reqCSs <- reqCSsPerM <- reqDSsPerM <- NULL
+    reqMs <- reqCSs <- reqCSsPerM <- reqDSsPerM <- NULL
   }
 
-  c(sim_scens, list(id = id, N = N, df = climScen, reqMs = reqMs,
-    reqCSs = reqCSs, reqCSsPerM = reqCSsPerM, reqDSsPerM = reqDSsPerM))
+  c(sim_scens,
+    list(
+      id = id,
+      N = N,
+      df = climScen,
+      itime = itime,
+      is_idem = is_idem,
+      reqMs = reqMs,
+      reqCSs = reqCSs,
+      reqCSsPerM = reqCSsPerM,
+      reqDSsPerM = reqDSsPerM
+    )
+  )
 }
 
 setup_meandaily_output <- function(req_mean_daily, opt_agg) {

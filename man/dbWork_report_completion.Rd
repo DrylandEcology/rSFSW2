@@ -4,8 +4,11 @@
 \alias{dbWork_report_completion}
 \title{Estimate percentage of completed runs}
 \usage{
-dbWork_report_completion(path, use_granular_control = FALSE,
-  SFSW2_prj_meta = NULL)
+dbWork_report_completion(
+  path,
+  use_granular_control = FALSE,
+  SFSW2_prj_meta = NULL
+)
 }
 \arguments{
 \item{path}{A character string. Path to the folder where the database will be

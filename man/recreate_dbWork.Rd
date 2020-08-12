@@ -4,8 +4,14 @@
 \alias{recreate_dbWork}
 \title{Re-create or update \var{\sQuote{dbWork}} based on \var{\sQuote{dbOutput}}}
 \usage{
-recreate_dbWork(path, dbOutput, use_granular_control,
-  SFSW2_prj_meta = NULL, verbose = FALSE, print.debug = FALSE)
+recreate_dbWork(
+  path,
+  dbOutput,
+  use_granular_control,
+  SFSW2_prj_meta = NULL,
+  verbose = FALSE,
+  print.debug = FALSE
+)
 }
 \arguments{
 \item{path}{A character string. Path to the folder where the database will be

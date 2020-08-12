@@ -4,8 +4,7 @@
 \alias{dir_safe_create}
 \title{Create the elements of paths}
 \usage{
-dir_safe_create(paths, showWarnings = FALSE, recursive = TRUE,
-  mode = "0777")
+dir_safe_create(paths, showWarnings = FALSE, recursive = TRUE, mode = "0777")
 }
 \arguments{
 \item{paths}{A list or vector of strings. Path names to be created.}
@@ -16,7 +15,7 @@ dir_safe_create(paths, showWarnings = FALSE, recursive = TRUE,
     last be created?  If true, like the Unix command \command{mkdir -p}.}
 
 \item{mode}{the mode to be used on Unix-alikes: it will be
-    coerced by \code{\link{as.octmode}}.  For \code{Sys.chmod} it is
+    coerced by \code{\link[base]{as.octmode}}.  For \code{Sys.chmod} it is
     recycled along \code{paths}.}
 }
 \value{

@@ -2,9 +2,6 @@
 
 
 
-isLeapYear <- rSOILWAT2:::isLeapYear
-
-
 #' Determine maximal span of simulation years across all experimental and design
 #' treatments
 #'
@@ -76,8 +73,9 @@ get_simulation_time <- function(st, SFSW2_prj_inputs) {
 #' @param A named list, i.e., the updated version of \code{sim_time}.
 #'
 #' @seealso \code{\link[rSOILWAT2]{setup_time_simulation_run}}
-setup_time_simulation_project <- function(sim_time, add_st2 = FALSE,
-  adjust_NS = FALSE, use_doy_range = FALSE, doy_ranges = list()) {
+setup_time_simulation_project <- function(sim_time, is_idem = FALSE,
+  add_st2 = FALSE, adjust_NS = FALSE,
+  use_doy_range = FALSE, doy_ranges = list()) {
 
   sim_time <- rSOILWAT2::setup_time_simulation_run(sim_time = sim_time)
 
@@ -97,6 +95,18 @@ setup_time_simulation_project <- function(sim_time, add_st2 = FALSE,
   } else {
     stop("'setup_time_simulation_project': incorrect format of 'future_yrs'")
   }
+
+
+  # Add "dall" to `future_yrs` data.frame
+  if (is_idem) {
+    tmp <- sim_time[["future_yrs"]]
+    tmp0 <- as.data.frame(matrix(NA, nrow = 1, ncol = ncol(tmp),
+      dimnames = list("dall", colnames(tmp))
+    ))
+
+    sim_time[["future_yrs"]] <- rbind(tmp0, tmp)
+  }
+
 
   sim_time[["future_N"]] <- dim(sim_time[["future_yrs"]])[1]
 

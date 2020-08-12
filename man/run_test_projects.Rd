@@ -4,10 +4,18 @@
 \alias{run_test_projects}
 \title{Run test projects}
 \usage{
-run_test_projects(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
-  dir_prev = NULL, which_tests_torun = seq_along(dir_tests),
-  delete_output = FALSE, force_delete_output = FALSE,
-  make_new_ref = FALSE, write_report_to_disk = TRUE, verbose = FALSE)
+run_test_projects(
+  dir_tests,
+  dir_prj_tests = NULL,
+  dir_ref = NULL,
+  dir_prev = NULL,
+  which_tests_torun = seq_along(dir_tests),
+  delete_output = FALSE,
+  force_delete_output = FALSE,
+  make_new_ref = FALSE,
+  write_report_to_disk = TRUE,
+  verbose = FALSE
+)
 }
 \arguments{
 \item{dir_tests}{A vector of character strings. Paths to individual test
@@ -53,4 +61,14 @@ A list with two elements: \describe{
 }
 \description{
 Run test projects
+}
+\examples{
+\dontrun{
+  # Run test project 4 inside development version of package
+  # Assume that working directory is `tests/test_data/TestPrj4/`
+  if (file.exists("SFSW2_project_code.R")) {
+    res <- run_test_projects(dir_tests = ".", delete_output = TRUE)
+  }
+}
+
 }

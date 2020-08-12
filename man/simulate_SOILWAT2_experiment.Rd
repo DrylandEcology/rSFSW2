@@ -4,8 +4,15 @@
 \alias{simulate_SOILWAT2_experiment}
 \title{Carry out a \pkg{rSFSW2} simulation experiment}
 \usage{
-simulate_SOILWAT2_experiment(SFSW2_prj_meta, SFSW2_prj_inputs, opt_behave,
-  opt_parallel, opt_chunks, opt_out_run, opt_verbosity)
+simulate_SOILWAT2_experiment(
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs,
+  opt_behave,
+  opt_parallel,
+  opt_chunks,
+  opt_out_run,
+  opt_verbosity
+)
 }
 \description{
 Carry out a \pkg{rSFSW2} simulation experiment

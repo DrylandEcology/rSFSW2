@@ -34,7 +34,8 @@ Organizing previous state and streams of random number generator
 \section{Usage}{
  \var{RNG} - parallelized function calls by \pkg{rSFSW2}
  \itemize{
-   \item \code{try.ScenarioWeather} wraps \code{calc.ScenarioWeather} which
+   \item \code{try_MonthlyScenarioWeather} wraps
+     \code{calc_MonthlyScenarioWeather} which
      calls \code{set_RNG_stream} to prepare \var{RNG} for functions
      \itemize{
        \item \code{fix_PPTdata_length}

@@ -5,8 +5,18 @@
 \title{Calculate weighted mean soil variables from one of the
 \var{\sQuote{ISRIC-WISE}} data bases for one simulation cell}
 \usage{
-calc_cell_ISRICWISE(i, i_sim_cells_SUIDs, sim_soils, layer_N, layer_Nsim,
-  ldepth, dat_wise, nvars, var_tags, val_rocks = NULL)
+calc_cell_ISRICWISE(
+  i,
+  i_sim_cells_SUIDs,
+  sim_soils,
+  layer_N,
+  layer_Nsim,
+  ldepth,
+  dat_wise,
+  nvars,
+  var_tags,
+  val_rocks = NULL
+)
 }
 \arguments{
 \item{i}{An integer value. The number of the simulation site/cell location.}

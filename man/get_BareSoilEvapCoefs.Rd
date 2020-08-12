@@ -5,8 +5,13 @@
 \title{Calculate bare-soil evaporation coefficients based on soil texture and store
 in soil input file}
 \usage{
-get_BareSoilEvapCoefs(SFSW2_prj_meta, SFSW2_prj_inputs, runIDs_adjust,
-  resume = TRUE, verbose = FALSE)
+get_BareSoilEvapCoefs(
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs,
+  runIDs_adjust,
+  resume = TRUE,
+  verbose = FALSE
+)
 }
 \description{
 Calculate bare-soil evaporation coefficients based on soil texture and store

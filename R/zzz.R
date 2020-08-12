@@ -1,9 +1,12 @@
 
 .onAttach <- function(libname, pkgname) {
   if (interactive()) {
-      meta <- utils::packageDescription(pkgname)
-      packageStartupMessage("Package ", shQuote(pkgname), " v", meta$Version,
-        " (", meta$Date, ") attached/loaded.")
+    packageStartupMessage(
+      "Package ", shQuote(pkgname),
+      " v", utils::packageVersion(pkgname),
+      " (", utils::packageDate(pkgname), ")",
+      " attached/loaded."
+    )
   }
 
   invisible()
@@ -21,13 +24,24 @@
 
   #--- Define package level variables that should be hidden from package user
   # and should not be changed
-  assign("minVersion_dbWeather", numeric_version("3.1.0"),
-    envir = SFSW2_glovars)
+  assign(
+    x = "minVersion_dbWeather",
+    value = numeric_version("3.2.0"),
+    envir = SFSW2_glovars
+  )
+  assign(
+    x = "minVersion_rSOILWAT2",
+    value = numeric_version(get_minVersion_rSOILWAT2()),
+    envir = SFSW2_glovars
+  )
 
   # number of implemented soil layers
   assign("slyrs_maxN", 20L, envir = SFSW2_glovars)
-  assign("slyrs_ids", seq_len(SFSW2_glovars[["slyrs_maxN"]]),
-    envir = SFSW2_glovars)
+  assign(
+    x = "slyrs_ids",
+    value = seq_len(SFSW2_glovars[["slyrs_maxN"]]),
+    envir = SFSW2_glovars
+  )
 
   # SOILWAT2 assumes 2 m height
   assign("windspeed_height_m", 2L, envir = SFSW2_glovars)

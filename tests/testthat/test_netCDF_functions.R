@@ -112,7 +112,8 @@ if (!any(do_skip) && is_online) {
   test_that("read_time_netCDF:", {
     for (k in seq_along(has_test_ncs)) {
       if (has_test_ncs[[k]]) {
-        expect_equal(read_time_netCDF(test_ncs[[k]][["filename"]]),
+        expect_equal(
+          read_time_netCDF(test_ncs[[k]][["filename"]], tres = "monthly"),
           test_ncs[[k]][["expect"]],
           info = basename(test_ncs[[k]][["filename"]]))
       }

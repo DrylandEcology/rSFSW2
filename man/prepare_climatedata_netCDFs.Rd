@@ -5,9 +5,17 @@
 \title{Process downloaded \var{netCDF} files to concatenate if needed otherwise
 move to dedicated directory}
 \usage{
-prepare_climatedata_netCDFs(dir_code, dir_data, dir_duplicates,
-  dir_concatables, dir_delete, dir_scrutinize, dir_out,
-  climDB_tag = NULL, climDB_meta = NULL)
+prepare_climatedata_netCDFs(
+  dir_code,
+  dir_data,
+  dir_duplicates,
+  dir_concatables,
+  dir_delete,
+  dir_scrutinize,
+  dir_out,
+  climDB_tag = NULL,
+  climDB_meta = NULL
+)
 }
 \description{
 Process downloaded \var{netCDF} files to concatenate if needed otherwise

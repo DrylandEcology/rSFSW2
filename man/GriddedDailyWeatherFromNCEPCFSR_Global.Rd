@@ -4,11 +4,23 @@
 \alias{GriddedDailyWeatherFromNCEPCFSR_Global}
 \title{Extract gridded daily weather from NCEP/CFSR for sites globally}
 \usage{
-GriddedDailyWeatherFromNCEPCFSR_Global(site_ids, site_ids_by_dbW,
-  dat_sites, tag_WeatherFolder, start_year, end_year, meta_cfsr,
-  n_site_per_core = 100, rm_temp = TRUE, resume = FALSE,
-  dir_temp = tempdir(), dbW_compression_type = "gzip", dbW_digits,
-  verbose = FALSE, print.debug = FALSE)
+GriddedDailyWeatherFromNCEPCFSR_Global(
+  site_ids,
+  site_ids_by_dbW,
+  dat_sites,
+  tag_WeatherFolder,
+  start_year,
+  end_year,
+  meta_cfsr,
+  n_site_per_core = 100,
+  rm_temp = TRUE,
+  resume = FALSE,
+  dir_temp = tempdir(),
+  dbW_compression_type = "gzip",
+  dbW_digits,
+  verbose = FALSE,
+  print.debug = FALSE
+)
 }
 \value{
 An invisible zero. A list of which each element represents one year

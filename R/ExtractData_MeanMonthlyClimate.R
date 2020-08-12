@@ -341,13 +341,18 @@ extract_climate_NCEPCFSR <- function(MMC, SWRunInformation,
 
     #match weather folder names in case of missing extractions
     res <- as.matrix(temp[["res_clim"]][, -1])
-    irow <- match(locations[, "WeatherFolder"],
-      table = temp[["res_clim"]][, "WeatherFolder"], nomatch = 0)
-    irowL <- irow > 0
     ctemp <- colnames(res)
-    MMC[["data"]][todos, "RH", ][irowL, ] <- res[irow, grepl("RH", ctemp)]
-    MMC[["data"]][todos, "cover", ][irowL, ] <- res[irow, grepl("Cloud", ctemp)]
-    MMC[["data"]][todos, "wind", ][irowL, ] <- res[irow, grepl("Wind", ctemp)]
+
+    irow <- match(
+      locations[, "WeatherFolder"],
+      table = temp[["res_clim"]][, "WeatherFolder"],
+      nomatch = 0
+    )
+    irowL <- which(todos)[irow > 0]
+
+    MMC[["data"]][irowL, "RH", ] <- res[irow, grepl("RH", ctemp)]
+    MMC[["data"]][irowL, "cover", ] <- res[irow, grepl("Cloud", ctemp)]
+    MMC[["data"]][irowL, "wind", ] <- res[irow, grepl("Wind", ctemp)]
 
     # Determine successful extractions
     MMC[["idone"]]["NCEPCFSR1"] <- TRUE

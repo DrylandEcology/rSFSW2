@@ -54,6 +54,7 @@ multilayer
 multiplicatively
 normals
 operationalization
+parallelize
 Pedotransfer
 phenology
 pre
@@ -84,7 +85,9 @@ FAO
 GCM
 ISRIC
 NCEP
+netCDF
 NOAA
+ORCID
 ORNL
 RCM
 UNEP
@@ -93,6 +96,7 @@ UNEP
 
 #------------------------------------
 #------ Names
+Abatzoglou
 Anandhi
 Artemisia tridentata
 Batjes

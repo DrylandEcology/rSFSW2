@@ -5,8 +5,7 @@
 \title{Checks whether output tables of \var{\sQuote{dbOutput}} store output of
 variables for each soil layer}
 \usage{
-dbOutput_Tables_have_SoilLayers(tables = NULL, con = NULL,
-  dbname = NULL)
+dbOutput_Tables_have_SoilLayers(tables = NULL, con = NULL, dbname = NULL)
 }
 \arguments{
 \item{tables}{A vector of character strings. The names of those tables that

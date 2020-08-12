@@ -4,8 +4,11 @@
 \alias{export_objects_to_workers}
 \title{Export objects to workers}
 \usage{
-export_objects_to_workers(obj_env, parallel_backend = c("mpi", "socket"),
-  cl = NULL)
+export_objects_to_workers(
+  obj_env,
+  parallel_backend = c("mpi", "socket"),
+  cl = NULL
+)
 }
 \arguments{
 \item{obj_env}{An environment containing R objects to export.}

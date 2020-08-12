@@ -3,6 +3,7 @@ environment:
     - R_ARCH: i386
     - R_ARCH: x64
   USE_RTOOLS: true
+  R_REMOTES_STANDALONE: true
   _R_CHECK_FORCE_SUGGESTS_: false
 
 matrix:
@@ -18,9 +19,7 @@ init:
 
 install:
   - ps: Bootstrap
-  - travis-tool.sh install_r blob DBI RSQLite
-  - git clone -b master --single-branch --recursive https://github.com/Burke-Lauenroth-Lab/rSOILWAT2.git /tmp/rSOILWAT2
-  - R CMD INSTALL C:/tmp/rSOILWAT2
+
 
 # Adapt as necessary starting from here
 cache:
@@ -29,6 +28,11 @@ cache:
   - C:\RLibrary -> .appveyor_clear_cache.txt
 
 build_script:
+  - travis-tool.sh install_r blob DBI RSQLite circular mvtnorm
+  - travis-tool.sh install_github DrylandEcology/rSW2utils
+  # `remotes::install_github` supports submodules since v2.0.0!
+  - travis-tool.sh install_github DrylandEcology/rSOILWAT2
+  - travis-tool.sh install_github DrylandEcology/rSW2funs
   - travis-tool.sh install_deps
 
 test_script:

@@ -237,24 +237,26 @@ get_fieldnames <- function(responseName, fields.header, fields.iTable) {
     responseName <- gsub(".", "_", responseName, fixed = TRUE)
 
     for (i in seq_along(responseName)) {
-      iColumns.iTable <- c(iColumns.iTable,
-        fields.iTable[grepl(responseName[i], fields.iTable_, fixed = FALSE)])
-      iColumns.header <- c(iColumns.header,
-        fields.header[grepl(responseName[i], fields.header_, fixed = FALSE)])
-      outOrder <- c(outOrder,
-        fields.iTable[grepl(responseName[i], fields.iTable_, fixed = FALSE)],
-        fields.header[grepl(responseName[i], fields.header_, fixed = FALSE)])
+      tmp_h <- grep(responseName[i], fields.header_, fixed = FALSE)
+      tmp_iT <- grep(responseName[i], fields.iTable_, fixed = FALSE)
+
+      iColumns.header <- c(iColumns.header, fields.header[tmp_h])
+      iColumns.iTable <- c(iColumns.iTable, fields.iTable[tmp_iT])
+      outOrder <- c(outOrder, fields.header[tmp_h], fields.iTable[tmp_iT])
     }
+
     iColumns.iTable <- unique(iColumns.iTable)
     iColumns.header <- unique(iColumns.header)
     outOrder <- unique(outOrder)
   }
 
-  list(addPid = addPid,
-     iTable = iColumns.iTable,
-     header = iColumns.header,
-     outOrder = outOrder,
-     has_columns = length(iColumns.header) > 0 || length(iColumns.iTable) > 0)
+  list(
+    addPid = addPid,
+    iTable = iColumns.iTable,
+    header = iColumns.header,
+    outOrder = outOrder,
+    has_columns = length(iColumns.header) > 0 || length(iColumns.iTable) > 0
+  )
 }
 
 
@@ -351,8 +353,12 @@ dbOut_read_variables_from_scenario <- function(fname_dbOut, variables = NULL,
 
   MeanOrSD <- match.arg(MeanOrSD)
 
-  dat <- as.data.frame(matrix(NA, nrow = 0, ncol = length(variables),
-    dimnames = list(NULL, variables)))
+  dat <- as.data.frame(matrix(
+    data = NA,
+    nrow = 0,
+    ncol = length(variables),
+    dimnames = list(NULL, variables)
+  ))
 
   if (length(variables) > 0) {
     con <- dbConnect(SQLite(), fname_dbOut, flags = SQLITE_RO)
@@ -361,22 +367,49 @@ dbOut_read_variables_from_scenario <- function(fname_dbOut, variables = NULL,
     db_tables <- dbListTables(con)
     header_fields <- dbListFields(con, "header")
 
-    extract_tables <- c("header", "sites", "runs", paste0("overall_", MeanOrSD))
-    db_setup <- lapply(extract_tables, function(table) {
-        tn <- grep(table, db_tables, ignore.case = TRUE, fixed = FALSE,
-          value = TRUE)
-        has <- length(tn) > 0
-        icols <- if (has) get_fieldnames(variables,
-          fields.header = header_fields,
-          fields.iTable = dbListFields(con, tn))
-        c(list(name = dbQuoteIdentifier(con, tn), has = has), icols = icols)
-      })
+    # "header" is last because it is a catch-all "view"
+    noa <- paste0("overall_", MeanOrSD)
+    extract_tables <- c("sites", "runs", noa, "header")
+
+    db_setup <- vector("list", length(extract_tables))
     names(db_setup) <- extract_tables
 
-    has_columns <- sapply(db_setup, function(x)
-      x[["has"]] && x[["icols.has_columns"]])
-    add_Pid <- any(sapply(db_setup, function(x)
-      x[["has"]] && x[["icols.addPid"]]))
+    for (k in seq_along(extract_tables)) {
+      tn <- grep(
+        pattern = extract_tables[k],
+        x = db_tables,
+        ignore.case = TRUE,
+        fixed = FALSE,
+        value = TRUE
+      )
+
+      has <- length(tn) > 0
+
+      icols <- if (has) get_fieldnames(
+        responseName = variables,
+        fields.header = header_fields,
+        fields.iTable = dbListFields(con, tn)
+      )
+
+      tmp <- variables %in% unlist(icols[c("iTable", "header")])
+      variables <- variables[!tmp]
+
+      db_setup[[k]] <- c(
+        list(name = dbQuoteIdentifier(con, tn), has = has),
+        icols = icols
+      )
+    }
+
+    has_columns <- sapply(
+      db_setup,
+      function(x) x[["has"]] && x[["icols.has_columns"]]
+    )
+
+    add_Pid <- any(sapply(
+      db_setup,
+      function(x) x[["has"]] && x[["icols.addPid"]]
+    ))
+
     outOrder <- unlist(lapply(db_setup, function(x) x[["icols.outOrder"]]))
 
     if (any(has_columns) || add_Pid) {
@@ -391,8 +424,10 @@ dbOut_read_variables_from_scenario <- function(fname_dbOut, variables = NULL,
 
         # Add fields from header table if requested
         if (length(db_setup[["header"]][["icols.header"]]) > 0) {
-          temp <- dbQuoteIdentifier(con,
-            db_setup[["header"]][["icols.header"]])
+          temp <- dbQuoteIdentifier(
+            con,
+            db_setup[["header"]][["icols.header"]]
+          )
           temp <- paste0("header.", temp, " AS ", temp, collapse = ", ")
           if (need_sep) {
             paste(",", temp)
@@ -404,8 +439,10 @@ dbOut_read_variables_from_scenario <- function(fname_dbOut, variables = NULL,
 
         # Add fields from runs table if requested
         if (length(db_setup[["runs"]][["icols.iTable"]]) > 0) {
-          temp <- dbQuoteIdentifier(con,
-            db_setup[["runs"]][["icols.iTable"]])
+          temp <- dbQuoteIdentifier(
+            con,
+            db_setup[["runs"]][["icols.iTable"]]
+          )
           temp <- paste0("runs.", temp, " AS ", temp, collapse = ", ")
           if (need_sep) {
             paste(",", temp)
@@ -417,8 +454,10 @@ dbOut_read_variables_from_scenario <- function(fname_dbOut, variables = NULL,
 
         # Add fields from sites table if requested
         if (length(db_setup[["sites"]][["icols.iTable"]]) > 0) {
-          temp <- dbQuoteIdentifier(con,
-            db_setup[["sites"]][["icols.iTable"]])
+          temp <- dbQuoteIdentifier(
+            con,
+            db_setup[["sites"]][["icols.iTable"]]
+          )
           temp <- paste0("sites.", temp, " AS ", temp, collapse = ", ")
           if (need_sep) {
             paste(",", temp)
@@ -429,10 +468,12 @@ dbOut_read_variables_from_scenario <- function(fname_dbOut, variables = NULL,
         },
 
         # Add fields from aggregation output table if requested
-        if (length(db_setup[[4]][["icols.iTable"]]) > 0) {
-          temp <- dbQuoteIdentifier(con,
-            db_setup[[4]][["icols.iTable"]])
-          temp <- paste0(db_setup[[4]][["name"]], ".", temp, " AS ", temp,
+        if (length(db_setup[[noa]][["icols.iTable"]]) > 0) {
+          temp <- dbQuoteIdentifier(
+            con,
+            db_setup[[noa]][["icols.iTable"]]
+          )
+          temp <- paste0(db_setup[[noa]][["name"]], ".", temp, " AS ", temp,
             collapse = ", ")
           if (need_sep) {
             paste(",", temp)
@@ -442,14 +483,18 @@ dbOut_read_variables_from_scenario <- function(fname_dbOut, variables = NULL,
         },
 
         " FROM header",
-          " INNER JOIN ", db_setup[[4]][["name"]],
-            " ON header.P_id = ", db_setup[[4]][["name"]], ".P_id",
+          " INNER JOIN ", db_setup[[noa]][["name"]],
+            " ON header.P_id = ", db_setup[[noa]][["name"]], ".P_id",
           " INNER JOIN runs ON header.P_id = runs.P_id",
           " INNER JOIN sites ON runs.site_id = sites.id",
         " WHERE header.Scenario = ", shQuote(scenario),
-        if (length(whereClause) > 0)
-          paste0(" AND ", addHeaderToWhereClause(whereClause,
-            headers = header_fields)),
+
+        if (length(whereClause) > 0) {
+          paste0(
+            " AND ",
+            addHeaderToWhereClause(whereClause, headers = header_fields)
+          )
+        },
         " ORDER BY header.P_id")
 
       dat <- dbGetQuery(con, sql)[, outOrder]
@@ -3269,8 +3314,13 @@ compare_two_dbOutput <- function(dbOut1, dbOut2, tol = 1e-3,
     x_test <- dbGetQuery(testDB, sql)
 
     #---Compare field data and report if differences were found
-    ident <- all.equal(x_ref, x_test, tol = tol,
-      scale = if (comp_absolute) 1 else NULL)
+    ident <- rSW2utils::all_equal_numeric2(
+      target = x_ref,
+      current = x_test,
+      tolerance = tol,
+      scaled = !comp_absolute
+    )
+
     if (!isTRUE(ident)) {
       temp <- list(ident)
       names(temp) <- tocomp_tables[k]

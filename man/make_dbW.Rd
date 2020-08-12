@@ -4,8 +4,16 @@
 \alias{make_dbW}
 \title{Create and populate a \pkg{rSOILWAT2} daily weather \var{SQLite} database}
 \usage{
-make_dbW(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
-  opt_behave, deleteTmpSQLFiles, verbose = FALSE, print.debug = FALSE)
+make_dbW(
+  SFSW2_prj_meta,
+  SWRunInformation,
+  opt_parallel,
+  opt_chunks,
+  opt_behave,
+  deleteTmpSQLFiles,
+  verbose = FALSE,
+  print.debug = FALSE
+)
 }
 \description{
 Create and populate a \pkg{rSOILWAT2} daily weather \var{SQLite} database

@@ -4,8 +4,12 @@
 \alias{determine_simulation_size}
 \title{Calculate the size of the simulation experiment: number of runs, etc.}
 \usage{
-determine_simulation_size(SWRunInformation, include_YN,
-  sw_input_experimentals, sim_scens)
+determine_simulation_size(
+  SWRunInformation,
+  include_YN,
+  sw_input_experimentals,
+  sim_scens
+)
 }
 \description{
 Calculate the size of the simulation experiment: number of runs, etc.

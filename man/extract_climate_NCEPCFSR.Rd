@@ -4,8 +4,15 @@
 \alias{extract_climate_NCEPCFSR}
 \title{Extract gridded mean monthly data from \var{NCEP/CFSR} for sites globally}
 \usage{
-extract_climate_NCEPCFSR(MMC, SWRunInformation, SFSW2_prj_meta,
-  opt_parallel, opt_chunks, resume, verbose)
+extract_climate_NCEPCFSR(
+  MMC,
+  SWRunInformation,
+  SFSW2_prj_meta,
+  opt_parallel,
+  opt_chunks,
+  resume,
+  verbose
+)
 }
 \description{
 Extract gridded mean monthly data from \var{NCEP/CFSR} for sites globally

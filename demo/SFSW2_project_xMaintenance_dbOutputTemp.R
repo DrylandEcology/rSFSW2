@@ -5,7 +5,7 @@
 #         EXECUTING SIMULATIONS, AND AGGREGATING OUTPUTS
 
 #----- LICENSE
-#    Copyright (C) 2017 by `r packageDescription("rSFSW2")[["Author"]]`
+#    Copyright (C) 2017-2019 by `r packageDescription("rSFSW2")[["Author"]]`
 #    Contact information `r packageDescription("rSFSW2")[["Maintainer"]]`
 
 #    This program is free software: you can redistribute it and/or modify

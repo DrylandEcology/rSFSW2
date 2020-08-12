@@ -47,12 +47,11 @@
 SFSW2_glovars <- new.env()
 
 ##------ Import from other packages
+#' @import rSW2utils
+#' @import rSW2funs
+#' @import rSOILWAT2
 ## Package uses S3/S4 classes - they are defined in package:methods
-## Package uses methods from 'RSQLite' package (which re-exports 'DBI' methods)
 #' @import methods
+## Package uses methods from 'RSQLite' package (which re-exports 'DBI' methods)
 #' @import RSQLite
-NULL
-
-##------ Support Rcpp
-#' @importFrom Rcpp sourceCpp evalCpp
 NULL

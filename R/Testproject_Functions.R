@@ -30,6 +30,17 @@
 #'     test and reference databases including the output of a call to
 #'     \code{\link{compare_test_output}}}
 #'   }
+#'
+#' @examples
+#' \dontrun{
+#'   # Run test project 4 inside development version of package
+#'   # Assume that working directory is `tests/test_data/TestPrj4/`
+#'   if (file.exists("SFSW2_project_code.R")) {
+#'     res <- run_test_projects(dir_tests = ".", delete_output = TRUE)
+#'   }
+#' }
+#'
+
 #' @export
 run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
   dir_prev = NULL, which_tests_torun = seq_along(dir_tests),
@@ -510,6 +521,9 @@ check_aggregated_output <- function(x) {
 #'
 #'     # Compare output database with reference database
 #'     comp <- compare_test_output(".", dir_ref = "../0_ReferenceOutput/")
+#'
+#'     # Clean up
+#'     delete_test_output(".")
 #'   }
 #' }
 #'

@@ -15,7 +15,7 @@ qmaps <- list(
 # to plot:
 if (FALSE) {
   k2 <- 3
-  plot(qmaps[[k2]][["par"]][["modq"]], qmaps[[k2]][["par"]][["fitq"]])
+  graphics::plot(qmaps[[k2]][["par"]][["modq"]], qmaps[[k2]][["par"]][["fitq"]])
 }
 
 xs <- list(inter = 5:15, extra = 0:30)

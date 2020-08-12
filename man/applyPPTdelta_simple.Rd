@@ -5,8 +5,14 @@
 \title{Add/multiply deltas to historic daily precipitation to generate future daily
  precipitation without checks}
 \usage{
-applyPPTdelta_simple(m, data, ydelta, add_days, mult_days,
-  set_negPPT_to0 = TRUE)
+applyPPTdelta_simple(
+  m,
+  data,
+  ydelta,
+  add_days,
+  mult_days,
+  set_negPPT_to0 = TRUE
+)
 }
 \arguments{
 \item{m}{An integer vector. Each element corresponds to a day (i.e., \code{length(m)}

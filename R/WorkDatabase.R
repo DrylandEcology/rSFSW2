@@ -988,7 +988,7 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
         })
 
       #-- Update table 'work'
-      has_pids_complete <- intersect2(has_pids_per_table)
+      has_pids_complete <- rSW2utils::intersect2(has_pids_per_table)
 
       if (length(has_pids_complete) > 0) {
         # Get runID from Pid

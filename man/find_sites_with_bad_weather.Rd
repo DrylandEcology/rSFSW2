@@ -5,9 +5,15 @@
 \title{Determine which site_ids in the weather database do not have weather data for
 every requested climate scenario}
 \usage{
-find_sites_with_bad_weather(fdbWeather, site_labels = NULL,
-  siteID_by_dbW = NULL, scen_labels = NULL, scenID_by_dbW = NULL,
-  chunk_size = 500L, verbose = FALSE)
+find_sites_with_bad_weather(
+  fdbWeather,
+  site_labels = NULL,
+  siteID_by_dbW = NULL,
+  scen_labels = NULL,
+  scenID_by_dbW = NULL,
+  chunk_size = 500L,
+  verbose = FALSE
+)
 }
 \value{
 A logical vector of length \code{site_labels} respectively

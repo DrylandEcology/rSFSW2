@@ -5,8 +5,11 @@
 \title{Compare elements and 1-st level structure of project script file with
 installed \pkg{rSFSW2}-package version}
 \usage{
-is_project_script_file_recent(dir_prj,
-  script = "SFSW2_project_descriptions.R", ...)
+is_project_script_file_recent(
+  dir_prj,
+  script = "SFSW2_project_descriptions.R",
+  ...
+)
 }
 \arguments{
 \item{dir_prj}{A character string. Path the simulation project folder.}
