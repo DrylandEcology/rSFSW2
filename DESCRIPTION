@@ -48,6 +48,10 @@ Suggests:
     goodpractice,
     pkgload
 Remotes:
+    github::DrylandEcology/rSW2utils,
+    github::DrylandEcology/rSW2st,
+    github::DrylandEcology/rSOILWAT2,
+    github::DrylandEcology/rSW2funs,
     github::dschlaep/weathergen
 LazyData: true
 ByteCompile: true
