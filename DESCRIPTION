@@ -14,7 +14,7 @@ Depends:
     R (>= 3.5.0),
     rSOILWAT2 (>= 4.0.0),
     rSW2utils,
-    rSW2space,
+    rSW2st,
     rSW2funs
 Imports:
     RSQLite (>= 2.1.1),

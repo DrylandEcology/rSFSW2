@@ -743,8 +743,8 @@ align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
     to_ext <- raster::projectExtent(grid_from, grid_to)
     if (
       identical(
-        rSW2space::crs_units(to_ext),
-        rSW2space::crs_units(grid_from)
+        rSW2st::crs_units(to_ext),
+        rSW2st::crs_units(grid_from)
       )
     ) {
       raster::res(to_ext) <- raster::res(grid_from)
@@ -782,7 +782,7 @@ align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
 #' @export
 align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
 
-  if (identical(rSW2space::crs_units(crs_from), rSW2space::crs_units(crs_to))) {
+  if (identical(rSW2st::crs_units(crs_from), rSW2st::crs_units(crs_to))) {
     res_from
   } else {
     sp_from <- if (raster::compareCRS(crs_sp, crs_from)) {
