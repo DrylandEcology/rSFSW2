@@ -826,12 +826,20 @@ align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
 setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   use_sim_spatial = FALSE, verbose = FALSE) {
 
-  sim_space <- list(scorp = NA, run_sites = NA, sim_raster = NA, crs_sites = NA,
-    sim_res = NA, sim_crs = NA)
+  sim_space <- list(
+    scorp = NA,
+    run_sites = NA,
+    sim_raster = NA,
+    crs_sites = NA,
+    sim_res = NA,
+    sim_crs = NA
+  )
 
   #--- Make sure that flag 'scorp' has a valid option
-  sim_space[["scorp"]] <- match.arg(SFSW2_prj_meta[["in_space"]][["scorp"]],
-    c("point", "cell"))
+  sim_space[["scorp"]] <- match.arg(
+    arg = SFSW2_prj_meta[["in_space"]][["scorp"]],
+    choices = c("point", "cell")
+  )
 
   if (use_sim_spatial) {
     if (sim_space[["scorp"]] == "cell") {
@@ -851,16 +859,22 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
       }
 
       # Make sure that sim_res is valid
-      stopifnot(is.finite(sim_space[["sim_res"]]),
-        length(sim_space[["sim_res"]]) == 2L, sim_space[["sim_res"]] > 0)
+      stopifnot(
+        is.finite(sim_space[["sim_res"]]),
+        length(sim_space[["sim_res"]]) == 2L,
+        sim_space[["sim_res"]] > 0
+      )
     }
 
     #--- Make sure that sim_crs is valid
-    if (is.na(sim_space[["sim_crs"]]) &&
-      is.character(SFSW2_prj_meta[["in_space"]][["sim_crs"]])) {
+    if (
+      is.na(sim_space[["sim_crs"]]) &&
+      is.character(SFSW2_prj_meta[["in_space"]][["sim_crs"]])
+    ) {
 
-      sim_space[["sim_crs"]] <-
-        sp::CRS(SFSW2_prj_meta[["in_space"]][["sim_crs"]])
+      sim_space[["sim_crs"]] <- sp::CRS(
+        SFSW2_prj_meta[["in_space"]][["sim_crs"]]
+      )
     }
 
     checking_crs <- requireNamespace(
@@ -893,34 +907,47 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     #--- SpatialPoints of simulation cell centers/sites in WGS84
     # epsg:4326 is sp::CRS("+proj = longlat +datum = WGS84 +no_defs")
     sim_space[["crs_sites"]] <- sp::CRS("+init=epsg:4326")
-    sim_space[["run_sites"]] <- sp::SpatialPoints(coords =
-      SFSW2_prj_inputs[["SWRunInformation"]][
+    sim_space[["run_sites"]] <- sp::SpatialPoints(
+      coords = SFSW2_prj_inputs[["SWRunInformation"]][
         SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],
-        c("X_WGS84", "Y_WGS84")],
-      proj4string = sim_space[["crs_sites"]])
+        c("X_WGS84", "Y_WGS84")
+      ],
+      proj4string = sim_space[["crs_sites"]]
+    )
 
     #--- Create raster from simulation cells if not existing
     # (is this really needed?)
-    if (sim_space[["scorp"]] == "cell" &&
-      !inherits(sim_space[["sim_raster"]], "Raster")) {
+    if (
+      sim_space[["scorp"]] == "cell" &&
+      !inherits(sim_space[["sim_raster"]], "Raster")
+    ) {
 
       temp <- sim_space[["run_sites"]]
       ttemp <- try(sp::gridded(temp) <- TRUE)
 
       if (!inherits(ttemp, "try-error") && isTRUE(ttemp)) {
         sim_space[["sim_raster"]] <- raster::raster(temp)
-        cells <- raster::cellFromXY(sim_space[["sim_raster"]],
-          sp::coordinates(sim_space[["run_sites"]]))
+
+        cells <- raster::cellFromXY(
+          sim_space[["sim_raster"]],
+          xy = sp::coordinates(sim_space[["run_sites"]])
+        )
         sim_space[["sim_raster"]][cells] <- 1L
 
-        raster::writeRaster(sim_space[["sim_raster"]],
-          file = SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])
+        raster::writeRaster(
+          sim_space[["sim_raster"]],
+          file = SFSW2_prj_meta[["fnames_in"]][["fsimraster"]]
+        )
 
       } else {
-        print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": failed to ",
-          "create 'sim_raster' because 'run_sites' are not gridded even ",
-          "though the project  description 'sim_space[['scorp']]' declares ",
-          "that they represent cells."))
+        print(
+          paste0(
+            "rSFSW2's ", shQuote(match.call()[1]), ": failed to ",
+            "create 'sim_raster' because 'run_sites' are not gridded even ",
+            "though the project  description 'sim_space[['scorp']]' declares ",
+            "that they represent cells."
+          )
+        )
       }
     }
   }
