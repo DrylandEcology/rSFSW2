@@ -713,28 +713,6 @@ reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
 
 
 
-#' Extracts the \var{sQuote{units}} argument from a \var{CRS} object
-#'
-#' @param CRS A \code{\link[raster:Raster-class]{raster::Raster}},
-#'   \code{\link[sp:Spatial-class]{sp::Spatial}},
-#'   \code{\link[sp:CRS-class]{sp::CRS}}, or character object with a
-#'   coordinate reference system (\var{CRS}).
-#' @return A character string or \code{NA}.
-#' @export
-crs_units <- function(CRS) {
-  args_crs <- raster::crs(CRS, asText = TRUE)
-  stopifnot(inherits(args_crs, "character"))
-  if (requireNamespace("rgdal", quietly = TRUE)) {
-    stopifnot(rgdal::checkCRSArgs(args_crs)[[1]])
-  }
-
-  args2 <- strsplit(args_crs, split = "+", fixed = TRUE)[[1]]
-  units <- trimws(args2[grep("units", args2)])
-  if (length(units) > 0) {
-    strsplit(units, split = "=", fixed = TRUE)[[1]][2]
-  } else NA
-}
-
 #' Aligns \code{grid_from} with \code{grid_to} for certain cells
 #'
 #' @param grid_from A
@@ -763,7 +741,12 @@ align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
     x <- grid_from
   } else {
     to_ext <- raster::projectExtent(grid_from, grid_to)
-    if (identical(crs_units(to_ext), crs_units(grid_from))) {
+    if (
+      identical(
+        rSW2space::crs_units(to_ext),
+        rSW2space::crs_units(grid_from)
+      )
+    ) {
       raster::res(to_ext) <- raster::res(grid_from)
     }
     raster::origin(to_ext) <- raster::origin(grid_to)
@@ -799,7 +782,7 @@ align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
 #' @export
 align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
 
-  if (identical(crs_units(crs_from), crs_units(crs_to))) {
+  if (identical(rSW2space::crs_units(crs_from), rSW2space::crs_units(crs_to))) {
     res_from
   } else {
     sp_from <- if (raster::compareCRS(crs_sp, crs_from)) {
@@ -856,7 +839,8 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
         # Make sure sim_raster agrees with sim_res and sim_crs;
         # sim_raster takes priority
         sim_space[["sim_raster"]] <- raster::raster(
-          SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])
+          SFSW2_prj_meta[["fnames_in"]][["fsimraster"]]
+        )
         stopifnot(inherits(sim_space[["sim_raster"]], "Raster"))
 
         sim_space[["sim_res"]] <- raster::res(sim_space[["sim_raster"]])
@@ -879,21 +863,32 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
         sp::CRS(SFSW2_prj_meta[["in_space"]][["sim_crs"]])
     }
 
-    # package 'raster' must be loaded so that method 'CRS' for
-    # 'as.character' is available
-    temp_crs <- as.character(sim_space[["sim_crs"]])
-    if (requireNamespace("rgdal", quietly = TRUE)) {
-      temp <- rgdal::checkCRSArgs(temp_crs)
-      stopifnot(temp[[1]])
-      sim_space[["sim_crs"]] <- sp::CRS(temp[[2]])
+    checking_crs <- requireNamespace(
+      "rgdal",
+      versionCheck = list(op = ">=", version = "1.5.8")
+    )
 
-    } else {
-      if (verbose) {
-        print(paste("'setup_spatial_simulation': validity of 'sim_crs' is",
-          "not checked because package 'rgdal' is not available:",
-          shQuote(temp_crs)))
+    if (checking_crs) {
+      tmp_crs <- sf::st_crs(sim_space[["sim_crs"]])
+      tmp <- try(rgdal::checkCRSArgs_ng(tmp_crs$Wkt))
+
+      if (!inherits(tmp, "try-error") && isTRUE(tmp[[1]])) {
+        sim_space[["sim_crs"]] <- sp::CRS(tmp[[2]])
+
+      } else {
+        checking_crs <- FALSE
       }
     }
+
+    if (!checking_crs) {
+      warning(
+        "'setup_spatial_simulation': validity of 'sim_crs' is ",
+        "not checked because package 'rgdal' is not available/working or ",
+        "'sim_crs' has been checked and is invalid: ",
+        shQuote(temp_crs)
+      )
+    }
+
 
     #--- SpatialPoints of simulation cell centers/sites in WGS84
     # epsg:4326 is sp::CRS("+proj = longlat +datum = WGS84 +no_defs")
