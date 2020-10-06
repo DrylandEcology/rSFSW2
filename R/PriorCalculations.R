@@ -86,15 +86,30 @@ calc_RequestedSoilLayers <- function(SFSW2_prj_meta,
       if (length(req_sd_toadd) == 0) next
 
       # Add identified layers
-      sw_input_soils_data2 <- lapply(seq_along(var_layers),
-        function(iv) sw_input_soils_data[[iv]][il_set, , drop = FALSE])
+      sw_input_soils_data2 <- lapply(
+        seq_along(var_layers),
+        function(iv) sw_input_soils_data[[iv]][il_set, , drop = FALSE]
+      )
+      s
       for (lnew in req_sd_toadd) {
         ilnew <- findInterval(lnew, ldset)
-        il_weight <- calc_weights_from_depths(ilnew, lnew, ldset)
-        sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
-          add_layer_to_soil(sw_input_soils_data2[[iv]], il = ilnew,
-            w = il_weight, method = if (var_layers[iv] %in% sl_vars_sub)
-              "exhaust" else "interpolate"))
+        il_weight <- rSW2data::calc_weights_from_depths(ilnew, lnew, ldset)
+
+        sw_input_soils_data2 <- lapply(
+          seq_along(var_layers),
+          function(iv) {
+            rSW2data::add_layer_to_soil(
+              sw_input_soils_data2[[iv]],
+              il = ilnew,
+              w = il_weight,
+              method = if (var_layers[iv] %in% sl_vars_sub) {
+                "exhaust"
+              } else {
+                "interpolate"
+              }
+            )
+          }
+        )
         ldset <- sort(c(ldset, lnew))
       }
 

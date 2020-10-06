@@ -1,8 +1,3 @@
-# nolint start
-getLayersWidth <- rSOILWAT2:::getLayersWidth
-calc_weights_from_depths <- rSOILWAT2:::calc_weights_from_depths
-add_layer_to_soil <- rSOILWAT2:::add_layer_to_soil
-# nolint end
 
 #' The wrapper only handles 1-cm resolution of soil depths
 #' (mainly because of the \var{trco})

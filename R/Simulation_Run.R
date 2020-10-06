@@ -343,7 +343,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #layer sequence
     ld <- setLayerSequence(soilLayers_N)
     layers_depth <- adjustLayersDepth(layers_depth, soilLayers_N)
-    layers_width <- getLayersWidth(layers_depth)
+    layers_width <- rSW2data::getLayersWidth(layers_depth)
 
     #top and bottom layer aggregation
     DeepestTopLayer <- setDeepestTopLayer(layers_depth, opt_agg[["aon_toplayer_cm"]])
@@ -801,7 +801,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         soilLayers_N <- min(length(layers_depth.datafile), soilLayers_N, na.rm = TRUE)
         soilLayers_N <- max(1, soilLayers_N, na.rm = TRUE)
         layers_depth <- adjustLayersDepth(layers_depth.datafile, soilLayers_N)
-        layers_width <- getLayersWidth(layers_depth)
+        layers_width <- rSW2data::getLayersWidth(layers_depth)
         ld <- setLayerSequence(soilLayers_N)
 
         DeepestTopLayer <- setDeepestTopLayer(layers_depth, opt_agg[["aon_toplayer_cm"]])
@@ -852,7 +852,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         if (soilLayers_N != k) {
           soilLayers_N <- k
           layers_depth <- adjustLayersDepth(layers_depth, soilLayers_N)
-          layers_width <- getLayersWidth(layers_depth)
+          layers_width <- rSW2data::getLayersWidth(layers_depth)
           ld <- setLayerSequence(soilLayers_N)
 
           DeepestTopLayer <- setDeepestTopLayer(layers_depth, opt_agg[["aon_toplayer_cm"]])
@@ -1861,7 +1861,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #get soil texture data for each layer
     stemp <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]])
     layers_depth <- stemp[, 1]
-    layers_width <- getLayersWidth(layers_depth)
+    layers_width <- rSW2data::getLayersWidth(layers_depth)
     soilDepth_cm <- max(stemp[, 1])
     soilLayers_N <- length(stemp[, 1])
     ld <- setLayerSequence(soilLayers_N)
