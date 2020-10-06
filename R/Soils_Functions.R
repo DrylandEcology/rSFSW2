@@ -138,26 +138,6 @@ setBottomLayer <- function(d, DeepestTopLayer) {
 }
 
 
-#' NAs present but only in deepest soil layers
-#'
-#' Checks that NAs are present and that NAs occur only grouped together in the
-#' right-most columns per row (e.g., deepest soil layers if columns represent
-#' soil layers and rows represent sites).
-#'
-#' @param x A data.frame, matrix, or array with at least two dimensions.
-#'
-#' @return A logical vector of length equal to the first dimension of \code{x}
-#'   with \code{TRUE} if there are n[k] \code{NA}s in the k-th row and they
-#'   occupy the k rightmost columns.
-#'
-has_NAs_pooled_at_depth <- function(x) {
-  stopifnot(!is.null(dim(x)))
-  temp <- apply(x, 1, function(dat) rle(is.na(dat)))
-  sapply(temp, function(dat)
-    length(dat$values) <= 2 && dat$values[length(dat$values)])
-}
-
-
 
 
 #' Merge two soil input datafiles
