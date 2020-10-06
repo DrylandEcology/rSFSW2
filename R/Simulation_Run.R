@@ -377,12 +377,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
       #--- Calculate time sequences
-      isim_time[[itime]] <- rSOILWAT2::setup_time_simulation_run(
+      isim_time[[itime]] <- rSW2data::setup_time_simulation_run(
         sim_time = isim_time[[itime]]
       )
 
       #--- Calculate some more time sequences
-      simTime2[[itime]] <- rSOILWAT2::simTiming_ForEachUsedTimeUnit(
+      simTime2[[itime]] <- rSW2data::simTiming_ForEachUsedTimeUnit(
         useyrs = isim_time[[itime]][["useyrs"]],
         sim_tscales = c("daily", "monthly", "yearly"),
         latitude = i_SWRunInformation$Y_WGS84,

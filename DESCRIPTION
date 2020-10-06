@@ -15,6 +15,7 @@ Depends:
     rSOILWAT2 (>= 4.0.0),
     rSW2utils,
     rSW2st,
+    rSW2data,
     rSW2funs
 Imports:
     RSQLite (>= 2.1.1),
@@ -50,6 +51,7 @@ Suggests:
 Remotes:
     github::DrylandEcology/rSW2utils,
     github::DrylandEcology/rSW2st,
+    github::DrylandEcology/rSW2data,
     github::DrylandEcology/rSOILWAT2,
     github::DrylandEcology/rSW2funs,
     github::dschlaep/weathergen

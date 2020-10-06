@@ -60,7 +60,7 @@ get_simulation_time <- function(st, SFSW2_prj_inputs) {
 #'   two: \var{\dQuote{startyr}} or \var{\dQuote{spinup_N}}, and
 #'   \var{dQuote{future_yrs}}.
 #' @param add_st2 A logical value. If \code{TRUE}, the output of calling the
-#'   function \code{\link[rSOILWAT2]{simTiming_ForEachUsedTimeUnit}}
+#'   function \code{\link[rSW2data]{simTiming_ForEachUsedTimeUnit}}
 #'   is appended to the returned list.
 #' @param use_doy_range A logical value. If \code{TRUE}, then the result is
 #'   additional daily indices indicating whether the \var{DOY} is within the
@@ -111,21 +111,25 @@ setup_time_simulation_project <- function(sim_time, is_idem = FALSE,
   sim_time[["future_N"]] <- dim(sim_time[["future_yrs"]])[1]
 
   if (add_st2) {
-    sim_time[["sim_time2_North"]] <-
-      rSOILWAT2::simTiming_ForEachUsedTimeUnit(sim_time[["useyrs"]],
-        sim_tscales = c("daily", "monthly", "yearly"),
-        use_doy_range = use_doy_range,
-        doy_ranges =  doy_ranges,
-        latitude = 90, account_NorthSouth = adjust_NS)
+    sim_time[["sim_time2_North"]] <- rSW2data::simTiming_ForEachUsedTimeUnit(
+      sim_time[["useyrs"]],
+      sim_tscales = c("daily", "monthly", "yearly"),
+      use_doy_range = use_doy_range,
+      doy_ranges =  doy_ranges,
+      latitude = 90,
+      account_NorthSouth = adjust_NS
+    )
 
     if (adjust_NS) {
       sim_time[["sim_time2_South"]] <-
-        rSOILWAT2::simTiming_ForEachUsedTimeUnit(sim_time[["useyrs"]],
+        rSW2data::simTiming_ForEachUsedTimeUnit(
+          sim_time[["useyrs"]],
           sim_tscales = c("daily", "monthly", "yearly"),
           use_doy_range = use_doy_range,
           doy_ranges = doy_ranges,
           latitude = -90,
-          account_NorthSouth = TRUE)
+          account_NorthSouth = TRUE
+        )
 
     } else {
       sim_time[["sim_time2_South"]] <- sim_time[["sim_time2_North"]]
