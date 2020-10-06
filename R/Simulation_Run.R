@@ -3494,13 +3494,17 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             temp.mo = temp.mo
           )
 
-          SMTR <- rSOILWAT2::calc_SMTRs(
-            sim_in = swRunScenariosData[[sc]], sim_agg = sim_agg,
+          SMTR <- rSW2funs::calc_SMTRs(
+            sim_in = swRunScenariosData[[sc]],
+            sim_agg = sim_agg,
             soil_TOC = soil_TOC,
             has_soil_temperature = isTRUE(!is_SOILTEMP_INSTABLE[sc]),
             opt_SMTR = opt_agg[["NRCS_SMTRs"]],
-            simTime1 = isim_time[[itime]], simTime2 = simTime2[[itime]],
-            verbose = opt_verbosity[["verbose"]], msg_tag = tag_simpidfid)
+            simTime1 = isim_time[[itime]],
+            simTime2 = simTime2[[itime]],
+            verbose = opt_verbosity[["verbose"]],
+            msg_tag = tag_simpidfid
+          )
 
           if (isTRUE(prj_todos[["aon"]][["dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates"]])) {
             nv01 <- nv
@@ -3553,8 +3557,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             "dailyNRCS_Chambers2014_ResilienceResistance")
           if (!exists("prcp.yr")) prcp.yr <- get_PPT_yr(runDataSC, isim_time[[itime]])
 
-          RR <- rSOILWAT2::calc_RRs_Chambers2014(Tregime, Sregime,
-            MAP_mm = mean(prcp.yr$ppt))
+          RR <- rSW2funs::calc_RRs_Chambers2014(
+            Tregime,
+            Sregime,
+            MAP_mm = mean(prcp.yr$ppt)
+          )
 
           nv_new <- nv + prj_todos[["aon_fields"]]["dailyNRCS_Chambers2014_ResilienceResistance", "N"]
           resMeans[nv:(nv_new - 1)] <- RR
@@ -3570,7 +3577,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
           print_debug(opt_verbosity, tag_simpidfid, "aggregating",
             "dailyNRCS_Maestas2016_ResilienceResistance")
 
-          RR <- rSOILWAT2::calc_RRs_Maestas2016(Tregime, Sregime)
+          RR <- rSW2funs::calc_RRs_Maestas2016(Tregime, Sregime)
 
           nv_new <- nv + prj_todos[["aon_fields"]]["dailyNRCS_Maestas2016_ResilienceResistance", "N"]
           resMeans[nv:(nv_new - 1)] <- RR
