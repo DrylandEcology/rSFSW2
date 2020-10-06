@@ -416,6 +416,7 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE,
 
   #--- Determine size of simulation runs
   if (todo_intracker(SFSW2_prj_meta, "calc_size", "prepared")) {
+
     SFSW2_prj_meta[["sim_size"]] <- determine_simulation_size(
       SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
       include_YN = SFSW2_prj_inputs[["include_YN"]],
@@ -461,8 +462,11 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE,
     )
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(
-      SFSW2_prj_meta[["input_status"]], tracker = "spatial_setup",
-      prepared = TRUE, clean_subsequent = TRUE)
+      SFSW2_prj_meta[["input_status"]],
+      tracker = "spatial_setup",
+      prepared = TRUE,
+      clean_subsequent = TRUE
+    )
   }
 
 
@@ -481,10 +485,13 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE,
 
     # output aggregate overall
     SFSW2_prj_meta[["prj_todos"]][["aon"]] <- convert_to_todo_list(
-      SFSW2_prj_meta[["req_out"]][["overall_out"]])
+      SFSW2_prj_meta[["req_out"]][["overall_out"]]
+    )
     # output aggregate daily
     SFSW2_prj_meta[["prj_todos"]][["adaily"]] <- setup_meandaily_output(
-      SFSW2_prj_meta[["req_out"]][["mean_daily"]], SFSW2_prj_meta[["opt_agg"]])
+      req_mean_daily = SFSW2_prj_meta[["req_out"]][["mean_daily"]],
+      opt_agg = SFSW2_prj_meta[["opt_agg"]]
+    )
     # output daily traces
     SFSW2_prj_meta[["prj_todos"]][["otrace"]] <-
       SFSW2_prj_meta[["req_out"]][["traces"]]
@@ -511,18 +518,28 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE,
     itemp <- names(SFSW2_prj_meta[["prj_todos"]])
     itemp <- itemp[!(itemp %in% c("adaily", "otrace"))]
     temp <- unlist(SFSW2_prj_meta[["prj_todos"]][itemp])
-    ibad <- sapply(temp, function(x)
-      !identical(x, TRUE) && !identical(x, FALSE))
+    ibad <- sapply(
+      temp,
+      function(x) !identical(x, TRUE) && !identical(x, FALSE)
+    )
     if (any(ibad)) {
-      stop("elements of 'prj_todos' should not be 'NULL': ",
-      paste(shQuote(names(temp)[ibad]), collapse = ", "))
+      stop(
+        "elements of 'prj_todos' should not be 'NULL': ",
+        paste(shQuote(names(temp)[ibad]), collapse = ", ")
+      )
     }
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(
-      SFSW2_prj_meta[["input_status"]], tracker = "prj_todos", prepared = TRUE)
+      SFSW2_prj_meta[["input_status"]],
+      tracker = "prj_todos",
+      prepared = TRUE
+    )
   }
 
-  list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs)
+  list(
+    SFSW2_prj_meta = SFSW2_prj_meta,
+    SFSW2_prj_inputs = SFSW2_prj_inputs
+  )
 }
 
 
@@ -820,7 +837,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
     if (todo_intracker(SFSW2_prj_meta, "climnorm_data", "prepared")) {
 
       SFSW2_prj_inputs <- ExtractData_MeanMonthlyClimate(
-        SFSW2_prj_meta[["exinfo"]],
+        exinfo = SFSW2_prj_meta[["exinfo"]],
         SFSW2_prj_meta, SFSW2_prj_inputs,
         opt_parallel, opt_chunks,
         resume = opt_behave[["resume"]],

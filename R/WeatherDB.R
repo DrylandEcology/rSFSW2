@@ -307,15 +307,19 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     }
 
     if (length(ids_NCEPCFSR_extraction) > 0) {
-      if (is.null(SFSW2_prj_meta[["prepd_CFSR"]]) ||
+      if (
+        is.null(SFSW2_prj_meta[["prepd_CFSR"]]) ||
         inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error") ||
-        !dir.exists(SFSW2_prj_meta[["prepd_CFSR"]][["dir_ex_cfsr"]])) {
+        !dir.exists(SFSW2_prj_meta[["prepd_CFSR"]][["dir_ex_cfsr"]])
+      ) {
 
         SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
           dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
           dir.cfsr.data =
-            SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
+            SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]
+        ))
       }
+
       stopifnot(!inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error"))
 
       irow <- add_runIDs_sites[ids_NCEPCFSR_extraction]
@@ -372,20 +376,32 @@ check_dbWeather_version <- function(fdbWeather) {
 prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data,
   dir.cfsr.code = dir.cfsr.data) {
 
-  # nolint start
-  writeLines(c("'NCEPCFSR' extractions: make sure the following conditions are met:",
-    "  1) Compiled 'wgrib2' executable is located in '/opt/local/bin/' or in 'dir_in/ncepcfsr/'",
-    "     Instructions for how to compile 'wgrib2' can be found in the 'ncepcfsr_convert.c'.",
-    "     The code of wgrib2 is available from ",
-    "         http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/",
-    "  3) Appropriate grib files (the data) are located in directory 'dir.cfsr.data'. ",
-    "     Info about the gribfiles is in 'ncepcfsr_convert.c'"))
-  # nolint end
+  msg <- c(
+    "'NCEPCFSR' extractions: make sure the following conditions are met:",
+    paste(
+      "\t1) Compiled 'wgrib2' executable is located at '/opt/local/bin/'",
+      "or 'dir_in/ncepcfsr/'"
+    ),
+    paste(
+      "\tInstructions for how to compile 'wgrib2' can be found in ",
+      "the 'ncepcfsr_convert.c'."
+    ),
+    "\tThe code of wgrib2 is available from ",
+    "\t\thttp://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/",
+    paste(
+      "\t3) Appropriate grib files (the data) are located",
+      "in directory 'dir.cfsr.data'. "
+    ),
+    "\tInfo about the gribfiles is in 'ncepcfsr_convert.c'"
+  )
+  cat(msg, sep = "\n")
 
-  dir.create(dir_ex_cfsr <- file.path(dir_in, "ncepcfsr"), showWarnings = FALSE)
+  dir_ex_cfsr <- file.path(dir_in, "ncepcfsr")
+  dir.create(dir_ex_cfsr, showWarnings = FALSE)
 
-  #Check for wgrib2 (http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/)
-  if (!file.exists(wgrib2 <- file.path(dir_ex_cfsr, "wgrib2"))) {
+  # Check for wgrib2 (http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/)
+  wgrib2 <- file.path(dir_ex_cfsr, "wgrib2")
+  if (!file.exists(wgrib2)) {
     tmp <- Sys.which("wgrib2")
     path_wgrib2 <- if (nchar(tmp) > 0) {
         tmp
@@ -400,7 +416,7 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data,
     file.copy(from = path_wgrib2, to = wgrib2)
   }
 
-  #Soft link to gribbed data
+  # Soft link to gribbed data
   fname_gribDir <- "griblargeC2"
   dir.grib <- file.path(dir_ex_cfsr, fname_gribDir)
   if (!file.exists(dir.grib)) {
@@ -409,18 +425,28 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data,
     # file.exists() because the link is 'dead' (but it is still listed by
     # list.files()) then use options -F -f to remove the link before creating
     # a new one -- otherwise, the command 'ln' reports an error
-    stopifnot(system2(command = "ln", args = paste("-sFf",
-      shQuote(file.path(dir.cfsr.data, fname_gribDir)),
-      shQuote(dir.grib))) == 0)
+    tmp_soft_link_to_gribbed_CFSR <- system2(
+      command = "ln",
+      args = paste(
+        "-sFf",
+        shQuote(file.path(dir.cfsr.data, fname_gribDir)),
+        shQuote(dir.grib)
+      )
+    )
+
+    stopifnot(tmp_soft_link_to_gribbed_CFSR == 0)
   }
 
-  #Set up temporary directory for C code to store objects
-  if (file.exists(ftemp <- file.path(dir_ex_cfsr, "temporary_dy"))) {
-    unlink(ftemp, recursive = TRUE)
+  # Set up temporary directory for C code to store objects
+  ftmp <- file.path(dir_ex_cfsr, "temporary_dy")
+  if (file.exists(ftmp)) {
+    unlink(ftmp, recursive = TRUE)
   }
-  temp <- lapply(lapply(c("tmax", "tmin", "ppt"), FUN = function(x)
-    file.path(ftemp, x)), FUN = function(x)
-      dir.create(x, recursive = TRUE, showWarnings = FALSE))
+
+  tmp <- lapply(
+    file.path(ftmp, c("tmax", "tmin", "ppt")),
+    FUN = function(x) dir.create(x, recursive = TRUE, showWarnings = FALSE)
+  )
 
   list(dir_ex_cfsr = dir_ex_cfsr)
 }
@@ -1126,17 +1152,22 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE,
         Rmpi::mpi.bcast.cmd(cmd = setwd, dir = dir_ex_cfsr)
 
       } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
-        parallel::clusterCall(SFSW2_glovars[["p_cl"]], fun = setwd,
-          dir = dir_ex_cfsr)
+        parallel::clusterCall(
+          SFSW2_glovars[["p_cl"]],
+          fun = setwd,
+          dir = dir_ex_cfsr
+        )
       }
     }
 
     for (k in seq_along(do_sites)) {
-      print(paste(Sys.time(), ": NCEP/CFSR extraction of",
+      print(paste(
+        Sys.time(), ": NCEP/CFSR extraction of",
         if (daily) "daily",
         if (daily && monthly) "and",
         if (monthly) "monthly",
-        "data: chunk", k, "of", length(do_sites)))
+        "data: chunk", k, "of", length(do_sites)
+      ))
 
       nDailyReads <- nDailyWrites <- nMonthlyReads <- nMonthlyWrites <- 0
       ntemp <- length(do_sites[[k]])
@@ -1146,8 +1177,10 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE,
       dtemp <- dir_temp.sitesC[irows]
 
       if (print.debug) {
-        print(paste(Sys.time(), "cfsr chunk", k, ": # open R files",
-          system2(command = "lsof", args = "-c R | wc -l", stdout = TRUE)))
+        print(paste(
+          Sys.time(), "cfsr chunk", k, ": # open R files",
+          system2(command = "lsof", args = "-c R | wc -l", stdout = TRUE)
+        ))
       }
 
       if (SFSW2_glovars[["p_has"]]) {
@@ -1218,11 +1251,19 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE,
           }
 
           if (monthly) {
-            nMonthlyReads <- lapply(X = 0L:(n_climvars - 1L),
-              FUN = gribMonthlyClimate, nSites = ntemp, latitudes = lats,
-              longitudes = longs, siteDirsC = dtemp, yearLow = yearLow,
-              yearHigh = yearHigh, print.debug = print.debug)
+            nMonthlyReads <- lapply(
+              X = 0L:(n_climvars - 1L),
+              FUN = gribMonthlyClimate,
+              nSites = ntemp,
+              latitudes = lats,
+              longitudes = longs,
+              siteDirsC = dtemp,
+              yearLow = yearLow,
+              yearHigh = yearHigh,
+              print.debug = print.debug
+            )
           }
+
           if (monthly && k == length(do_sites)) {
             # only do at the end
             nMonthlyWrites <- lapply(X = seq_len(n_sites_all),
