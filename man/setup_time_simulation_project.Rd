@@ -20,7 +20,7 @@ two: \var{\dQuote{startyr}} or \var{\dQuote{spinup_N}}, and
 \var{dQuote{future_yrs}}.}
 
 \item{add_st2}{A logical value. If \code{TRUE}, the output of calling the
-function \code{\link[rSOILWAT2]{simTiming_ForEachUsedTimeUnit}}
+function \code{\link[rSW2data]{simTiming_ForEachUsedTimeUnit}}
 is appended to the returned list.}
 
 \item{adjust_NS}{A logical value. If \code{TRUE}, then the result is
