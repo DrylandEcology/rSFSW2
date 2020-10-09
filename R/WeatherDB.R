@@ -633,30 +633,61 @@ get_DayMet_cellID <- function(coords_WGS84) {
   # Determine 1-km cell that contains requested location
   res_DayMet <- 1000L
 
-  proj_LCC <- sp::CRS(paste("+proj=lcc +lat_1=25 +lat_2=60 +lat_0=42.5",
-    "+lon_0=-100 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
-    "+ellps=WGS84 +towgs84=0,0,0"))
-  proj_WGS84 <- sp::CRS(paste("+init=epsg:4326 +proj=longlat +ellps=WGS84",
-    "+datum=WGS84 +no_defs +towgs84=0,0,0"))
+  # Lambert Conformal Conic (LCC) projection
+  # https://daymet.ornl.gov/overview
+  proj_LCC <- as(
+    sf::st_crs(
+      paste(
+        "+proj=lcc +lat_1=25 +lat_2=60 +lat_0=42.5",
+        "+lon_0=-100 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
+        "+ellps=WGS84 +towgs84=0,0,0"
+      )
+    ),
+    "CRS"
+  )
 
-  xy_LCC <- sp::coordinates(sp::spTransform(sp::SpatialPoints(
-    coords = coords_WGS84, proj4string = proj_WGS84), proj_LCC))
+  proj_WGS84 <- as(sf::st_crs(4326), "CRS")
+
+  xy_LCC <- sp::coordinates(
+    sp::spTransform(
+      sp::SpatialPoints(
+        coords = coords_WGS84,
+        proj4string = proj_WGS84
+      ),
+      proj_LCC
+    )
+  )
 
   dm_LCC <- floor(xy_LCC / res_DayMet)
   # Origin at lower-lef corner (-2015000, -3037000)
     ## ==> (0, 0)- cell includes xlim = [0, 1000[ and ylim = [0, 1000[
     ## ==> at 100-m and 1-m scale: ok; but some deviations at 0.5-m scale
 
-  cellID <- apply(dm_LCC, 1, FUN = function(chr) paste0("daymet_pixel_",
-    if (chr[1] < 0) "-" else "+",
-    formatC(abs(chr[1]), width = 6, flag = "0", format = "d"), "_",
-    if (chr[2] < 0) "-" else "+",
-    formatC(abs(chr[2]), width = 6, flag = "0", format = "d")))
+  cellID <- apply(
+    dm_LCC,
+    MARGIN = 1,
+    FUN = function(chr) {
+      paste0(
+        "daymet_pixel_",
+        if (chr[1] < 0) "-" else "+",
+        formatC(abs(chr[1]), width = 6, flag = "0", format = "d"), "_",
+        if (chr[2] < 0) "-" else "+",
+        formatC(abs(chr[2]), width = 6, flag = "0", format = "d")
+      )
+    }
+  )
 
   # center of 1-km cells to avoid projection errors at cell margins
   dm_LCC <- res_DayMet * dm_LCC + 500
-  dm_WGS84 <- sp::coordinates(sp::spTransform(sp::SpatialPoints(
-    coords = dm_LCC, proj4string = proj_LCC), proj_WGS84))
+  dm_WGS84 <- sp::coordinates(
+    sp::spTransform(
+      sp::SpatialPoints(
+        coords = dm_LCC,
+        proj4string = proj_LCC
+      ),
+      proj_WGS84
+    )
+  )
 
   list(cellID = cellID, dm_LCC = dm_LCC, dm_WGS84 = dm_WGS84)
 }
@@ -956,13 +987,14 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
   stopifnot(years %in% NRC_target_years)
 
   vars <- c("max", "min", "pcp") # units = C, C, mm/day
-  prj_geographicWGS84 <- sp::CRS(paste("+init=epsg:4326 +proj=longlat",
-    "+ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"))
-  prj_geographicNAD83 <- sp::CRS(paste("+init=epsg:4269 +proj=longlat",
-    "+ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0"))
 
-  sp_locs <- sp::SpatialPoints(coords = coords_WGS84,
-    proj4string = prj_geographicWGS84)
+  prj_geographicWGS84 <- as(sf::st_crs(4326), "CRS")
+  prj_geographicNAD83 <- as(sf::st_crs(4269), "CRS")
+
+  sp_locs <- sp::SpatialPoints(
+    coords = coords_WGS84,
+    proj4string = prj_geographicWGS84
+  )
   sp_locs <- sp::spTransform(sp_locs, CRSobj = prj_geographicNAD83)
 
   if (SFSW2_glovars[["p_has"]])
@@ -1542,10 +1574,12 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids,
     xy_wgs84 <- apply(coords, 2, conv_res)
 
     # Create coordinates as spatial points for extraction with raster layers
-    prj_geographicWGS84 <- sp::CRS(paste("+proj=longlat +ellps=WGS84",
-      "+datum=WGS84 +no_defs +towgs84=0,0,0"))
-    sp_locs  <- sp::SpatialPoints(coords = xy_wgs84,
-      proj4string = prj_geographicWGS84)
+    prj_geographicWGS84 <- as(sf::st_crs(4326), "CRS")
+
+    sp_locs <- sp::SpatialPoints(
+      coords = xy_wgs84,
+      proj4string = prj_geographicWGS84
+    )
 
     # Create necessary variables and containers for extraction
     seq_years <-  seq(year_range[["start_year"]], year_range[["end_year"]])
@@ -1859,9 +1893,10 @@ extract_daily_weather_from_gridMET <- function(dir_data, site_ids,
   fnames_gridMET <- find_gridMET_files(dir_data, desc[["vars"]])
 
   # Create coordinates as spatial points for extraction with raster layers
-  prj_geographicWGS84 <- sp::CRS(paste("+proj=longlat +ellps=WGS84",
-    "+datum=WGS84 +no_defs +towgs84=0,0,0"))
-  sp_locs  <- sp::SpatialPoints(coords = coords,
+  prj_geographicWGS84 <- as(sf::st_crs(4326), "CRS")
+
+  sp_locs  <- sp::SpatialPoints(
+    coords = coords,
     proj4string = prj_geographicWGS84
   )
 
@@ -2121,12 +2156,18 @@ dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat,
     if (any(there) && file.exists(ftemp)) {
       nrc_test <- raster::raster(ftemp)
       # see http://spatialreference.org/ref/epsg/4269/
-      raster::crs(nrc_test) <- raster::crs(paste("+init=epsg:4269",
-        " +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0"))
-      sp_locs <- sp::SpatialPoints(coords = site_dat[, c("X_WGS84", "Y_WGS84")],
-        proj4string = raster::crs(paste("+init=epsg:4326 +proj=longlat",
-        "+ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")))
-      temp <- sp::spTransform(sp_locs, CRSobj = raster::crs(nrc_test))
+      raster::crs(nrc_test) <- as(sf::st_crs(4269), "CRS")
+
+      sp_locs <- sp::SpatialPoints(
+        coords = site_dat[, c("X_WGS84", "Y_WGS84")],
+        proj4string = as(sf::st_crs(4326), "CRS")
+      )
+
+      temp <- sp::spTransform(
+        sp_locs,
+        CRSobj = as(sf::st_crs(nrc_test), "CRS")
+      )
+
       temp <- raster::extract(nrc_test, y = temp)
       there <- !is.na(temp)
 
@@ -2158,9 +2199,10 @@ dw_Livneh2013_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
 
     if (any(there) && file.exists(ftemp)) {
       livneh_test <- raster::raster(ftemp, varname = "Prec")
-      sp_locs <- sp::SpatialPoints(coords = site_dat[, c("X_WGS84", "Y_WGS84")],
-        proj4string = sp::CRS(paste("+proj=longlat +ellps=WGS84 +datum=WGS84",
-          "+no_defs +towgs84=0,0,0")))
+      sp_locs <- sp::SpatialPoints(
+        coords = site_dat[, c("X_WGS84", "Y_WGS84")],
+        proj4string = as(sf::st_crs(4326), "CRS")
+      )
       there <- !is.na(raster::extract(livneh_test, y = sp_locs))
 
       if (any(there)) {
@@ -2200,7 +2242,7 @@ dw_gridMET_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
       if (any(there) && file.exists(ftemp)) {
         sp_locs <- sp::SpatialPoints(
           coords = site_dat[, c("X_WGS84", "Y_WGS84")],
-          proj4string = sp::CRS("+init=epsg:4326") # WGS84
+          proj4string = as(sf::st_crs(4326), "CRS")
         )
 
         ftmp <- raster::raster(ftemp, band = 1)
@@ -2209,7 +2251,7 @@ dw_gridMET_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
         # information of gridMET file(s)
         if (!grepl("+datum=WGS84", raster::crs(ftmp, asText = TRUE))) {
           warning("`dw_gridMET_NorthAmerica()`: overrides CRS of gridMET data.")
-          raster::crs(ftmp) <- sp::CRS("+init=epsg:4326")
+          raster::crs(ftmp) <- as(sf::st_crs(4326), "CRS")
         }
 
         there <- !is.na(raster::extract(ftmp, y = sp_locs))

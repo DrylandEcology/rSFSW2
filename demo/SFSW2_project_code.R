@@ -25,9 +25,9 @@
 
 
 ################################################################################
-t_job_start <- Sys.time()
-
 library("rSFSW2")
+
+t_job_start <- Sys.time()
 
 #------ Turn on/off actions to be carried out by simulation framework
 actions <- list(
@@ -107,7 +107,7 @@ SFSW2_prj_meta <- update_actions(
 ################################################################################
 #------ 3) POPULATE PROJECT WITH INPUT DATA (REPEAT UNTIL COMPLETE) ------------
 
-temp <- populate_rSFSW2_project_with_data(
+tmp <- populate_rSFSW2_project_with_data(
   SFSW2_prj_meta,
   opt_behave,
   opt_parallel,
@@ -118,7 +118,7 @@ temp <- populate_rSFSW2_project_with_data(
 
 if (
   isTRUE(opt_verbosity[["verbose"]]) &&
-  !identical(SFSW2_prj_meta, temp[["SFSW2_prj_meta"]])
+  !identical(SFSW2_prj_meta, tmp[["SFSW2_prj_meta"]])
 ) {
   warning(
     "'SFSW2_prj_meta' has changed: ",
@@ -130,8 +130,8 @@ if (
   )
 }
 
-SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
-SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+SFSW2_prj_meta <- tmp[["SFSW2_prj_meta"]]
+SFSW2_prj_inputs <- tmp[["SFSW2_prj_inputs"]]
 
 
 
@@ -140,15 +140,15 @@ SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
 if (isTRUE(actions[["check_inputs"]])) {
 
-  temp <- check_rSFSW2_project_input_data(
+  tmp <- check_rSFSW2_project_input_data(
     SFSW2_prj_meta,
     SFSW2_prj_inputs,
     opt_chunks,
     opt_verbosity
   )
 
-  SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
-  SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+  SFSW2_prj_meta <- tmp[["SFSW2_prj_meta"]]
+  SFSW2_prj_inputs <- tmp[["SFSW2_prj_inputs"]]
 
   if (
     isTRUE(opt_verbosity[["verbose"]]) &&

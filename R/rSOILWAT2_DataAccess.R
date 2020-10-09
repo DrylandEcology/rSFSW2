@@ -42,7 +42,7 @@
 
 get_minVersion_rSOILWAT2 <- function() {
   tmp <- .split_dependencies(
-    x = utils::packageDescription(pkg = "rSFSW2", fields = "Depends")
+    x = utils::packageDescription(pkg = "rSFSW2", fields = "Imports")
   )
 
   ntmp <- sapply(tmp, function(x) x[["name"]])

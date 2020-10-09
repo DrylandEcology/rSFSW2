@@ -12,16 +12,17 @@ Description: Setting up, carrying out, and analyzing ecosystem water balance
     simulation experiments with SOILWAT2.
 Depends:
     R (>= 3.5.0),
+    methods
+Imports:
     rSOILWAT2 (>= 4.0.0),
     rSW2utils,
     rSW2st,
     rSW2data,
-    rSW2funs
-Imports:
+    rSW2funs,
     RSQLite (>= 2.1.1),
     raster (>= 2.5.8),
-    sp (>= 1.2.3),
-    methods
+    sf (>= 0.9.6),
+    sp (>= 1.2.3)
 Suggests:
     Rmpi (>= 0.6-3),
     parallel,
