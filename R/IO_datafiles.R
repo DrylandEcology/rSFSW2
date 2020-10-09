@@ -254,9 +254,10 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
             colnames(temp) <-  iv_locs[[it1]][it2]
             slot(sp_dat, "data") <- temp
 
-            if (!raster::compareCRS(sim_space[["crs_sites"]],
-              sim_space[["sim_crs"]])) {
-
+            if (
+              sf::st_crs(sim_space[["crs_sites"]]) !=
+              sf::st_crs(sim_space[["sim_crs"]])
+            ) {
               sp_dat <- sp::spTransform(sp_dat, CRS = sim_space[["sim_crs"]])
             }
 
@@ -265,18 +266,26 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
             # than implemented below
             stopifnot(raster::canProcessInMemory(sim_space[["sim_raster"]]))
 
-            if (!raster::compareCRS(sim_space[["crs_sites"]],
-              sim_space[["sim_crs"]])) {
+            if (
+              sf::st_crs(sim_space[["crs_sites"]]) ==
+              sf::st_crs(sim_space[["sim_crs"]])
+            ) {
+              tmp_rs <- sim_space[["run_sites"]]
 
-              temp <- sp::spTransform(sim_space[["run_sites"]],
-                CRS = sim_space[["sim_crs"]])
+            } else {
+              tmp_rs <- sp::spTransform(
+                sim_space[["run_sites"]],
+                CRS = sim_space[["sim_crs"]]
+              )
             }
 
             # init with NAs
-            sp_dat <- raster::init(sim_space[["sim_raster"]],
-              fun = function(x) rep(NA, x))
-            temp <- sp::coordinates(sim_space[["run_sites"]])
-            sp_dat[raster::cellFromXY(sp_dat, temp)] <- dat
+            sp_dat <- raster::init(
+              sim_space[["sim_raster"]],
+              fun = function(x) rep(NA, x)
+            )
+            tmp <- sp::coordinates(tmp_rs)
+            sp_dat[raster::cellFromXY(sp_dat, tmp)] <- dat
           }
 
           # Save to disk

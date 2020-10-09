@@ -108,14 +108,16 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem,
     dir_ex_ned <- file.path(dir_ex_dem, "NED_USA", "NED_1arcsec")
 
     # read raster data
-    g.elev <- raster::raster(file.path(dir_ex_ned,
-      "ned_1s_westernUS_GeogrNAD83.tif"))
-    crs_data <- raster::crs(g.elev)
+    g.elev <- raster::raster(
+      file.path(dir_ex_ned, "ned_1s_westernUS_GeogrNAD83.tif")
+    )
+    crs_data <- as(sf::st_crs(g.elev), "CRS")
 
     # locations of simulation runs
     sites_ned <- sim_space[["run_sites"]][todos, ]
+
     # Align with data crs
-    if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
+    if (sf::st_crs(sim_space[["crs_sites"]]) != sf::st_crs(crs_data)) {
       # transform points to grid-coords
       sites_ned <- sp::spTransform(sites_ned, CRS = crs_data)
     }
@@ -124,12 +126,21 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem,
       args_extract <- list(y = sites_ned, type = sim_space[["scorp"]])
 
     } else if (sim_space[["scorp"]] == "cell") {
-      cell_res_ned <- align_with_target_res(res_from = sim_space[["sim_res"]],
+      cell_res_ned <- align_with_target_res(
+        res_from = sim_space[["sim_res"]],
         crs_from = sim_space[["sim_crs"]],
         sp = sim_space[["run_sites"]][todos, ],
-        crs_sp = sim_space[["crs_sites"]], crs_to = crs_data)
-      args_extract <- list(y = cell_res_ned, coords = sites_ned,
-        method = "block", probs = MMC[["probs"]], type = sim_space[["scorp"]])
+        crs_sp = sim_space[["crs_sites"]],
+        crs_to = crs_data
+      )
+
+      args_extract <- list(
+        y = cell_res_ned,
+        coords = sites_ned,
+        method = "block",
+        probs = MMC[["probs"]],
+        type = sim_space[["scorp"]]
+      )
     }
 
     # extract data for locations:  elevation in m a.s.l.
@@ -203,12 +214,13 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space,
 
     # read raster data
     g.elev <- raster::raster(file.path(dir_ex_hwsd, "GloElev_30as.asc"))
-    crs_data <- raster::crs(g.elev)
+    crs_data <- as(sf::st_crs(g.elev), "CRS")
 
     # locations of simulation runs
     sites_hwsd <- sim_space[["run_sites"]][todos, ]
+
     # Align with data crs
-    if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
+    if (sf::st_crs(sim_space[["crs_sites"]]) != sf::st_crs(crs_data)) {
       # transform points to grid-coords
       sites_hwsd <- sp::spTransform(sites_hwsd, CRS = crs_data)
     }
@@ -217,12 +229,21 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space,
       args_extract <- list(y = sites_hwsd, type = sim_space[["scorp"]])
 
     } else if (sim_space[["scorp"]] == "cell") {
-      cell_res_hwsd <- align_with_target_res(res_from = sim_space[["sim_res"]],
+      cell_res_hwsd <- align_with_target_res(
+        res_from = sim_space[["sim_res"]],
         crs_from = sim_space[["sim_crs"]],
         sp = sim_space[["run_sites"]][todos, ],
-        crs_sp = sim_space[["crs_sites"]], crs_to = crs_data)
-      args_extract <- list(y = cell_res_hwsd, coords = sites_hwsd,
-        method = "block", probs = MMC[["probs"]], type = sim_space[["scorp"]])
+        crs_sp = sim_space[["crs_sites"]],
+        crs_to = crs_data
+      )
+
+      args_extract <- list(
+        y = cell_res_hwsd,
+        coords = sites_hwsd,
+        method = "block",
+        probs = MMC[["probs"]],
+        type = sim_space[["scorp"]]
+      )
     }
 
     #extract data for locations: elevation in m a.s.l.

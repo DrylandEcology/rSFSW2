@@ -110,19 +110,26 @@ extract_climate_NOAAClimAtlas <- function(MMC, sim_size, sim_space,
       # the last category is actually open '> 12.9 mph': I closed it
       # arbitrarily with 30 mph
 
-    stopifnot(colnames(MMC[["data"]]) == names(dir_noaaca),
+    stopifnot(
+      colnames(MMC[["data"]]) == names(dir_noaaca),
       colnames(MMC[["data"]]) == names(files_shp),
-      colnames(MMC[["data"]]) == names(var_codes))
+      colnames(MMC[["data"]]) == names(var_codes)
+    )
 
     #locations of simulation runs
     sites_noaaca <- sim_space[["run_sites"]][todos, ]
+
     # Align with data crs
     stopifnot(requireNamespace("rgdal"))
-    noaaca <- rgdal::readOGR(dsn = path.expand(dir_noaaca[["RH"]]),
-      layer = files_shp[["RH"]][1], verbose = FALSE)
-    crs_data <- raster::crs(noaaca)
+    noaaca <- rgdal::readOGR(
+      dsn = path.expand(dir_noaaca[["RH"]]),
+      layer = files_shp[["RH"]][1],
+      verbose = FALSE
+    )
 
-    if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
+    crs_data <- as(sf::st_crs(noaaca), "CRS")
+
+    if (sf::st_crs(sim_space[["crs_sites"]]) != sf::st_crs(crs_data)) {
       sites_noaaca <- sp::spTransform(sites_noaaca, CRS = crs_data)
     }
 
@@ -132,10 +139,18 @@ extract_climate_NOAAClimAtlas <- function(MMC, sim_size, sim_space,
     } else if (sim_space[["scorp"]] == "cell") {
       cell_res_noaaca <- align_with_target_res(
         res_from = sim_space[["sim_res"]],
-        crs_from = sim_space[["sim_crs"]], sp = sites_noaaca,
-        crs_sp = sim_space[["crs_sites"]], crs_to = crs_data)
-      args_extract <- list(y = cell_res_noaaca, coords = sites_noaaca,
-        crs_data = crs_data, type = sim_space[["scorp"]])
+        crs_from = sim_space[["sim_crs"]],
+        sp = sites_noaaca,
+        crs_sp = sim_space[["crs_sites"]],
+        crs_to = crs_data
+      )
+
+      args_extract <- list(
+        y = cell_res_noaaca,
+        coords = sites_noaaca,
+        crs_data = crs_data,
+        type = sim_space[["scorp"]]
+      )
     }
 
     # determine NOAA CA extractions to do

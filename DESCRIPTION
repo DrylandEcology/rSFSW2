@@ -19,8 +19,9 @@ Depends:
 Imports:
     RSQLite (>= 2.1.1),
     raster (>= 2.5.8),
-    sp (>= 1.2.3),
     methods
+    sf (>= 0.9.6),
+    sp (>= 1.2.3)
 Suggests:
     Rmpi (>= 0.6-3),
     parallel,

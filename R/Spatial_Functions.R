@@ -260,8 +260,8 @@ extract_SFSW2_cells_from_shp <- function(x, y, fields = NULL, code = NULL,
   if (!("probs" %in% names(dots)))
     dots[["probs"]] <- NA
 
-  if (!raster::compareCRS(raster::crs(y), raster::crs(x))) {
-    y <- sp::spTransform(y, CRS = raster::crs(x))
+  if (sf::st_crs(x) != sf::st_crs(y)) {
+    y <- sp::spTransform(y, CRS = as(sf::st_crs(x), "CRS"))
   }
 
   reagg <- reaggregate_shapefile(x = x, by = y, fields = fields, code = code)
@@ -492,7 +492,7 @@ reaggregate_raster <- function(x, coords, to_res = c(0, 0), with_weights = NULL,
     ptemp1 <- lapply(ptemp0, sp::Polygon)
     ptemp2 <- lapply(seq_along(ptemp1), function(i)
       sp::Polygons(ptemp1[i], ID = i))
-    ys <- sp::SpatialPolygons(ptemp2, proj4string = raster::crs(x))
+    ys <- sp::SpatialPolygons(ptemp2, proj4string = as(sf::st_crs(x), "CRS"))
 
   } else if (method == "block") {
     ys <- cxy
@@ -734,21 +734,19 @@ reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
 #' @export
 align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
 
-  if (is.null(crs_to)) crs_to <- raster::crs(grid_to)
+  if (is.null(crs_to)) crs_to <- as(sf::st_crs(grid_to), "CRS")
 
   # Align with data crs
-  if (raster::compareCRS(crs_to, raster::crs(grid_from))) {
+  if (sf::st_crs(crs_to) == sf::st_crs(grid_from)) {
     x <- grid_from
+
   } else {
     to_ext <- raster::projectExtent(grid_from, grid_to)
-    if (
-      identical(
-        rSW2st::crs_units(to_ext),
-        rSW2st::crs_units(grid_from)
-      )
-    ) {
+
+    if (identical(rSW2st::crs_units(to_ext), rSW2st::crs_units(grid_from))) {
       raster::res(to_ext) <- raster::res(grid_from)
     }
+
     raster::origin(to_ext) <- raster::origin(grid_to)
     x <- raster::projectRaster(grid_from, to = to_ext, method = "ngb")
   }
@@ -784,13 +782,14 @@ align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
 
   if (identical(rSW2st::crs_units(crs_from), rSW2st::crs_units(crs_to))) {
     res_from
+
   } else {
-    sp_from <- if (raster::compareCRS(crs_sp, crs_from)) {
-            sp
-          } else {
-            # transform graphics::points to same coordinate system as resolution
-            sp::spTransform(sp, CRS = crs_from)
-          }
+    sp_from <- if (sf::st_crs(crs_sp) == sf::st_crs(crs_from)) {
+      sp
+    } else {
+      # transform graphics::points to same coordinate system as resolution
+      sp::spTransform(sp, CRS = crs_from)
+    }
 
     # resolution is constant for every point in crs_from
     coords_from <- sp::coordinates(sp_from)
@@ -843,16 +842,22 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 
   if (use_sim_spatial) {
     if (sim_space[["scorp"]] == "cell") {
+
       if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])) {
+
         # Make sure sim_raster agrees with sim_res and sim_crs;
         # sim_raster takes priority
         sim_space[["sim_raster"]] <- raster::raster(
           SFSW2_prj_meta[["fnames_in"]][["fsimraster"]]
         )
+
         stopifnot(inherits(sim_space[["sim_raster"]], "Raster"))
 
         sim_space[["sim_res"]] <- raster::res(sim_space[["sim_raster"]])
-        sim_space[["sim_crs"]] <- raster::crs(sim_space[["sim_raster"]])
+        sim_space[["sim_crs"]] <- as(
+          sf::st_crs(sim_space[["sim_raster"]]),
+          "CRS"
+        )
 
       } else {
         sim_space[["sim_res"]] <- SFSW2_prj_meta[["in_space"]][["sim_res"]]
@@ -867,46 +872,20 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     }
 
     #--- Make sure that sim_crs is valid
-    if (
-      is.na(sim_space[["sim_crs"]]) &&
-      is.character(SFSW2_prj_meta[["in_space"]][["sim_crs"]])
-    ) {
+    if (is.na(sim_space[["sim_crs"]])) {
+      sim_space[["sim_crs"]] <- try(as(
+        sf::st_crs(SFSW2_prj_meta[["in_space"]][["sim_crs"]]),
+        "CRS"
+      ))
 
-      sim_space[["sim_crs"]] <- sp::CRS(
-        SFSW2_prj_meta[["in_space"]][["sim_crs"]]
-      )
-    }
-
-    checking_crs <- requireNamespace(
-      "rgdal",
-      versionCheck = list(op = ">=", version = "1.5.8")
-    )
-
-    if (checking_crs) {
-      tmp_crs <- sf::st_crs(sim_space[["sim_crs"]])
-      tmp <- try(rgdal::checkCRSArgs_ng(tmp_crs$Wkt))
-
-      if (!inherits(tmp, "try-error") && isTRUE(tmp[[1]])) {
-        sim_space[["sim_crs"]] <- sp::CRS(tmp[[2]])
-
-      } else {
-        checking_crs <- FALSE
+      if (inherits(sim_space[["sim_crs"]], "try-error")) {
+        stop("Invalid coordinate reference system: ", sim_space[["sim_crs"]])
       }
     }
 
-    if (!checking_crs) {
-      warning(
-        "'setup_spatial_simulation': validity of 'sim_crs' is ",
-        "not checked because package 'rgdal' is not available/working or ",
-        "'sim_crs' has been checked and is invalid: ",
-        shQuote(temp_crs)
-      )
-    }
+    #--- SpatialPoints of simulation cell centers/sites in WGS84 (epsg:4326)
+    sim_space[["crs_sites"]] <- as(sf::st_crs(4326), "CRS")
 
-
-    #--- SpatialPoints of simulation cell centers/sites in WGS84
-    # epsg:4326 is sp::CRS("+proj = longlat +datum = WGS84 +no_defs")
-    sim_space[["crs_sites"]] <- sp::CRS("+init=epsg:4326")
     sim_space[["run_sites"]] <- sp::SpatialPoints(
       coords = SFSW2_prj_inputs[["SWRunInformation"]][
         SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],

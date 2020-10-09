@@ -133,12 +133,13 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
     ils <- seq_len(layer_N)
 
     g <- raster::brick(file.path(dir.ex.conus, "bd.tif"))
-    crs_data <- raster::crs(g)
+    crs_data <- as(sf::st_crs(g), "CRS")
 
     #locations of simulation runs
     sites_conus <- sim_space[["run_sites"]][todos, ]
+
     # Align with data crs
-    if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
+    if (sf::st_crs(sim_space[["crs_sites"]]) != sf::st_crs(crs_data)) {
       sites_conus <- sp::spTransform(sites_conus, CRS = crs_data)
     }
 
@@ -147,12 +148,19 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
       args_extract <- list(y = sites_conus, type = sim_space[["scorp"]])
 
     } else if (sim_space[["scorp"]] == "cell") {
-      cell_res_conus <- align_with_target_res(res_from = sim_space[["sim_res"]],
+      cell_res_conus <- align_with_target_res(
+        res_from = sim_space[["sim_res"]],
         crs_from = sim_space[["sim_crs"]],
         sp = sim_space[["run_sites"]][todos, ],
-        crs_sp = sim_space[["crs_sites"]], crs_to = crs_data)
-      args_extract <- list(y = cell_res_conus, coords = sites_conus,
-        method = "block", type = sim_space[["scorp"]])
+        crs_sp = sim_space[["crs_sites"]],
+        crs_to = crs_data
+      )
+      args_extract <- list(
+        y = cell_res_conus,
+        coords = sites_conus,
+        method = "block",
+        type = sim_space[["scorp"]]
+      )
     }
 
     #---extract data
@@ -643,9 +651,13 @@ extract_soil_ISRICWISE <- function(MMC, sim_size, sim_space,
         fraction = 1, stringsAsFactors = FALSE)
 
     } else if (sim_space[["scorp"]] == "cell") {
-      cell_res_wise <- align_with_target_res(res_from = sim_space[["sim_res"]],
-        crs_from = sim_space[["sim_crs"]], sp = run_sites_wise,
-        crs_sp = sim_space[["crs_sites"]], crs_to = raster::crs(grid_wise))
+      cell_res_wise <- align_with_target_res(
+        res_from = sim_space[["sim_res"]],
+        crs_from = sim_space[["sim_crs"]],
+        sp = run_sites_wise,
+        crs_sp = sim_space[["crs_sites"]],
+        crs_to = as(sf::st_crs(grid_wise), "CRS")
+      )
 
       if (SFSW2_glovars[["p_has"]]) {
 
