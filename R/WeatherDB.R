@@ -307,15 +307,19 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     }
 
     if (length(ids_NCEPCFSR_extraction) > 0) {
-      if (is.null(SFSW2_prj_meta[["prepd_CFSR"]]) ||
+      if (
+        is.null(SFSW2_prj_meta[["prepd_CFSR"]]) ||
         inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error") ||
-        !dir.exists(SFSW2_prj_meta[["prepd_CFSR"]][["dir_ex_cfsr"]])) {
+        !dir.exists(SFSW2_prj_meta[["prepd_CFSR"]][["dir_ex_cfsr"]])
+      ) {
 
         SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
           dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
           dir.cfsr.data =
-            SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]))
+            SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]
+        ))
       }
+
       stopifnot(!inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error"))
 
       irow <- add_runIDs_sites[ids_NCEPCFSR_extraction]
@@ -372,20 +376,32 @@ check_dbWeather_version <- function(fdbWeather) {
 prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data,
   dir.cfsr.code = dir.cfsr.data) {
 
-  # nolint start
-  writeLines(c("'NCEPCFSR' extractions: make sure the following conditions are met:",
-    "  1) Compiled 'wgrib2' executable is located in '/opt/local/bin/' or in 'dir_in/ncepcfsr/'",
-    "     Instructions for how to compile 'wgrib2' can be found in the 'ncepcfsr_convert.c'.",
-    "     The code of wgrib2 is available from ",
-    "         http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/",
-    "  3) Appropriate grib files (the data) are located in directory 'dir.cfsr.data'. ",
-    "     Info about the gribfiles is in 'ncepcfsr_convert.c'"))
-  # nolint end
+  msg <- c(
+    "'NCEPCFSR' extractions: make sure the following conditions are met:",
+    paste(
+      "\t1) Compiled 'wgrib2' executable is located at '/opt/local/bin/'",
+      "or 'dir_in/ncepcfsr/'"
+    ),
+    paste(
+      "\tInstructions for how to compile 'wgrib2' can be found in ",
+      "the 'ncepcfsr_convert.c'."
+    ),
+    "\tThe code of wgrib2 is available from ",
+    "\t\thttp://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/",
+    paste(
+      "\t3) Appropriate grib files (the data) are located",
+      "in directory 'dir.cfsr.data'. "
+    ),
+    "\tInfo about the gribfiles is in 'ncepcfsr_convert.c'"
+  )
+  cat(msg, sep = "\n")
 
-  dir.create(dir_ex_cfsr <- file.path(dir_in, "ncepcfsr"), showWarnings = FALSE)
+  dir_ex_cfsr <- file.path(dir_in, "ncepcfsr")
+  dir.create(dir_ex_cfsr, showWarnings = FALSE)
 
-  #Check for wgrib2 (http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/)
-  if (!file.exists(wgrib2 <- file.path(dir_ex_cfsr, "wgrib2"))) {
+  # Check for wgrib2 (http://www.cpc.ncep.noaa.gov/products/wesley/wgrib2/)
+  wgrib2 <- file.path(dir_ex_cfsr, "wgrib2")
+  if (!file.exists(wgrib2)) {
     tmp <- Sys.which("wgrib2")
     path_wgrib2 <- if (nchar(tmp) > 0) {
         tmp
@@ -400,7 +416,7 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data,
     file.copy(from = path_wgrib2, to = wgrib2)
   }
 
-  #Soft link to gribbed data
+  # Soft link to gribbed data
   fname_gribDir <- "griblargeC2"
   dir.grib <- file.path(dir_ex_cfsr, fname_gribDir)
   if (!file.exists(dir.grib)) {
@@ -409,18 +425,28 @@ prepare_NCEPCFSR_extraction <- function(dir_in, dir.cfsr.data,
     # file.exists() because the link is 'dead' (but it is still listed by
     # list.files()) then use options -F -f to remove the link before creating
     # a new one -- otherwise, the command 'ln' reports an error
-    stopifnot(system2(command = "ln", args = paste("-sFf",
-      shQuote(file.path(dir.cfsr.data, fname_gribDir)),
-      shQuote(dir.grib))) == 0)
+    tmp_soft_link_to_gribbed_CFSR <- system2(
+      command = "ln",
+      args = paste(
+        "-sFf",
+        shQuote(file.path(dir.cfsr.data, fname_gribDir)),
+        shQuote(dir.grib)
+      )
+    )
+
+    stopifnot(tmp_soft_link_to_gribbed_CFSR == 0)
   }
 
-  #Set up temporary directory for C code to store objects
-  if (file.exists(ftemp <- file.path(dir_ex_cfsr, "temporary_dy"))) {
-    unlink(ftemp, recursive = TRUE)
+  # Set up temporary directory for C code to store objects
+  ftmp <- file.path(dir_ex_cfsr, "temporary_dy")
+  if (file.exists(ftmp)) {
+    unlink(ftmp, recursive = TRUE)
   }
-  temp <- lapply(lapply(c("tmax", "tmin", "ppt"), FUN = function(x)
-    file.path(ftemp, x)), FUN = function(x)
-      dir.create(x, recursive = TRUE, showWarnings = FALSE))
+
+  tmp <- lapply(
+    file.path(ftmp, c("tmax", "tmin", "ppt")),
+    FUN = function(x) dir.create(x, recursive = TRUE, showWarnings = FALSE)
+  )
 
   list(dir_ex_cfsr = dir_ex_cfsr)
 }
@@ -607,30 +633,61 @@ get_DayMet_cellID <- function(coords_WGS84) {
   # Determine 1-km cell that contains requested location
   res_DayMet <- 1000L
 
-  proj_LCC <- sp::CRS(paste("+proj=lcc +lat_1=25 +lat_2=60 +lat_0=42.5",
-    "+lon_0=-100 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
-    "+ellps=WGS84 +towgs84=0,0,0"))
-  proj_WGS84 <- sp::CRS(paste("+init=epsg:4326 +proj=longlat +ellps=WGS84",
-    "+datum=WGS84 +no_defs +towgs84=0,0,0"))
+  # Lambert Conformal Conic (LCC) projection
+  # https://daymet.ornl.gov/overview
+  proj_LCC <- as(
+    sf::st_crs(
+      paste(
+        "+proj=lcc +lat_1=25 +lat_2=60 +lat_0=42.5",
+        "+lon_0=-100 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs",
+        "+ellps=WGS84 +towgs84=0,0,0"
+      )
+    ),
+    "CRS"
+  )
 
-  xy_LCC <- sp::coordinates(sp::spTransform(sp::SpatialPoints(
-    coords = coords_WGS84, proj4string = proj_WGS84), proj_LCC))
+  proj_WGS84 <- as(sf::st_crs(4326), "CRS")
+
+  xy_LCC <- sp::coordinates(
+    sp::spTransform(
+      sp::SpatialPoints(
+        coords = coords_WGS84,
+        proj4string = proj_WGS84
+      ),
+      proj_LCC
+    )
+  )
 
   dm_LCC <- floor(xy_LCC / res_DayMet)
   # Origin at lower-lef corner (-2015000, -3037000)
     ## ==> (0, 0)- cell includes xlim = [0, 1000[ and ylim = [0, 1000[
     ## ==> at 100-m and 1-m scale: ok; but some deviations at 0.5-m scale
 
-  cellID <- apply(dm_LCC, 1, FUN = function(chr) paste0("daymet_pixel_",
-    if (chr[1] < 0) "-" else "+",
-    formatC(abs(chr[1]), width = 6, flag = "0", format = "d"), "_",
-    if (chr[2] < 0) "-" else "+",
-    formatC(abs(chr[2]), width = 6, flag = "0", format = "d")))
+  cellID <- apply(
+    dm_LCC,
+    MARGIN = 1,
+    FUN = function(chr) {
+      paste0(
+        "daymet_pixel_",
+        if (chr[1] < 0) "-" else "+",
+        formatC(abs(chr[1]), width = 6, flag = "0", format = "d"), "_",
+        if (chr[2] < 0) "-" else "+",
+        formatC(abs(chr[2]), width = 6, flag = "0", format = "d")
+      )
+    }
+  )
 
   # center of 1-km cells to avoid projection errors at cell margins
   dm_LCC <- res_DayMet * dm_LCC + 500
-  dm_WGS84 <- sp::coordinates(sp::spTransform(sp::SpatialPoints(
-    coords = dm_LCC, proj4string = proj_LCC), proj_WGS84))
+  dm_WGS84 <- sp::coordinates(
+    sp::spTransform(
+      sp::SpatialPoints(
+        coords = dm_LCC,
+        proj4string = proj_LCC
+      ),
+      proj_WGS84
+    )
+  )
 
   list(cellID = cellID, dm_LCC = dm_LCC, dm_WGS84 = dm_WGS84)
 }
@@ -930,13 +987,14 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
   stopifnot(years %in% NRC_target_years)
 
   vars <- c("max", "min", "pcp") # units = C, C, mm/day
-  prj_geographicWGS84 <- sp::CRS(paste("+init=epsg:4326 +proj=longlat",
-    "+ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0"))
-  prj_geographicNAD83 <- sp::CRS(paste("+init=epsg:4269 +proj=longlat",
-    "+ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0"))
 
-  sp_locs <- sp::SpatialPoints(coords = coords_WGS84,
-    proj4string = prj_geographicWGS84)
+  prj_geographicWGS84 <- as(sf::st_crs(4326), "CRS")
+  prj_geographicNAD83 <- as(sf::st_crs(4269), "CRS")
+
+  sp_locs <- sp::SpatialPoints(
+    coords = coords_WGS84,
+    proj4string = prj_geographicWGS84
+  )
   sp_locs <- sp::spTransform(sp_locs, CRSobj = prj_geographicNAD83)
 
   if (SFSW2_glovars[["p_has"]])
@@ -1126,17 +1184,22 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE,
         Rmpi::mpi.bcast.cmd(cmd = setwd, dir = dir_ex_cfsr)
 
       } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
-        parallel::clusterCall(SFSW2_glovars[["p_cl"]], fun = setwd,
-          dir = dir_ex_cfsr)
+        parallel::clusterCall(
+          SFSW2_glovars[["p_cl"]],
+          fun = setwd,
+          dir = dir_ex_cfsr
+        )
       }
     }
 
     for (k in seq_along(do_sites)) {
-      print(paste(Sys.time(), ": NCEP/CFSR extraction of",
+      print(paste(
+        Sys.time(), ": NCEP/CFSR extraction of",
         if (daily) "daily",
         if (daily && monthly) "and",
         if (monthly) "monthly",
-        "data: chunk", k, "of", length(do_sites)))
+        "data: chunk", k, "of", length(do_sites)
+      ))
 
       nDailyReads <- nDailyWrites <- nMonthlyReads <- nMonthlyWrites <- 0
       ntemp <- length(do_sites[[k]])
@@ -1146,8 +1209,10 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE,
       dtemp <- dir_temp.sitesC[irows]
 
       if (print.debug) {
-        print(paste(Sys.time(), "cfsr chunk", k, ": # open R files",
-          system2(command = "lsof", args = "-c R | wc -l", stdout = TRUE)))
+        print(paste(
+          Sys.time(), "cfsr chunk", k, ": # open R files",
+          system2(command = "lsof", args = "-c R | wc -l", stdout = TRUE)
+        ))
       }
 
       if (SFSW2_glovars[["p_has"]]) {
@@ -1218,11 +1283,19 @@ get_NCEPCFSR_data <- function(dat_sites, daily = FALSE, monthly = FALSE,
           }
 
           if (monthly) {
-            nMonthlyReads <- lapply(X = 0L:(n_climvars - 1L),
-              FUN = gribMonthlyClimate, nSites = ntemp, latitudes = lats,
-              longitudes = longs, siteDirsC = dtemp, yearLow = yearLow,
-              yearHigh = yearHigh, print.debug = print.debug)
+            nMonthlyReads <- lapply(
+              X = 0L:(n_climvars - 1L),
+              FUN = gribMonthlyClimate,
+              nSites = ntemp,
+              latitudes = lats,
+              longitudes = longs,
+              siteDirsC = dtemp,
+              yearLow = yearLow,
+              yearHigh = yearHigh,
+              print.debug = print.debug
+            )
           }
+
           if (monthly && k == length(do_sites)) {
             # only do at the end
             nMonthlyWrites <- lapply(X = seq_len(n_sites_all),
@@ -1501,10 +1574,12 @@ extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids,
     xy_wgs84 <- apply(coords, 2, conv_res)
 
     # Create coordinates as spatial points for extraction with raster layers
-    prj_geographicWGS84 <- sp::CRS(paste("+proj=longlat +ellps=WGS84",
-      "+datum=WGS84 +no_defs +towgs84=0,0,0"))
-    sp_locs  <- sp::SpatialPoints(coords = xy_wgs84,
-      proj4string = prj_geographicWGS84)
+    prj_geographicWGS84 <- as(sf::st_crs(4326), "CRS")
+
+    sp_locs <- sp::SpatialPoints(
+      coords = xy_wgs84,
+      proj4string = prj_geographicWGS84
+    )
 
     # Create necessary variables and containers for extraction
     seq_years <-  seq(year_range[["start_year"]], year_range[["end_year"]])
@@ -1818,9 +1893,10 @@ extract_daily_weather_from_gridMET <- function(dir_data, site_ids,
   fnames_gridMET <- find_gridMET_files(dir_data, desc[["vars"]])
 
   # Create coordinates as spatial points for extraction with raster layers
-  prj_geographicWGS84 <- sp::CRS(paste("+proj=longlat +ellps=WGS84",
-    "+datum=WGS84 +no_defs +towgs84=0,0,0"))
-  sp_locs  <- sp::SpatialPoints(coords = coords,
+  prj_geographicWGS84 <- as(sf::st_crs(4326), "CRS")
+
+  sp_locs  <- sp::SpatialPoints(
+    coords = coords,
     proj4string = prj_geographicWGS84
   )
 
@@ -2080,12 +2156,18 @@ dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat,
     if (any(there) && file.exists(ftemp)) {
       nrc_test <- raster::raster(ftemp)
       # see http://spatialreference.org/ref/epsg/4269/
-      raster::crs(nrc_test) <- raster::crs(paste("+init=epsg:4269",
-        " +proj=longlat +ellps=GRS80 +datum=NAD83 +no_defs +towgs84=0,0,0"))
-      sp_locs <- sp::SpatialPoints(coords = site_dat[, c("X_WGS84", "Y_WGS84")],
-        proj4string = raster::crs(paste("+init=epsg:4326 +proj=longlat",
-        "+ellps=WGS84 +datum=WGS84 +no_defs +towgs84=0,0,0")))
-      temp <- sp::spTransform(sp_locs, CRSobj = raster::crs(nrc_test))
+      raster::crs(nrc_test) <- as(sf::st_crs(4269), "CRS")
+
+      sp_locs <- sp::SpatialPoints(
+        coords = site_dat[, c("X_WGS84", "Y_WGS84")],
+        proj4string = as(sf::st_crs(4326), "CRS")
+      )
+
+      temp <- sp::spTransform(
+        sp_locs,
+        CRSobj = as(sf::st_crs(nrc_test), "CRS")
+      )
+
       temp <- raster::extract(nrc_test, y = temp)
       there <- !is.na(temp)
 
@@ -2117,9 +2199,10 @@ dw_Livneh2013_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
 
     if (any(there) && file.exists(ftemp)) {
       livneh_test <- raster::raster(ftemp, varname = "Prec")
-      sp_locs <- sp::SpatialPoints(coords = site_dat[, c("X_WGS84", "Y_WGS84")],
-        proj4string = sp::CRS(paste("+proj=longlat +ellps=WGS84 +datum=WGS84",
-          "+no_defs +towgs84=0,0,0")))
+      sp_locs <- sp::SpatialPoints(
+        coords = site_dat[, c("X_WGS84", "Y_WGS84")],
+        proj4string = as(sf::st_crs(4326), "CRS")
+      )
       there <- !is.na(raster::extract(livneh_test, y = sp_locs))
 
       if (any(there)) {
@@ -2159,7 +2242,7 @@ dw_gridMET_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
       if (any(there) && file.exists(ftemp)) {
         sp_locs <- sp::SpatialPoints(
           coords = site_dat[, c("X_WGS84", "Y_WGS84")],
-          proj4string = sp::CRS("+init=epsg:4326") # WGS84
+          proj4string = as(sf::st_crs(4326), "CRS")
         )
 
         ftmp <- raster::raster(ftemp, band = 1)
@@ -2168,7 +2251,7 @@ dw_gridMET_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
         # information of gridMET file(s)
         if (!grepl("+datum=WGS84", raster::crs(ftmp, asText = TRUE))) {
           warning("`dw_gridMET_NorthAmerica()`: overrides CRS of gridMET data.")
-          raster::crs(ftmp) <- sp::CRS("+init=epsg:4326")
+          raster::crs(ftmp) <- as(sf::st_crs(4326), "CRS")
         }
 
         there <- !is.na(raster::extract(ftmp, y = sp_locs))

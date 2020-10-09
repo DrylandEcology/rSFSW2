@@ -260,8 +260,8 @@ extract_SFSW2_cells_from_shp <- function(x, y, fields = NULL, code = NULL,
   if (!("probs" %in% names(dots)))
     dots[["probs"]] <- NA
 
-  if (!raster::compareCRS(raster::crs(y), raster::crs(x))) {
-    y <- sp::spTransform(y, CRS = raster::crs(x))
+  if (sf::st_crs(x) != sf::st_crs(y)) {
+    y <- sp::spTransform(y, CRS = as(sf::st_crs(x), "CRS"))
   }
 
   reagg <- reaggregate_shapefile(x = x, by = y, fields = fields, code = code)
@@ -492,7 +492,7 @@ reaggregate_raster <- function(x, coords, to_res = c(0, 0), with_weights = NULL,
     ptemp1 <- lapply(ptemp0, sp::Polygon)
     ptemp2 <- lapply(seq_along(ptemp1), function(i)
       sp::Polygons(ptemp1[i], ID = i))
-    ys <- sp::SpatialPolygons(ptemp2, proj4string = raster::crs(x))
+    ys <- sp::SpatialPolygons(ptemp2, proj4string = as(sf::st_crs(x), "CRS"))
 
   } else if (method == "block") {
     ys <- cxy
@@ -713,28 +713,6 @@ reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
 
 
 
-#' Extracts the \var{sQuote{units}} argument from a \var{CRS} object
-#'
-#' @param CRS A \code{\link[raster:Raster-class]{raster::Raster}},
-#'   \code{\link[sp:Spatial-class]{sp::Spatial}},
-#'   \code{\link[sp:CRS-class]{sp::CRS}}, or character object with a
-#'   coordinate reference system (\var{CRS}).
-#' @return A character string or \code{NA}.
-#' @export
-crs_units <- function(CRS) {
-  args_crs <- raster::crs(CRS, asText = TRUE)
-  stopifnot(inherits(args_crs, "character"))
-  if (requireNamespace("rgdal", quietly = TRUE)) {
-    stopifnot(rgdal::checkCRSArgs(args_crs)[[1]])
-  }
-
-  args2 <- strsplit(args_crs, split = "+", fixed = TRUE)[[1]]
-  units <- trimws(args2[grep("units", args2)])
-  if (length(units) > 0) {
-    strsplit(units, split = "=", fixed = TRUE)[[1]][2]
-  } else NA
-}
-
 #' Aligns \code{grid_from} with \code{grid_to} for certain cells
 #'
 #' @param grid_from A
@@ -756,16 +734,19 @@ crs_units <- function(CRS) {
 #' @export
 align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
 
-  if (is.null(crs_to)) crs_to <- raster::crs(grid_to)
+  if (is.null(crs_to)) crs_to <- as(sf::st_crs(grid_to), "CRS")
 
   # Align with data crs
-  if (raster::compareCRS(crs_to, raster::crs(grid_from))) {
+  if (sf::st_crs(crs_to) == sf::st_crs(grid_from)) {
     x <- grid_from
+
   } else {
     to_ext <- raster::projectExtent(grid_from, grid_to)
-    if (identical(crs_units(to_ext), crs_units(grid_from))) {
+
+    if (identical(rSW2st::crs_units(to_ext), rSW2st::crs_units(grid_from))) {
       raster::res(to_ext) <- raster::res(grid_from)
     }
+
     raster::origin(to_ext) <- raster::origin(grid_to)
     x <- raster::projectRaster(grid_from, to = to_ext, method = "ngb")
   }
@@ -799,15 +780,16 @@ align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
 #' @export
 align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
 
-  if (identical(crs_units(crs_from), crs_units(crs_to))) {
+  if (identical(rSW2st::crs_units(crs_from), rSW2st::crs_units(crs_to))) {
     res_from
+
   } else {
-    sp_from <- if (raster::compareCRS(crs_sp, crs_from)) {
-            sp
-          } else {
-            # transform graphics::points to same coordinate system as resolution
-            sp::spTransform(sp, CRS = crs_from)
-          }
+    sp_from <- if (sf::st_crs(crs_sp) == sf::st_crs(crs_from)) {
+      sp
+    } else {
+      # transform graphics::points to same coordinate system as resolution
+      sp::spTransform(sp, CRS = crs_from)
+    }
 
     # resolution is constant for every point in crs_from
     coords_from <- sp::coordinates(sp_from)
@@ -843,89 +825,108 @@ align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
 setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   use_sim_spatial = FALSE, verbose = FALSE) {
 
-  sim_space <- list(scorp = NA, run_sites = NA, sim_raster = NA, crs_sites = NA,
-    sim_res = NA, sim_crs = NA)
+  sim_space <- list(
+    scorp = NA,
+    run_sites = NA,
+    sim_raster = NA,
+    crs_sites = NA,
+    sim_res = NA,
+    sim_crs = NA
+  )
 
   #--- Make sure that flag 'scorp' has a valid option
-  sim_space[["scorp"]] <- match.arg(SFSW2_prj_meta[["in_space"]][["scorp"]],
-    c("point", "cell"))
+  sim_space[["scorp"]] <- match.arg(
+    arg = SFSW2_prj_meta[["in_space"]][["scorp"]],
+    choices = c("point", "cell")
+  )
 
   if (use_sim_spatial) {
     if (sim_space[["scorp"]] == "cell") {
+
       if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])) {
+
         # Make sure sim_raster agrees with sim_res and sim_crs;
         # sim_raster takes priority
         sim_space[["sim_raster"]] <- raster::raster(
-          SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])
+          SFSW2_prj_meta[["fnames_in"]][["fsimraster"]]
+        )
+
         stopifnot(inherits(sim_space[["sim_raster"]], "Raster"))
 
         sim_space[["sim_res"]] <- raster::res(sim_space[["sim_raster"]])
-        sim_space[["sim_crs"]] <- raster::crs(sim_space[["sim_raster"]])
+        sim_space[["sim_crs"]] <- as(
+          sf::st_crs(sim_space[["sim_raster"]]),
+          "CRS"
+        )
 
       } else {
         sim_space[["sim_res"]] <- SFSW2_prj_meta[["in_space"]][["sim_res"]]
       }
 
       # Make sure that sim_res is valid
-      stopifnot(is.finite(sim_space[["sim_res"]]),
-        length(sim_space[["sim_res"]]) == 2L, sim_space[["sim_res"]] > 0)
+      stopifnot(
+        is.finite(sim_space[["sim_res"]]),
+        length(sim_space[["sim_res"]]) == 2L,
+        sim_space[["sim_res"]] > 0
+      )
     }
 
     #--- Make sure that sim_crs is valid
-    if (is.na(sim_space[["sim_crs"]]) &&
-      is.character(SFSW2_prj_meta[["in_space"]][["sim_crs"]])) {
+    if (is.na(sim_space[["sim_crs"]])) {
+      sim_space[["sim_crs"]] <- try(as(
+        sf::st_crs(SFSW2_prj_meta[["in_space"]][["sim_crs"]]),
+        "CRS"
+      ))
 
-      sim_space[["sim_crs"]] <-
-        sp::CRS(SFSW2_prj_meta[["in_space"]][["sim_crs"]])
-    }
-
-    # package 'raster' must be loaded so that method 'CRS' for
-    # 'as.character' is available
-    temp_crs <- as.character(sim_space[["sim_crs"]])
-    if (requireNamespace("rgdal", quietly = TRUE)) {
-      temp <- rgdal::checkCRSArgs(temp_crs)
-      stopifnot(temp[[1]])
-      sim_space[["sim_crs"]] <- sp::CRS(temp[[2]])
-
-    } else {
-      if (verbose) {
-        print(paste("'setup_spatial_simulation': validity of 'sim_crs' is",
-          "not checked because package 'rgdal' is not available:",
-          shQuote(temp_crs)))
+      if (inherits(sim_space[["sim_crs"]], "try-error")) {
+        stop("Invalid coordinate reference system: ", sim_space[["sim_crs"]])
       }
     }
 
-    #--- SpatialPoints of simulation cell centers/sites in WGS84
-    # epsg:4326 is sp::CRS("+proj = longlat +datum = WGS84 +no_defs")
-    sim_space[["crs_sites"]] <- sp::CRS("+init=epsg:4326")
-    sim_space[["run_sites"]] <- sp::SpatialPoints(coords =
-      SFSW2_prj_inputs[["SWRunInformation"]][
+    #--- SpatialPoints of simulation cell centers/sites in WGS84 (epsg:4326)
+    sim_space[["crs_sites"]] <- as(sf::st_crs(4326), "CRS")
+
+    sim_space[["run_sites"]] <- sp::SpatialPoints(
+      coords = SFSW2_prj_inputs[["SWRunInformation"]][
         SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],
-        c("X_WGS84", "Y_WGS84")],
-      proj4string = sim_space[["crs_sites"]])
+        c("X_WGS84", "Y_WGS84")
+      ],
+      proj4string = sim_space[["crs_sites"]]
+    )
 
     #--- Create raster from simulation cells if not existing
     # (is this really needed?)
-    if (sim_space[["scorp"]] == "cell" &&
-      !inherits(sim_space[["sim_raster"]], "Raster")) {
+    if (
+      sim_space[["scorp"]] == "cell" &&
+      !inherits(sim_space[["sim_raster"]], "Raster")
+    ) {
 
       temp <- sim_space[["run_sites"]]
       ttemp <- try(sp::gridded(temp) <- TRUE)
 
       if (!inherits(ttemp, "try-error") && isTRUE(ttemp)) {
         sim_space[["sim_raster"]] <- raster::raster(temp)
-        cells <- raster::cellFromXY(sim_space[["sim_raster"]],
-          sp::coordinates(sim_space[["run_sites"]]))
+
+        cells <- raster::cellFromXY(
+          sim_space[["sim_raster"]],
+          xy = sp::coordinates(sim_space[["run_sites"]])
+        )
         sim_space[["sim_raster"]][cells] <- 1L
 
-        raster::writeRaster(sim_space[["sim_raster"]],
-          file = SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])
+        raster::writeRaster(
+          sim_space[["sim_raster"]],
+          file = SFSW2_prj_meta[["fnames_in"]][["fsimraster"]]
+        )
 
       } else {
-        print(paste0("rSFSW2's ", shQuote(match.call()[1]), ": failed to ",
-          "create 'sim_raster' because 'run_sites' are not gridded even ",
-          "though the project  description 'sim_space[['scorp']]' declares ",
-          "that they represent cells."))
+        print(
+          paste0(
+            "rSFSW2's ", shQuote(match.call()[1]), ": failed to ",
+            "create 'sim_raster' because 'run_sites' are not gridded even ",
+            "though the project  description 'sim_space[['scorp']]' declares ",
+            "that they represent cells."
+          )
+        )
       }
     }
   }

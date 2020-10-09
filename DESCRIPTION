@@ -1,6 +1,6 @@
 Package: rSFSW2
 Title: Simulation Framework for SOILWAT2
-Version: 4.3.0
+Version: 4.3.1
 Authors@R: c(
   person("Daniel", "Schlaepfer", email = "daniel.schlaepfer@alumni.ethz.ch",
     comment = c(ORCID = "0000-0001-9973-2065"), role = c("aut", "cre")),
@@ -12,14 +12,16 @@ Description: Setting up, carrying out, and analyzing ecosystem water balance
     simulation experiments with SOILWAT2.
 Depends:
     R (>= 3.5.0),
+    methods
+Imports:
     rSOILWAT2 (>= 4.0.0),
     rSW2utils,
-    rSW2funs
-Imports:
+    rSW2st,
+    rSW2funs,
     RSQLite (>= 2.1.1),
     raster (>= 2.5.8),
-    sp (>= 1.2.3),
-    methods
+    sf (>= 0.9.6),
+    sp (>= 1.2.3)
 Suggests:
     Rmpi (>= 0.6-3),
     parallel,
@@ -47,6 +49,10 @@ Suggests:
     goodpractice,
     pkgload
 Remotes:
+    github::DrylandEcology/rSW2utils,
+    github::DrylandEcology/rSW2st,
+    github::DrylandEcology/rSOILWAT2,
+    github::DrylandEcology/rSW2funs,
     github::dschlaep/weathergen
 LazyData: true
 ByteCompile: true
@@ -54,7 +60,7 @@ NeedsCompilation: yes
 License: GPL-3 + file LICENSE
 URL: https://github.com/DrylandEcology/rSFSW2
 BugReports: https://github.com/DrylandEcology/rSFSW2/issues
-RoxygenNote: 7.1.0
+RoxygenNote: 7.1.1
 VignetteBuilder: knitr
 Language: en-US
 Encoding: UTF-8

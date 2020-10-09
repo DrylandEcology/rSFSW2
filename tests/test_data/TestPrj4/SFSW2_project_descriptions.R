@@ -337,7 +337,7 @@ opt_out_fix <- list(
 #   locations provided in 'SWRunInformation' as point locations (1D-sites) or
 #   as means of 2D-cells
 # If `scorp`` is "cell" then provide either valid path to 'fsimraster'
-#   (takes precedence) or (grid resolution and grid crs)
+#   (takes precedence) or (grid resolution and grid crs/epsg)
 # Currently, implemented for
 #   - create maps during input checks
 #   - external extractions:
@@ -350,14 +350,14 @@ opt_out_fix <- list(
 in_space <- list(
   scorp = scorp <- "point",
 
-  # Resolution of raster cells
+  # Resolution of raster cells in units of raster
   sim_res = if (scorp == "cell") c(1e4, 1e4) else NA,
-  # Coordinate reference system (CRS)
-  sim_crs = if (scorp == "cell") {
-      "+init=epsg:5072" # NAD83(HARN) / Conus Albers
-    } else {
-      "+init=epsg:4326" # WGS84
-    }
+
+  # Coordinate reference system (CRS), e.g., as EPSG
+  # e.g., WGS84 is 4326; Web Pseudo-Mercator is 3857;
+  # NAD27(USA) was 2163, now 9311; NAD83(USA) is 4269,
+  # NAD83(HARN) is 5072; NAD83(2011, USA) is 6318
+  sim_crs = if (scorp == "cell") 5072 else 4326
 )
 
 

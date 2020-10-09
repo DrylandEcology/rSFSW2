@@ -4794,8 +4794,10 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
 
     if (all(SFSW2_prj_meta[["sim_scens"]][["id"]][-1] %in% list.scenarios.external)) {
       #locations of simulation runs
-      locations <- sp::SpatialPoints(coords = SFSW2_prj_inputs[["SWRunInformation"]][todos, c("X_WGS84", "Y_WGS84")],
-        proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
+      locations <- sp::SpatialPoints(
+        coords = SFSW2_prj_inputs[["SWRunInformation"]][todos, c("X_WGS84", "Y_WGS84")],
+        proj4string = as(sf::st_crs(4326), "CRS")
+      )
 
       # keep track of successful/unsuccessful climate scenarios
       include_YN_climscen <- rep(FALSE, SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
@@ -4823,7 +4825,10 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
         #extract data
         get.month <- function(path, grid, locations) {
           g <- raster::raster(file.path(path, grid))
-          locations.CoordG <- sp::spTransform(locations, CRS = raster::crs(g))  #transform graphics::points to grid-coords
+          locations.CoordG <- sp::spTransform(
+            locations,
+            CRS = as(sf::st_crs(g), "CRS")
+          )
           vals <- raster::extract(g, locations.CoordG)
         }
         sc.temp <- sapply(SFSW2_glovars[["st_mo"]], function(m) {
