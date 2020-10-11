@@ -40,5 +40,5 @@ days indicated in the \code{doy_ranges}.}
 Describe the time of a simulation project
 }
 \seealso{
-\code{\link[rSOILWAT2]{setup_time_simulation_run}}
+\code{\link[rSW2data]{setup_time_simulation_run}}
 }

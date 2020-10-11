@@ -72,12 +72,12 @@ get_simulation_time <- function(st, SFSW2_prj_inputs) {
 #'   if \code{add_st2} is \code{TRUE}.
 #' @param A named list, i.e., the updated version of \code{sim_time}.
 #'
-#' @seealso \code{\link[rSOILWAT2]{setup_time_simulation_run}}
+#' @seealso \code{\link[rSW2data]{setup_time_simulation_run}}
 setup_time_simulation_project <- function(sim_time, is_idem = FALSE,
   add_st2 = FALSE, adjust_NS = FALSE,
   use_doy_range = FALSE, doy_ranges = list()) {
 
-  sim_time <- rSOILWAT2::setup_time_simulation_run(sim_time = sim_time)
+  sim_time <- rSW2data::setup_time_simulation_run(sim_time = sim_time)
 
   if (is.matrix(sim_time[["future_yrs"]])) {
     stopifnot(dim(sim_time[["future_yrs"]])[2] == 3)

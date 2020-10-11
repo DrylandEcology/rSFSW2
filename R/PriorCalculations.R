@@ -90,7 +90,7 @@ calc_RequestedSoilLayers <- function(SFSW2_prj_meta,
         seq_along(var_layers),
         function(iv) sw_input_soils_data[[iv]][il_set, , drop = FALSE]
       )
-      s
+
       for (lnew in req_sd_toadd) {
         ilnew <- findInterval(lnew, ldset)
         il_weight <- rSW2data::calc_weights_from_depths(ilnew, lnew, ldset)
