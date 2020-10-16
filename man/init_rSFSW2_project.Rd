@@ -7,6 +7,7 @@
 init_rSFSW2_project(
   fmetar,
   update = FALSE,
+  chdir = FALSE,
   verbose = TRUE,
   print.debug = FALSE
 )
@@ -17,6 +18,9 @@ file.}
 
 \item{update}{A logical value. If \code{TRUE}, the path names are re-scanned
 from \code{fmetar} and updated values are stored in \code{SFSW2_prj_meta}.}
+
+\item{chdir}{logical; if \code{TRUE}, the \R working directory is
+    changed to the directory containing \code{file} for evaluating.}
 
 \item{verbose}{A logical value.}
 
