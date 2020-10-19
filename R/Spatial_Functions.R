@@ -208,6 +208,7 @@ setMethod("extract_rSFSW2",
       stop("'extract_rSFSW2' requires argument 'file_shp' if 'x' is a ",
         "character string")
 
+    # TODO: replace `rgdal::readOGR` with `sf::st_read`
     x <- rgdal::readOGR(dsn = x, layer = dots[["file_shp"]], verbose = FALSE)
     extract_rSFSW2(x = x, y = y, type = type, ...)
   })
@@ -669,6 +670,7 @@ reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
   # Code from sp:::aggregatePolyWeighted version 1.2.3
   if (!requireNamespace("rgeos", quietly = TRUE)) stop("rgeos required")
 
+  # TODO: replace `rgeos::gIntersection` with `sf::st_intersection`
   i <- rgeos::gIntersection(x, by, byid = TRUE, drop_lower_td = TRUE)
 
   # Modified code

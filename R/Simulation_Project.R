@@ -19,13 +19,13 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
 
   if (verbose || print.debug) {
     t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+    tmp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", tmp_call, ": started at ", t1))
     print(paste("A new rSFSW2 project is prepared for:",
       sQuote(basename(dir_prj))))
 
     on.exit({
-      print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      print(paste0("rSFSW2's ", tmp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
       cat("\n")}, add = TRUE)
   }
@@ -39,25 +39,25 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
   fes <- NULL
 
   for (di in definf) {
-    dtemp <- file.path(dir_prj, di[["path"]])
+    dtmp <- file.path(dir_prj, di[["path"]])
 
-    if (!dir.exists(dtemp))
-       dir_safe_create(dtemp, showWarnings = print.debug)
+    if (!dir.exists(dtmp))
+       dir_safe_create(dtmp, showWarnings = print.debug)
 
-    ftemp <- file.path(dtemp, di[["fname"]])
+    ftmp <- file.path(dtmp, di[["fname"]])
 
-    if (file.exists(ftemp)) {
-      fes <- c(fes, ftemp)
+    if (file.exists(ftmp)) {
+      fes <- c(fes, ftmp)
 
     } else {
       if (grepl(masterinput_pattern, di[["fname"]])) {
         # Simulation projects usually rename the input master file: check if
         #   present and if any contain sufficient content
-        fim <- list.files(dtemp, pattern = masterinput_pattern)
+        fim <- list.files(dtmp, pattern = masterinput_pattern)
         fim <- grep(masterinput_pattern_demo, fim, value = TRUE, invert = TRUE)
         fim_ok <- FALSE
         for (kfim in fim) {
-          fim_fields <- utils::read.csv(file.path(dtemp, kfim), nrows = 1)
+          fim_fields <- utils::read.csv(file.path(dtmp, kfim), nrows = 1)
           fim_ok <- fim_ok || all(sapply(req_fields_SWRunInformation(),
             function(x) x %in% names(fim_fields)))
         }
@@ -74,7 +74,7 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
       }
 
       writeLines(memDecompress(di[["data"]], type = "gzip", asChar = TRUE),
-        con = file.path(dtemp, di[["fname"]]))
+        con = file.path(dtmp, di[["fname"]]))
     }
   }
 
@@ -91,14 +91,14 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
   }
 
   # Copy demo scripts
-  temp <- system.file("demo", package = "rSFSW2")
+  tmp <- system.file("demo", package = "rSFSW2")
 
-  ftemps <- list.files(temp, pattern = ".R", full.names = TRUE)
-  if (length(ftemps) == 0)
+  ftmps <- list.files(tmp, pattern = ".R", full.names = TRUE)
+  if (length(ftmps) == 0)
     stop("No folder 'demo' found in package; the installation of the package ",
       "'rSFSW2' may be faulty.")
 
-  for (f in ftemps)
+  for (f in ftmps)
     file.copy(from = f, to = file.path(dir_prj, basename(f)), overwrite = FALSE)
 
   invisible(dir_prj)
@@ -252,11 +252,11 @@ init_rSFSW2_project <- function(
 
   if (verbose) {
     t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+    tmp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", tmp_call, ": started at ", t1))
 
     on.exit({
-      print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      print(paste0("rSFSW2's ", tmp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
       cat("\n")}, add = TRUE)
   }
@@ -528,17 +528,17 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE,
 
     # Check that all 'prj_todos' are TRUE or FALSE except exceptions 'adaily'
     # and 'otrace'
-    itemp <- names(SFSW2_prj_meta[["prj_todos"]])
-    itemp <- itemp[!(itemp %in% c("adaily", "otrace"))]
-    temp <- unlist(SFSW2_prj_meta[["prj_todos"]][itemp])
+    itmp <- names(SFSW2_prj_meta[["prj_todos"]])
+    itmp <- itmp[!(itmp %in% c("adaily", "otrace"))]
+    tmp <- unlist(SFSW2_prj_meta[["prj_todos"]][itmp])
     ibad <- sapply(
-      temp,
+      tmp,
       function(x) !identical(x, TRUE) && !identical(x, FALSE)
     )
     if (any(ibad)) {
       stop(
         "elements of 'prj_todos' should not be 'NULL': ",
-        paste(shQuote(names(temp)[ibad]), collapse = ", ")
+        paste(shQuote(names(tmp)[ibad]), collapse = ", ")
       )
     }
 
@@ -563,13 +563,13 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+    tmp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", tmp_call, ": started at ", t1))
 
     on.exit(
       {
         print(paste0(
-          "rSFSW2's ", temp_call, ": ended after ",
+          "rSFSW2's ", tmp_call, ": ended after ",
           round(difftime(Sys.time(), t1, units = "secs"), 2), " s with ",
           "input tracker status:"
         ))
@@ -581,14 +581,14 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
 
 
   #------ PROJECT INPUTS
-  temp <- gather_project_inputs(
+  tmp <- gather_project_inputs(
     SFSW2_prj_meta,
     use_preprocin = opt_behave[["use_preprocin"]],
     verbose = opt_verbosity[["verbose"]]
   )
 
-  SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
-  SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+  SFSW2_prj_meta <- tmp[["SFSW2_prj_meta"]]
+  SFSW2_prj_inputs <- tmp[["SFSW2_prj_inputs"]]
 
   # Check that dbWork is available and has up-to-date structure of tables/fields
   SFSW2_prj_meta[["input_status"]] <- update_intracker(
@@ -685,14 +685,14 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
   #--- Determine sources of daily weather
   if (todo_intracker(SFSW2_prj_meta, "dbW_sources", "prepared")) {
 
-    temp1 <-
+    tmp1 <-
       SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]] ==
       "SWRunInformation"
-    temp2 <-
+    tmp2 <-
       "dailyweather_source" %in%
       colnames(SFSW2_prj_inputs[["SWRunInformation"]])
 
-    if (temp1 && temp2) {
+    if (tmp1 && tmp2) {
       dw_source <- factor(
         SFSW2_prj_inputs[["SWRunInformation"]][
         SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "dailyweather_source"],
@@ -931,7 +931,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
         verbose = opt_verbosity[["verbose"]]
       )
 
-      temp <- PrepareClimateScenarios(
+      tmp <- PrepareClimateScenarios(
         SFSW2_prj_meta,
         SFSW2_prj_inputs,
         opt_parallel,
@@ -940,10 +940,10 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
         opt_chunks
       )
 
-      SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+      SFSW2_prj_inputs <- tmp[["SFSW2_prj_inputs"]]
 
       # SFSW2_prj_meta is updated with random streams for downscaling
-      SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
+      SFSW2_prj_meta <- tmp[["SFSW2_prj_meta"]]
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(
         SFSW2_prj_meta[["input_status"]], tracker = "dbW_scenarios",
@@ -968,14 +968,15 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
 
   #------ CALCULATIONS PRIOR TO SIMULATION RUNS
 
-  if (any(unlist(SFSW2_prj_meta[["pcalcs"]])))
+  if (any(unlist(SFSW2_prj_meta[["pcalcs"]]))) {
     # if not all, then runIDs_sites
     runIDs_adjust <- seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
+  }
 
   if (SFSW2_prj_meta[["pcalcs"]][["AddRequestedSoilLayers"]]) {
     if (todo_intracker(SFSW2_prj_meta, "req_soillayers", "prepared")) {
 
-      temp <- calc_RequestedSoilLayers(
+      tmp <- calc_RequestedSoilLayers(
         SFSW2_prj_meta,
         SFSW2_prj_inputs,
         runIDs_adjust,
@@ -983,8 +984,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
         verbose = opt_verbosity[["verbose"]]
       )
 
-      SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
-      SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+      SFSW2_prj_meta <- tmp[["SFSW2_prj_meta"]]
+      SFSW2_prj_inputs <- tmp[["SFSW2_prj_inputs"]]
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(
         SFSW2_prj_meta[["input_status"]],
@@ -1098,7 +1099,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
   #------ CREATE OUTPUT DATABASE (IF NOT ALREADY EXISTING)
   if (todo_intracker(SFSW2_prj_meta, "dbOut", "prepared")) {
 
-    temp <- try(
+    tmp <- try(
       make_dbOutput(
         SFSW2_prj_meta,
         SFSW2_prj_inputs,
@@ -1107,13 +1108,13 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
       silent = !opt_verbosity[["print.debug"]]
     )
 
-    if (inherits(temp, "try-error")) {
+    if (inherits(tmp, "try-error")) {
       stop("Output database failed to setup")
     }
 
     SFSW2_prj_meta[["sim_size"]][["ncol_dbOut_overall"]] <-
-      temp[["ncol_dbOut_overall"]]
-    SFSW2_prj_meta[["prj_todos"]][["aon_fields"]] <- temp[["fields"]]
+      tmp[["ncol_dbOut_overall"]]
+    SFSW2_prj_meta[["prj_todos"]][["aon_fields"]] <- tmp[["fields"]]
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(
       SFSW2_prj_meta[["input_status"]],
@@ -1127,12 +1128,12 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
   if (todo_intracker(SFSW2_prj_meta, "dbWork", "prepared")) {
 
     # This requires the presence of dbOutput
-    temp <- recreate_dbWork(
+    tmp <- recreate_dbWork(
       SFSW2_prj_meta = SFSW2_prj_meta,
       verbose = opt_verbosity[["print.debug"]]
     )
 
-    if (!temp) {
+    if (!tmp) {
       stop("Work database failed to setup")
     }
 
@@ -1157,11 +1158,11 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+    tmp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", tmp_call, ": started at ", t1))
 
     on.exit({
-        print(paste0("rSFSW2's ", temp_call, ": ended after ",
+        print(paste0("rSFSW2's ", tmp_call, ": ended after ",
           round(difftime(Sys.time(), t1, units = "secs"), 2), " s with ",
           "input tracker  status:"))
         print(SFSW2_prj_meta[["input_status"]])
@@ -1184,9 +1185,9 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   #--- Checking input 'SWRunInformation'
   if (todo_intracker(SFSW2_prj_meta, "load_inputs", "checked")) {
     # Check that 'dailyweather_source' are specified
-    itemp <- SFSW2_prj_inputs[["SWRunInformation"]][
+    itmp <- SFSW2_prj_inputs[["SWRunInformation"]][
       SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], ]
-    icheck1 <- !anyNA(itemp[, "dailyweather_source"])
+    icheck1 <- !anyNA(itmp[, "dailyweather_source"])
     if (!icheck1) {
       stop("There are sites without a specified daily weather data source. ",
         "Provide data for every requested run.")
@@ -1309,12 +1310,12 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 
   #--- Check that todos/treatments are coherent
   if (todo_intracker(SFSW2_prj_meta, "prj_todos", "checked")) {
-    # Check that overall 'pnv0_temp' is turned on if any of the specific
-    # ones 'pnv_temp' are active or alternatively that none of the
+    # Check that overall 'pnv0_tmp' is turned on if any of the specific
+    # ones 'pnv_tmp' are active or alternatively that none of the
     # `PotentialNaturalVegetation_*` columns are turned on
-    pnv0_temp <- "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996"
+    pnv0_tmp <- "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996"
 
-    pnv_temp <- c(
+    pnv_tmp <- c(
       "PotentialNaturalVegetation_CompositionShrubs_Fraction",
       "PotentialNaturalVegetation_CompositionTotalGrasses_Fraction",
       "PotentialNaturalVegetation_CompositionC3_Fraction",
@@ -1333,9 +1334,9 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
       "RootProfile_Forb"
     )
 
-    temp1 <- pnv0_temp %in% SFSW2_prj_inputs[["create_treatments"]]
-    temp2 <- pnv_temp %in% SFSW2_prj_inputs[["create_treatments"]]
-    icheck <- (!temp1 && all(!temp2)) || (temp1 && any(temp2))
+    tmp1 <- pnv0_tmp %in% SFSW2_prj_inputs[["create_treatments"]]
+    tmp2 <- pnv_tmp %in% SFSW2_prj_inputs[["create_treatments"]]
+    icheck <- (!tmp1 && all(!tmp2)) || (tmp1 && any(tmp2))
 
     if (any(!icheck)) {
       stop(
@@ -1446,10 +1447,10 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta,
   verbose = FALSE) {
 
   # Prepare arguments
-  temp <- gather_project_inputs(SFSW2_prj_meta, use_preprocin = TRUE,
+  tmp <- gather_project_inputs(SFSW2_prj_meta, use_preprocin = TRUE,
     verbose = verbose)
-  SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
-  SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+  SFSW2_prj_meta <- tmp[["SFSW2_prj_meta"]]
+  SFSW2_prj_inputs <- tmp[["SFSW2_prj_inputs"]]
 
   SFSW2_prj_meta <- update_actions(SFSW2_prj_meta, actions,
     wipe_dbOutput = FALSE)
@@ -1458,7 +1459,7 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta,
   # Create dbOutput
   SFSW2_prj_meta[["fnames_out"]][["dbOutput"]] <- file.path(path,
     "dbOutput.sqlite3")
-  temp <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
+  tmp <- make_dbOutput(SFSW2_prj_meta, SFSW2_prj_inputs,
     verbose = verbose)
 
   # Create/connect dbWork
@@ -1466,7 +1467,7 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta,
     include_YN = SFSW2_prj_inputs[["include_YN"]],
     SFSW2_prj_meta = SFSW2_prj_meta, resume = FALSE))
 
-  invisible(temp[["ncol_dbOut_overall"]])
+  invisible(tmp[["ncol_dbOut_overall"]])
 }
 
 
@@ -1480,15 +1481,15 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   si <- utils::sessionInfo()
 
   if (opt_verbosity[["verbose"]]) {
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1,
+    tmp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", tmp_call, ": started at ", t1,
       " for project ",
       sQuote(basename(SFSW2_prj_meta[["project_paths"]][["dir_prj"]]))))
 
     print(si) # print system information
 
     on.exit({
-      print(paste0("rSFSW2's ", temp_call, ": ended after ",
+      print(paste0("rSFSW2's ", tmp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
       cat("\n")}, add = TRUE)
   }
@@ -1506,27 +1507,27 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   #--- Check whether dbWork is up-to-date:
   # recreate if
   # (i) it is not being kept updated and
-  temp1 <- !opt_behave[["keep_dbWork_updated"]]
+  tmp1 <- !opt_behave[["keep_dbWork_updated"]]
   # (ii) status suggest being out of sync, or
-  temp2 <- dbWork_check_status(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+  tmp2 <- dbWork_check_status(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
     SFSW2_prj_meta)
   # (iii) design structure is bad, or
-  temp3 <- !dbWork_check_design(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
+  tmp3 <- !dbWork_check_design(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
   # (iv) move_dbTempOut_to_dbOut() is called and processed at least one
   # dbTempOut
-  do_dbWork <- (temp1 && temp2) || temp3
+  do_dbWork <- (tmp1 && tmp2) || tmp3
 
   #--- Consolidate (partial) output data
   if (!opt_out_run[["wipe_dbOutput"]]) {
-    dir_out_temp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
+    dir_out_tmp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
 
-    if (length(get_fnames_dbTempOut(dir_out_temp)) > 0L) {
-      temp <- move_dbTempOut_to_dbOut(SFSW2_prj_meta,
+    if (length(get_fnames_dbTempOut(dir_out_tmp)) > 0L) {
+      tmp <- move_dbTempOut_to_dbOut(SFSW2_prj_meta,
         t_job_start = t1, opt_parallel, opt_behave, opt_out_run, opt_verbosity,
-        chunk_size = -1L, dir_out_temp = dir_out_temp,
+        chunk_size = -1L, dir_out_temp = dir_out_tmp,
         check_if_Pid_present = FALSE)
 
-      do_dbWork <- do_dbWork || temp > 0
+      do_dbWork <- do_dbWork || tmp > 0
     }
   }
 
@@ -1670,10 +1671,10 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
 
     # check: old behavior used temporary text files; new code uses temporary
     # database files
-    has_tempTXT <- length(get_fnames_temporaryOutput(dir_out_temp)) > 0L
-    has_tempDB <- length(get_fnames_dbTempOut(dir_out_temp)) > 0L
+    has_tmpTXT <- length(get_fnames_temporaryOutput(dir_out_temp)) > 0L
+    has_tmpDB <- length(get_fnames_dbTempOut(dir_out_temp)) > 0L
 
-    if (has_tempTXT) {
+    if (has_tmpTXT) {
       # old behavior used temporary text files; maintain calls as long as
       # functions are deprecated and not yet defunct
       if (check_if_Pid_present) {
@@ -1689,7 +1690,7 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
       }
     }
 
-    if (has_tempDB) {
+    if (has_tmpDB) {
       # new behavior
       if (!SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_dbOut"]] &&
         SFSW2_prj_meta[["opt_out_fix"]][["dbOutCurrent_from_tempTXT"]]) {
