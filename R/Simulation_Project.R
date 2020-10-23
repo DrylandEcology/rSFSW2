@@ -350,6 +350,8 @@ init_rSFSW2_project <- function(
     SFSW2_prj_meta[["input_status"]] <- init_intracker()
   }
 
+  is_project_description_outdated(SFSW2_prj_meta)
+
   save_to_rds_with_backup(SFSW2_prj_meta,
     file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
 
@@ -357,6 +359,40 @@ init_rSFSW2_project <- function(
 }
 
 
+# Check project description for outdated/defunct elements
+is_project_description_outdated <- function(meta) {
+  has <- "fmaster" %in% names(meta[["fnames_in"]])
+  if (has) {
+    stop(
+      "Outdated project description: ",
+      "The element `fmaster` of list 'fnames_in' is defunct; ",
+      "it was renamed to `fmain`; ",
+      "please update description."
+    )
+  }
+
+  has <- "reference_temperature_default_phenology" %in% names(meta[["opt_sim"]])
+  if (!has) {
+    warning(
+      "Outdated project description: ",
+      "The element `reference_temperature_default_phenology` ",
+      "of list 'opt_sim' is required if biomass inputs are adjusted; ",
+      "it was added with v4.3.0; ",
+      "please update description."
+    )
+  }
+
+  has <- "tag_aCO2_ambient" %in% names(meta[["req_scens"]])
+  if (!has) {
+    warning(
+      "Outdated project description: ",
+      "The element `tag_aCO2_ambient` ",
+      "of list 'req_scens' is required if climate scenarios are simulated; ",
+      "it was added with v4.3.0; ",
+      "please update description."
+    )
+  }
+}
 
 
 gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE,
