@@ -556,12 +556,25 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
     include_YN <- as.logical(SWRunInformation$Include_YN)
     nrowsClasses <- max(dim(SWRunInformation)[1], 25L, na.rm = TRUE)
 
-    sw_input_soillayers <- tryCatch(SFSW2_read_csv(fnames_in[["fslayers"]],
-      nrowsClasses = nrowsClasses), error = print)
-    sw_input_soillayers <- fix_rowlabels(sw_input_soillayers, SWRunInformation,
-      verbose = verbose)
-    sw_input_soillayers[, - (1:2)] <- rSW2utils::check_monotonic_increase(
-      data.matrix(sw_input_soillayers[, - (1:2)]),
+    sw_input_soillayers <- tryCatch(
+      SFSW2_read_csv(
+        file = fnames_in[["fslayers"]],
+        nrowsClasses = nrowsClasses
+      ),
+      error = print
+    )
+    sw_input_soillayers <- fix_rowlabels(
+      x = sw_input_soillayers,
+      master = SWRunInformation,
+      verbose = verbose
+    )
+    vars_sl <- grep(
+      "depth_L[[:digit:]]+$",
+      colnames(sw_input_soillayers),
+      value = TRUE
+    )
+    sw_input_soillayers[, vars_sl] <- rSW2utils::check_monotonic_increase(
+      data.matrix(sw_input_soillayers[, vars_sl]),
       strictly = TRUE,
       fail = TRUE,
       na.rm = TRUE
