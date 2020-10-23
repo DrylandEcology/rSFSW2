@@ -18,6 +18,7 @@ Imports:
     rSW2utils,
     rSW2st,
     rSW2data,
+    rSW2exter,
     rSW2funs,
     RSQLite (>= 2.1.1),
     raster (>= 2.5.8),
@@ -53,6 +54,7 @@ Remotes:
     github::DrylandEcology/rSW2utils,
     github::DrylandEcology/rSW2st,
     github::DrylandEcology/rSW2data,
+    github::DrylandEcology/rSW2exter,
     github::DrylandEcology/rSOILWAT2,
     github::DrylandEcology/rSW2funs,
     github::dschlaep/weathergen
