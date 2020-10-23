@@ -150,7 +150,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   # Set RNG seed for random number use by functions
   #   - Aggregation GISSM: calc_TimeToGerminate
   #   - dbExecute2
-  i_seed <- rng_specs[["seeds_runN"]][[it_site(i_sim, sim_size[["runsN_master"]])]]
+  i_seed <- rng_specs[["seeds_runN"]][[it_site(i_sim, sim_size[["runsN_main"]])]]
   set_RNG_stream(seed = i_seed)
 
   if (opt_verbosity[["print.debug"]] && identical(fid, 0L)) {
@@ -163,7 +163,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 #-----------------------Check for experimentals
   if (sim_size[["expN"]] > 0 && length(create_experimentals) > 0) {
-    i_exp <- it_exp(i_sim, sim_size[["runsN_master"]])
+    i_exp <- it_exp(i_sim, sim_size[["runsN_main"]])
     i_label <- paste(flag.icounter, sw_input_experimentals[i_exp, 1],
       i_SWRunInformation["Label"], sep = "_")
 
@@ -180,7 +180,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
 
 #------------------------Preparations for simulation run
-  all_Pids <- it_Pid(i_sim, runN = sim_size[["runsN_master"]],
+  all_Pids <- it_Pid(i_sim, runN = sim_size[["runsN_main"]],
     sc = seq_len(sim_scens[["N"]]), scN = sim_scens[["N"]])
 
   # Determine sequence of scenarios
@@ -970,7 +970,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
         # Read weather data from folder
         i_sw_weatherList[[1]] <- try(rSOILWAT2::getWeatherData_folders(
           LookupWeatherFolder = file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"),
-          weatherDirName = local_weatherDirName(i_sim, sim_size[["runsN_master"]], sim_scens[["N"]],
+          weatherDirName = local_weatherDirName(i_sim, sim_size[["runsN_main"]], sim_scens[["N"]],
             fnames_out[["dbOutput"]]), filebasename = opt_sim[["tag_WeatherFolder"]],
           startYear = isim_time[[1]][["simstartyr"]], endYear = isim_time[[1]][["endyr"]]),
           silent = !opt_verbosity[["verbose"]])
@@ -983,7 +983,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       weather_label_cur <- try(
         local_weatherDirName(
           i_sim = i_sim,
-          runN = sim_size[["runsN_master"]],
+          runN = sim_size[["runsN_main"]],
           scN = sim_scens[["N"]],
           dbOutput = fnames_out[["dbOutput"]]
         ),
@@ -5139,7 +5139,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
   }
 
   i_sites <- it_site(MoreArgs[["sim_size"]][["runIDs_todo"]],
-    MoreArgs[["sim_size"]][["runsN_master"]])
+    MoreArgs[["sim_size"]][["runsN_main"]])
 
 
   #--- prepare the temporary output databases
@@ -5185,7 +5185,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       tryCatch({
 
         if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-          print(paste(Sys.time(), ": MPI-master is waiting for workers to communicate"))
+          print(paste(Sys.time(), ": MPI-main is waiting for workers to communicate"))
         }
 
         complete <- Rmpi::mpi.recv.Robj(Rmpi::mpi.any.source(), Rmpi::mpi.any.tag())
@@ -5194,7 +5194,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
         tag_from_worker <- complete_info[2] # see ?mpi_work for interpretation of tags
 
         if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-          print(paste(Sys.time(), ": MPI-master has received communication from worker",
+          print(paste(Sys.time(), ": MPI-main has received communication from worker",
             worker_id, "with tag", tag_from_worker))
         }
 
@@ -5233,7 +5233,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
               SimParams = MoreArgs)
 
             if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-              print(paste(Sys.time(), ": MPI-master is sending worker", worker_id, "task",
+              print(paste(Sys.time(), ": MPI-main is sending worker", worker_id, "task",
                 MoreArgs[["sim_size"]][["runIDs_todo"]][runs.completed]))
             }
 
@@ -5247,9 +5247,9 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
           }
 
         } else if (tag_from_worker == 2L) {
-          # Worker has sent results back to master
+          # Worker has sent results back to main
           if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-            print(paste(Sys.time(), ": MPI-master received results from worker", worker_id,
+            print(paste(Sys.time(), ": MPI-main received results from worker", worker_id,
               paste(complete, collapse = ", ")))
           }
 
@@ -5261,13 +5261,13 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
           # A worker has closed down.
           closed_workers <- closed_workers + 1L
           if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
-            print(paste(Sys.time(), ": MPI-master was notified that worker", worker_id,
+            print(paste(Sys.time(), ": MPI-main was notified that worker", worker_id,
               "shut down."))
           }
 
         } else if (tag_from_worker == 4L) {
           #The worker had a problem
-          print(paste(Sys.time(), ": MPI-master was notified that worker", worker_id,
+          print(paste(Sys.time(), ": MPI-main was notified that worker", worker_id,
             "failed with task:", paste(complete, collapse = ", "), "-- storing info",
             "in file 'MPI_ProblemRuns.tab'."))
 
@@ -5281,7 +5281,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
         } else {
           # We'll just ignore any unknown message from worker
-          print(paste(Sys.time(), ": MPI-master received tag =", tag_from_worker,
+          print(paste(Sys.time(), ": MPI-main received tag =", tag_from_worker,
             "from worker", worker_id, "but doesn't know what this means."))
         }
 
@@ -5296,7 +5296,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
         }
 
       }, interrupt = function(interrupt) {
-        print(paste(Sys.time(), ": MPI-master received user interruption 'ctrl-c' and",
+        print(paste(Sys.time(), ": MPI-main received user interruption 'ctrl-c' and",
           "is shutting down workers -- this may take a short while."))
         print(interrupt)
       })

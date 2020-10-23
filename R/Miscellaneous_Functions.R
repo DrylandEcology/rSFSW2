@@ -1005,7 +1005,7 @@ get_datasource_includefield <- function(SWRunInformation, field_include,
 }
 
 
-get_datasource_masterfield <- function(SWRunInformation, field_sources,
+get_datasource_mainfield <- function(SWRunInformation, field_sources,
   sim_size, how_determine_sources) {
 
   sites_source <- rep(NA, times = sim_size[["runsN_sites"]])
@@ -1023,7 +1023,7 @@ get_datasource_masterfield <- function(SWRunInformation, field_sources,
   sites_source
 }
 
-update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation,
+update_datasource_mainfield <- function(MMC, sim_size, SWRunInformation,
   fnames_in, field_sources, field_include) {
 
   notDone <- NULL
@@ -1033,12 +1033,12 @@ update_datasource_masterfield <- function(MMC, sim_size, SWRunInformation,
       as.character(MMC[["source"]])
 
     notDone <- is.na(MMC[["source"]])
-    include_YN_data <- rep(0, sim_size[["runsN_master"]])
+    include_YN_data <- rep(0, sim_size[["runsN_main"]])
     include_YN_data[sim_size[["runIDs_sites"]][!notDone]] <- 1
     SWRunInformation[, field_include] <- include_YN_data
 
     #write data to disk
-    utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]],
+    utils::write.csv(SWRunInformation, file = fnames_in[["fmain"]],
       row.names = FALSE)
     unlink(fnames_in[["fpreprocin"]])
 

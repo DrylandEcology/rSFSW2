@@ -2049,7 +2049,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       dbClearResult(rs)
 
     } else {
-      stop("All WeatherFolder names in master input file are NAs.")
+      stop("All WeatherFolder names in main input file are NAs.")
     }
   }
 
@@ -2530,7 +2530,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
         width = SFSW2_prj_meta[["sim_size"]][["digitsN_total"]],
         format = "d", flag = "0")
       temp2 <- rep(SFSW2_prj_inputs[["sw_input_experimentals"]][, "Label"],
-        each = SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
+        each = SFSW2_prj_meta[["sim_size"]][["runsN_main"]])
       paste(temp1, temp2, SFSW2_prj_inputs[["SWRunInformation"]]$Label,
         sep = "_")
 
@@ -2574,7 +2574,7 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
   temp <- if (useExperimentals) {
       as.vector(matrix(data = exp_start_rows,
-        nrow = SFSW2_prj_meta[["sim_size"]][["runsN_master"]],
+        nrow = SFSW2_prj_meta[["sim_size"]][["runsN_main"]],
         ncol = SFSW2_prj_meta[["sim_size"]][["expN"]], byrow = TRUE))
     } else NULL
 

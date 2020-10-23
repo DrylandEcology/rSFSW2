@@ -73,7 +73,7 @@ project_paths <- list(
 
 #------ Base names or full names of input files
 fnames_in <- list(
-  fmaster = "SWRuns_InputMaster_Test_v12.csv",
+  fmain = "SWRuns_InputMain_Test_v12.csv",
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
   ftreatDesign = "SWRuns_InputData_TreatmentDesign_v18.csv",
@@ -247,7 +247,7 @@ opt_sim <- list(
   global_seed = 1235L,
 
   # Daily weather either from database 'dbWeather' or specified via
-  #   'WeatherFolder' in MasterInput.csv, treatmentDesign.csv, or
+  #   'WeatherFolder' in InputMain.csv, treatmentDesign.csv, or
   #   experimentalDesign.csv
   # Use daily weather from dbWeather for current condition
   use_dbW_current = TRUE,
@@ -314,7 +314,7 @@ opt_out_fix <- list(
   #    table combination
   use_granular_control = TRUE,
 
-  # Column numbers of master input file 'SWRunInformation', e.g, c(3, 7:9), or
+  # Column numbers of main input file 'SWRunInformation', e.g, c(3, 7:9), or
   #   NULL: Selected columns will be part of 'header' table in dbOutput in
   #   addition to those of create_treatments, experimental_treatments, and
   #   climate scenario

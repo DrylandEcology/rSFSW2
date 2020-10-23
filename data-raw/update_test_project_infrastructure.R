@@ -53,7 +53,7 @@ for (k in seq_along(fnew)) {
         to = file.path(dtestin, fnew[k]), copy.mode = TRUE, copy.date = TRUE)
 
     } else {
-      fupdate_manual <- c(fupdate_manual, "SWRuns_InputMaster_Test_v11.csv")
+      fupdate_manual <- c(fupdate_manual, "SWRuns_InputMain_Test_v11.csv")
     }
   }
 }

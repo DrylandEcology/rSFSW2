@@ -151,13 +151,13 @@ check_requested_sites <- function(include_YN, SWRunInformation, fnames_in,
       include_YN_available[include_YN_sources] <- 1L
       SWRunInformation[, "include_YN_available"] <- include_YN_available
 
-      utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]],
+      utils::write.csv(SWRunInformation, file = fnames_in[["fmain"]],
         row.names = FALSE)
       unlink(fnames_in[["fpreprocin"]])
 
       stop("Data sources not available for every requested rSFSW2 simulation ",
         "run. New column 'include_YN_available' with updated information ",
-        "stored to MasterInput file 'SWRunInformation' on disk. rSFSW2 ",
+        "stored to InputMain file 'SWRunInformation' on disk. rSFSW2 ",
         "should be stopped so that you can bring 'include_YN' and ",
         "'include_YN_available' in agreement before running the simulations.")
     }
@@ -398,14 +398,19 @@ read_SOILWAT2_DefaultInputs <- function() {
 
 complete_with_defaultpaths <- function(project_paths, fnames_in) {
   # full names of files located in 'dir_in'
-  ftemp <- c("fmaster", "fslayers", "ftreatDesign", "fexpDesign", "fpreprocin",
-    "fdbWeather", "fsimraster")
+  ftmp <- c(
+    "fmain", "fslayers", "ftreatDesign", "fexpDesign", "fpreprocin",
+    "fdbWeather", "fsimraster"
+  )
 
-  for (f in ftemp) {
-    if (f %in% names(fnames_in) &&
-        identical(basename(fnames_in[[f]]), fnames_in[[f]]))
+  for (f in ftmp) {
+    if (
+      f %in% names(fnames_in) &&
+      identical(basename(fnames_in[[f]]), fnames_in[[f]])
+    ) {
 
       fnames_in[[f]] <- file.path(project_paths[["dir_in"]], fnames_in[[f]])
+    }
   }
 
   # full names of files located in 'dir_in_dat'
@@ -454,9 +459,9 @@ load_Rsw_treatment_templates <- function(project_paths, create_treatments,
   tr_list
 }
 
-fix_rowlabels <- function(x, master, verbose = TRUE) {
+fix_rowlabels <- function(x, main, verbose = TRUE) {
 
-  ml <- as.character(master[, "Label"])
+  ml <- as.character(main[, "Label"])
 
   if ("Label" %in% names(x)) {
     xl <- as.character(x[, "Label"])
@@ -472,25 +477,25 @@ fix_rowlabels <- function(x, master, verbose = TRUE) {
     if (dim(x)[1] == 0L) {
       if (verbose) {
         print(paste("Datafile", shQuote(argnames[1]), "contains zero rows.",
-          "'Label's of the master input file", shQuote(argnames[2]),
+          "'Label's of the main input file", shQuote(argnames[2]),
           "are used to populate rows and 'Label's of the datafile."))
       }
 
       x[seq_along(ml), "Label"] <- ml
 
-    } else if (dim(master)[1] == dim(x)[1]) {
-      print(paste("Datafile", shQuote(argnames[1]), "and master input file",
+    } else if (dim(main)[1] == dim(x)[1]) {
+      print(paste("Datafile", shQuote(argnames[1]), "and main input file",
         shQuote(argnames[2]), "contain the same number of rows and yet they",
-        "disagree in the simulation 'Label's. Master 'Label's replace those",
+        "disagree in the simulation 'Label's. Main 'Label's replace those",
         "from the datafile."))
 
       x[, "Label"] <- ml
 
     } else {
-      stop(paste("Datafile", shQuote(argnames[1]), "and the master input file",
+      stop(paste("Datafile", shQuote(argnames[1]), "and the main input file",
         shQuote(argnames[2]), "disagree in the number of rows,",
-        paste0("n[datafile] = ", dim(x)[1], " vs. n[master] = ",
-          dim(master)[1]),
+        paste0("n[datafile] = ", dim(x)[1], " vs. n[main] = ",
+          dim(main)[1]),
         "and they disagree in the simulation 'Label's.",
         "'rSFSW2' cannot continue."))
     }
@@ -541,7 +546,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
 
   if (!use_preprocin || !file.exists(fnames_in[["fpreprocin"]])) {
 
-    SWRunInformation <- tryCatch(SFSW2_read_csv(fnames_in[["fmaster"]]),
+    SWRunInformation <- tryCatch(SFSW2_read_csv(fnames_in[["fmain"]]),
       error = print)
     stopifnot(sapply(req_fields_SWRunInformation(),
         function(x) x %in% names(SWRunInformation)),    # required columns
@@ -565,7 +570,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
     )
     sw_input_soillayers <- fix_rowlabels(
       x = sw_input_soillayers,
-      master = SWRunInformation,
+      main = SWRunInformation,
       verbose = verbose
     )
     vars_sl <- grep(

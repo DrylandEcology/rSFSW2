@@ -3,14 +3,14 @@ context("dbWork: runIDs organization")
 #--- Inputs
 dbpath <- tempdir()
 flock <- tempfile(pattern = "rSFSW2lock", tmpdir = normalizePath(dbpath))
-runsN_master <- 25L
-include_YN <- rep(TRUE, runsN_master)
+runsN_main <- 25L
+include_YN <- rep(TRUE, runsN_main)
 include_YN[c(1, 10, 24:25)] <- FALSE
 expN <- 4L
-runsN_total <- runsN_master * expN
+runsN_total <- runsN_main * expN
 runIDs_total <- seq_len(runsN_total)
 runIDs <- runIDs_total[rep(include_YN, times = expN)]
-sim_size <- list(runsN_master = runsN_master, runsN_total = runsN_total,
+sim_size <- list(runsN_main = runsN_main, runsN_total = runsN_total,
   expN = expN)
 time_set3 <- c(50, 75, 125)
 verbose <- FALSE

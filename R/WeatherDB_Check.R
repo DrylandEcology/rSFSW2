@@ -157,7 +157,7 @@ check_weatherDB <- function(dir_prj, fdbWeather, repeats = 2L,
   temp <- parallel::clusterExport(cl, "name_wid")
 
   # TODO (drs): it is ok to load into globalenv() because this happens on
-  # workers and not on master -> R CMD CHECK reports this nevertheless as issue
+  # workers and not on main -> R CMD CHECK reports this nevertheless as issue
   temp <- parallel::clusterApply(cl, seq_len(n_cores), function(x)
     assign(name_wid, x, pos = 1L)) # worker identification number
 

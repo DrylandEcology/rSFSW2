@@ -17,7 +17,7 @@ ExtractClimateChangeScenarios(
 )
 }
 \arguments{
-\item{todos}{A logical vector of length \code{runsN_master}. Element locations with
+\item{todos}{A logical vector of length \code{runsN_main}. Element locations with
 \code{TRUE} indicate to extract climate data for said 'run'. The \code{TRUE} elements
 should be a subset of the \code{TRUE}s of \code{SFSW2_prj_inputs[["include_YN"]]}.}
 }

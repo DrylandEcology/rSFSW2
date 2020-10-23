@@ -6,7 +6,7 @@ prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
   field_include, how_determine_sources, sw_input_soillayers, sw_input_soils_use,
   sw_input_soils) {
 
-  sites_soils_source <- get_datasource_masterfield(SWRunInformation,
+  sites_soils_source <- get_datasource_mainfield(SWRunInformation,
     field_sources, sim_size, how_determine_sources)
 
   lvars <- c("density", "sand", "clay", "rock", "carbon")
@@ -920,7 +920,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
     )
   }
 
-  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_masterfield(
+  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_mainfield(
     MMC,
     sim_size = SFSW2_prj_meta[["sim_size"]],
     SFSW2_prj_inputs[["SWRunInformation"]],

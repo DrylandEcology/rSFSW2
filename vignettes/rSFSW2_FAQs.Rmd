@@ -64,7 +64,7 @@ Or more specifically, what is the difference between the input files
 
 All the input data spreadsheets, except the experimental design file, represent
 sites by rows. All these files have to have the same number of rows or none. Row
-x in the master input file represents site_id x which is the same site_id x for
+x in the main input file represents site_id x which is the same site_id x for
 soil layers input file, treatment design input file, vegetation input file, etc.
 
 The experimental design input file is different. Each row of this file is
@@ -72,17 +72,17 @@ applied to all of the rows/sites of the other files.
 
 For example, a project has 827 sites and would like to apply six treatments to every site:
 
-- The master input file has 827 rows; one row for each site.
+- The main input file has 827 rows; one row for each site.
 - The treatment design file has 827 rows (or none); one row for each site.
 - All other input files have 827 rows (or none); one row for each site.
 - The experimental design file has six rows; one row for each of the six treatments.
 
-The master input file requires values for the 'Label' column. If the other input
+The main input file requires values for the 'Label' column. If the other input
 files have different values for their 'Label' columns (but the same number of
-rows), then their 'Label's will get overwritten by the values of the master
+rows), then their 'Label's will get overwritten by the values of the main
 input file (with a warning). If the other input files have zero rows, then the
-number of rows from the master input file is generated for them (with NA
-values). If they contain a different number of rows than the master input file contains,
+number of rows from the main input file is generated for them (with NA
+values). If they contain a different number of rows than the main input file contains,
 then the code stops. See function `fix_rowlabels`.
 
 
@@ -145,9 +145,9 @@ the simulation.
 
 <a name="Labels_vs_SiteID"/></a>
 
-## What is the difference between 'Label' and 'site_id' in the file 'SWRuns_InputMaster_YOURPROJECT_v11.csv'?
+## What is the difference between 'Label' and 'site_id' in the file 'SWRuns_InputMain_YOURPROJECT_v11.csv'?
 The field 'site_id' is a consecutive running integer serving as index for all the rows
-in the master input file. The field 'Label' takes character values and can be used to
+in the main input file. The field 'Label' takes character values and can be used to
 provide human readable site names.
 
 

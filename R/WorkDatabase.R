@@ -41,10 +41,10 @@ fname_dbWork <- function(path, dbname = "dbWork.sqlite3") {
 #' @param path A character string. Path to the folder where the database will be
 #'   created.
 #' @param jobs An integer matrix. Each row corresponds to one call of the
-#'   simulation function \code{do_OneSite}, i.e., \code{runsN_master} x
+#'   simulation function \code{do_OneSite}, i.e., \code{runsN_main} x
 #'   \code{expN}. The columns \code{runID_total}, \code{runID_sites},
 #'   \code{include_YN} represent a running ID, the \code{site_id} (row number in
-#'   master input file), and a flag whether site is being simulated or not. See
+#'   main input file), and a flag whether site is being simulated or not. See
 #'   \code{\link{indices}}.
 #'
 #' @return Invisibly \code{TRUE}
@@ -109,7 +109,7 @@ create_job_df <- function(sim_size, include_YN) {
     ncol = length(temp), dimnames = list(NULL, temp))
 
   jobs[, "runID_total"] <- seq_len(sim_size[["runsN_total"]])
-  jobs[, "runID_sites"] <- rep(seq_len(sim_size[["runsN_master"]]),
+  jobs[, "runID_sites"] <- rep(seq_len(sim_size[["runsN_main"]]),
     times = max(sim_size[["expN"]], 1L))
   temp <- rep(include_YN, times = max(sim_size[["expN"]], 1L))
   jobs[temp, "include_YN"] <- 1L
@@ -878,7 +878,7 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
       # be called 'runID'
 
     # Extract information from dbOutput table 'sites'
-    infer_runsN_master <- as.integer(dbGetQuery(con_dbOut,
+    infer_runsN_main <- as.integer(dbGetQuery(con_dbOut,
       "SELECT COUNT(*) FROM sites"))
     infer_include_YN <- as.logical(dbGetQuery(con_dbOut,
       "SELECT Include_YN FROM sites")[, 1])
@@ -936,7 +936,7 @@ recreate_dbWork <- function(path, dbOutput, use_granular_control,
 
 
     #--- Create new dbWork
-    infer_sim_size <- list(runsN_master = infer_runsN_master,
+    infer_sim_size <- list(runsN_main = infer_runsN_main,
       runsN_total = infer_runsN_total, expN = infer_expN)
 
     stopifnot(create_dbWork(path,

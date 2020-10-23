@@ -2036,7 +2036,7 @@ dw_LookupWeatherFolder <- function(dw_source, dw_names, exinfo, site_dat,
     }
 
     if (lwf_cond2) {
-      # Use weather folder names from master file
+      # Use weather folder names from main file
       temp <- sapply(MoreArgs[["ri_lwf"]], function(ix)
         if (is.na(ix)) FALSE else file.exists(file.path(path, ix)))
       there <- there | temp
@@ -2383,7 +2383,7 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources,
   include_YN_dw[sim_size[["runIDs_sites"]]][!is.na(dw_source)] <- 1L
   SWRunInformation[, "Include_YN_DailyWeather"] <- include_YN_dw
 
-  utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]],
+  utils::write.csv(SWRunInformation, file = fnames_in[["fmain"]],
     row.names = FALSE)
   unlink(fnames_in[["fpreprocin"]])
 

@@ -36,8 +36,8 @@ it_scen2(pid, scN)
 subset of \code{runIDs_total}, i.e., a consecutive index across loop1 and
 loop2b}
 
-\item{runN}{An integer value. The number of runs/sites set up in the master
-input file, i.e., \eqn{runN == runsN_master}.}
+\item{runN}{An integer value. The number of runs/sites set up in the main
+input file, i.e., \eqn{runN == runsN_main}.}
 
 \item{pid}{An integer value. The index value across loop1, loop2b, and loop3
 combined, i.e., a unique consecutive identification number across all
@@ -82,26 +82,26 @@ Index functions
      nested in loop3 \code{(1...scN)} \itemize{
      \item Note: loop3 (along scenarios) occurs within the function
        \code{\link{do_OneSite}}
-     \item Note: loop2b is a subset of loop2a \code{(1...runsN_master)}}
+     \item Note: loop2b is a subset of loop2a \code{(1...runsN_main)}}
    \item column \var{\sQuote{include_YN}} reduces \code{site_id} to
      \code{runIDs_sites}
    \item \code{site_id} and \code{P_id} are invariant to
      \var{\sQuote{include_YN}}}
 
- \item Master input file: column \var{\sQuote{include_YN}} selects rows
+ \item Main input file: column \var{\sQuote{include_YN}} selects rows
    which are included in the simulation \itemize{
-   \item Note: rows of the master input file correspond to rows of the
+   \item Note: rows of the main input file correspond to rows of the
      treatment input file
    \item column \code{site_id} == consecutive identification numbers of all
-     rows in the master file; this is treated as a unique (and stable)
+     rows in the main file; this is treated as a unique (and stable)
      identifier of a site
-   \item \code{runsN_master} == number of rows in the master file
-   \item \code{runIDs_master} == consecutive identification numbers along
-     \code{runsN_master}
-   \item \code{runsN_sites} == number of rows in the master file that are
+   \item \code{runsN_main} == number of rows in the main file
+   \item \code{runIDs_main} == consecutive identification numbers along
+     \code{runsN_main}
+   \item \code{runsN_sites} == number of rows in the main file that are
      included; \code{runsN_sites <= max(site_id)} and
      \code{runsN_sites == length(runIDs_sites)}
-   \item \code{runIDs_sites} == values of \code{runIDs_master} which are
+   \item \code{runIDs_sites} == values of \code{runIDs_main} which are
      included}
 
  \item Experimental input file: each row defines a condition which is
@@ -115,7 +115,7 @@ Index functions
    \item \code{runIDs_job} == consecutive identification numbers along
      \code{runsN_job}
    \item \code{runsN_total == (number of sites) x (number of experimental
-     treatments) == runsN_master x expN}
+     treatments) == runsN_main x expN}
    \item \code{runIDs_total} == consecutive identification numbers along
     \code{runsN_total}
    \item \code{runIDs_done} == values of \code{runIDs_total} that have
@@ -136,7 +136,7 @@ Index functions
  \item A grand total of \code{n = runsN_Pid} \pkg{rSFSW2} runs could be
    carried out (\var{n} == number of rows in the output database) \itemize{
    \item \code{runsN_Pid == max(P_id) == runsN_total x scN ==
-      runsN_master x expN x scN}
+      runsN_main x expN x scN}
    \item \code{P_id} == a unique consecutive identification number for each
      possible \pkg{rSFSW2} simulation; used as the ID for the output
      database}

@@ -6,7 +6,7 @@ prepare_ExtractData_Elevation <- function(SWRunInformation, sim_size,
   elev_probs = c(0.025, 0.5, 0.975)
 ) {
 
-  sites_elevation_source <- get_datasource_masterfield(
+  sites_elevation_source <- get_datasource_mainfield(
     SWRunInformation,
     field_sources,
     sim_size,
@@ -64,7 +64,7 @@ update_elevation_input <- function(MMC, sim_size, digits = 0, fnames_in) {
 
   utils::write.csv(
     MMC[["input"]],
-    file = fnames_in[["fmaster"]],
+    file = fnames_in[["fmain"]],
     row.names = FALSE
   )
   unlink(fnames_in[["fpreprocin"]])
@@ -326,7 +326,7 @@ ExtractData_Elevation <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
 
   SFSW2_prj_inputs[["SWRunInformation"]] <- MMC[["input"]]
 
-  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_masterfield(
+  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_mainfield(
     MMC,
     sim_size = SFSW2_prj_meta[["sim_size"]],
     SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],

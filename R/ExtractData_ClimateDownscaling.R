@@ -4129,7 +4129,7 @@ copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp,
 #' Determine climate scenario data sources
 #'
 #' Allow for multiple data sources among sites but not multiple sources per site
-#' (for that you need a new row in the \var{\sQuote{MasterInput}} spreadsheet)
+#' (for that you need a new row in the \var{\sQuote{InputMain}} spreadsheet)
 climscen_determine_sources <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs) {
 
   xy <- SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], c("X_WGS84", "Y_WGS84")]
@@ -4166,7 +4166,7 @@ climscen_determine_sources <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_i
   SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"] <-
     as.character(sites_GCM_source)
   utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]],
-    file = SFSW2_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
+    file = SFSW2_prj_meta[["fnames_in"]][["fmain"]], row.names = FALSE)
   unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
   SFSW2_prj_inputs[["SWRunInformation"]]
@@ -4637,7 +4637,7 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
 
 #' Extract climate scenarios
 #'
-#' @param todos A logical vector of length \code{runsN_master}. Element locations with
+#' @param todos A logical vector of length \code{runsN_main}. Element locations with
 #'  \code{TRUE} indicate to extract climate data for said 'run'. The \code{TRUE} elements
 #'  should be a subset of the \code{TRUE}s of \code{SFSW2_prj_inputs[["include_YN"]]}.
 #'
@@ -4692,7 +4692,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta,
   # Generate seeds for climate change downscaling
   SFSW2_prj_meta[["rng_specs"]][["seeds_DS"]] <- generate_RNG_streams(
     N = length(SFSW2_prj_meta[["sim_scens"]][["reqMs"]]) *
-      SFSW2_prj_meta[["sim_size"]][["runsN_master"]],
+      SFSW2_prj_meta[["sim_size"]][["runsN_main"]],
     seed = SFSW2_prj_meta[["rng_specs"]][["global_seed"]],
     reproducible = SFSW2_prj_meta[["opt_sim"]][["reproducible"]]
   )
@@ -4736,7 +4736,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta,
   }
 
   # Prepare 'include_YN_climscen'
-  include_YN_climscen <- rep(0L, SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
+  include_YN_climscen <- rep(0L, SFSW2_prj_meta[["sim_size"]][["runsN_main"]])
 
   temp <- find_sites_with_bad_weather(
     fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
@@ -4748,7 +4748,7 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta,
 
   SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
   utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]],
-    file = SFSW2_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
+    file = SFSW2_prj_meta[["fnames_in"]][["fmain"]], row.names = FALSE)
   unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
 
@@ -4800,7 +4800,7 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
       )
 
       # keep track of successful/unsuccessful climate scenarios
-      include_YN_climscen <- rep(FALSE, SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
+      include_YN_climscen <- rep(FALSE, SFSW2_prj_meta[["sim_size"]][["runsN_main"]])
 
       for (sc in seq_len(SFSW2_prj_meta[["sim_scens"]][["N"]] - 1)) {
         dir_ex_dat.sc <- file.path(dir_ex_dat, SFSW2_prj_meta[["sim_scens"]][["id"]][1 + sc])
@@ -4883,7 +4883,7 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
 
       include_YN_climscen <- as.numeric(include_YN_climscen >= (SFSW2_prj_meta[["sim_scens"]][["N"]] - 1))
       SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
-      utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]], file = SFSW2_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
+      utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]], file = SFSW2_prj_meta[["fnames_in"]][["fmain"]], row.names = FALSE)
       unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
       no_ecw <- sum(include_YN_climscen == 0)
@@ -4892,7 +4892,7 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
           "data"))
 
     } else {
-      print(paste("Not all scenarios requested in 'master file' are",
+      print(paste("Not all scenarios requested in 'main file' are",
         "available with 'ExtractClimateWizard'"))
     }
   }

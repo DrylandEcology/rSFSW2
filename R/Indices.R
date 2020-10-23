@@ -6,8 +6,8 @@
 #' @param sc An integer value. The index along loop3 \code{1...scN}.
 #' @param scN An integer value. The number of (climate) scenarios used in the
 #'   project, i.e., \eqn{scN == sim_scens[["N"]]}.
-#' @param runN An integer value. The number of runs/sites set up in the master
-#'   input file, i.e., \eqn{runN == runsN_master}.
+#' @param runN An integer value. The number of runs/sites set up in the main
+#'   input file, i.e., \eqn{runN == runsN_main}.
 #' @param iexp An integer value. The index value along loop1 \code{1...expN}.
 #' @param isite An integer value. The index value along loop2b
 #'   \code{1...runsN_sites}.
@@ -24,26 +24,26 @@
 #'      nested in loop3 \code{(1...scN)} \itemize{
 #'      \item Note: loop3 (along scenarios) occurs within the function
 #'        \code{\link{do_OneSite}}
-#'      \item Note: loop2b is a subset of loop2a \code{(1...runsN_master)}}
+#'      \item Note: loop2b is a subset of loop2a \code{(1...runsN_main)}}
 #'    \item column \var{\sQuote{include_YN}} reduces \code{site_id} to
 #'      \code{runIDs_sites}
 #'    \item \code{site_id} and \code{P_id} are invariant to
 #'      \var{\sQuote{include_YN}}}
 #'
-#'  \item Master input file: column \var{\sQuote{include_YN}} selects rows
+#'  \item Main input file: column \var{\sQuote{include_YN}} selects rows
 #'    which are included in the simulation \itemize{
-#'    \item Note: rows of the master input file correspond to rows of the
+#'    \item Note: rows of the main input file correspond to rows of the
 #'      treatment input file
 #'    \item column \code{site_id} == consecutive identification numbers of all
-#'      rows in the master file; this is treated as a unique (and stable)
+#'      rows in the main file; this is treated as a unique (and stable)
 #'      identifier of a site
-#'    \item \code{runsN_master} == number of rows in the master file
-#'    \item \code{runIDs_master} == consecutive identification numbers along
-#'      \code{runsN_master}
-#'    \item \code{runsN_sites} == number of rows in the master file that are
+#'    \item \code{runsN_main} == number of rows in the main file
+#'    \item \code{runIDs_main} == consecutive identification numbers along
+#'      \code{runsN_main}
+#'    \item \code{runsN_sites} == number of rows in the main file that are
 #'      included; \code{runsN_sites <= max(site_id)} and
 #'      \code{runsN_sites == length(runIDs_sites)}
-#'    \item \code{runIDs_sites} == values of \code{runIDs_master} which are
+#'    \item \code{runIDs_sites} == values of \code{runIDs_main} which are
 #'      included}
 #'
 #'  \item Experimental input file: each row defines a condition which is
@@ -57,7 +57,7 @@
 #'    \item \code{runIDs_job} == consecutive identification numbers along
 #'      \code{runsN_job}
 #'    \item \code{runsN_total == (number of sites) x (number of experimental
-#'      treatments) == runsN_master x expN}
+#'      treatments) == runsN_main x expN}
 #'    \item \code{runIDs_total} == consecutive identification numbers along
 #'     \code{runsN_total}
 #'    \item \code{runIDs_done} == values of \code{runIDs_total} that have
@@ -78,7 +78,7 @@
 #'  \item A grand total of \code{n = runsN_Pid} \pkg{rSFSW2} runs could be
 #'    carried out (\var{n} == number of rows in the output database) \itemize{
 #'    \item \code{runsN_Pid == max(P_id) == runsN_total x scN ==
-#'       runsN_master x expN x scN}
+#'       runsN_main x expN x scN}
 #'    \item \code{P_id} == a unique consecutive identification number for each
 #'      possible \pkg{rSFSW2} simulation; used as the ID for the output
 #'      database}
@@ -169,7 +169,7 @@ it_scen2 <- function(pid, scN) {
 determine_simulation_size <- function(SWRunInformation, include_YN,
   sw_input_experimentals, sim_scens) {
 
-  runsN_master <- dim(SWRunInformation)[1]
+  runsN_main <- dim(SWRunInformation)[1]
   runIDs_sites <- which(include_YN)
   runsN_sites <- length(runIDs_sites)
   if (!(runsN_sites > 0))
@@ -178,14 +178,14 @@ determine_simulation_size <- function(SWRunInformation, include_YN,
 
   # identify how many rSFSW2-runs = rows are to be carried out
   expN <- NROW(sw_input_experimentals)
-  runsN_total <- runsN_master * max(expN, 1L)
+  runsN_total <- runsN_main * max(expN, 1L)
   # consecutive number of all possible (tr x exp) simulations
   runIDs_total <- seq_len(runsN_total)
   digitsN_total <- 1 + ceiling(log10(runsN_total))  # max index digits
   runsN_job <- runsN_sites * max(expN, 1L)
   runsN_Pid <- runsN_total * sim_scens[["N"]]
 
-  list(expN = expN, runsN_master = runsN_master, runIDs_sites = runIDs_sites,
+  list(expN = expN, runsN_main = runsN_main, runIDs_sites = runIDs_sites,
     runsN_sites = runsN_sites, runsN_total = runsN_total,
     runIDs_total = runIDs_total, runsN_job = runsN_job, runsN_Pid = runsN_Pid,
     runIDs_todo = NULL, runsN_todo = 0, digitsN_total = digitsN_total

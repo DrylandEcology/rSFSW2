@@ -3,7 +3,7 @@ prepare_MeanMonthlyClimate <- function(SWRunInformation, sim_size,
   field_sources, field_include, how_determine_sources, sw_input_cloud_use,
   sw_input_cloud) {
 
-  sites_monthlyclim_source <- get_datasource_masterfield(SWRunInformation,
+  sites_monthlyclim_source <- get_datasource_mainfield(SWRunInformation,
     field_sources, sim_size, how_determine_sources)
 
   dtemp <- array(NA, dim = c(sim_size[["runsN_sites"]], 3, 12),
@@ -121,6 +121,7 @@ extract_climate_NOAAClimAtlas <- function(MMC, sim_size, sim_space,
 
     # Align with data crs
     stopifnot(requireNamespace("rgdal"))
+    # TODO: replace `rgdal::readOGR` with `sf::st_read`
     noaaca <- rgdal::readOGR(
       dsn = path.expand(dir_noaaca[["RH"]]),
       layer = files_shp[["RH"]][1],
@@ -466,7 +467,7 @@ ExtractData_MeanMonthlyClimate <- function(exinfo, SFSW2_prj_meta,
     )
   }
 
-  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_masterfield(MMC,
+  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_mainfield(MMC,
     sim_size = SFSW2_prj_meta[["sim_size"]],
     SFSW2_prj_inputs[["SWRunInformation"]],
     SFSW2_prj_meta[["fnames_in"]],

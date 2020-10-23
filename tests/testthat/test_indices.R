@@ -5,8 +5,8 @@ library("RSQLite")
 
 # Initialization
 expN <- 11L
-runsN_master <- 17L
-runsN_total <- runsN_master * max(expN, 1L)
+runsN_main <- 17L
+runsN_total <- runsN_main * max(expN, 1L)
 runIDs_total <- seq_len(runsN_total)
 scenario_No <- 5L
 
@@ -17,12 +17,12 @@ runIDs_todo <- list(test0 = integer(0), test1 = 0,
     144, 150, 169, 185)))
 
 exp_experiment <- list(test0 = integer(0), test1 = 0,
-  test2 = rep(seq_len(expN), each = runsN_master),
+  test2 = rep(seq_len(expN), each = runsN_main),
   test3 = 1L, test4 = as.integer(c(1, 2, 2, 2, 3, 3, 4, 5, 6, 6, 7, 8, 9, 9, 9,
     10, 11)))
 
 exp_site <- list(test0 = integer(0), test1 = 0,
-  test2 = rep(seq_len(runsN_master), expN),
+  test2 = rep(seq_len(runsN_main), expN),
   test3 = 1L, test4 = as.integer(c(7, 1, 3, 7, 1, 14, 17, 8, 12, 16, 11, 11, 1,
     8, 14, 16, 15)))
 
@@ -44,30 +44,30 @@ test_that("rSFSW2 indices", {
 
     if (rSW2utils::is.natural(runIDs_todo[[k]])) {
       # Index of experimental treatments (row in experimental design file)
-      expect_equal(it_exp(isim = runIDs_todo[[k]], runN = runsN_master),
+      expect_equal(it_exp(isim = runIDs_todo[[k]], runN = runsN_main),
         exp_experiment[[k]], label = names(runIDs_todo)[k])
-      expect_equal(it_exp2(pid = exp_pids[[k]][[1]], runN = runsN_master,
+      expect_equal(it_exp2(pid = exp_pids[[k]][[1]], runN = runsN_main,
         scN = scenario_No), exp_experiment[[k]], label = names(runIDs_todo)[k])
 
-      # Index of site_id (row in master input file)
-      expect_equal(it_site(isim = runIDs_todo[[k]], runN = runsN_master),
+      # Index of site_id (row in main input file)
+      expect_equal(it_site(isim = runIDs_todo[[k]], runN = runsN_main),
         exp_site[[k]], label = names(runIDs_todo)[k])
-      expect_equal(it_site2(pid = exp_pids[[k]][[1]], runN = runsN_master,
+      expect_equal(it_site2(pid = exp_pids[[k]][[1]], runN = runsN_main,
         scN = scenario_No), exp_site[[k]], label = names(runIDs_todo)[k])
 
       # Index of simulation runs
       expect_equal(it_sim0(iexp = exp_experiment[[k]], isite = exp_site[[k]],
-        runN = runsN_master), runIDs_todo[[k]], label = names(runIDs_todo)[k])
+        runN = runsN_main), runIDs_todo[[k]], label = names(runIDs_todo)[k])
       expect_equal(it_sim2(pid = exp_pids[[k]][[1]], scN = scenario_No),
         runIDs_todo[[k]], label = names(runIDs_todo)[k])
 
       for (sc in seq_len(scenario_No)) {
         # Index of P_id (unique id in dbOutput)
-        expect_equal(it_Pid(isim = runIDs_todo[[k]], runN = runsN_master,
+        expect_equal(it_Pid(isim = runIDs_todo[[k]], runN = runsN_main,
           sc = sc, scN = scenario_No), exp_pids[[k]][[sc]],
           label = paste(names(runIDs_todo)[k], " - scenario =", sc))
         expect_equal(it_Pid0(iexp = exp_experiment[[k]], isite = exp_site[[k]],
-          runN = runsN_master, sc = sc, scN = scenario_No), exp_pids[[k]][[sc]],
+          runN = runsN_main, sc = sc, scN = scenario_No), exp_pids[[k]][[sc]],
           label = paste(names(runIDs_todo)[k], " - scenario =", sc))
 
         # Index of scenario
@@ -78,30 +78,30 @@ test_that("rSFSW2 indices", {
 
     } else {
       # Index of experimental treatments (row in experimental design file)
-      expect_error(it_exp(isim = runIDs_todo[[k]], runN = runsN_master),
+      expect_error(it_exp(isim = runIDs_todo[[k]], runN = runsN_main),
         label = names(runIDs_todo)[k])
-      expect_error(it_exp2(pid = exp_pids[[k]][[1]], runN = runsN_master,
+      expect_error(it_exp2(pid = exp_pids[[k]][[1]], runN = runsN_main,
         scN = scenario_No), label = names(runIDs_todo)[k])
 
-      # Index of site_id (row in master input file)
-      expect_error(it_site(isim = runIDs_todo[[k]], runN = runsN_master),
+      # Index of site_id (row in main input file)
+      expect_error(it_site(isim = runIDs_todo[[k]], runN = runsN_main),
         label = names(runIDs_todo)[k])
-      expect_error(it_site2(pid = exp_pids[[k]][[1]], runN = runsN_master,
+      expect_error(it_site2(pid = exp_pids[[k]][[1]], runN = runsN_main,
         scN = scenario_No), label = names(runIDs_todo)[k])
 
       # Index of simulation runs
       expect_error(it_sim0(iexp = exp_experiment[[k]], isite = exp_site[[k]],
-        runN = runsN_master), label = names(runIDs_todo)[k])
+        runN = runsN_main), label = names(runIDs_todo)[k])
       expect_error(it_sim2(pid = exp_pids[[k]][[1]], scN = scenario_No),
         label = names(runIDs_todo)[k])
 
       for (sc in seq_len(scenario_No)) {
         # Index of P_id (unique id in dbOutput)
-        expect_error(it_Pid(isim = runIDs_todo[[k]], runN = runsN_master,
+        expect_error(it_Pid(isim = runIDs_todo[[k]], runN = runsN_main,
           sc = sc, scN = scenario_No),
           label = paste(names(runIDs_todo)[k], " - scenario =", sc))
         expect_error(it_Pid0(iexp = exp_experiment[[k]], isite = exp_site[[k]],
-          runN = runsN_master, sc = sc, scN = scenario_No),
+          runN = runsN_main, sc = sc, scN = scenario_No),
           label = paste(names(runIDs_todo)[k], " - scenario =", sc))
 
         # Index of scenario

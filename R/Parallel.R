@@ -52,7 +52,7 @@ export_objects_to_workers <- function(obj_env,
   t.bcast <- Sys.time()
   parallel_backend <- match.arg(parallel_backend)
   N <- length(ls(obj_env))
-  print(paste("Exporting", N, "objects from master process to workers"))
+  print(paste("Exporting", N, "objects from main process to workers"))
 
   success <- FALSE
   done_N <- 0
@@ -173,16 +173,16 @@ export_parallel_glovars <- function(verbose = FALSE) {
 #'   \url{http://acmmac.acadiau.ca/tl_files/sites/acmmac/resources/examples/task_pull.R.txt}
 # nolint end
 #' @section Notes: If an error occurs, then the worker will likely not report
-#'   back to master because it hangs in miscommunication and remains idle
+#'   back to main because it hangs in miscommunication and remains idle
 #'   (check activity, e.g., with \code{top}).
 #' @section Details:
-#' Message tags sent by this function from workers to master: \itemize{
-#'  \item 1 = worker is ready for master to send a task
+#' Message tags sent by this function from workers to main: \itemize{
+#'  \item 1 = worker is ready for main to send a task
 #'  \item 2 = worker is done with a task
 #'  \item 3 = worker is exiting
 #'  \item 4 = worker failed with task
 #' }
-#' Message tags from master which this function can receive and understand:
+#' Message tags from main which this function can receive and understand:
 #' \itemize{
 #'  \item 1 = this communication is a new task
 #'  \item 2 = tells worker to shut down because all tasks are completed
@@ -194,7 +194,7 @@ mpi_work <- function(verbose = FALSE) {
   # Define tags
   junk <- 0L
   worker_is_done <- FALSE
-  master <- 0L
+  main <- 0L
   worker_id <- Rmpi::mpi.comm.rank()
 
   if (verbose) {
@@ -203,15 +203,15 @@ mpi_work <- function(verbose = FALSE) {
 
   #--- Loop until all work is completed
   while (!worker_is_done) {
-    # Signal master that worker is ready to receive a new task
-    Rmpi::mpi.send.Robj(junk, dest = master, tag = 1L)
+    # Signal main that worker is ready to receive a new task
+    Rmpi::mpi.send.Robj(junk, dest = main, tag = 1L)
 
-    # Worker is receiving a message from master
+    # Worker is receiving a message from main
     dat <- Rmpi::mpi.recv.Robj(Rmpi::mpi.any.source(), Rmpi::mpi.any.tag())
     task_info <- Rmpi::mpi.get.sourcetag()
-    tag_from_master <- task_info[2]
+    tag_from_main <- task_info[2]
 
-    if (tag_from_master == 1L) {
+    if (tag_from_main == 1L) {
       # Worker received a new task
       if (dat$do_OneSite) {
         if (verbose) {
@@ -231,25 +231,25 @@ mpi_work <- function(verbose = FALSE) {
           time_s = delta.do_OneSite)
 
         if (status) {
-          # Send result back to the master and message that task has been
+          # Send result back to the main and message that task has been
           # completed
           if (verbose) {
             print(paste(Sys.time(), "MPI-worker", worker_id,
               "successfully completed task =", dat$i_sim))
           }
 
-          Rmpi::mpi.send.Robj(dat, dest = master, tag = 2L)
+          Rmpi::mpi.send.Robj(dat, dest = main, tag = 2L)
 
         } else {
-          # Tell master that task failed
+          # Tell main that task failed
           print(paste(Sys.time(), "MPI-worker", worker_id, "failed with task =",
             dat$i_sim, "with error", shQuote(paste(result, collapse = " / "))))
 
-          Rmpi::mpi.send.Robj(dat, dest = master, tag = 4L)
+          Rmpi::mpi.send.Robj(dat, dest = main, tag = 4L)
         }
       }
 
-    } else if (tag_from_master == 2L) {
+    } else if (tag_from_main == 2L) {
       # Worker is told to shut down
       worker_is_done <- TRUE
 
@@ -259,14 +259,14 @@ mpi_work <- function(verbose = FALSE) {
       }
 
     } else {
-      # We'll just ignore any unknown message from master
+      # We'll just ignore any unknown message from main
       print(paste(Sys.time(), "MPI-worker", worker_id, "received tag =",
-        tag_from_master, "from master but doesn't know what this means."))
+        tag_from_main, "from main but doesn't know what this means."))
     }
   }
 
-  # Worker is signaling to master that it is exiting
-  Rmpi::mpi.send.Robj(junk, dest = master, tag = 3L)
+  # Worker is signaling to main that it is exiting
+  Rmpi::mpi.send.Robj(junk, dest = main, tag = 3L)
 }
 
 
@@ -300,7 +300,7 @@ mpi_last <- function(gv) {
       Rmpi::mpi.bcast.cmd(cmd = .Call("mpi_finalize", PACKAGE = "Rmpi"))
 
     } else {
-      # Maybe master still needs to finalize?
+      # Maybe main still needs to finalize?
       Rmpi::mpi.finalize()
     }
   }
@@ -337,7 +337,7 @@ exit_SFSW2_cluster <- function(verbose = FALSE) {
       mpi_last(SFSW2_glovars)
 
       # Locate remaining R workers
-      #   - remove master PID
+      #   - remove main PID
       temp <- Sys.getpid() == SFSW2_glovars[["p_pids"]]
       pids <- SFSW2_glovars[["p_pids"]][!temp]
       #   - remove PIDs that are properly closed down
@@ -487,7 +487,7 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
         Rmpi::mpi.bcast.Robj2slave(dbW_disconnectConnection_local)
 
       } else {
-        print("MPI master/workers are already set up.")
+        print("MPI main/workers are already set up.")
       }
 
     } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
@@ -515,7 +515,7 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
           parallel::clusterCall(SFSW2_glovars[["p_cl"]], fun = Sys.getpid))
 
         # Note (drs): it is ok to load into globalenv() because this happens
-        #  on workers and not on master;
+        #  on workers and not on main;
         #  -> R CMD CHECK reports this nevertheless as issue
         # pos = 1 assigns into globalenv() of the worker
         parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]],

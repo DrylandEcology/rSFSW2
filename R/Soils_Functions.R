@@ -145,10 +145,10 @@ setBottomLayer <- function(d, DeepestTopLayer) {
 #' Merge datafiles from two soil data sources (source 1 overrides source 2) and
 #' choose some or none of the variables to come from one source only.
 #'
-#' @param fmaster A character string. Path to the target master file.
-#' @param fmaster1 A character string. Path to master file derived from
+#' @param fmain A character string. Path to the target main file.
+#' @param fmain1 A character string. Path to main file derived from
 #'   extracting from soil data source 1
-#' @param fmaster2 A character string. Path to master file derived from
+#' @param fmain2 A character string. Path to main file derived from
 #'   extracting from soil data source 2
 #' @param fslayer A character string. Path to the target soil layer structure
 #'   file.
@@ -167,18 +167,18 @@ setBottomLayer <- function(d, DeepestTopLayer) {
 #'   is available
 #'
 #' @return A logical value. This function is called for its side effects, i.e.,
-#'   storing updated/new files to \code{fmaster}, \code{fslayer}, and
+#'   storing updated/new files to \code{fmain}, \code{fslayer}, and
 #'   \code{fstexture}.
-merge_2soils <- function(fmaster, fmaster1, fmaster2, fslayer, fslayer1,
+merge_2soils <- function(fmain, fmain1, fmain2, fslayer, fslayer1,
   fslayer2, fstexture, fstexture1, fstexture2, var_from2 = NULL) {
 
-  #------ MASTER FILES
-  master1 <- utils::read.csv(fmaster1)
-  master2 <- utils::read.csv(fmaster2)
-  master <- if (file.exists(fmaster)) utils::read.csv(fmaster) else master1
+  #------ MAIN FILES
+  main1 <- utils::read.csv(fmain1)
+  main2 <- utils::read.csv(fmain2)
+  main <- if (file.exists(fmain)) utils::read.csv(fmain) else main1
 
-  source1 <- as.character(unique(stats::na.exclude(master1$SoilTexture_source)))
-  source2 <- as.character(unique(stats::na.exclude(master2$SoilTexture_source)))
+  source1 <- as.character(unique(stats::na.exclude(main1$SoilTexture_source)))
+  source2 <- as.character(unique(stats::na.exclude(main2$SoilTexture_source)))
 
   stopifnot(length(source1) == 1, length(source2) == 1)
 
@@ -189,33 +189,33 @@ merge_2soils <- function(fmaster, fmaster1, fmaster2, fslayer, fslayer1,
     "for variables", paste(shQuote(var_from2), collapse = ", "), "will be",
     "used for all sites if available")))
 
-  temp1 <- !is.na(master1$SoilTexture_source) &
-    !is.na(master1$Include_YN_SoilSources) & master1$Include_YN_SoilSources > 0
-  temp2 <- !is.na(master2$SoilTexture_source) &
-    !is.na(master2$Include_YN_SoilSources) & master2$Include_YN_SoilSources > 0
+  temp1 <- !is.na(main1$SoilTexture_source) &
+    !is.na(main1$Include_YN_SoilSources) & main1$Include_YN_SoilSources > 0
+  temp2 <- !is.na(main2$SoilTexture_source) &
+    !is.na(main2$Include_YN_SoilSources) & main2$Include_YN_SoilSources > 0
   iuse_source <- ifelse(temp1, 1, ifelse(temp2, 2, NA))
 
   soiltally <- table(iuse_source, useNA = "ifany")
   print(soiltally)
 
   # Indices of soil datasets
-  id1 <- id1c <- !is.na(master1$SoilTexture_source) &
-    master1$SoilTexture_source == source1
-  id2 <- !is.na(master2$SoilTexture_source) &
-    master2$SoilTexture_source == source2
+  id1 <- id1c <- !is.na(main1$SoilTexture_source) &
+    main1$SoilTexture_source == source1
+  id2 <- !is.na(main2$SoilTexture_source) &
+    main2$SoilTexture_source == source2
   id2c <- id2 & !id1
   id12 <- id1 & id2
   idnot <- !id1c & !id2c
 
   # Copy data
-  master[idnot, "SoilTexture_source"] <- NA
-  master[id1c, "SoilTexture_source"] <- source1
-  master[id2c, "SoilTexture_source"] <- source2
-  master[idnot, "Include_YN_SoilSources"] <- 0
-  master[!idnot, "Include_YN_SoilSources"] <- 1
+  main[idnot, "SoilTexture_source"] <- NA
+  main[id1c, "SoilTexture_source"] <- source1
+  main[id2c, "SoilTexture_source"] <- source2
+  main[idnot, "Include_YN_SoilSources"] <- 0
+  main[!idnot, "Include_YN_SoilSources"] <- 1
 
   # Save to disk
-  utils::write.csv(master, file = fmaster, row.names = FALSE)
+  utils::write.csv(main, file = fmain, row.names = FALSE)
 
 
   #------SOIL LAYERS

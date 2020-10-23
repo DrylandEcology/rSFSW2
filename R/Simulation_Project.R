@@ -14,8 +14,8 @@
 setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
   print.debug = FALSE) {
 
-  masterinput_pattern <- "_InputMaster_"
-  masterinput_pattern_demo <- "_InputMaster_YOURPROJECT_"
+  maininput_pattern <- "_InputMain_"
+  maininput_pattern_demo <- "_InputMain_YOURPROJECT_"
 
   if (verbose || print.debug) {
     t1 <- Sys.time()
@@ -50,11 +50,11 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
       fes <- c(fes, ftmp)
 
     } else {
-      if (grepl(masterinput_pattern, di[["fname"]])) {
-        # Simulation projects usually rename the input master file: check if
+      if (grepl(maininput_pattern, di[["fname"]])) {
+        # Simulation projects usually rename the input main file: check if
         #   present and if any contain sufficient content
-        fim <- list.files(dtmp, pattern = masterinput_pattern)
-        fim <- grep(masterinput_pattern_demo, fim, value = TRUE, invert = TRUE)
+        fim <- list.files(dtmp, pattern = maininput_pattern)
+        fim <- grep(maininput_pattern_demo, fim, value = TRUE, invert = TRUE)
         fim_ok <- FALSE
         for (kfim in fim) {
           fim_fields <- utils::read.csv(file.path(dtmp, kfim), nrows = 1)
@@ -65,7 +65,7 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
         if (fim_ok) {
           if (verbose || print.debug) {
             print(paste("'setup_rSFSW2_project_infrastructure' does not",
-              "replace the existing input master file", paste(shQuote(fim),
+              "replace the existing input main file", paste(shQuote(fim),
                 collapse = "/"), "with default version of file."))
           }
 
@@ -642,15 +642,15 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
   )
 
 
-  #--- Setup random number generator streams for each runsN_master
-  # Note: runsN_master: each site = row of master and not for runsN_total
+  #--- Setup random number generator streams for each runsN_main
+  # Note: runsN_main: each site = row of main and not for runsN_total
   # because same site but under different experimental treatments should have
   # same random numbers
 
   if (todo_intracker(SFSW2_prj_meta, "rng_setup", "prepared")) {
 
     SFSW2_prj_meta[["rng_specs"]] <- setup_RNG(
-      streams_N = SFSW2_prj_meta[["sim_size"]][["runsN_master"]],
+      streams_N = SFSW2_prj_meta[["sim_size"]][["runsN_main"]],
       global_seed = SFSW2_prj_meta[["opt_sim"]][["global_seed"]],
       reproducible = SFSW2_prj_meta[["opt_sim"]][["reproducible"]]
     )
@@ -970,7 +970,7 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
 
   if (any(unlist(SFSW2_prj_meta[["pcalcs"]]))) {
     # if not all, then runIDs_sites
-    runIDs_adjust <- seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
+    runIDs_adjust <- seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_main"]])
   }
 
   if (SFSW2_prj_meta[["pcalcs"]][["AddRequestedSoilLayers"]]) {
