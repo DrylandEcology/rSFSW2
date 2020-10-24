@@ -50,16 +50,26 @@ if (requireNamespace("RSQLite") && exists("SFSW2_prj_meta")) {
     dbNew_fname = "path/to/new.sqlite3",
     fields_exclude = list(
       aggregation_overall_mean = c("MAT_C_mean", "MAP_mm_mean"),
-      aggregation_overall_sd = c("MAT_C_sd", "MAP_mm_sd")))
+      aggregation_overall_sd = c("MAT_C_sd", "MAP_mm_sd")
+    )
+  )
 
-  con <- RSQLite::dbConnect(RSQLite::SQLite(),
-    SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-  fields <- RSQLite::dbQuoteIdentifier(con,
-    RSQLite::dbListFields(con, table))
+  con <- RSQLite::dbConnect(
+    RSQLite::SQLite(),
+    SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]
+  )
+
+  fields <- RSQLite::dbQuoteIdentifier(
+    con,
+    RSQLite::dbListFields(con, table)
+  )
 
   # Extract Pids from records that were updated
-  sql <- paste("SELECT P_id FROM", table, "WHERE",
-    paste(fields[-1], "= 1", collapse = " AND "))
+  sql <- paste(
+    "SELECT P_id FROM", table,
+    "WHERE", paste(fields[-1], "= 1", collapse = " AND ")
+  )
+
   is_good <- RSQLite::dbGetQuery(con, sql)
 
   RSQLite::dbDisconnect(con)

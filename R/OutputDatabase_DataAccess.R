@@ -61,7 +61,9 @@
 #'   table = "iris",
 #'   vars_orig = vars_orig,
 #'   vars_new = "calc",
-#'   FUN = example_calc, delta = 2)
+#'   FUN = example_calc,
+#'   delta = 2
+#' )
 #'
 #' # Check the new field
 #' con <- RSQLite::dbConnect(RSQLite::SQLite(), dbOut_tmp)
@@ -88,7 +90,7 @@ dbOutput_add_calculated_field <- function(dbOut_fname, table,
   vars_newq <- dbQuoteIdentifier(con, vars_new)
   vars_origq <- dbQuoteIdentifier(con, vars_orig)
 
-  has_fields <- dbListFields(con, tableq)
+  has_fields <- RSQLite::dbListFields(con, tableq)
 
   # Check that `vars_orig` are available
   stopifnot(vars_orig %in% has_fields)

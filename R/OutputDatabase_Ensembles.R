@@ -94,7 +94,7 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
       dbClearResult(rs)
 
       written <- 1
-      #written <- dbWriteTable(conEnsembleDB, name = outfile, dat, row.names = FALSE, append = TRUE)#
+      #written <- RSQLite::dbWriteTable(conEnsembleDB, name = outfile, dat, row.names = FALSE, append = TRUE)#
       if (written)
         return(1)
       else
@@ -102,7 +102,7 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
     }
     read.scenarios <- function(Table, start, stop, ensemble.family, export.header = TRUE) {
       #Read first file
-      columns <- dbListFields(con, Table)[-1]
+      columns <- RSQLite::dbListFields(con, Table)[-1]
       if (Layers <- any(temp <- grepl(pattern = "Soil_Layer", x = columns))) columns <- columns[-temp]
       columns <- paste0("\"", columns, "\"", collapse = ", ")
       sqlString <- paste0("SELECT '", Table, "'.P_id AS P_id, header.Scenario AS Scenario, ", columns, " FROM '", Table, "' INNER JOIN header ON '", Table, "'.P_id = header.P_id WHERE header.P_id BETWEEN ", start, " AND ", stop, " AND header.Scenario LIKE '%", tolower(ensemble.family), "%'", " ORDER BY P_id;")

@@ -1,7 +1,6 @@
 context("Indices")
 
 #--- Inputs
-library("RSQLite")
 
 # Initialization
 expN <- 11L

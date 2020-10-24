@@ -81,7 +81,9 @@ dbOutput_add_calculated_field(
   table = "iris",
   vars_orig = vars_orig,
   vars_new = "calc",
-  FUN = example_calc, delta = 2)
+  FUN = example_calc,
+  delta = 2
+)
 
 # Check the new field
 con <- RSQLite::dbConnect(RSQLite::SQLite(), dbOut_tmp)

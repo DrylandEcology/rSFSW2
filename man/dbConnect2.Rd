@@ -16,8 +16,8 @@ dbConnect2(
 \arguments{
 \item{dbname}{A character string. The path including name to the database.}
 
-\item{flags}{An integer value. See \code{\link[DBI]{dbConnect}}. Defaults to
-read/write mode.}
+\item{flags}{An integer value. See \code{\link[DBI]{dbConnect}}.
+Defaults to read/write mode.}
 
 \item{verbose}{A logical value.}
 
