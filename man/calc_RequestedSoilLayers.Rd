@@ -10,6 +10,7 @@ calc_RequestedSoilLayers(
   SFSW2_prj_inputs,
   runIDs_adjust,
   keep_old_depth = TRUE,
+  keep_prev_soillayers = TRUE,
   verbose = FALSE
 )
 }
