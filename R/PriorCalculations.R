@@ -89,6 +89,12 @@ calc_RequestedSoilLayers <- function(SFSW2_prj_meta,
     sw_input_soils_data2 <- NULL
 
     for (ils in seq_along(layer_sets)) {
+      if (verbose) {
+        print(paste(
+          "Processing", ils, "out of", length(layer_sets), "soil layer sets."
+        ))
+      }
+
       il_set <- avail_sl_ids == layer_sets[ils]
       if (sum(il_set, na.rm = TRUE) == 0) next
 
@@ -139,6 +145,13 @@ calc_RequestedSoilLayers <- function(SFSW2_prj_meta,
           var_layers[iv],
           names(SFSW2_prj_inputs[["sw_input_soils_use"]])
         )
+
+        if (length(tmp) < length(ldset)) {
+          stop(
+            "`sw_input_soils` has columns for ", length(tmp), " soil layers, ",
+            "but ", length(ldset), " are requested."
+          )
+        }
 
         icol <- tmp[lyrs]
 
