@@ -277,6 +277,7 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
     total_matric[!is.finite(total_matric)] <- NA
     MMC[["data"]][todos, grep("sand", MMC[["cn"]])[ils]] <- sand / total_matric
     MMC[["data"]][todos, grep("clay", MMC[["cn"]])[ils]] <- clay / total_matric
+    ldepth_CONUS <- ldepth_CONUS[-1]
 
     # There is no organic carbon data, set all values to a default
     MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[ils]] <- default_TOC_GperKG
@@ -297,10 +298,10 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
         sim_size = sim_size,
         digits = 3,
         i_Done = i_Done,
-        ldepths_cm = ldepths_cm,
+        ldepths_cm = ldepth_CONUS,
         lys = seq_len(
           max(
-            findInterval(MMC[["data"]][todos, "depth"], ldepths_cm),
+            findInterval(MMC[["data"]][todos, "depth"], ldepth_CONUS),
             na.rm = TRUE
           )
         ),
