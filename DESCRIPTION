@@ -46,8 +46,7 @@ Suggests:
     testthat (>= 2.0.0),
     spelling (>= 2.1.0),
     covr,
-    lintr (>= 2.0.0),
-    pkgload
+    lintr (>= 2.0.0)
 Remotes:
     github::DrylandEcology/rSW2utils,
     github::DrylandEcology/rSW2st,
