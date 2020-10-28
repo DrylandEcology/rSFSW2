@@ -2153,9 +2153,19 @@ dw_DayMet_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
 
       if (any(there)) {
         dw_source[there] <- "DayMet_NorthAmerica"
+
+        # Old approach that required a separate weather db entry for each site
         dw_names[there] <- with(site_dat[there, ], paste0(Label, "_DayMet",
           formatC(X_WGS84, digits = 4, format = "f"), "_",
           formatC(Y_WGS84, digits = 4, format = "f")))
+
+        # TODO: use tile-names once we can re-use weather data among runs
+        if (FALSE) {
+          dw_names[there] <- get_DayMet_cellID(
+            coords_WGS84 =
+              site_dat[there, c("X_WGS84", "Y_WGS84"), drop = FALSE]
+          )[["cellID"]]
+        }
       }
     }
   }
