@@ -1,9 +1,8 @@
 
-# Based on code from \code{\link[tools][.split_dependencies]} and
-# \code{\link[tools][.split_op_version]}
+# Based on code from \code{\link[tools]{.split_dependencies}} and
+# \code{\link[tools]{.split_op_version}}
 .split_dependencies <- function(x) {
-  .split_op_version <- function(x)
-  {
+  .split_op_version <- function(x) {
     pat <- "^([^\\([:space:]]+)[[:space:]]*\\(([^\\)]+)\\).*"
     x1 <- sub(pat, "\\1", x)
     x2 <- sub(pat, "\\2", x)

@@ -57,9 +57,14 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   }
 
   temp_runIDs_sites <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
-  site_data <- data.frame(Site_id = SWRunInformation$site_id,
-    Latitude = SWRunInformation$Y_WGS84, Longitude = SWRunInformation$X_WGS84,
-    Label = SWRunInformation$WeatherFolder, stringsAsFactors = FALSE)
+
+  site_data <- data.frame(
+    Site_id = SWRunInformation$site_id,
+    Latitude = SWRunInformation$Y_WGS84,
+    Longitude = SWRunInformation$X_WGS84,
+    Label = SWRunInformation$WeatherFolder,
+    stringsAsFactors = FALSE
+  )
   site_data[site_data == "NA"] <- NA
 
   do_new <- TRUE # flag to indicate if a new weather database should be created
@@ -70,19 +75,23 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
   if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])) {
     if (opt_behave[["resume"]]) {
       if (verbose) {
-        print(paste0("rSFSW2's ", temp_call, ": checks existing weather ",
-        "database for complete location/sites and scenario tables."))
+        print(paste0(
+          "rSFSW2's ", temp_call, ": checks existing weather ",
+          "database for complete location/sites and scenario tables."
+        ))
       }
 
       do_new <- FALSE
       rSOILWAT2::dbW_setConnection(
-        SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
+        dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]]
+      )
       on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
       #-- Check if requested climate scenarios are listed in table;
       # if not add to database
-      stopifnot(rSOILWAT2::dbW_addScenarios(
-        SFSW2_prj_meta[["sim_scens"]][["id"]]))
+      stopifnot(
+        rSOILWAT2::dbW_addScenarios(SFSW2_prj_meta[["sim_scens"]][["id"]])
+      )
 
       #-- Check if requested sites are complete
       # - Site is not in weather database: add to database
@@ -101,12 +110,16 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
         fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
         siteID_by_dbW = SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]],
         scen_labels = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
-        chunk_size = opt_chunks[["ensembleCollectSize"]], verbose = verbose)
+        chunk_size = opt_chunks[["ensembleCollectSize"]],
+        verbose = verbose
+      )
 
       if (any(imiss)) {
         do_add <- TRUE
-        add_runIDs_sites <- c(add_runIDs_sites,
-          site_data[temp_runIDs_sites[imiss], "Site_id"])
+        add_runIDs_sites <- c(
+          add_runIDs_sites,
+          site_data[temp_runIDs_sites[imiss], "Site_id"]
+        )
       }
 
     } else {
@@ -120,13 +133,15 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
     #--- Create a new weather database
     # weather database contains rows for 1:max(SWRunInformation$site_id)
     # (whether included or not)
-    stopifnot(rSOILWAT2::dbW_createDatabase(
-      dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-      site_data = site_data,
-      Scenarios = SFSW2_prj_meta[["sim_scens"]][["id"]],
-      compression_type =
-        SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]]
-    ))
+    stopifnot(
+      rSOILWAT2::dbW_createDatabase(
+        dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+        site_data = site_data,
+        Scenarios = SFSW2_prj_meta[["sim_scens"]][["id"]],
+        compression_type =
+          SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]]
+      )
+    )
     do_add <- TRUE
     add_runIDs_sites <- temp_runIDs_sites
   }
@@ -2114,13 +2129,19 @@ dw_DayMet_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
     #  - All Daymet years, including leap years, have 1 - 365 days.
     #   For leap years, the Daymet database includes leap day. Values for
     #   December 31 are discarded from leap years to maintain a 365-day year.
-    there <- sim_time[["overall_simstartyr"]] <= 1900 +
-      as.POSIXlt(Sys.time(), tz = "UTC")$year - 1 &&
+
+    tmp <- 1900 + as.POSIXlt(Sys.time(), tz = "UTC")$year - 1
+
+    there <-
+      sim_time[["overall_simstartyr"]] <= tmp &&
       sim_time[["overall_endyr"]] >= 1980
 
     if (any(there)) {
-      there <- site_dat[, "X_WGS84"] >= -179 & site_dat[, "X_WGS84"] <= -5 &
-        site_dat[, "Y_WGS84"] >= 14 & site_dat[, "Y_WGS84"] <= 83
+      there <-
+        site_dat[, "X_WGS84"] >= -179 &
+        site_dat[, "X_WGS84"] <= -5 &
+        site_dat[, "Y_WGS84"] >= 14 &
+        site_dat[, "Y_WGS84"] <= 83
 
       if (any(there)) {
         dw_source[there] <- "DayMet_NorthAmerica"
@@ -2338,25 +2359,34 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources,
     gridMET_NorthAmerica = project_paths[["dir_gridMET"]]
   )
 
-  MoreArgs <- list(LookupWeatherFolder = list(
-    create_treatments = SFSW2_prj_inputs[["create_treatments"]],
-    runIDs_sites = sim_size[["runIDs_sites"]],
-    ri_lwf = SWRunInformation[sim_size[["runIDs_sites"]], "WeatherFolder"],
-    it_use = SFSW2_prj_inputs[["sw_input_treatments_use"]],
-    ie_use = SFSW2_prj_inputs[["sw_input_experimentals_use"]],
-    it_lwf = SFSW2_prj_inputs[["sw_input_treatments"]][
-      sim_size[["runIDs_sites"]], "LookupWeatherFolder"],
-    ie_lwf = SFSW2_prj_inputs[["sw_input_experimentals"]][,
-      "LookupWeatherFolder"]))
+  MoreArgs <- list(
+    LookupWeatherFolder = list(
+      create_treatments = SFSW2_prj_inputs[["create_treatments"]],
+      runIDs_sites = sim_size[["runIDs_sites"]],
+      ri_lwf = SWRunInformation[sim_size[["runIDs_sites"]], "WeatherFolder"],
+      it_use = SFSW2_prj_inputs[["sw_input_treatments_use"]],
+      ie_use = SFSW2_prj_inputs[["sw_input_experimentals_use"]],
+      it_lwf =
+        SFSW2_prj_inputs[["sw_input_treatments"]][
+        sim_size[["runIDs_sites"]], "LookupWeatherFolder"],
+      ie_lwf = SFSW2_prj_inputs[["sw_input_experimentals"]][,
+        "LookupWeatherFolder"]
+    )
+  )
 
   site_dat <- SWRunInformation[sim_size[["runIDs_sites"]],
     c("Label", "X_WGS84", "Y_WGS84")]
 
   for (k in seq_along(fun_dw_source)) {
     ftemp <- get(fun_dw_source[k])
-    temp <- try(ftemp(dw_source, dw_names, exinfo, site_dat, sim_time,
-      path = path_dw_source[[dw_avail_sources2[k]]],
-      MoreArgs = MoreArgs[[dw_avail_sources2[k]]]), silent = TRUE)
+    temp <- try(
+      ftemp(
+        dw_source, dw_names, exinfo, site_dat, sim_time,
+        path = path_dw_source[[dw_avail_sources2[k]]],
+        MoreArgs = MoreArgs[[dw_avail_sources2[k]]]
+      ),
+      silent = TRUE
+    )
 
     if (!inherits(temp, "try-error")) {
       dw_source <- temp[["source"]]

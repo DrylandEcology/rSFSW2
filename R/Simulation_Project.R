@@ -603,14 +603,14 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
     print(paste0("rSFSW2's ", tmp_call, ": started at ", t1))
 
     on.exit(
-      {
+      eval(list(
         print(paste0(
           "rSFSW2's ", tmp_call, ": ended after ",
           round(difftime(Sys.time(), t1, units = "secs"), 2), " s with ",
           "input tracker status:"
-        ))
+        )),
         print(SFSW2_prj_meta[["input_status"]])
-      },
+      )),
       add = TRUE
     )
   }

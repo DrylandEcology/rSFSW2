@@ -287,11 +287,16 @@ extract_climate_NCEPCFSR <- function(MMC, SWRunInformation,
     print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
 
     on.exit(
-      {
-        print(paste0("rSFSW2's ", temp_call, ": ended after ",
-        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+      eval(list(
+        print(
+          paste0(
+            "rSFSW2's ", temp_call, ": ended after ",
+            round(difftime(Sys.time(), t1, units = "secs"), 2),
+            " s"
+          )
+        ),
         cat("\n")
-      },
+      )),
       add = TRUE
     )
   }

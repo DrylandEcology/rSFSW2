@@ -18,13 +18,13 @@ Imports:
     rSW2utils,
     rSW2st,
     rSW2data,
-    rSW2exter,
     rSW2funs,
     RSQLite (>= 2.1.1),
     raster (>= 2.5.8),
     sf (>= 0.9.6),
     sp (>= 1.2.3)
 Suggests:
+    rSW2exter,
     Rmpi (>= 0.6-3),
     parallel,
     rgdal (>= 1.1.10),
@@ -44,17 +44,14 @@ Suggests:
     knitr,
     rmarkdown,
     testthat (>= 2.0.0),
-    spelling (>= 1.1),
-    hunspell (>= 2.9),
+    spelling (>= 2.1.0),
     covr,
     lintr (>= 2.0.0),
-    goodpractice,
     pkgload
 Remotes:
     github::DrylandEcology/rSW2utils,
     github::DrylandEcology/rSW2st,
     github::DrylandEcology/rSW2data,
-    github::DrylandEcology/rSW2exter,
     github::DrylandEcology/rSOILWAT2@reorganize_rSW2,
     github::DrylandEcology/rSW2funs@reorganize_rSW2,
     github::dschlaep/weathergen

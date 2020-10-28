@@ -18,7 +18,7 @@
 
 <br>
 
-# rSFSW2: A R package to create soil water balance simulation experiment
+# `rSFSW2`: A R package to create soil water balance simulation experiment
 
 Please cite the package if you publish results based on simulations carried
 out with our package, see `citation("rSFSW2")`, and we would like to hear
@@ -58,16 +58,17 @@ There are several options:
 
 ### Installation
 
-'rSFSW2' will compile some c code via 'Rcpp'. Your computer must be set up
+`rSFSW2` will compile some c code via `Rcpp`. Your computer must be set up
 adequately.
+
 - If you use a Windows OS, then you need the
-  [Rtools](https://cran.r-project.org/bin/windows/Rtools/)
+  [`Rtools`](https://cran.r-project.org/bin/windows/Rtools/)
   installed that match your R version; please find further information for
   instance [here](https://www.biostat.wisc.edu/~kbroman/Rintro/Rwinpack.html).
-- If you use a macOS, then you need [Xcode](https://developer.apple.com/xcode/)
-  and its
-  [command-line tools](https://developer.apple.com/library/content/technotes/tn2339/_index.html)
-  installed; please find further information for instance
+
+- If you use a `macOS`, then you need the
+  [command-line tools](https://developer.apple.com/library/content/technotes/tn2339/_index.html);
+  please find further information for instance
   [here](https://railsapps.github.io/xcode-command-line-tools.html).
 
 
@@ -83,39 +84,45 @@ tools::Rcmd(args = paste("INSTALL rSFSW2"))
 ```
 
 ### Binary package version
-If you want a binary version of the 'rSFSW2' package (e.g., to distribute to
+If you want a binary version of the `rSFSW2` package (e.g., to distribute to
 someone without development tools) for a platform to which you do not have
 access, then you may consider using one of the cloud services (no endorsements):
+
 - [r-hub](https://builder.r-hub.io) offers different Linux, Windows, and mac OS
   flavors as targets
+
 - [win-builder](https://win-builder.r-project.org/) offers Windows OS as target
 
 Alternatively, you may access the previous binary package version for Windows
 OS from our CI appveyor service if the build was successful and an artifact was
-generated for the binary package (this would be named 'rSWSF2_X.Y.Z.zip' with
+generated for the binary package (this would be named `"rSFSW2_X.Y.Z.zip"` with
 version number X.Y.Z) from
 [here](https://ci.appveyor.com/project/dschlaep/rSFSW2/build/artifacts).
 If the latest build should have failed, then you may want to check out the
-'History' tab for binaries of older versions.
+"History" tab for binaries of older versions.
 
 
 <br>
 
-# Use rSFSW2 for your simulation project
+# Use `rSFSW2` for your simulation project
 
 Familiarize yourself with the demos and information at ```package?rSFSW2```
 as well as FAQs with ```vignette("rSFSW2_FAQs", package = "rSFSW2")```.
 
 __Setup a new simulation project__:
-1) Install and attach 'rSFSW2' if not already done so (Note: required version
-   of rSOILWAT2 must already be present)
-2) Create a skeleton project `setup_rSFSW2_project_infrastructure(dir_prj =
-   "path/to/project_folder")
-   - This function will copy a default version of '1_Input' and the three
-   demo R files to your directory
-3) Work your way through 'SFSW2_project_code.R', i.e., define paths and actions,
-   and provide simulation project description in 'SFSW2_project_descriptions.R'
-   and run settings in 'SFSW2_project_settings.R'
+
+1) Install and attach `rSFSW2` if not already done so
+   (Note: required version of `rSOILWAT2` must already be present)
+
+2) Create a skeleton project
+   `setup_rSFSW2_project_infrastructure(dir_prj = "path/to/project_folder")`
+
+   - This function will copy a default version of `1_Input` and the three
+     demo R files to your directory
+
+3) Work your way through `SFSW2_project_code.R`, i.e., define paths and actions,
+   and provide simulation project description in `SFSW2_project_descriptions.R`
+   and run settings in `SFSW2_project_settings.R`
 
 
 <br>
@@ -124,6 +131,7 @@ __Setup a new simulation project__:
 You can contribute to this project in different ways:
 
 1. Reporting [issues](https://github.com/DrylandEcology/rSFSW2/issues)
+
 2. Contributing code following our
    [protocols/guidelines](https://github.com/DrylandEcology/DrylandEcologyProtocols)
    and sending a
@@ -134,32 +142,40 @@ You can contribute to this project in different ways:
 ### __Code development: Tests, documentation, and code__ form a trinity
 
 - __Code style__
+
   * Use code style that passes our
     [`lintr`](https://github.com/jimhester/lintr) unit tests
     which basically reflect
-    [Hadley's style recommendation](http://r-pkgs.had.co.nz/r.html#style).
+    [`Wickham`'s style recommendation](http://r-pkgs.had.co.nz/r.html#style).
     Note: we require `lintr v1.0.2.900` or later.
+
   * Use 2-spaces instead of tabs and indent code hierarchically
+
   * Note, many function and variable names are "ancient" (too long; combine
     snake and camel-case)
 
+
 - __Updates to input files and/or demo code__
+
   * If `SOILWAT2` and `rSOILWAT2` change their `default` inputs, then `rSFSW2`
     will automatically experience these changes through function
-    `read_SOILWAT2_DefaultInputs`. This function may need to be updated
+    `read_SOILWAT2_DefaultInputs()`. This function may need to be updated
     accordingly to provide suitable `defaults` for `rSFSW2` runs.
-  * If you change 'input files' in `data-raw/1_Input` (e.g., added a new column
+
+  * If you change "input files" in `data-raw/1_Input` (e.g., added a new column
     to experimental/design treatment file) then update the `R/sysdata.rda`
-    object by running the Rscript from terminal
+    object by running the `Rscript` from terminal
     `./data-raw/prepare_default_project_infrastructure.R`.
     The file `R/sysdata.rda` is used to setup a new simulation project.
-  * Additionally, if 'input files' and/or 'demo code' in `demo/` changes, then
-    update the unit test 'test project' `tests/test_data/TestPrj4/` by
-    running the Rscript from terminal
+
+  * Additionally, if "input files" and/or "demo code" in `demo/` changes, then
+    update the unit test "test project" `tests/test_data/TestPrj4/` by
+    running the `Rscript` from terminal
     `./data-raw/update_test_project_infrastructure.R` and make any necessary
     additional changes by hand.
 
 - __Interactive code development__
+
   * Use (a copy of) `tests/test_data/TestPrj4/` as basis to interact with code
     and a real simulation project, for instance:
     ```{r}
@@ -180,88 +196,125 @@ You can contribute to this project in different ways:
     ```
 
   * *Do not* commit, please:
+
     * Any changes to settings/inputs etc. in your local copy unless those
       changes are a feature of your coding task
+
     * Do not comment/turn-off any tests and/or checks
+
     * Print statements for local debugging purposes
+
     * Package bundles or binaries (e.g., as from `R CMD build`)
+
     * Package check reports (e.g., as from `R CMD check`)
+
     * Built vignettes
+
     * etc
 
 
 - __Code documentation__
-  * Read the section 'Object documentation' in
-    [Wickham's book 'R packages'](http://r-pkgs.had.co.nz/man.html)
-  * Use [roxygen2](https://CRAN.R-project.org/package=roxygen2/vignettes/formatting.html)
+
+  * Read the section "Object documentation" in
+    [Wickham's book "R packages"](http://r-pkgs.had.co.nz/man.html)
+
+  * Use [`roxygen2`](https://CRAN.R-project.org/package=roxygen2/vignettes/formatting.html)
     to write inline code documentation
+
   * Update help pages and NAMESPACE with the command `devtools::document()`;
     note: you may need to compile dynamic libraries first with
     `pkgbuild::compile_dll()`.
+
   * Ideally, add examples to function documentation and check these examples
     with the command `devtools::run_examples()`.
-    Note: "devtools" v2.0.1 mixed up the logic for "dontrun" examples (see
+    Note: `devtools` v2.0.1 mixed up the logic for `dontrun` examples (see
     https://github.com/r-lib/devtools/issues/2003); until this is fixed,
     use `devtools::run_examples(run = FALSE)`.
+
   * Ideally, expand and/or add vignettes.
 
 
 - __Code tests__
+
   * Notes:
+
     * Our code coverage is incomplete as of now at [![codecov status][9]][10];
       thus, any change may introduce bugs that may not be detected by our
       testing framework.
+
     * Please be careful and considerate and strive to write tests for any new
       feature.
+
     * Our tests behave differently depending on several run-time conditions:
+
       1) Level of verbosity is determined by interactive/non-interactive status
          whether or not simulations are run in parallel (non-interactive) or
          sequentially (interactive),
+
       2) Simulation runs are processed in parallel if session is
-         non-interactive, not on travis-ci, not on appveyor-ci, and not on CRAN
-         whereas they are processed sequentially if session is interactive,
-         on travis-ci, on appveyor-ci, or on CRAN
+         non-interactive, not on `travis-ci`, not on `appveyor-ci`, and
+         not on CRAN whereas they are processed sequentially
+         if session is interactive, on `travis-ci`, on `appveyor-ci`, or on CRAN
+
       3) Live access to the internet is required by some unit tests, e.g.,
          `tests/testthat/test_netCDF_functions.R` and
          `tests/testthat/test_WeatherDB_DayMet.R`
-      4) Some unit tests are skipped if on CRAN, and/or on travis-ci, and/or
-         on appveyor-ci, e.g.,
+
+      4) Some unit tests are skipped if on CRAN, and/or on `travis-ci`, and/or
+         on `appveyor-ci`, e.g.,
          `test/testthat/test_rSFSW2_Spelling.R` and
          `test/testthat/test_rSFSW2_CodeStylePractices.R`
 
   * __Test code locally during code development:__
+
     * Interactive execution and exploration
+
     * Interactive execution of individual expectations `expect_*` and/or
       `test_that()` statements; write new expectations at the same time as
       writing and developing code.
+
     * Run tests from an individual test file with `testthat::test_file()`
+
         - You may likely need to first load the latest code version with
           `devtools::load_all()` for R code, and with
           `devtools::load_all(recompile = TRUE)` if your changes include C code
+
         - Most likely, this will run tests as if on CRAN (depending on your
           specific setup), i.e., it will skip several of our tests:
+
            * it is set as `NOT_CRAN="true"` if run with:
+
               * `devtools::test()` unless `NOT_CRAN` was previously set
+
               * `devtools::check(cran = FALSE)`
+
               * `R CMD check *tar.gz`
+
            * it is set as `NOT_CRAN="false"` (i.e, behaving as if run on CRAN)
            if run with:
+
               * `Sys.setenv(NOT_CRAN = "false"); devtools::test()`
+
               * `devtools::check(cran = TRUE)`
+
               * `R CMD check *tar.gz --as-cran`
+
 
         - If you don't like the output format of the tests (which differs
           depending on whether you run R interactively or not, whether you run
-          R via RStudio or not, etc.), then chose a testthat-'reporter'
+          R via `RStudio` or not, etc.), then chose a testthat-"reporter"
           explicitly, e.g., `testthat::test_file(reporter = SummaryReporter)`
+
     * Run all tests together with `testthat::test()`, but it is a waste of time
       and resources to re-run tests again and again during development
       that are not affected by your code changes
+
     * Currently defunct: Ideally, run test projects in repository
-      [rSFSW2_tools](https://github.com/DrylandEcology/rSFSW2_tools)
+      [`rSFSW2_tools`](https://github.com/DrylandEcology/rSFSW2_tools)
       and add a new test project, if necessary due to new features.
 
   * __Run the following steps locally__
+
     in order to prepare a pull-request or commit that will be reviewed.
     Fix any problem and repeat as necessary.
 
@@ -281,7 +334,7 @@ You can contribute to this project in different ways:
        ```{r}
        devtools::run_examples()
        ```
-       Note: "devtools" v2.0.1 mixed up the logic for "dontrun" examples (see
+       Note: `devtools` v2.0.1 mixed up the logic for `dontrun` examples (see
        https://github.com/r-lib/devtools/issues/2003); until this is fixed,
        use `devtools::run_examples(run = FALSE)`.
 
@@ -380,7 +433,7 @@ You can contribute to this project in different ways:
 
   * On github:
     * The command-line checks which include our unit tests will be run on the
-      continuous integration frameworks 'travis' and 'appveyor'
+      continuous integration frameworks `travis-ci` and `appveyor-ci`
     * Development/feature branches can only be merged into master if they pass
       all checks
     * Ideally, each pull-request will include fully-tested changes, at least
@@ -391,8 +444,8 @@ You can contribute to this project in different ways:
   * We use the framework of [testthat](https://github.com/hadley/testthat) for
     unit testing and other tests for the package
 
-  * Read the section 'Testing' in
-    [Wickham's book 'R packages'](http://r-pkgs.had.co.nz/tests.html)
+  * Read the section "Testing" in
+    [Wickham's book "R packages"](http://r-pkgs.had.co.nz/tests.html)
     for additional information
 
 
@@ -429,19 +482,26 @@ GNU General Public License for more details.
 
 # Notes
 
-__Organization renamed from Burke-Lauenroth-Lab to DrylandEcology on Dec 22, 2017__
+__Organization renamed from `Burke-Lauenroth-Lab` to `DrylandEcology` on Dec 22, 2017__
 
 All existing information should
-[automatically be redirected](https://help.github.com/articles/renaming-a-repository/) to the new name.
-Contributors are encouraged, however, to update local clones to [point to the new URL](https://help.github.com/articles/changing-a-remote-s-url/), i.e.,
+[automatically be redirected](https://help.github.com/articles/renaming-a-repository/)
+to the new name.
+Contributors are encouraged, however, to update local clones to
+[point to the new URL](https://help.github.com/articles/changing-a-remote-s-url/),
+i.e.,
 ```
 git remote set-url origin https://github.com/DrylandEcology/rSFSW2.git
 ```
 
 
-__Repository renamed from SoilWat_R_Wrapper to rSFSW2 on Feb 23, 2017__
-All existing information should [automatically be redirected](https://help.github.com/articles/renaming-a-repository/) to the new name.
-Contributors are encouraged, however, to update local clones to [point to the new URL](https://help.github.com/articles/changing-a-remote-s-url/), i.e.,
+__Repository renamed from `SoilWat_R_Wrapper` to `rSFSW2` on Feb 23, 2017__
+All existing information should
+[automatically be redirected](https://help.github.com/articles/renaming-a-repository/)
+to the new name.
+Contributors are encouraged, however, to update local clones to
+[point to the new URL](https://help.github.com/articles/changing-a-remote-s-url/),
+i.e.,
 ```
 git remote set-url origin https://github.com/DrylandEcology/rSFSW2.git
 ```

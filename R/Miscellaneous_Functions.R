@@ -92,7 +92,6 @@ set_options_warn_error <- function(debug.warn.level = 1L,
 #'   TRUE}
 #'
 #' @examples
-#' \dontrun{
 #' f2 <- function(x, cause_error = FALSE) {
 #'   print(match.call())
 #'   print(environment())
@@ -128,11 +127,10 @@ set_options_warn_error <- function(debug.warn.level = 1L,
 #'
 #' # Clean up
 #' unlink("last.dump.f2.RData")
-#' }
 #'
 #' @export
 enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
-  {
+  { # nolint
     op_prev <- options("warn")
     options(warn = 0)
     env_tosave <- new.env()
@@ -145,12 +143,18 @@ enable_debug_dump <- function(dir_out = ".", file_tag = "debug") {
     }
     list2env(as.list(globalenv()), envir = env_tosave)
 
-    save(list = ls(envir = env_tosave), envir = env_tosave,
-      file = file.path(dir_out, paste0("last.dump.", as.character(file_tag),
-        ".RData")))
+    save(
+      list = ls(envir = env_tosave),
+      envir = env_tosave,
+      file = file.path(
+        dir_out,
+        paste0("last.dump.", as.character(file_tag), ".RData")
+      )
+    )
     options(op_prev)
-  }
+  } # nolint
 }
+
 
 #' Remove one of possibly several expressions recorded by \code{on.exit}
 #'
