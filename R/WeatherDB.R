@@ -42,8 +42,16 @@ update_runIDs_sites_by_dbW <- function(sim_size, label_WeatherData,
 
 #' Create and populate a \pkg{rSOILWAT2} daily weather \var{SQLite} database
 #' @export
-make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
-  opt_behave, deleteTmpSQLFiles, verbose = FALSE, print.debug = FALSE) {
+make_dbW <- function(
+  SFSW2_prj_meta,
+  SWRunInformation,
+  opt_parallel,
+  opt_chunks,
+  resume = TRUE,
+  deleteTmpSQLFiles =  TRUE,
+  verbose = FALSE,
+  print.debug = FALSE
+) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -73,7 +81,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
 
   #--- Check if weather database exists and contains requested data
   if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])) {
-    if (opt_behave[["resume"]]) {
+    if (resume) {
       if (verbose) {
         print(paste0(
           "rSFSW2's ", temp_call, ": checks existing weather ",
@@ -349,7 +357,7 @@ make_dbW <- function(SFSW2_prj_meta, SWRunInformation, opt_parallel, opt_chunks,
         meta_cfsr = SFSW2_prj_meta[["prepd_CFSR"]],
         n_site_per_core = opt_chunks[["DailyWeatherFromNCEPCFSR_Global"]],
         rm_temp = deleteTmpSQLFiles,
-        resume = opt_behave[["resume"]],
+        resume = resume,
         dir_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
         dbW_compression_type =
           SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],

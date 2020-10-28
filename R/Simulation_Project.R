@@ -807,7 +807,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
       make_dbW(
         SFSW2_prj_meta,
         SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
-        opt_parallel, opt_chunks, opt_behave,
+        opt_parallel, opt_chunks,
+        resume = opt_behave[["resume"]],
         deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
         verbose = opt_verbosity[["verbose"]],
         print.debug = opt_verbosity[["print.debug"]]

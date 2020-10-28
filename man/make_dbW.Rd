@@ -9,8 +9,8 @@ make_dbW(
   SWRunInformation,
   opt_parallel,
   opt_chunks,
-  opt_behave,
-  deleteTmpSQLFiles,
+  resume = TRUE,
+  deleteTmpSQLFiles = TRUE,
   verbose = FALSE,
   print.debug = FALSE
 )
