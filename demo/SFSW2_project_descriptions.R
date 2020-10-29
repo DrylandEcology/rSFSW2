@@ -150,12 +150,18 @@ opt_input <- list(
     "CalculateBareSoilEvaporationCoefficientsFromSoilTexture", 1
   ),
 
-  # Interpolate and add soil layers if not available if 'AddRequestedSoilLayers'
+  # Update soil profile and data if 'AddRequestedSoilLayers'
   requested_soil_layers = c(5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150),
-  # Approach existing soil depth is less than 'requested_soil_layers'
-  #   - [TRUE] keep input soil depth
-  #   - [FALSE] adjust soil depth to 'max(requested_soil_layers)'
-  keep_old_depth = TRUE,
+  # Determine soil depth
+  #   - [TRUE] keep input/previous soil depth, i.e., don't add
+  #     `requested_soil_layers` that are deeper
+  #   - [FALSE] include all of `requested_soil_layers`, potentially
+  #     extending soil depth to `max(requested_soil_layers)`
+  keep_prev_soildepth = TRUE,
+  # Determine final set of soil layers
+  #   - [TRUE] combine input/previous soil layers with `requested_soil_layers`
+  #   - [FALSE] keep `requested_soil_layers` and dissolve others
+  keep_prev_soillayers = TRUE,
 
   # Request data from datasets ('external' to a rSFSW2-project)
   req_data = c(

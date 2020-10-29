@@ -14,7 +14,7 @@ calc_RequestedSoilLayers <- function(
   SFSW2_prj_meta,
   SFSW2_prj_inputs,
   runIDs_adjust,
-  keep_old_depth = TRUE,
+  keep_prev_soildepth = TRUE,
   keep_prev_soillayers = TRUE,
   verbose = FALSE
 ) {
@@ -71,7 +71,7 @@ calc_RequestedSoilLayers <- function(
       SFSW2_prj_inputs[["sw_input_soils"]][ids_updated, -1, drop = FALSE],
     variables = var_layers,
     vars_exhaust = c("EvapCoeff", "TranspCoeff", "Imperm"),
-    keep_prev_soildepth = keep_old_depth,
+    keep_prev_soildepth = keep_prev_soildepth,
     keep_prev_soillayers = keep_prev_soillayers,
     verbose = verbose
   )
@@ -79,13 +79,40 @@ calc_RequestedSoilLayers <- function(
 
   if (new_soils[["updated"]]) {
     #--- transfer updated soils
+    n_tmp <- ncol(new_soils[["soil_layers"]])
+    cn_tmp <- paste0(
+      rep(var_layers, n_tmp),
+      "_L",
+      rep(seq_len(n_tmp), length(var_layers))
+    )
+
+    SFSW2_prj_inputs[["sw_input_soils"]] <- data.frame(
+      Label = SFSW2_prj_inputs[["sw_input_soils"]][, "Label"],
+      matrix(
+        data = NA,
+        nrow = nrow(SFSW2_prj_inputs[["sw_input_soils"]]),
+        ncol = n_tmp * length(var_layers),
+        dimnames = list(NULL, cn_tmp)
+      )
+    )
+
     SFSW2_prj_inputs[["sw_input_soils"]][ids_updated, -1] <-
       new_soils[["soil_data"]]
 
-    tmp <- paste0(var_layers, "_L", seq_len(ncol(new_soils[["soil_layers"]])))
-    SFSW2_prj_inputs[["sw_input_soils_use"]][tmp] <- TRUE
+    SFSW2_prj_inputs[["sw_input_soils_use"]][cn_tmp] <- TRUE
 
-    SFSW2_prj_inputs[["sw_input_soillayers"]][ids_updated, use_layers] <-
+
+    SFSW2_prj_inputs[["sw_input_soillayers"]] <- data.frame(
+      SFSW2_prj_inputs[["sw_input_soillayers"]][, c("Label", "SoilDepth_cm")],
+      matrix(
+        data = NA,
+        nrow = nrow(SFSW2_prj_inputs[["sw_input_soillayers"]]),
+        ncol = n_tmp,
+        dimnames = list(NULL, colnames(new_soils[["soil_layers"]]))
+      )
+    )
+
+    SFSW2_prj_inputs[["sw_input_soillayers"]][ids_updated, - (1:2)] <-
       new_soils[["soil_layers"]]
 
 

@@ -392,6 +392,29 @@ is_project_description_outdated <- function(meta) {
       "please update description."
     )
   }
+
+  has <- "keep_old_depth" %in% names(meta[["opt_input"]])
+  if (has) {
+    warning(
+      "Outdated project description: ",
+      "The element `keep_old_depth` of list 'opt_input' is defunct; ",
+      "it was renamed to `keep_prev_soildepth`; ",
+      "please update description."
+    )
+  }
+
+
+  has <- "keep_prev_soillayers" %in% names(meta[["opt_input"]])
+  if (!has) {
+    warning(
+      "Outdated project description: ",
+      "The element `keep_prev_soillayers` ",
+      "of list 'opt_input' is required if `AddRequestedSoilLayers` is active; ",
+      "it was added with v4.3.0; ",
+      "please update description."
+    )
+  }
+
 }
 
 
@@ -1017,7 +1040,10 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
         SFSW2_prj_meta,
         SFSW2_prj_inputs,
         runIDs_adjust,
-        keep_old_depth = SFSW2_prj_meta[["opt_input"]][["keep_old_depth"]],
+        keep_prev_soildepth =
+          SFSW2_prj_meta[["opt_input"]][["keep_prev_soildepth"]],
+        keep_prev_soillayers =
+          SFSW2_prj_meta[["opt_input"]][["keep_prev_soillayers"]],
         verbose = opt_verbosity[["verbose"]]
       )
 
