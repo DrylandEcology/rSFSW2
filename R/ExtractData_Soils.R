@@ -110,6 +110,8 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
       cat("\n")}, add = TRUE)
   }
 
+  stopifnot(requireNamespace("rSW2exter"))
+
   MMC[["idone"]]["CONUSSOIL1"] <- FALSE
   todos <-
     is.na(MMC[["source"]]) |
@@ -133,151 +135,68 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
       "(gridded STATSGO) may be too low!"
     )
 
-    dir.ex.conus <- file.path(
-      dir_ex_soil,
-      "NRCS", "CONUSSoil", "output", "albers"
-    )
-    stopifnot(file.exists(dir.ex.conus))
-
-    ldepth_CONUS <- c(0, 5, 10, 20, 30, 40, 60, 80, 100, 150, 200, 250)  #in cm
-    layer_N <- length(ldepth_CONUS) - 1
-    ils <- seq_len(layer_N)
-
-    g <- raster::brick(file.path(dir.ex.conus, "bd.tif"))
-    crs_data <- as(sf::st_crs(g), "CRS")
-
-    #locations of simulation runs
-    sites_conus <- sim_space[["run_sites"]][todos, ]
-
-    # Align with data crs
-    if (sf::st_crs(sim_space[["crs_sites"]]) != sf::st_crs(crs_data)) {
-      sites_conus <- sp::spTransform(sites_conus, CRS = crs_data)
-    }
+    ldepth_CONUS <- rSW2exter:::depth_profile_Miller1998_CONUSSoil()
+    ils <- seq_along(ldepth_CONUS)
 
     if (sim_space[["scorp"]] == "point") {
       cell_res_conus <- NULL
-      args_extract <- list(y = sites_conus, type = sim_space[["scorp"]])
+      args_extract <- list(
+        y = sim_space[["run_sites"]][todos, ],
+        type = sim_space[["scorp"]]
+      )
 
     } else if (sim_space[["scorp"]] == "cell") {
+      stop("'Cell' extractions not implemented for CONUSSoil extractions.")
+
       cell_res_conus <- align_with_target_res(
         res_from = sim_space[["sim_res"]],
         crs_from = sim_space[["sim_crs"]],
         sp = sim_space[["run_sites"]][todos, ],
         crs_sp = sim_space[["crs_sites"]],
-        crs_to = crs_data
+        crs_to = as(
+          sf::st_crs(raster::brick(file.path("path/to/CONUSSoil", "bd.tif"))),
+          "CRS"
+        )
       )
+
       args_extract <- list(
         y = cell_res_conus,
-        coords = sites_conus,
+        coords = sim_space[["run_sites"]][todos, ],
         method = "block",
         type = sim_space[["scorp"]]
       )
+
     }
 
-    #---extract data
-    # bulk density -> matric density
-    message(
-      "NOTE: soil density values extracted from CONUS-soil ",
-      "(gridded STATSGO) may be too low!"
+    res <- rSW2exter::extract_soils_Miller1998_CONUSSoil(
+      x = sim_space[["run_sites"]][todos, ],
+      vars = c("bd", "rockvol", "sand", "clay", "silt"),
+      path = file.path(
+        dir_ex_soil,
+        "NRCS", "CONUSSoil", "output", "albers"
+      ),
+      replace_missing_fragvol_with_zero = "at_surface",
+      impute = TRUE,
+      digits = 3L,
+      verbose = verbose
     )
 
-    ftmp <- file.path(dir.ex.conus, "bd_cond30.tif")
-    g <- if (file.exists(ftmp)) {
-      raster::brick(ftmp)
-    } else {
-      # bulk density of less than 0.3 g / cm3 should be treated as no soil
-      cond30 <- compiler::cmpfun(function(v) ifelse(is.na(v) | v < 30, NA, v))
-      raster::calc(g, fun = cond30, filename = ftmp)
-    }
-    tmp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
-    MMC[["data"]][todos, grep("density", MMC[["cn"]])[ils]] <- tmp / 100
+    # Transfer soil characteristics
+    tmp <- res[["table_texture"]]
+    cn_tmp <- colnames(tmp)
 
-    # soil depth
-    # depth in cm >< bedrock from datafile.bedrock, but seems to make more
-    # sense?
-    cond0 <- compiler::cmpfun(function(v) ifelse(!is.na(v) & v > 0, v, NA))
-    ftmp <- file.path(dir.ex.conus, "rockdepm_cond0.tif")
-    g <- if (file.exists(ftmp)) {
-      raster::raster(ftmp)
-    } else {
-      # rockdepth of 0 cm should be treated as no soil
-      raster::calc(
-        raster::raster(file.path(dir.ex.conus, "rockdepm.tif")),
-        fun = cond0,
-        filename = ftmp
-      )
-    }
-    rockdep_cm <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
+    MMC[["data"]][todos, grep("density", MMC[["cn"]])[ils]] <-
+      tmp[, grep("bd_L", cn_tmp)[ils]]
+    MMC[["data"]][todos, grep("rock", MMC[["cn"]])[ils]] <-
+      tmp[, grep("rockvol_L", cn_tmp)[ils]]
+    MMC[["data"]][todos, grep("sand", MMC[["cn"]])[ils]] <-
+      tmp[, grep("sand_L", cn_tmp)[ils]]
+    MMC[["data"]][todos, grep("clay", MMC[["cn"]])[ils]] <-
+      tmp[, grep("clay_L", cn_tmp)[ils]]
 
-    # rock volume: new with v31: rockvol -> gravel vol%
-    g <- raster::brick(file.path(dir.ex.conus, "rockvol.tif"))
-    tmp <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
-    tmp <- ifelse(is.finite(tmp), tmp, NA)
-    # eq. 7 of Miller et al. 1998
-    tmp <- pmax(pmin(tmp / 100, 1), 0) # volume fraction of bulk = total soil
+    # Transfer soil depth
+    MMC[["data"]][todos, "depth"] <- res[["table_depths"]][, "SoilDepth_cm"]
 
-    # adjust soil depth by layers with 100% rock volume
-    solid_rock_nl <- apply(
-      X = tmp >= 1 - SFSW2_glovars[["toln"]],
-      MARGIN = 1,
-      FUN = sum,
-      na.rm = TRUE
-    )
-    solid_rock_nl <- 1 + layer_N - solid_rock_nl
-    solid_rock_cm <- ldepth_CONUS[solid_rock_nl]
-    MMC[["data"]][todos, grep("rock", MMC[["cn"]])[ils]] <- tmp
-    MMC[["data"]][todos, "depth"] <- pmin(rockdep_cm, solid_rock_cm)
-
-    lys <- seq_len(
-      max(
-        findInterval(MMC[["data"]][todos, "depth"], ldepth_CONUS[-1]),
-        na.rm = TRUE
-      )
-    )
-
-    # sand, silt, and clay
-    ftmp <- file.path(dir.ex.conus, "sand_cond0.tif")
-    g <- if (file.exists(ftmp)) {
-      raster::brick(ftmp)
-    } else {
-      raster::calc(
-        raster::brick(file.path(dir.ex.conus, "sand.tif")),
-        fun = cond0,
-        filename = ftmp
-      )
-    }
-    sand <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
-
-    ftmp <- file.path(dir.ex.conus, "clay_cond0.tif")
-    g <- if (file.exists(ftmp)) {
-      raster::brick(ftmp)
-    } else {
-      raster::calc(
-        raster::brick(file.path(dir.ex.conus, "clay.tif")),
-        fun = cond0,
-        filename = ftmp
-      )
-    }
-    clay <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
-
-    ftmp <- file.path(dir.ex.conus, "silt_cond0.tif")
-    g <- if (file.exists(ftmp)) {
-      raster::brick(ftmp)
-    } else {
-      raster::calc(
-        raster::brick(file.path(dir.ex.conus, "silt.tif")),
-        fun = cond0,
-        filename = ftmp
-      )
-    }
-    silt <- do.call("extract_rSFSW2", args = c(args_extract, x = list(g)))
-
-    #Normalize to 0-1
-    total_matric <- sand + clay + silt # values between 0.99 and 1.01
-    total_matric[!is.finite(total_matric)] <- NA
-    MMC[["data"]][todos, grep("sand", MMC[["cn"]])[ils]] <- sand / total_matric
-    MMC[["data"]][todos, grep("clay", MMC[["cn"]])[ils]] <- clay / total_matric
-    ldepth_CONUS <- ldepth_CONUS[-1]
 
     # There is no organic carbon data, set all values to a default
     MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[ils]] <- default_TOC_GperKG
@@ -289,7 +208,6 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
 
     if (any(i_good)) {
       i_Done <- rep(FALSE, times = sim_size[["runsN_sites"]])
-      # length(i_Done) == length(runIDs_sites) == runsN_sites
       i_Done[which(todos)[i_good]] <- TRUE
 
       MMC[["source"]][i_Done] <- "CONUSSOILFromSTATSGO_USA"
@@ -298,10 +216,12 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
         sim_size = sim_size,
         digits = 3,
         i_Done = i_Done,
+        # TODO: use `res[["table_depths"]]` directly
+        # instead of `update_soils_input()` re-calculating soil depth profile
         ldepths_cm = ldepth_CONUS,
         lys = seq_len(
           max(
-            findInterval(MMC[["data"]][todos, "depth"], ldepth_CONUS),
+            findInterval(MMC[["data"]][todos, "depth"], c(0, ldepth_CONUS)),
             na.rm = TRUE
           )
         ),
