@@ -30,7 +30,17 @@ calc_RequestedSoilLayers <- function(
       cat("\n")}, add = TRUE)
   }
 
-  # Available layers
+  vars_exhaust <- c("EvapCoeff", "TranspCoeff", "Imperm")
+
+  #--- Available variables
+  tmp <- colnames(SFSW2_prj_inputs[["sw_input_soils"]])[-1]
+  vars_all <- unique(sapply(
+    strsplit(tmp, split = "_", fixed = TRUE),
+    function(x) paste0(x[-length(x)], collapse = "_")
+  ))
+  n_vars <- length(vars_all)
+
+
   tmp <- SFSW2_prj_inputs[["sw_input_soils_use"]]
   ids_depth <- strsplit(names(tmp)[tmp], split = "_", fixed = TRUE)
   stopifnot(length(ids_depth) > 0)
@@ -40,6 +50,7 @@ calc_RequestedSoilLayers <- function(
     FUN = function(x) paste0(x[-length(x)], collapse = "_")
   ))
 
+  #--- Available layers
   ids_depth2 <- unique(sapply(ids_depth, function(x) x[length(x)]))
   use_layers <- paste0("depth_", ids_depth2)
 
@@ -70,7 +81,7 @@ calc_RequestedSoilLayers <- function(
     soil_data =
       SFSW2_prj_inputs[["sw_input_soils"]][ids_updated, -1, drop = FALSE],
     variables = var_layers,
-    vars_exhaust = c("EvapCoeff", "TranspCoeff", "Imperm"),
+    vars_exhaust = vars_exhaust,
     keep_prev_soildepth = keep_prev_soildepth,
     keep_prev_soillayers = keep_prev_soillayers,
     verbose = verbose
@@ -78,12 +89,37 @@ calc_RequestedSoilLayers <- function(
 
 
   if (new_soils[["updated"]]) {
+    n_req <- length(SFSW2_glovars[["slyrs_ids"]])
+
+    #--- Round soil data
+    cn_tmp <- colnames(new_soils[["soil_data"]])
+
+    for (k in seq_along(var_layers)) {
+      kvar <- grep(var_layers[k], cn_tmp, value = TRUE)
+
+      new_soils[["soil_data"]][, kvar] <- round(
+        new_soils[["soil_data"]][, kvar],
+        digits = if (var_layers[k] %in% vars_exhaust) 4L else 3L
+      )
+    }
+
     #--- transfer updated soils
-    n_tmp <- ncol(new_soils[["soil_layers"]])
+    n_new_sd <- ncol(new_soils[["soil_data"]]) %/% n_vars
+    n_has_sd <- (ncol(SFSW2_prj_inputs[["sw_input_soils"]]) - 1) %/% n_vars
+
+    n_tmp <- max(n_req, n_has_sd, n_new_sd)
+
+    if (n_req < n_new_sd || n_req < n_has_sd) {
+      stop(
+        "Downstream code requires exactly ", n_req, " soil layers; ",
+        "we have now n = ", n_tmp
+      )
+    }
+
     cn_tmp <- paste0(
-      rep(var_layers, n_tmp),
+      rep(vars_all, n_tmp),
       "_L",
-      rep(seq_len(n_tmp), length(var_layers))
+      rep(seq_len(n_tmp), each = n_vars)
     )
 
     SFSW2_prj_inputs[["sw_input_soils"]] <- data.frame(
@@ -91,29 +127,72 @@ calc_RequestedSoilLayers <- function(
       matrix(
         data = NA,
         nrow = nrow(SFSW2_prj_inputs[["sw_input_soils"]]),
-        ncol = n_tmp * length(var_layers),
+        ncol = n_tmp * n_vars,
         dimnames = list(NULL, cn_tmp)
       )
     )
 
-    SFSW2_prj_inputs[["sw_input_soils"]][ids_updated, -1] <-
-      new_soils[["soil_data"]]
+    cn_tmp <- paste0(
+      rep(var_layers, n_new_sd),
+      "_L",
+      rep(seq_len(n_new_sd), each = length(var_layers))
+    )
+
+    SFSW2_prj_inputs[["sw_input_soils"]][ids_updated, cn_tmp] <-
+      new_soils[["soil_data"]][, cn_tmp]
+
+
+    #--- transfer usage
+    n_new_sl <- sum(
+      apply(
+        X = new_soils[["soil_layers"]],
+        MARGIN = 2,
+        FUN = function(x) any(is.finite(x))
+      )
+    )
+
+    cn_tmp <- paste0(
+      rep(var_layers, n_new_sl),
+      "_L",
+      rep(seq_len(n_new_sl), each = length(var_layers))
+    )
 
     SFSW2_prj_inputs[["sw_input_soils_use"]][cn_tmp] <- TRUE
 
 
+    #--- transfer updated soil layer depths
+    is_depth <- grepl(
+      "depth_L",
+      colnames(SFSW2_prj_inputs[["sw_input_soillayers"]])
+    )
+
+    n_has_sd <- sum(is_depth)
+    n_new_sd <- ncol(new_soils[["soil_layers"]])
+    n_tmp <- max(n_req, n_has_sd, n_new_sd)
+
+    if (n_req < n_new_sd || n_req < n_has_sd) {
+      stop(
+        "Downstream code requires exactly ", n_req, " soil layers; ",
+        "we have now n = ", n_tmp
+      )
+    }
+
+    cn_tmp <- paste0("depth_L", seq_len(n_tmp))
+
+    x_tmp <- SFSW2_prj_inputs[["sw_input_soillayers"]][, !is_depth, drop = FALSE] #nolint
     SFSW2_prj_inputs[["sw_input_soillayers"]] <- data.frame(
-      SFSW2_prj_inputs[["sw_input_soillayers"]][, c("Label", "SoilDepth_cm")],
+      x_tmp,
       matrix(
         data = NA,
         nrow = nrow(SFSW2_prj_inputs[["sw_input_soillayers"]]),
         ncol = n_tmp,
-        dimnames = list(NULL, colnames(new_soils[["soil_layers"]]))
+        dimnames = list(NULL, cn_tmp)
       )
     )
 
-    SFSW2_prj_inputs[["sw_input_soillayers"]][ids_updated, - (1:2)] <-
-      new_soils[["soil_layers"]]
+    ids <- seq_len(n_new_sd)
+    SFSW2_prj_inputs[["sw_input_soillayers"]][ids_updated, ncol(x_tmp) + ids] <-
+      new_soils[["soil_layers"]][, ids]
 
 
     #--- write updated data to disk
