@@ -58,14 +58,25 @@ print_debugN <- function(opt_verbosity, tag_id, prj_todos, n, tag_section) {
 #'    \item 2 indicates that a task element had "success" in executing relevant code
 #'  }
 #' @export
-do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
-  i_sw_input_treatments, i_sw_input_cloud, i_sw_input_prod, i_sw_input_site,
-  i_sw_input_soils, i_sw_input_weather, i_sw_input_climscen, i_sw_input_climscen_values,
-  SimParams) {
+do_OneSite <- function(
+  i_sim,
+  i_SWRunInformation,
+  i_sw_input_soillayers,
+  i_sw_input_treatments,
+  i_sw_input_cloud,
+  i_sw_input_prod,
+  i_sw_input_site,
+  i_sw_input_soils,
+  i_sw_input_weather,
+  i_sw_input_climscen,
+  i_sw_input_climscen_values,
+  SimParams
+) {
 
   # i_sim =   a value of runIDs_total, i.e., index for each simulation run
-  # i_xxx =   the i_site-row of xxx for the i-th simulation run; if expN > 0 then these
-  #           will eventually be repeated, and below replaced with experimental values
+  # i_xxx =   the i_site-row of xxx for the i-th simulation run;
+  #           if expN > 0 then these will eventually be repeated, and
+  #           below replaced with experimental values
   # i_exp =   the row of sw_input_experimentals for the i_sim-th simulation run
   # P_id  =   is a unique id number for each scenario in each run
 
@@ -73,14 +84,15 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   # ID of worker
   fid <- if (SFSW2_glovars[["p_has"]]) {
-      if (SFSW2_glovars[["p_type"]] == "mpi") {
-        Rmpi::mpi.comm.rank()
-      } else if (SFSW2_glovars[["p_type"]] == "socket") {
-        get(SFSW2_glovars[["p_wtag"]], envir = globalenv())
-      }
-    } else {
-      0L
+    if (SFSW2_glovars[["p_type"]] == "mpi") {
+      Rmpi::mpi.comm.rank()
+    } else if (SFSW2_glovars[["p_type"]] == "socket") {
+      get(SFSW2_glovars[["p_wtag"]], envir = globalenv())
     }
+
+  } else {
+    0L
+  }
 
   # temporary output database
   dbTempFile <- dbConnect(
@@ -94,22 +106,29 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   # Print/tag for function call
   tag_simfid <- paste0("[run", i_sim, "/work", fid, "]")
-  temp_call <- shQuote("do_OneSite") # match.call()[1] doesn't work when called via parallel-backend
-  tag_funid <- paste0("rSFSW2's ", temp_call, ": ", tag_simfid)
+  # match.call()[1] doesn't work when called via parallel-backend
+  tmp_call <- shQuote("do_OneSite")
+  tag_funid <- paste0("rSFSW2's ", tmp_call, ": ", tag_simfid)
 
   if (SimParams[["opt_verbosity"]][["verbose"]]) {
     print(paste0(tag_funid, ": started at ", t.do_OneSite))
 
-    on.exit({print(paste0(tag_funid, ": ended prematurely"))
-      cat("\n")}, add = TRUE)
+    on.exit({
+        print(paste0(tag_funid, ": ended prematurely"))
+        cat("\n")
+      },
+      add = TRUE
+    )
   }
 
-  temp <- difftime(t.do_OneSite, SimParams[["t_job_start"]], units = "secs")
-  temp <- temp + SimParams[["opt_parallel"]][["opt_job_time"]][["one_sim_s"]]
-  has_time_to_simulate <- temp < SimParams[["opt_parallel"]][["opt_job_time"]][["wall_time_s"]]
+  tmp <- difftime(t.do_OneSite, SimParams[["t_job_start"]], units = "secs")
+  tmp <- tmp + SimParams[["opt_parallel"]][["opt_job_time"]][["one_sim_s"]]
+  has_time_to_simulate <-
+    tmp < SimParams[["opt_parallel"]][["opt_job_time"]][["wall_time_s"]]
 
-  if (!has_time_to_simulate)
+  if (!has_time_to_simulate) {
     stop(tag_funid, ": not enough time to simulate.")
+  }
 
   list2env(as.list(SimParams), envir = environment())
 
@@ -127,11 +146,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     )
   }
 
-  flag.icounter <- formatC(i_sim, width = sim_size[["digitsN_total"]], format = "d",
-    flag = "0")
+  flag.icounter <- formatC(
+    i_sim,
+    width = sim_size[["digitsN_total"]],
+    format = "d",
+    flag = "0"
+  )
 
   if (opt_verbosity[["debug.dump.objects"]]) {
-    print(paste0(tag_funid, ": 'last.dump.do_OneSite_", i_sim, ".RData' on error."))
+    print(paste0(
+      tag_funid,
+      ": 'last.dump.do_OneSite_", i_sim, ".RData' on error."
+    ))
 
     on.exit({
       op_prev <- options("warn")
@@ -140,9 +166,14 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       list2env(as.list(globalenv()), envir = env_tosave)
       list2env(as.list(parent.frame()), envir = env_tosave)
       list2env(as.list(environment()), envir = env_tosave)
-      save(list = ls(envir = env_tosave), envir = env_tosave,
-        file = file.path(project_paths[["dir_prj"]], paste0("last.dump.do_OneSite_",
-        i_sim, ".RData")))
+      save(
+        list = ls(envir = env_tosave),
+        envir = env_tosave,
+        file = file.path(
+          project_paths[["dir_prj"]],
+          paste0("last.dump.do_OneSite_", i_sim, ".RData")
+        )
+      )
       options(op_prev)
     }, add = TRUE)
   }
@@ -150,83 +181,149 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   # Set RNG seed for random number use by functions
   #   - Aggregation GISSM: calc_TimeToGerminate
   #   - dbExecute2
-  i_seed <- rng_specs[["seeds_runN"]][[it_site(i_sim, sim_size[["runsN_main"]])]]
+  i_seed <-
+    rng_specs[["seeds_runN"]][[it_site(i_sim, sim_size[["runsN_main"]])]]
   set_RNG_stream(seed = i_seed)
 
   if (opt_verbosity[["print.debug"]] && identical(fid, 0L)) {
-    temp <- sapply(grep("p_", ls(envir = SFSW2_glovars), value = TRUE),
-      function(x) paste(shQuote(x), "=", paste(SFSW2_glovars[[x]], collapse = " / ")))
-    temp <- paste(temp, collapse = "; ")
+    tmp <- sapply(
+      X = grep("p_", ls(envir = SFSW2_glovars), value = TRUE),
+      FUN = function(x) {
+        paste(shQuote(x), "=", paste(SFSW2_glovars[[x]], collapse = " / "))
+      }
+    )
 
-    print(paste0(tag_funid, ": worker ID is 0 with global variables: ", temp))
+    print(paste0(
+      tag_funid,
+      ": worker ID is 0 with global variables: ",
+      paste(tmp, collapse = "; ")
+    ))
   }
 
 #-----------------------Check for experimentals
   if (sim_size[["expN"]] > 0 && length(create_experimentals) > 0) {
-    i_exp <- it_exp(i_sim, sim_size[["runsN_main"]])
-    i_label <- paste(flag.icounter, sw_input_experimentals[i_exp, 1],
-      i_SWRunInformation["Label"], sep = "_")
 
-    #--put information from experimental design into appropriate input variables; create_treatments and the _use files were already adjusted for the experimental design when files were read in/created
-    i_sw_input_treatments <- transferExpDesignToInput(i_sw_input_treatments, i_exp,
-      df_exp = sw_input_experimentals, df_exp_use = sw_input_experimentals_use)
-    i_sw_input_soils <- transferExpDesignToInput(i_sw_input_soils, i_exp,
-      df_exp = sw_input_experimentals, df_exp_use = sw_input_experimentals_use)
-    i_sw_input_site <- transferExpDesignToInput(i_sw_input_site, i_exp,
-      df_exp = sw_input_experimentals, df_exp_use = sw_input_experimentals_use)
-    i_sw_input_prod <- transferExpDesignToInput(i_sw_input_prod, i_exp,
-      df_exp = sw_input_experimentals, df_exp_use = sw_input_experimentals_use)
+    i_exp <- it_exp(i_sim, sim_size[["runsN_main"]])
+    i_label <- paste(
+      flag.icounter,
+      sw_input_experimentals[i_exp, 1],
+      i_SWRunInformation["Label"],
+      sep = "_"
+    )
+
+    # put information from experimental design into appropriate input variables;
+    # create_treatments and the _use files were already adjusted for the
+    # experimental design when files were read in/created
+    i_sw_input_treatments <- transferExpDesignToInput(
+      i_sw_input_treatments,
+      i_exp,
+      df_exp = sw_input_experimentals,
+      df_exp_use = sw_input_experimentals_use
+    )
+
+    i_sw_input_soils <- transferExpDesignToInput(
+      i_sw_input_soils,
+      i_exp,
+      df_exp = sw_input_experimentals,
+      df_exp_use = sw_input_experimentals_use
+    )
+
+    i_sw_input_site <- transferExpDesignToInput(
+      i_sw_input_site,
+      i_exp,
+      df_exp = sw_input_experimentals,
+      df_exp_use = sw_input_experimentals_use
+    )
+
+    i_sw_input_prod <- transferExpDesignToInput(
+      i_sw_input_prod,
+      i_exp,
+      df_exp = sw_input_experimentals,
+      df_exp_use = sw_input_experimentals_use
+    )
   }
 
 
 #------------------------Preparations for simulation run
-  all_Pids <- it_Pid(i_sim, runN = sim_size[["runsN_main"]],
-    sc = seq_len(sim_scens[["N"]]), scN = sim_scens[["N"]])
+  all_Pids <- it_Pid(
+    i_sim,
+    runN = sim_size[["runsN_main"]],
+    sc = seq_len(sim_scens[["N"]]),
+    scN = sim_scens[["N"]]
+  )
 
   # Determine sequence of scenarios
-  if (is.na(i_sw_input_treatments$Exclude_ClimateAmbient))
+  if (is.na(i_sw_input_treatments$Exclude_ClimateAmbient)) {
     i_sw_input_treatments$Exclude_ClimateAmbient <- FALSE
+  }
 
-  sc1 <- if (any(create_treatments == "Exclude_ClimateAmbient") &&
-      i_sw_input_treatments$Exclude_ClimateAmbient && i_sim != 1L) 2L else 1L
+  sc1 <- if (
+    any(create_treatments == "Exclude_ClimateAmbient") &&
+    i_sw_input_treatments$Exclude_ClimateAmbient && i_sim != 1L
+  ) {
+    2L
+  } else {
+    1L
+  }
 
   sim_seq_scens <- sc1:sim_scens[["N"]]
 
 
   #- Check which output needs to be generated
-  temp0 <- c("aggregation_overall", "aggregation_doy")
+  tmp0 <- c("aggregation_overall", "aggregation_doy")
 
   if (isTRUE(opt_out_fix[["use_granular_control"]])) {
+
     # Use the 'granular' table of dbWorks to check output needs for
     # each Pid x output table combination
-    temp <- as.matrix(dbWork_check_granular(project_paths[["dir_out"]], runIDs = i_sim))
-    stopifnot(identical(as.integer(temp[, "Pid"]), as.integer(all_Pids)))
+    tmp <- as.matrix(dbWork_check_granular(
+      path = project_paths[["dir_out"]],
+      runIDs = i_sim
+    ))
 
-    do_out <- list(agg = matrix(NA, nrow = sim_scens[["N"]], ncol = length(temp0),
-      dimnames = list(NULL, temp0)))
+    stopifnot(identical(as.integer(tmp[, "Pid"]), as.integer(all_Pids)))
 
-    for (k in seq_along(temp0)) {
-      icol <- grep(temp0[k], colnames(temp), value = TRUE)
-      do_out[[temp0[k]]] <- temp[, icol, drop = FALSE] == 1L
+    do_out <- list(
+      agg = matrix(
+        data = NA,
+        nrow = sim_scens[["N"]],
+        ncol = length(tmp0),
+        dimnames = list(NULL, tmp0)
+      )
+    )
 
-      do_out[["agg"]][, temp0[k]] <- if (length(dim(do_out[[temp0[k]]])) == 2L) {
-          apply(do_out[[temp0[k]]], 1L, any)
-        } else {
-          rep(FALSE, sim_scens[["N"]])
-        }
+    for (k in seq_along(tmp0)) {
+      icol <- grep(tmp0[k], colnames(tmp), value = TRUE)
+      do_out[[tmp0[k]]] <- tmp[, icol, drop = FALSE] == 1L
+
+      do_out[["agg"]][, tmp0[k]] <- if (length(dim(do_out[[tmp0[k]]])) == 2L) {
+        apply(do_out[[tmp0[k]]], 1L, any)
+      } else {
+        rep(FALSE, sim_scens[["N"]])
+      }
     }
 
   } else {
     # Assume all Pids x output tables need to be done for this runID = i_sim
-    temp1 <- dbOutput_ListOutputTables(dbname = fnames_out[["dbOutput"]])
+    tmp1 <- dbOutput_ListOutputTables(dbname = fnames_out[["dbOutput"]])
 
-    do_out_cols <- list(agg = temp0)
-    for (k in seq_along(temp0)) {
-      do_out_cols[[temp0[k]]] <- grep(temp0[k], temp1, value = TRUE)
+    do_out_cols <- list(agg = tmp0)
+
+    for (k in seq_along(tmp0)) {
+      do_out_cols[[tmp0[k]]] <- grep(tmp0[k], tmp1, value = TRUE)
     }
 
-    do_out <- lapply(do_out_cols, function(x)
-      matrix(TRUE, nrow = sim_scens[["N"]], ncol = length(x), dimnames = list(NULL, x)))
+    do_out <- lapply(
+      X = do_out_cols,
+      FUN = function(x) {
+        matrix(
+          data = TRUE,
+          nrow = sim_scens[["N"]],
+          ncol = length(x),
+          dimnames = list(NULL, x)
+        )
+      }
+    )
   }
 
 
@@ -238,32 +335,48 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
   # Set up task list: code: -1, don't do; 0, failed; 1, to do; 2, success
   #   for now: ignoring to check time-series aggregations, i.e., assuming that if
   #   overallAggs is done, then time-series output was also completed
-  tasks <- matrix(-1L, nrow = sim_scens[["N"]], ncol = 3,
-    dimnames = list(NULL, c("create", "execute", "aggregate")))
+  tasks <- matrix(
+    data = -1L,
+    nrow = sim_scens[["N"]],
+    ncol = 3,
+    dimnames = list(NULL, c("create", "execute", "aggregate"))
+  )
 
   needs_out <- ifelse(apply(do_out[["agg"]], 1, any), 1L, -1L)
 
   if (prj_todos[["actions"]][["sim_aggregate"]]) {
     tasks[, "aggregate"] <- needs_out
   }
-  if (any(unlist(prj_todos[["actions"]][c("sim_execute", "sim_aggregate")]))) {
+
+  tmp_var <- c("sim_execute", "sim_aggregate")
+  if (any(unlist(prj_todos[["actions"]][tmp_var]))) {
     tasks[, "execute"] <- needs_out
   }
-  if (any(unlist(prj_todos[["actions"]][c("sim_create", "sim_execute", "sim_aggregate")]))) {
-    temp <- needs_out
-    temp[1L] <- TRUE # 'create' code relies on 'ambient/current' scenario input data
-    tasks[, "create"] <- temp
+
+  tmp_var <- c("sim_create", "sim_execute", "sim_aggregate")
+  if (any(unlist(prj_todos[["actions"]][tmp_var]))) {
+    # 'create' code relies on 'ambient/current' scenario input data
+    tmp <- needs_out
+    tmp[1L] <- TRUE
+
+    tasks[, "create"] <- tmp
   }
 
 
-  #Prepare directory structure in case SOILWAT2 input/output is requested to be stored on disk
-  temp <- file.path(project_paths[["dir_out_sw"]], i_label)
-  f_sw_input <- file.path(temp, "sw_input.RData")
-  f_sw_output <- file.path(temp, paste0("sw_output_sc", seq_len(sim_scens[["N"]]),
-    ".RData"))
+  # Prepare directory structure in case SOILWAT2 input/output is requested
+  # to be stored on disk
+  tmp <- file.path(project_paths[["dir_out_sw"]], i_label)
+  f_sw_input <- file.path(tmp, "sw_input.RData")
+  f_sw_output <- file.path(
+    tmp,
+    paste0("sw_output_sc", seq_len(sim_scens[["N"]]), ".RData")
+  )
 
-  if (opt_out_run[["saveRsoilwatInput"]] || opt_out_run[["saveRsoilwatOutput"]]) {
-    dir.create2(temp, showWarnings = opt_verbosity[["print.debug"]])
+  if (
+    opt_out_run[["saveRsoilwatInput"]] ||
+    opt_out_run[["saveRsoilwatOutput"]]
+  ) {
+    dir.create2(tmp, showWarnings = opt_verbosity[["print.debug"]])
   }
 
   #--- Load previously created rSOILWAT2 run objets
@@ -278,10 +391,13 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   if (
     file.exists(f_sw_input) &&
-      ((any(tasks[, "create"] == 1L) && opt_behave[["resume"]]) ||
-        (all(tasks[, "create"] == -1L) &&
-          any(tasks[, "execute"] == 1L, tasks[, "aggregate"] == 1L))
+    (
+      (any(tasks[, "create"] == 1L) && opt_behave[["resume"]]) ||
+      (
+        all(tasks[, "create"] == -1L) &&
+        any(tasks[, "execute"] == 1L, tasks[, "aggregate"] == 1L)
       )
+    )
   ) {
 
     # load objects: objnames_saveRsoilwatInput
@@ -292,11 +408,11 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
     if (
       !inherits(tmp, "try-error") &&
-        all(sapply(objnames_saveRsoilwatInput, exists)) &&
-        check_rSW2_version(
-          object = swRunScenariosData[[1]],
-          strict = opt_out_run[["enforce_rSW2_version"]]
-        )
+      all(sapply(objnames_saveRsoilwatInput, exists)) &&
+      check_rSW2_version(
+        object = swRunScenariosData[[1]],
+        strict = opt_out_run[["enforce_rSW2_version"]]
+      )
     ) {
       tasks[, "create"] <- 2L
     }
@@ -308,10 +424,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     #------Learn about soil layer structure
     soil_source <- NULL
 
-    #determine number of soil layers = soilLayers_N and soildepth
-    if (any(tasks[, "create"] == 1L) && (!any(create_treatments == "soilsin") ||
-        any(create_treatments == "soilsin") && (is.na(i_sw_input_treatments$soilsin) ||
-            identical(i_sw_input_treatments$soilsin, "NA")))) {
+    # determine number of soil layers = soilLayers_N and soildepth
+    if (
+      any(tasks[, "create"] == 1L) &&
+      (
+        !any(create_treatments == "soilsin") ||
+        any(create_treatments == "soilsin"
+      ) &&
+      (
+        is.na(i_sw_input_treatments$soilsin) ||
+        identical(i_sw_input_treatments$soilsin, "NA"))
+      )
+    ) {
 
       soil_source <- "datafile"
       soildepth <- i_sw_input_soillayers["SoilDepth_cm"]
@@ -346,15 +470,18 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       }
 
     } else {
-      layers_depth <- if (any(create_treatments == "soilsin") &&
+      layers_depth <- if (
+        any(create_treatments == "soilsin") &&
         !is.na(i_sw_input_treatments$soilsin) &&
-        !identical(i_sw_input_treatments$soilsin, "NA")) {
-          soil_source <- "tr_soilsin"
-          slot(tr_soil[[i_sw_input_treatments$soilsin]], "Layers")[, 1]
-        } else {
-          soil_source <- "default_run"
-          unname(rSOILWAT2::swSoils_Layers(swDefaultInputs)[, 1])
-        }
+        !identical(i_sw_input_treatments$soilsin, "NA")
+      ) {
+        soil_source <- "tr_soilsin"
+        slot(tr_soil[[i_sw_input_treatments$soilsin]], "Layers")[, 1]
+      } else {
+        soil_source <- "default_run"
+        unname(rSOILWAT2::swSoils_Layers(swDefaultInputs)[, 1])
+      }
+
       soilLayers_N <- length(layers_depth)
       soildepth <- max(layers_depth)
     }
@@ -366,7 +493,10 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
     layers_width <- rSW2data::getLayersWidth(layers_depth)
 
     #top and bottom layer aggregation
-    DeepestTopLayer <- setDeepestTopLayer(layers_depth, opt_agg[["aon_toplayer_cm"]])
+    DeepestTopLayer <- setDeepestTopLayer(
+      layers_depth,
+      opt_agg[["aon_toplayer_cm"]]
+    )
     topL <- setTopLayer(soilLayers_N, DeepestTopLayer)
     bottomL <- setBottomLayer(soilLayers_N, DeepestTopLayer)
 
@@ -5094,7 +5224,7 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
 
   if (status) {
     if (opt_verbosity[["verbose"]]) {
-      msg <- paste0("rSFSW2's ", temp_call, ": ", tag_simfid, ": completed in ",
+      msg <- paste0("rSFSW2's ", tmp_call, ": ", tag_simfid, ": completed in ",
         delta.do_OneSite, " ", units(delta.do_OneSite))
 
       if (opt_behave[["keep_dbWork_updated"]]) {
@@ -5150,13 +5280,13 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
   if (MoreArgs[["opt_verbosity"]][["verbose"]]) {
     t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1, " for ",
+    tmp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", tmp_call, ": started at ", t1, " for ",
       MoreArgs[["sim_size"]][["runsN_todo"]], " out of ",
       MoreArgs[["sim_size"]][["runsN_job"]], " runs on ",
       SFSW2_glovars[["p_workersN"]], " cores"))
 
-    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
+    on.exit({print(paste0("rSFSW2's ", tmp_call, ": ended after ",
         round(difftime(Sys.time(), t1, units = "secs"), 2), " s for ",
         runs.completed, " runs"))
       cat("\n")}, add = TRUE)
