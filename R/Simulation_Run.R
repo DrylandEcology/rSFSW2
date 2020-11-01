@@ -314,15 +314,35 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
             identical(i_sw_input_treatments$soilsin, "NA")))) {
 
       soil_source <- "datafile"
-      soildepth <- i_sw_input_soillayers$SoilDepth_cm
-      itemp <- 2L + SFSW2_glovars[["slyrs_ids"]]
-      layers_depth <- stats::na.omit(as.numeric(i_sw_input_soillayers[itemp]))
+      soildepth <- i_sw_input_soillayers["SoilDepth_cm"]
+
+      is_depth <- grepl("depth_L", names(i_sw_input_soillayers))
+
+      layers_depth <- stats::na.omit(
+        as.numeric(i_sw_input_soillayers[is_depth])
+      )
+
       soilLayers_N <- which(soildepth == layers_depth)
-      if (length(soilLayers_N) == 0) {
-        # soildepth is one of the lower layer boundaries
-        # soildepth is not one of the lower layer boundaries, the next deeper layer
-        #   boundary is used
-        soilLayers_N <- min(length(layers_depth), findInterval(soildepth, layers_depth) + 1)
+
+      # Make sure that we have agreement among soil depth and soil layers
+      tmp <- length(soilLayers_N)
+      if (tmp != 1) {
+        if (tmp == 0) {
+          # there is no soil layer that ends at the provided soil depth:
+          # the next deeper layer boundary is used, if there is any,
+          # or the deepest available layer
+          soilLayers_N <- min(
+            length(layers_depth),
+            findInterval(soildepth, layers_depth) + 1
+          )
+
+        } else {
+          stop(
+            "More than one soil layer has the depth of the soil profile ",
+            "at ", soildepth, " cm: ",
+            paste0(soilLayers_N, collapse = "; ")
+          )
+        }
       }
 
     } else {
@@ -786,8 +806,12 @@ do_OneSite <- function(i_sim, i_SWRunInformation, i_sw_input_soillayers,
       sum(sw_input_soils_use) + {if (done.Imperm_L1) -1 else 0} - sum(use_transpregion) > 0) {
 
       # Calculate soil layer structure, because any(create_treatments == "soilsin") and soilsin may have a different soil layer structure than the datafiles
-      temp <- as.numeric(stats::na.omit(unlist(i_sw_input_soillayers[paste0("depth_L", SFSW2_glovars[["slyrs_ids"]])])))
+      temp <- stats::na.omit(as.numeric(
+        i_sw_input_soillayers[grepl("depth_L", names(i_sw_input_soillayers))]
+      ))
+
       layers_depth.datafile <- temp[temp <= as.numeric(i_sw_input_soillayers["SoilDepth_cm"])]
+
       if (length(layers_depth.datafile) == 0) {
         # this condition arises if i_sw_input_soillayers["SoilDepth_cm"] < i_sw_input_soillayers["depth_L1"]
         layers_depth.datafile <- temp[1]
