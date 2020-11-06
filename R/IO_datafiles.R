@@ -389,7 +389,7 @@ read_SOILWAT2_DefaultInputs <- function() {
   rSOILWAT2::swSite_SoilTemperatureFlag(swData) <- TRUE
 
   # Delete weather data folder (all rSFSW2 projects get their own weather data)
-  rSOILWAT2::set_swWeatherData(swData) <- new("swWeatherData")
+  rSOILWAT2::set_WeatherHistory(swData) <- list(new("swWeatherData"))
 
   swData
 }
