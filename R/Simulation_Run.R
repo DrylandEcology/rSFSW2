@@ -3584,7 +3584,7 @@ do_OneSite <- function(
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyRechargeExtremes")
           if (!exists("swcbulk.dy")) swcbulk.dy <- get_Response_aggL(swof["sw_swcbulk"], tscale = "dy", scaler = 10, FUN = sum, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
 
-          recharge.dy <- NULL
+          recharge.dy <- list()
           recharge.dy$top <- swcbulk.dy$top / (rSOILWAT2::SWPtoVWC(-0.033, texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL]))
           extremes <- matrix(NA, nrow = isim_time[[itime]]$no.useyr, ncol = 2 * 4)
           temp <- tapply(recharge.dy$top, simTime2[[itime]]$year_ForEachUsedDay, extreme_values_and_doys)
@@ -5051,7 +5051,7 @@ do_OneSite <- function(
               }
 
               #extract data and aggregate into layers if requested
-              agg.dat <- NULL
+              agg.dat <- list()
               if (agg.analysis > 1) {
                 #deal with soil layers: either each or 1-4 aggregated soil layers
                 if (any(!is.na(match(agg.resp, c("VWCbulk", "VWCmatric", "SWPmatric", "SoilTemperature"))))) { #aggregate by functions that are weighted by depths of soil layers

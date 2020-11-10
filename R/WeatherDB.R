@@ -77,7 +77,7 @@ make_dbW <- function(
 
   do_new <- TRUE # flag to indicate if a new weather database should be created
   do_add <- FALSE # flag to indicate if ambient daily weather data will be added
-  add_runIDs_sites <- NULL
+  add_runIDs_sites <- list()
 
   #--- Check if weather database exists and contains requested data
   if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])) {
@@ -135,6 +135,8 @@ make_dbW <- function(
       unlink(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
     }
   }
+
+  add_runIDs_sites <- unlist(add_runIDs_sites)
 
 
   if (do_new) {

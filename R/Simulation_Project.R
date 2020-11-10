@@ -36,7 +36,7 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
     stop("No default project infrastructure object located; the installation ",
       "of the package 'rSFSW2' may be faulty.")
 
-  fes <- NULL
+  fes <- list()
 
   for (di in definf) {
     dtmp <- file.path(dir_prj, di[["path"]])
@@ -78,16 +78,24 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
     }
   }
 
-  if (!is.null(fes) && (verbose || print.debug)) {
-    fes <- gsub(paste0(dir_prj, "/"), "", fes, fixed = TRUE)
-    print(paste("File(s)", paste(shQuote(fes), collapse = ", "),
-      "already existed in project", shQuote(basename(dir_prj)),
-      "; they were not replaced by default files."))
+
+  if (length(fes) > 0 && (verbose || print.debug)) {
+    fes <- gsub(paste0(dir_prj, "/"), "", unlist(fes), fixed = TRUE)
+
+    print(paste0(
+      "File(s) ",
+      paste(shQuote(fes), collapse = ", "),
+      "already existed in project ",
+      shQuote(basename(dir_prj)),
+      "; they were not replaced by default files."
+    ))
   }
 
   if (verbose || print.debug) {
-    print(paste("The new rSFSW2 project was successfully prepared at:",
-      sQuote(dir_prj)))
+    print(paste(
+      "The new rSFSW2 project was successfully prepared at:",
+      sQuote(dir_prj)
+    ))
   }
 
   # Copy demo scripts

@@ -10,7 +10,7 @@ dir_backup <- sub("TestPrj4", "TestPrj4_backup", dir_testprj)
 dtestin <- file.path(dir_testprj, "1_Input")
 
 # List of files that need manual checking/updating
-fupdate_manual <- NULL
+fupdate_manual <- list()
 
 #--- Backup
 print(paste("Create backup of", shQuote(dir_testprj), "as",
@@ -58,10 +58,15 @@ for (k in seq_along(fnew)) {
   }
 }
 
+
 if (length(fupdate_manual) > 0) {
-  cat(paste0("Following files should be checked and, if needed, ",
-    "updated manually:\n",
-    paste0("  * ", shQuote(fupdate_manual), collapse = "\n"), "\n"))
+  cat(
+    paste0(
+      "Following files should be checked and, if needed, updated manually:\n",
+      paste0("  * ", shQuote(unlist(fupdate_manual)), collapse = "\n"),
+      "\n"
+    )
+  )
 }
 
 #-----------------------
