@@ -1528,14 +1528,14 @@ do_OneSite <- function(
       if (prj_todos[["EstimateInitialSoilTemperatureForEachSoilLayer"]]) {
         stopifnot(exists("soilTUpper"))
 
-        init.soilTprofile <- init_soiltemperature(
+        tmp <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])
+
+        init.soilTprofile <- rSW2data::init_soiltemperature(
           layers_depth = layers_depth,
-          lower.Tdepth = as.numeric(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]),
-          soilTupper = soilTUpper,
-          soilTlower = as.numeric(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["ConstMeanAirTemp"]))
-        #temporaly save data #TODO get this working
-        #out.temp <- data.frame(i_sim, i_label, t(c(init.soilTprofile, rep(NA, times = SFSW2_glovars[["slyrs_maxN"]]-length(init.soilTprofile)))))
-        #utils::write.csv(out.temp, file = file.path(project_paths[["dir_out_temp"]], .Platform$file.sep, flag.icounter, "_", "SoilTempC_InitProfile.csv"), quote = FALSE, row.names = FALSE)
+          Tsoil_upper = soilTUpper,
+          Tsoil_const = tmp["ConstMeanAirTemp"],
+          depth_Tsoil_const = tmp["MaxDepth"]
+        )
       }
 
       stemp <- paste0("SoilTemp_L", ld)

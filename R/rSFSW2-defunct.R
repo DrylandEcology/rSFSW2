@@ -15,7 +15,7 @@ calc_BareSoilEvapCoefs <- function(...) {
     package = "rSW2data",
     msg = paste(
       "`rSFSW2::calc_BareSoilEvapCoefs()`",
-      "is defunct after 4.3.1;",
+      "is defunct after v4.3.1;",
       "please use",
       "`rSW2data::calc_BareSoilEvapCoefs()`",
       "instead."
@@ -31,10 +31,27 @@ crs_units <- function(...) {
     package = "rSW2st",
     msg = paste(
       "`rSFSW2::crs_units()`",
-      "is defunct after 4.3.1;",
+      "is defunct after v4.3.1;",
       "please use",
       "`rSW2st::crs_units()`",
       "instead."
     )
   )
 }
+
+#' @rdname rSFSW2-defunct
+#' @export
+init_soiltemperature <- function(...) {
+  .Defunct(
+    new = "init_soiltemperature",
+    package = "rSW2data",
+    msg = paste(
+      "`rSFSW2:::init_soiltemperature()`",
+      "is defunct after v4.3.1;",
+      "please use",
+      "`rSW2data::init_soiltemperature()`",
+      "instead."
+    )
+  )
+}
+
