@@ -1626,6 +1626,9 @@ do_OneSite <- function(
       ) {
 
         tmp <- rSOILWAT2::estimate_PotNatVeg_biomass(
+          target_temp = monthly.temp,
+          target_MAP_mm = MAP_mm,
+          ref_temp = opt_sim[["reference_temperature_default_phenology"]],
           tr_VegBiom = tr_VegetationComposition,
           do_adjust_phenology =
             any(create_treatments == "AdjMonthlyBioMass_Temperature") &&
@@ -1633,10 +1636,7 @@ do_OneSite <- function(
           do_adjust_biomass =
             any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&
             i_sw_input_treatments$AdjMonthlyBioMass_Precipitation,
-          fgrass_c3c4ann = grasses.c3c4ann.fractions[[sc]],
-          MAP_mm = MAP_mm,
-          ref_temp = opt_sim[["reference_temperature_default_phenology"]],
-          target_temp = monthly.temp
+          fgrass_c3c4ann = grasses.c3c4ann.fractions[[sc]]
         )
 
         rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3] <- tmp[["grass"]][, 1:3]
