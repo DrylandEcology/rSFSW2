@@ -54,4 +54,3 @@ init_soiltemperature <- function(...) {
     )
   )
 }
-

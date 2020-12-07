@@ -707,11 +707,13 @@ do_OneSite <- function(
 
         } else {
           trco <- rSOILWAT2::TranspCoeffByVegType(
-            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
+            tr_input_code = tr_input_TranspCoeff_Code,
+            tr_input_coeff = tr_input_TranspCoeff,
             soillayer_no = soilLayers_N,
             trco_type = i_sw_input_treatments[1, do_vegs[["flag"]][k]],
             layers_depth = layers_depth,
-            adjustType = do_vegs[["adjustType"]][k])
+            adjustType = do_vegs[["adjustType"]][k]
+          )
 
           if (!any(is.na(trco)) || sum(trco, na.rm = TRUE) > 0) {#trco does not have NA and sum is greater than 0.
             #set the use flags
@@ -1057,35 +1059,26 @@ do_OneSite <- function(
 
     rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]]) <- soil_swdat
 
+
     #add transpiration regions information to siteparamin
     print_debug(opt_verbosity, tag_simfid, "creating", "transpiration regions")
 
     if (sum(use_transpregion) > 0) {
-      tr <- max(tr.layers <- stats::na.omit(as.numeric(i_sw_input_soils[paste0("TranspRegion_L", ld)]))) # max transpiration region
+      tmp <- rSOILWAT2::prepare_TranspirationRegions(
+        tr_lyrs = stats::na.omit(as.numeric(
+          i_sw_input_soils[paste0("TranspRegion_L", ld)]
+        ))
+      )
 
-      TranspirationRegions <- matrix(data = NA, nrow = 4, ncol = 2)
-      colnames(TranspirationRegions) <- c("ndx", "layer")
-
-      ltreg.last <- 0
-      for (tri in 1:4) {
-        ltreg <- ifelse(length(ind <- which(tr.layers == tri)) > 0, max(ind), -1)
-        ltreg <- ifelse(ltreg>ltreg.last, ltreg, ltreg.last+1)
-        ltreg <- ifelse(ltreg>soilLayers_N & tri == 1, soilLayers_N, ltreg)
-
-        if (tri <= tr & tri <= soilLayers_N & ltreg <= soilLayers_N | tri == 1) TranspirationRegions[tri, ] <- as.integer(c(tri, ltreg))
-        ltreg.last <- ltreg
-      }
-      tr_rows <- rowSums(is.na(TranspirationRegions)) != 2 #used to get rid of NA rows
-      if (sum(tr_rows) == 0) {
-        print(paste0(tag_simfid, ": 'transpiration regions' cannot be empty."))
-      } else if (sum(tr_rows) == 1) {
-        rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[1]]) <- matrix(data = TranspirationRegions[tr_rows, ], nrow = 1, ncol = 2, byrow = TRUE, dimnames = list(numeric(), c("ndx", "layer")))
+      if (nrow(tmp) > 0) {
+        rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[1]]) <- tmp
         TRRG_done <- TRUE
+
       } else {
-        rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[1]]) <- TranspirationRegions[tr_rows, ]
-        TRRG_done <- TRUE
+        print(paste0(tag_simfid, ": 'transpiration regions' cannot be empty."))
       }
     }
+
 
     #add weather setup information to weatherin
     if (sw_input_weather_use["SnowFlag"])
@@ -1248,19 +1241,6 @@ do_OneSite <- function(
           scenario_CO2 <- i_sw_input_treatments$LookupCO2data
         }
 
-        scenario_index <- which(
-          toupper(colnames(tr_input_CO2data)) == toupper(scenario_CO2)
-        )
-
-        # Is the scenario available?
-        if (length(scenario_index) == 0) {
-          tasks[sc, "create"] <- 0L
-          print(paste0(
-            tag_simfid, ": ERROR: CO2-concentration dataset name ",
-            shQuote(scenario_CO2), " was not found in `LookupCO2data` table"
-          ))
-          break
-        }
 
         # Save the scenario to the input object just so that the user can see it
         rSOILWAT2::swCarbon_Scenario(swRunScenariosData[[sc]]) <- scenario_CO2
@@ -1270,21 +1250,31 @@ do_OneSite <- function(
         # headers: RCP85, RCP85.1
 
         # Extract CO2 concentration values in units of ppm into swCarbon
-        ids_years <- match(
-          isim_time[[itime]]$simstartyr:isim_time[[itime]]$endyr +
-            rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]),
-          tr_input_CO2data[, "Year"],
-          nomatch = 0
+        co2_data <- try(
+          rSOILWAT2::lookup_annual_CO2a(
+            start =
+              isim_time[[itime]]$simstartyr +
+              rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]),
+            end =
+              isim_time[[itime]]$endyr +
+              rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]),
+            name_co2 = scenario_CO2,
+            tr_CO2a = tr_input_CO2data
+          ),
+          silent = TRUE
         )
-        # Convert possible integers to numeric
-        tr_input_CO2data[ids_years, scenario_index] <- as.numeric(unlist(
-          tr_input_CO2data[ids_years, scenario_index]
-        ))
-        scenarioCO2_ppm <- tr_input_CO2data[ids_years, c(1, scenario_index)]
-        colnames(scenarioCO2_ppm) <- c("Year", "CO2ppm")
 
-        rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- as.matrix(
-          scenarioCO2_ppm,
+        if (inherits(co2_data, "try-error")) {
+          tasks[sc, "create"] <- 0L
+          print(paste0(
+            tag_simfid, ": ERROR: CO2-concentration dataset name ",
+            shQuote(scenario_CO2), " was not found in `LookupCO2data` table"
+          ))
+          break
+        }
+
+        rSOILWAT2::swCarbon_CO2ppm(swRunScenariosData[[sc]]) <- data.matrix(
+          co2_data,
           rownames.force = TRUE
         )
       }
@@ -1646,115 +1636,86 @@ do_OneSite <- function(
       #adjust Root Profile - need composition fractions set above
       print_debug(opt_verbosity, tag_simpidfid, "creating", "AdjRootProfile")
 
-      if (any(create_treatments == "AdjRootProfile") &&
-          i_sw_input_treatments$AdjRootProfile &&
-          any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") &&
-          i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996) {
+      if (
+        any(create_treatments == "AdjRootProfile") &&
+        i_sw_input_treatments$AdjRootProfile &&
+        any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") &&
+        i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996
+      ) {
 
-        trco_type_C3 <- if (any(create_treatments == "RootProfile_C3") &&
-          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_C3)) {
-            i_sw_input_treatments$RootProfile_C3
-          } else {
-            "SchenkJackson2003_PCdry_grasses"
-          }
-
-        trco_type_C4 <- if (any(create_treatments == "RootProfile_C4") &&
-          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_C4)) {
-            i_sw_input_treatments$RootProfile_C4
-          } else {
-            "SchenkJackson2003_PCdry_grasses"
-          }
-
-        trco_type_annuals <- if (any(create_treatments == "RootProfile_Annuals") &&
-          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Annuals)) {
-            i_sw_input_treatments$RootProfile_Annuals
-          } else {
-            "Jacksonetal1996_crops"
-          }
-
-        trco_type_shrubs <- if (any(create_treatments == "RootProfile_Shrubs") &&
-          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Shrubs)) {
-            i_sw_input_treatments$RootProfile_Shrubs
-          } else {
-            "SchenkJackson2003_PCdry_shrubs"
-          }
-
-        tro_type_forb <- if (any(create_treatments == "RootProfile_Forbs") &&
-          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Forbs)) {
-            i_sw_input_treatments$RootProfile_Forbs
-          } else {
-            "SchenkJackson2003_PCdry_forbs"
-          }
-
-        tro_type_tree <- if (any(create_treatments == "LookupTranspCoefs_Tree") &&
-          is.finite(i_sw_input_treatments$LookupTranspCoefs_Tree) &&
-          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoefs_Tree)) {
-            i_sw_input_treatments$LookupTranspCoefs_Tree
-          } else {
-            "FILL"
-          }
-
-        if (rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]])[1] > 0) {
-          C3.trco <- rSOILWAT2::TranspCoeffByVegType(
-            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-            soillayer_no = soilLayers_N,
-            trco_type = trco_type_C3,
-            layers_depth = layers_depth,
-            adjustType = "positive")
-
-          C4.trco <- rSOILWAT2::TranspCoeffByVegType(
-            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-            soillayer_no = soilLayers_N,
-            trco_type = trco_type_C4,
-            layers_depth = layers_depth,
-            adjustType = "positive")
-
-          Annuals.trco <- rSOILWAT2::TranspCoeffByVegType(
-            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-            soillayer_no = soilLayers_N,
-            trco_type = trco_type_annuals,
-            layers_depth = layers_depth,
-            adjustType = "positive")
-
-          Grass.trco <- C3.trco * grasses.c3c4ann.fractions[[sc]][1] +
-                        C4.trco * grasses.c3c4ann.fractions[[sc]][2] +
-                        Annuals.trco * grasses.c3c4ann.fractions[[sc]][3]
-
+        trco_type_C3 <- if (
+          any(create_treatments == "RootProfile_C3") &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_C3)
+        ) {
+          i_sw_input_treatments$RootProfile_C3
         } else {
-          Grass.trco <- rSOILWAT2::TranspCoeffByVegType(
-            tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-            soillayer_no = soilLayers_N,
-            trco_type = "FILL",
-            layers_depth = layers_depth,
-            adjustType = "positive")
+          "SchenkJackson2003_PCdry_grasses"
         }
 
-        if (anyNA(Grass.trco))
-          Grass.trco <- rep(0, soilLayers_N)
+        trco_type_C4 <- if (
+          any(create_treatments == "RootProfile_C4") &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_C4)
+        ) {
+          i_sw_input_treatments$RootProfile_C4
+        } else {
+          "SchenkJackson2003_PCdry_grasses"
+        }
 
-        Shrub.trco <- rSOILWAT2::TranspCoeffByVegType(
-          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-          soillayer_no = soilLayers_N,
-          trco_type = trco_type_shrubs,
-          layers_depth = layers_depth,
-          adjustType = "inverse")
-        Tree.trco <- rSOILWAT2::TranspCoeffByVegType(
-          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-          soillayer_no = soilLayers_N,
-          trco_type = tro_type_tree,
-          layers_depth = layers_depth,
-          adjustType = "inverse")
-        Forb.trco <- rSOILWAT2::TranspCoeffByVegType(
-          tr_input_code = tr_input_TranspCoeff_Code, tr_input_coeff = tr_input_TranspCoeff,
-          soillayer_no = soilLayers_N,
-          trco_type = tro_type_forb,
-          layers_depth = layers_depth,
-          adjustType = "inverse")
+        trco_type_annuals <- if (
+          any(create_treatments == "RootProfile_Annuals") &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Annuals)
+        ) {
+          i_sw_input_treatments$RootProfile_Annuals
+        } else {
+          "Jacksonetal1996_crops"
+        }
 
-        rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, 5] <- Grass.trco
-        rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, 6] <- Shrub.trco
-        rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, 7] <- Tree.trco
-        rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, 8] <- Forb.trco
+        trco_type_shrubs <- if (
+          any(create_treatments == "RootProfile_Shrubs") &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Shrubs)
+        ) {
+          i_sw_input_treatments$RootProfile_Shrubs
+        } else {
+          "SchenkJackson2003_PCdry_shrubs"
+        }
+
+        tro_type_forb <- if (
+          any(create_treatments == "RootProfile_Forbs") &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$RootProfile_Forbs)
+        ) {
+          i_sw_input_treatments$RootProfile_Forbs
+        } else {
+          "SchenkJackson2003_PCdry_forbs"
+        }
+
+        tro_type_tree <- if (
+          any(create_treatments == "LookupTranspCoefs_Tree") &&
+          is.finite(i_sw_input_treatments$LookupTranspCoefs_Tree) &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoefs_Tree)
+        ) {
+          i_sw_input_treatments$LookupTranspCoefs_Tree
+        } else {
+          "FILL"
+        }
+
+        veg_trco <- rSOILWAT2::estimate_PotNatVeg_roots(
+          layers_depth = layers_depth,
+          trco_type_by_veg = list(
+            grass_C3 = trco_type_C3,
+            grass_C4 = trco_type_C4,
+            grass_annuals = trco_type_annuals,
+            shrub = trco_type_shrubs,
+            forb = tro_type_forb,
+            tree = tro_type_tree
+          ),
+          fgrass_c3c4ann = grasses.c3c4ann.fractions[[sc]],
+          trco_table = list(
+            desc = tr_input_TranspCoeff_Code,
+            data = tr_input_TranspCoeff
+          )
+        )
+
+        rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, 5:8] <- veg_trco
 
         TRCO_done <- TRUE
       }
@@ -1879,39 +1840,14 @@ do_OneSite <- function(
       #--control transpiration regions for adjusted soil depth and rooting depth
       print_debug(opt_verbosity, tag_simpidfid, "creating", "control transpiration regions")
 
-      tri.file <- matrix(NA, nrow = 4, ncol = 2, dimnames = list(NULL, c("Used_TF", "DeepestLayer")))
-      for (tri in 1:4) {
-        if (tri <= nrow(rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[sc]]))) {
-          tri.file[tri, 2] <- rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[sc]])[tri, 2]
-          tri.file[tri, 1] <- 1
-        } else {
-          tri.file[tri, 2] <- NA#rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[sc]])[tri-1, 2]+1
-          tri.file[tri, 1] <- 0
-        }
-      }
+      rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[sc]]) <-
+        rSOILWAT2::adjust_TranspirationRegions(swRunScenariosData[[sc]])
 
-      #get soil depth
-      max.tri.soil <- length(layers_depth)
+      # check transpiration regions once more and set TRRG_done
+      TRRG_done <- rSOILWAT2::check_TranspirationRegions(
+        swInputData = swRunScenariosData[[sc]]
+      )
 
-      #get rooting depth
-      if (nrow(rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])) > 1) {
-        max.tri.root <- min(apply(rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, c(6, 7, 8), drop = FALSE], MARGIN = 2, FUN = function(x) sum(x > 0)))
-      } else {
-        max.tri.root <- 1
-      }
-      #adjust maximum transpiration region for minimum soil depth and rooting depth
-      if (max(tri.file[tri.file[, 1] > 0, 2], na.rm = TRUE) > (max.tri <- min(max.tri.soil, max.tri.root))) {
-        for (tri in 4:1) if (tri.file[tri, 1] > 0) {
-            if (tri.file[tri, 2] > max.tri)
-              tri.file[tri, 2] <- rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[sc]])[tri, 2] <- max.tri
-            if (tri > 1 && tri.file[tri, 2] <= tri.file[tri-1, 2])
-              rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[sc]]) <- matrix(rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[sc]])[-tri, ], ncol = 2)
-          }
-      }
-      #check transpiration regions once more and set TRRG_done
-      temp <- rSOILWAT2::swSite_TranspirationRegions(swRunScenariosData[[sc]])
-      if (nrow(temp) > 0 && temp[1, 2] >= 1 ||
-        max(temp[, 2]) <= max.tri.root) TRRG_done <- TRUE
 
       # Check evaporation- and transpiration coefficients
       soil_swdat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])
