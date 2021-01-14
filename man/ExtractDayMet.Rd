@@ -25,7 +25,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
   end_year,
   dir_temp = tempdir(),
   dbW_compression_type = "gzip",
-  dbW_digits,
+  dbW_digits = 2L,
   verbose = FALSE
 )
 }
@@ -47,18 +47,18 @@ resolution.
 \references{
 \url{https://daymet.ornl.gov/}
 
-publication: Thornton, P.E., Running, S.W., White, M.A. 1997.
+Thornton, P.E., Rupesh Shrestha, M.M. Thornton, S.C. Kao, Y. Wei,
+  and B.E. Wilson.
+  Developments in a daily gridded meteorological data set for North America
+  -- Daymet Version 4. Draft Manuscript
+
+Thornton, P.E., Running, S.W., White, M.A. 1997.
   Generating surfaces of daily meteorological variables over large regions of
   complex terrain. Journal of Hydrology 190: 214 - 251.
   \url{http://dx.doi.org/10.1016/S0022-1694(96)03128-9}
 
-Thornton, P.E., M.M. Thornton, B.W. Mayer, Y. Wei, R.
-  Devarakonda, R.S. Vose, and R.B. Cook. 2016. \var{Daymet}: Daily Surface
-  Weather Data on a 1-km Grid for North America, Version 3. ORNL DAAC, Oak
-  Ridge, Tennessee, USA. Accessed \var{Month DD, YYYY}. Time period:
-  \var{YYYY-MM-DD} to \var{YYYY-MM-DD}. Spatial Range: N = \var{DD.DD}, S =
-  \var{DD.DD}, E = \var{DDD.DD}, W = \var{DDD.DD}.
-  \url{http://dx.doi.org/10.3334/ORNLDAAC/1328}
+Daymet: Daily Surface Weather Data on a 1-km Grid for North America,
+  Version 4. \url{https://doi.org/10.3334/ORNLDAAC/1840}
 
 \url{https://github.com/khufkens/daymetr}
 }
