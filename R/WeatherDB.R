@@ -1937,7 +1937,7 @@ gridMET_metadata <- function() {
       function(x) x / 10
     ),
     start_year = 1979,
-    end_year = 2019 # updated yearly
+    end_year = 1900 + as.POSIXlt(Sys.time(), tz = "UTC")$year - 1
   )
 }
 
