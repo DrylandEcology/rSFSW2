@@ -1626,7 +1626,12 @@ do_OneSite <- function(
           do_adjust_biomass =
             any(create_treatments == "AdjMonthlyBioMass_Precipitation") &&
             i_sw_input_treatments$AdjMonthlyBioMass_Precipitation,
-          fgrass_c3c4ann = grasses.c3c4ann.fractions[[sc]]
+          fgrass_c3c4ann = if (sum(grasses.c3c4ann.fractions[[sc]]) > 0) {
+              grasses.c3c4ann.fractions[[sc]]
+            } else {
+              # TODO: remove hack once rSOILWAT2 can deal with 0% grass -> 0 g biomass
+              c(0.5, 0.5, 0)
+            }
         )
 
         rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3] <- tmp[["grass"]][, 1:3]
@@ -1708,7 +1713,12 @@ do_OneSite <- function(
             forb = tro_type_forb,
             tree = tro_type_tree
           ),
-          fgrass_c3c4ann = grasses.c3c4ann.fractions[[sc]],
+          fgrass_c3c4ann = if (sum(grasses.c3c4ann.fractions[[sc]]) > 0) {
+            grasses.c3c4ann.fractions[[sc]]
+          } else {
+            # TODO: remove hack once rSOILWAT2 can deal with 0% grass -> 0 roots
+            c(Grasses_C3 = 0.5, Grasses_C4 = 0.5, Grasses_Annuals = 0)
+          },
           trco_table = list(
             desc = tr_input_TranspCoeff_Code,
             data = tr_input_TranspCoeff
