@@ -7,9 +7,15 @@
 #'   database, then \code{FALSE}.
 #'
 #' @export
-find_sites_with_bad_weather <- function(fdbWeather, site_labels = NULL,
-  siteID_by_dbW = NULL, scen_labels = NULL, scenID_by_dbW = NULL,
-  chunk_size = 500L, verbose = FALSE) {
+find_sites_with_bad_weather <- function(
+  fdbWeather,
+  site_labels = NULL,
+  siteID_by_dbW = NULL,
+  scen_labels = NULL,
+  scenID_by_dbW = NULL,
+  chunk_size = 500L,
+  verbose = FALSE
+) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -29,17 +35,20 @@ find_sites_with_bad_weather <- function(fdbWeather, site_labels = NULL,
   sc_ltemp <- c(length(scen_labels), length(scenID_by_dbW))
   sc_ntemp <- c(is.null(scen_labels), is.null(scenID_by_dbW))
 
-  stopifnot(!(si_ntemp[1] && si_ntemp[2]),
-    si_ntemp[1] || si_ntemp[2] || identical(si_ltemp[1], si_ltemp[2]))
-  stopifnot(!(sc_ntemp[1] && sc_ntemp[2]),
-    sc_ntemp[1] || sc_ntemp[2] || identical(sc_ltemp[1], sc_ltemp[2]))
+  stopifnot(
+    !(si_ntemp[1] && si_ntemp[2]),
+    si_ntemp[1] || si_ntemp[2] || identical(si_ltemp[1], si_ltemp[2])
+  )
+  stopifnot(
+    !(sc_ntemp[1] && sc_ntemp[2]),
+    sc_ntemp[1] || sc_ntemp[2] || identical(sc_ltemp[1], sc_ltemp[2])
+  )
 
   req_scenN <- max(sc_ltemp)
   n_todos <- max(si_ltemp)
   todos <- rep(TRUE, n_todos)
 
-  con <- dbConnect(SQLite(), dbname = fdbWeather,
-    flags = SQLITE_RO)
+  con <- dbConnect(SQLite(), dbname = fdbWeather, flags = SQLITE_RO)
   on.exit(dbDisconnect(con), add = TRUE)
   rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
   on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
@@ -65,42 +74,54 @@ find_sites_with_bad_weather <- function(fdbWeather, site_labels = NULL,
 
     do_chunks <- parallel::splitIndices(n_todos, ceiling(n_todos / chunk_size))
 
-    sql <- paste0("SELECT Site_id, Scenario FROM WeatherData ",
+    sql <- paste0(
+      "SELECT Site_id, Scenario FROM WeatherData ",
       "WHERE Site_id IN (:x1) ",
-      "AND Scenario IN (:x2) ORDER BY Site_id, Scenario")
+      "AND Scenario IN (:x2) ORDER BY Site_id, Scenario"
+    )
     rs <- dbSendStatement(con, sql)
     on.exit(dbClearResult(rs), add = TRUE)
 
     for (k in seq_along(do_chunks)) {
       if (verbose) {
-        print(paste0("'find_sites_with_bad_weather': ", Sys.time(),
+        print(paste0(
+          "'find_sites_with_bad_weather': ", Sys.time(),
           " is checking availability of climate scenarios in 'dbWeather': ",
-          "chunk ", k, " out of ", length(do_chunks), " chunks of 'sites'"))
+          "chunk ", k, " out of ", length(do_chunks), " chunks of 'sites'"
+        ))
       }
 
       # Get site_id, scenario_id from dbWeather for chunked requested site_ids
-      dbBind(rs, params = as.list(expand.grid(
-        x1 = siteID_by_dbW[do_chunks[[k]]],
-        x2 = scenID_by_dbW, KEEP.OUT.ATTRS = FALSE, stringsAsFactors = FALSE)))
+      dbBind(
+        rs,
+        params = as.list(expand.grid(
+          x1 = siteID_by_dbW[do_chunks[[k]]],
+          x2 = scenID_by_dbW,
+          KEEP.OUT.ATTRS = FALSE,
+          stringsAsFactors = FALSE
+        ))
+      )
       res <- dbFetch(rs)
 
       if (dim(res)[1] > 0) {
-        temp <- tapply(res[, "Scenario"], res[, "Site_id"], length)
-        temp <- cbind(Site_id = as.integer(names(temp)), scenN = temp)
+        tmp <- tapply(res[, "Scenario"], res[, "Site_id"], length)
+        tmp <- cbind(Site_id = as.integer(names(tmp)), scenN = tmp)
 
         # Compare expected with what is available in dbWeather
         # Good: all requested scenarios are available: set their todos to FALSE
-        i_good <- temp[, "scenN"] == req_scenN
+        i_good <- tmp[, "scenN"] >= req_scenN
 
         if (any(i_good)) {
-          todos[siteID_by_dbW %in% temp[i_good, "Site_id"]] <- FALSE
+          todos[siteID_by_dbW %in% tmp[i_good, "Site_id"]] <- FALSE
         }
       }
     }
 
   } else {
-    stop("'find_sites_with_bad_weather': table 'WeatherData' is missing ",
-      "from 'dbWeather'")
+    stop(
+      "'find_sites_with_bad_weather': table 'WeatherData' is missing ",
+      "from 'dbWeather'"
+    )
   }
 
   todos

@@ -838,7 +838,8 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
       make_dbW(
         SFSW2_prj_meta,
         SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
-        opt_parallel, opt_chunks,
+        opt_parallel,
+        opt_chunks,
         resume = opt_behave[["resume"]],
         deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
         verbose = opt_verbosity[["verbose"]],
@@ -921,8 +922,10 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
 
       SFSW2_prj_inputs <- ExtractData_MeanMonthlyClimate(
         exinfo = SFSW2_prj_meta[["exinfo"]],
-        SFSW2_prj_meta, SFSW2_prj_inputs,
-        opt_parallel, opt_chunks,
+        SFSW2_prj_meta,
+        SFSW2_prj_inputs,
+        opt_parallel,
+        opt_chunks,
         resume = opt_behave[["resume"]],
         verbose = opt_verbosity[["verbose"]]
       )
