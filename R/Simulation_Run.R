@@ -1643,9 +1643,7 @@ do_OneSite <- function(
 
       if (
         any(create_treatments == "AdjRootProfile") &&
-        i_sw_input_treatments$AdjRootProfile &&
-        any(create_treatments == "PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996") &&
-        i_sw_input_treatments$PotentialNaturalVegetation_CompositionShrubsC3C4_Paruelo1996
+        i_sw_input_treatments$AdjRootProfile
       ) {
 
         trco_type_C3 <- if (
@@ -1703,6 +1701,11 @@ do_OneSite <- function(
           "FILL"
         }
 
+        has_grasses_by_subtype <- sum(
+          grasses.c3c4ann.fractions[[sc]],
+          na.rm = TRUE
+        )
+
         veg_trco <- rSOILWAT2::estimate_PotNatVeg_roots(
           layers_depth = layers_depth,
           trco_type_by_veg = list(
@@ -1713,9 +1716,14 @@ do_OneSite <- function(
             forb = tro_type_forb,
             tree = tro_type_tree
           ),
-          fgrass_c3c4ann = if (sum(grasses.c3c4ann.fractions[[sc]]) > 0) {
+          fgrass_c3c4ann = if (has_grasses_by_subtype > 0) {
+            # Only known if potnatveg is used
             grasses.c3c4ann.fractions[[sc]]
           } else {
+            # We can end up here in the logic for two reasons:
+            # (1) we don't use potnatveg and don't know about
+            #     C3, C4, annual grass subtype contributions
+            # (2) the potnatveg algorithm resulted in 0% grass cover
             # TODO: remove hack once rSOILWAT2 can deal with 0% grass -> 0 roots
             c(Grasses_C3 = 0.5, Grasses_C4 = 0.5, Grasses_Annuals = 0)
           },
