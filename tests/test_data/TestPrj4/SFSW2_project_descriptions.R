@@ -260,7 +260,7 @@ opt_sim <- list(
   # Use daily weather from dbWeather for future scenario conditions
   use_dbW_future = TRUE,
   # Number of decimal places to which weather data is rounded
-  dbW_digits = 2,
+  dbW_digits = 4,
   # Identifying tag of folder names for weather data if 'LookupWeatherFolder'
   tag_WeatherFolder = "weath",
 
