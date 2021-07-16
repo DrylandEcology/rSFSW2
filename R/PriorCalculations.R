@@ -38,6 +38,8 @@ calc_RequestedSoilLayers <- function(
     strsplit(tmp, split = "_", fixed = TRUE),
     function(x) paste0(x[-length(x)], collapse = "_")
   ))
+
+  stopifnot(nchar(vars_all) > 0)
   n_vars <- length(vars_all)
 
 
@@ -122,7 +124,7 @@ calc_RequestedSoilLayers <- function(
       rep(seq_len(n_tmp), each = n_vars)
     )
 
-    SFSW2_prj_inputs[["sw_input_soils"]] <- data.frame(
+    tmp_sprop <- data.frame(
       Label = SFSW2_prj_inputs[["sw_input_soils"]][, "Label"],
       matrix(
         data = NA,
@@ -138,8 +140,7 @@ calc_RequestedSoilLayers <- function(
       rep(seq_len(n_new_sd), each = length(var_layers))
     )
 
-    SFSW2_prj_inputs[["sw_input_soils"]][ids_updated, cn_tmp] <-
-      new_soils[["soil_data"]][, cn_tmp]
+    tmp_sprop[ids_updated, cn_tmp] <- new_soils[["soil_data"]][, cn_tmp]
 
 
     #--- transfer usage
@@ -180,7 +181,7 @@ calc_RequestedSoilLayers <- function(
     cn_tmp <- paste0("depth_L", seq_len(n_tmp))
 
     x_tmp <- SFSW2_prj_inputs[["sw_input_soillayers"]][, !is_depth, drop = FALSE] #nolint
-    SFSW2_prj_inputs[["sw_input_soillayers"]] <- data.frame(
+    tmp_slyrs <- data.frame(
       x_tmp,
       matrix(
         data = NA,
@@ -191,11 +192,14 @@ calc_RequestedSoilLayers <- function(
     )
 
     ids <- seq_len(n_new_sd)
-    SFSW2_prj_inputs[["sw_input_soillayers"]][ids_updated, ncol(x_tmp) + ids] <-
+    tmp_slyrs[ids_updated, ncol(x_tmp) + ids] <-
       new_soils[["soil_layers"]][, ids]
 
 
     #--- write updated data to disk
+    SFSW2_prj_inputs[["sw_input_soils"]] <- tmp_sprop
+    SFSW2_prj_inputs[["sw_input_soillayers"]] <- tmp_slyrs
+
     utils::write.csv(
       SFSW2_prj_inputs[["sw_input_soillayers"]],
       file = SFSW2_prj_meta[["fnames_in"]][["fslayers"]],
