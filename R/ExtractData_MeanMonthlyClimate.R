@@ -362,10 +362,23 @@ extract_climate_NCEPCFSR <- function(MMC, SWRunInformation,
 
     stopifnot(!inherits(SFSW2_prj_meta[["prepd_CFSR"]], "try-error"))
 
-    #locations of simulation runs
-    irow <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]][todos]
-    locations <-
-      SWRunInformation[irow, c("WeatherFolder", "X_WGS84", "Y_WGS84")]
+    #--- (unique) locations of simulation runs
+    loc_todos <- SWRunInformation[
+      which(todos),
+      c("X_WGS84", "Y_WGS84"),
+      drop = FALSE
+    ]
+
+    loc_id_todos <- apply(loc_todos, MARGIN = 1, FUN = paste, collapse = "_")
+
+    ids_unique_todos <- !duplicated(loc_todos)
+
+    locations <- data.frame(
+      # function `get_NCEPCFSR_data()` expects "WeatherFolder" as label
+      WeatherFolder = loc_id_todos[ids_unique_todos],
+      loc_todos[ids_unique_todos, , drop = FALSE],
+      stringsAsFactors = FALSE
+    )
 
     # do the extractions
     tmp <- try(get_NCEPCFSR_data(
@@ -392,7 +405,7 @@ extract_climate_NCEPCFSR <- function(MMC, SWRunInformation,
     cns <- colnames(res)
 
     irow <- match(
-      locations[, "WeatherFolder"],
+      loc_id_todos,
       table = tmp[["res_clim"]][, "WeatherFolder"],
       nomatch = 0
     )
