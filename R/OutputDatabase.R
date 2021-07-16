@@ -2020,21 +2020,34 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
 }
 
 
-dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
-  SFSW2_prj_inputs) {
+dbOutput_create_Design <- function(
+  con_dbOut,
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs
+) {
 
   fieldname_weatherf <- "LookupWeatherFolder"
   fieldname_weatherid <- "LookupWeatherFolder_id"
 
-  dbExecute(con_dbOut, paste("CREATE TABLE",
-    "weatherfolders(id INTEGER PRIMARY KEY AUTOINCREMENT,",
-    "folder TEXT UNIQUE NOT NULL)"))
+  dbExecute(
+    con_dbOut,
+    paste0(
+      "CREATE TABLE weatherfolders(",
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, ",
+      "folder TEXT UNIQUE NOT NULL",
+      ")"
+    )
+  )
 
   temp <- SFSW2_prj_inputs[["SWRunInformation"]]$dailyweather_source[
     SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]] == fieldname_weatherf
 
-  if (!all(any(temp),
-        any(SFSW2_prj_inputs[["create_treatments"]] == fieldname_weatherf))) {
+  if (
+    !all(
+      any(temp),
+      any(SFSW2_prj_inputs[["create_treatments"]] == fieldname_weatherf)
+    )
+  ) {
     if (any(!is.na(SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder))) {
       # enforce that NA appears as a string instead of a logical
       runSWFolder <- SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder
@@ -2044,7 +2057,8 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
         }
       }
       temp <- unique(
-        SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder)
+        SFSW2_prj_inputs[["SWRunInformation"]]$WeatherFolder
+      )
 
       sql <- "INSERT INTO weatherfolders VALUES(NULL, :folder)"
       rs <- dbSendStatement(con_dbOut, sql)
@@ -2060,12 +2074,21 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   #------ Site Table
   # Note: invariant to 'include_YN', i.e., do not subset
   # rows of 'SFSW2_prj_inputs[["SWRunInformation"]]'
-  index_sites <- sort(unique(c(sapply(req_fields_SWRunInformation(),
-      function(x) which(x == colnames(SFSW2_prj_inputs[["SWRunInformation"]]))),
-    SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]])))
-  sites_data <- data.frame(SFSW2_prj_inputs[["SWRunInformation"]][,
-    index_sites], row.names = NULL, check.rows = FALSE, check.names = FALSE,
-    stringsAsFactors = FALSE)
+  index_sites <- sort(unique(c(
+    sapply(
+      req_fields_SWRunInformation(),
+      function(x) which(x == colnames(SFSW2_prj_inputs[["SWRunInformation"]]))
+    ),
+    SFSW2_prj_meta[["opt_out_fix"]][["Index_RunInformation"]]
+  )))
+
+  sites_data <- data.frame(
+    SFSW2_prj_inputs[["SWRunInformation"]][, index_sites],
+    row.names = NULL,
+    check.rows = FALSE,
+    check.names = FALSE,
+    stringsAsFactors = FALSE
+  )
 
   # enforce that NA appears as a string instead of a logical
   for (i in seq(sites_data$WeatherFolder)) {
@@ -2073,43 +2096,78 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       sites_data$WeatherFolder[i] <- "NA"
     }
   }
+
   # Get WeatherFolder_id from table weatherfolders
   sites_data$WeatherFolder <- getSiteIds(con_dbOut, sites_data$WeatherFolder)
-  colnames(sites_data) <- sub(pattern = "WeatherFolder",
-    replacement = "WeatherFolder_id", colnames(sites_data))
-  site_col_types <- sapply(sites_data, function(x)
-    dbDataType(con_dbOut, x))
-  dbExecute(con_dbOut,
-    paste0("CREATE TABLE sites(\"id\" INTEGER PRIMARY KEY AUTOINCREMENT, ",
-      paste0('\"', colnames(sites_data), '\" ', site_col_types,
-        collapse = ", "),
-      ", FOREIGN KEY(WeatherFolder_id) REFERENCES weatherfolders(id));"))
 
-  dbWriteTable(con_dbOut, "sites", append = TRUE,
-    value = cbind(id = NA, sites_data), row.names = FALSE)
+  colnames(sites_data) <- sub(
+    pattern = "WeatherFolder",
+    replacement = "WeatherFolder_id",
+    colnames(sites_data)
+  )
 
-  useExperimentals <- SFSW2_prj_meta[["sim_size"]][["expN"]] > 0 &&
+  site_col_types <- sapply(
+    sites_data,
+    function(x) dbDataType(con_dbOut, x)
+  )
+
+  dbExecute(
+    con_dbOut,
+    paste0(
+      "CREATE TABLE sites(",
+      "\"id\" INTEGER PRIMARY KEY AUTOINCREMENT, ",
+      paste0(
+        '\"', colnames(sites_data), '\" ', site_col_types,
+        collapse = ", "
+      ),
+      ", FOREIGN KEY(WeatherFolder_id) REFERENCES weatherfolders(id));"
+    )
+  )
+
+  dbWriteTable(
+    con_dbOut,
+    name = "sites",
+    append = TRUE,
+    value = cbind(id = NA, sites_data),
+    row.names = FALSE
+  )
+
+  useExperimentals <-
+    SFSW2_prj_meta[["sim_size"]][["expN"]] > 0 &&
     length(SFSW2_prj_inputs[["create_experimentals"]]) > 0
-  useTreatments <- any(!(SFSW2_prj_inputs[["create_treatments"]] %in%
-      SFSW2_prj_inputs[["create_experimentals"]]))
+  useTreatments <-
+    any(!(SFSW2_prj_inputs[["create_treatments"]] %in%
+    SFSW2_prj_inputs[["create_experimentals"]]))
 
   #------ simulation_years table
-  dbExecute(con_dbOut, paste("CREATE TABLE",
-    "simulation_years(id INTEGER PRIMARY KEY AUTOINCREMENT,",
-    "simulationStartYear INTEGER NOT NULL, StartYear INTEGER NOT NULL,",
-    "EndYear INTEGER NOT NULL);"))
-
+  dbExecute(
+    con_dbOut,
+    paste0(
+      "CREATE TABLE simulation_years(",
+      "id INTEGER PRIMARY KEY AUTOINCREMENT, ",
+      "simulationStartYear INTEGER NOT NULL, ",
+      "StartYear INTEGER NOT NULL,",
+      "EndYear INTEGER NOT NULL);"
+    )
+  )
 
   #------ Create table experimental_labels only if using experimentals
   if (useExperimentals) {
-    dbExecute(con_dbOut, paste("CREATE TABLE",
-      "experimental_labels(id INTEGER PRIMARY KEY AUTOINCREMENT,",
-      "label TEXT UNIQUE NOT NULL);"))
+    dbExecute(
+      con_dbOut,
+      paste0(
+        "CREATE TABLE experimental_labels(",
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, ",
+        "label TEXT UNIQUE NOT NULL);"
+      )
+    )
 
     sql <- "INSERT INTO experimental_labels VALUES(NULL, :label)"
     rs <- dbSendStatement(con_dbOut, sql)
-    dbBind(rs, params = list(
-      label = SFSW2_prj_inputs[["sw_input_experimentals"]][, 1]))
+    dbBind(
+      rs,
+      params = list(label = SFSW2_prj_inputs[["sw_input_experimentals"]][, 1])
+    )
     dbClearResult(rs)
   }
 
@@ -2173,23 +2231,30 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
 
   # get unique rows from both treatments and experimentals
   if (useExperimentals) {
+    dat_exp <- SFSW2_prj_inputs[["sw_input_experimentals"]][,
+      SFSW2_prj_inputs[["create_experimentals"]]]
+
     #Only use experimentals if there is something in it
     #Are all the columns NA
-    temp <- is.na(SFSW2_prj_inputs[["sw_input_experimentals"]][,
-      SFSW2_prj_inputs[["create_experimentals"]]])
-    if (all(temp))
+    tmp <- is.na(dat_exp)
+
+    if (all(tmp)) {
       stop("All Columns in experimentals table are NA")
-    if (any(apply(temp, MARGIN = 2, function(x) all(x)))) {
-      stop("One ore more columns in experimentals table are turned on ",
-        "with no values or only with NA.")
     }
-    db_experimentals <- unique(SFSW2_prj_inputs[["sw_input_experimentals"]][,
-      SFSW2_prj_inputs[["create_experimentals"]]])
+    if (any(apply(tmp, MARGIN = 2, function(x) all(x)))) {
+      stop(
+        "One ore more columns in experimentals table are turned on ",
+        "with no values or only with NA."
+      )
+    }
+
+    db_experimentals <- unique(dat_exp)
 
     # note experimentals should be unique; if we have less rows then the
     # original then lets throw an Error
     ttemp <- nrow(db_experimentals) ==
       nrow(SFSW2_prj_inputs[["sw_input_experimentals"]])
+
     if (!ttemp) {
       print(SFSW2_prj_inputs[["create_experimentals"]])
       print("'db_experimentals':")
@@ -2202,12 +2267,19 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   } else {
     # experimentals does not have any rows. Are any of
     # the SFSW2_prj_inputs[["create_experimentals"]] turned on
-    if (length(SFSW2_prj_inputs[["create_experimentals"]]) > 0 &&
-        SFSW2_prj_meta[["sim_size"]][["expN"]] == 0)
+    if (
+      length(SFSW2_prj_inputs[["create_experimentals"]]) > 0 &&
+      SFSW2_prj_meta[["sim_size"]][["expN"]] == 0
+    ) {
       stop("No rows in experimentals table but columns are turned on")
-    if (SFSW2_prj_meta[["sim_size"]][["expN"]] > 0 &&
-        length(SFSW2_prj_inputs[["create_experimentals"]]) == 0)
+    }
+
+    if (
+      SFSW2_prj_meta[["sim_size"]][["expN"]] > 0 &&
+      length(SFSW2_prj_inputs[["create_experimentals"]]) == 0
+    ) {
       stop("Rows in experimentals are not being used.")
+    }
   }
 
   if (useTreatments) {
@@ -2215,8 +2287,10 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     # subset 'SFSW2_prj_inputs[["SWRunInformation"]]'
     # we only need the columns that are turned on and not in experimentals.
     # Experimentals over write.
-    temp <- SFSW2_prj_inputs[["create_treatments"]] %in%
+    temp <-
+      SFSW2_prj_inputs[["create_treatments"]] %in%
       SFSW2_prj_inputs[["create_experimentals"]]
+
     temp <- SFSW2_prj_inputs[["create_treatments"]][!temp]
     temp_df <- SFSW2_prj_inputs[["sw_input_treatments"]][, temp, drop = FALSE]
     db_treatments <- unique(temp_df)
@@ -2272,18 +2346,31 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   }
 
   useTreatmentWeatherFolder <- FALSE
-  if (useExperimentals | useTreatments) {
+  if (useExperimentals || useTreatments) {
     #Create a table to hold the values going into the database
-    temp_numberRows <- if (useExperimentals) {
-        nrow(db_experimentals) * db_treatments_rows
-      } else nrow(db_treatments)
-    temp_numberColumns <- (if (useExperimentals) 3 else 2) +
-      length(SFSW2_prj_inputs[["create_treatments"]])
-    temp_columnNames <- c("id", if (useExperimentals) "experimental_id",
-      "simulation_years_id", SFSW2_prj_inputs[["create_treatments"]])
-    db_combined_exp_treatments <- data.frame(matrix(data = NA,
-      nrow = temp_numberRows, ncol = temp_numberColumns,
-      dimnames = list(NULL, temp_columnNames)), stringsAsFactors = FALSE)
+    if (useExperimentals) {
+      temp_numberRows <- nrow(db_experimentals) * db_treatments_rows
+      temp_numberColumns <- 3 + length(SFSW2_prj_inputs[["create_treatments"]])
+    } else {
+      temp_numberRows <- nrow(db_treatments)
+      temp_numberColumns <- 2 + length(SFSW2_prj_inputs[["create_treatments"]])
+    }
+
+    temp_columnNames <- c(
+      "id",
+      if (useExperimentals) "experimental_id",
+      "simulation_years_id",
+      SFSW2_prj_inputs[["create_treatments"]]
+    )
+    db_combined_exp_treatments <- data.frame(
+      matrix(
+        data = NA,
+        nrow = temp_numberRows,
+        ncol = temp_numberColumns,
+        dimnames = list(NULL, temp_columnNames)
+      ),
+      stringsAsFactors = FALSE
+    )
 
     #fill in the id column.
     db_combined_exp_treatments[, "id"] <-
@@ -2294,7 +2381,8 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       column = SFSW2_prj_inputs[["create_treatments"]],
       type = character(length(SFSW2_prj_inputs[["create_treatments"]])),
       table = numeric(length(SFSW2_prj_inputs[["create_treatments"]])),
-      stringsAsFactors = FALSE)
+      stringsAsFactors = FALSE
+    )
     #0 for teatments 1 for experimentals
     temp <- db_treatments_column_types[, "column"] %in%
       SFSW2_prj_inputs[["create_experimentals"]]
@@ -2304,31 +2392,41 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     temp <- SFSW2_prj_inputs[["create_treatments"]] %in%
       SFSW2_prj_inputs[["create_experimentals"]]
     temp <- SFSW2_prj_inputs[["create_treatments"]][!temp]
-    db_treatments_column_types[, "type"] <-
-      sapply(db_treatments_column_types[, "column"],
+    db_treatments_column_types[, "type"] <- sapply(
+      db_treatments_column_types[, "column"],
       function(columnName) {
         if (columnName %in% SFSW2_prj_inputs[["create_experimentals"]]) {
-          dbDataType(con_dbOut,
-            SFSW2_prj_inputs[["sw_input_experimentals"]][, columnName])
+          dbDataType(
+            con_dbOut,
+            SFSW2_prj_inputs[["sw_input_experimentals"]][, columnName]
+          )
         } else if (columnName %in% temp) {
-          dbDataType(con_dbOut,
-            SFSW2_prj_inputs[["sw_input_treatments"]][, columnName])
+          dbDataType(
+            con_dbOut,
+            SFSW2_prj_inputs[["sw_input_treatments"]][, columnName]
+          )
         }
-      })
+      }
+    )
 
     #Finalize db_treatments_column_types
     #remove YearStart or YearEnd
     db_treatments_years <- NULL
     if (any(db_treatments_column_types$column == "YearStart")) {
       temp <- which(db_treatments_column_types[, "column"] == "YearStart")
-      db_treatments_years <- rbind(db_treatments_years,
-        db_treatments_column_types[temp, ])
+      db_treatments_years <- rbind(
+        db_treatments_years,
+        db_treatments_column_types[temp, ]
+      )
       db_treatments_column_types <- db_treatments_column_types[-temp, ]
     }
+
     if (any(db_treatments_column_types$column == "YearEnd")) {
       temp <- which(db_treatments_column_types[, "column"] == "YearEnd")
-      db_treatments_years <- rbind(db_treatments_years,
-        db_treatments_column_types[temp, ])
+      db_treatments_years <- rbind(
+        db_treatments_years,
+        db_treatments_column_types[temp, ]
+      )
       db_treatments_column_types <- db_treatments_column_types[-temp, ]
     }
 
@@ -2349,17 +2447,25 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     }
 
     #Create the table
-    dbExecute(con_dbOut, paste0("CREATE TABLE treatments(",
-      "id INTEGER PRIMARY KEY AUTOINCREMENT, ",
-      if (useExperimentals) "experimental_id INTEGER, ",
-      "simulation_years_id INTEGER, ",
-      paste(db_treatments_column_types[, "column"],
-        db_treatments_column_types[, "type"], collapse = ", "),
-      if (useExperimentals) {
-        ", FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)"
-      },
-      if (!is.na(fk_LookupWeatherFolder)) fk_LookupWeatherFolder,
-      ");"))
+    dbExecute(
+      con_dbOut,
+      paste0(
+        "CREATE TABLE treatments(",
+        "id INTEGER PRIMARY KEY AUTOINCREMENT, ",
+        if (useExperimentals) "experimental_id INTEGER, ",
+        "simulation_years_id INTEGER, ",
+        paste(
+          db_treatments_column_types[, "column"],
+          db_treatments_column_types[, "type"],
+          collapse = ", "
+        ),
+        if (useExperimentals) {
+          ", FOREIGN KEY(experimental_id) REFERENCES experimental_labels(id)"
+        },
+        if (!is.na(fk_LookupWeatherFolder)) fk_LookupWeatherFolder,
+        ");"
+      )
+    )
 
     # Lets put in the treatments into combined. This will repeat the reduced
     # rows of treatments into combined
@@ -2391,9 +2497,11 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     }
 
     if (useExperimentals) {
-      exp_start_rows <- seq(from = 1,
+      exp_start_rows <- seq(
+        from = 1,
         to = db_treatments_rows * nrow(db_experimentals),
-        by = db_treatments_rows)
+        by = db_treatments_rows
+      )
       #Insert data into our new data.frame
       for (istart in exp_start_rows) {
         irows <- istart:(istart + db_treatments_rows - 1)
@@ -2404,23 +2512,43 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
         db_combined_exp_treatments[irows, SFSW2_prj_inputs[["create_experimentals"]]] <- db_experimentals[irows2, ] #nolint
       }
     }
+
   } else {
     db_combined_exp_treatments <- data.frame(
-      matrix(data = 1, nrow = 1, ncol = 2,
-        dimnames = list(NULL, c("id", "simulation_years_id"))),
-      stringsAsFactors = FALSE)
-    dbExecute(con_dbOut, paste("CREATE TABLE",
-      "treatments(id INTEGER PRIMARY KEY AUTOINCREMENT,",
-      "simulation_years_id INTEGER);"))
+      matrix(
+        data = 1,
+        nrow = 1,
+        ncol = 2,
+        dimnames = list(NULL, c("id", "simulation_years_id"))
+      ),
+      stringsAsFactors = FALSE
+    )
+
+    dbExecute(
+      con_dbOut,
+      paste0("CREATE TABLE treatments(",
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,",
+        "simulation_years_id INTEGER);"
+      )
+    )
   }
 
   #if the column startYear or endYear are present move over to simulation_years
-  if (any(colnames(db_combined_exp_treatments) == "YearStart") ||
-    any(colnames(db_combined_exp_treatments) == "YearEnd")) {
+  if (
+    any(colnames(db_combined_exp_treatments) == "YearStart") ||
+    any(colnames(db_combined_exp_treatments) == "YearEnd")
+  ) {
 
-    simulation_years <- matrix(data = NA,
-      nrow = nrow(db_combined_exp_treatments), ncol = 4, dimnames = list(NULL,
-      c("id", "simulationStartYear", "StartYear", "EndYear")))
+    simulation_years <- matrix(
+      data = NA,
+      nrow = nrow(db_combined_exp_treatments),
+      ncol = 4,
+      dimnames = list(
+        NULL,
+        c("id", "simulationStartYear", "StartYear", "EndYear")
+      )
+    )
+
     #Get from treatments or get from settings
     if (any(colnames(db_combined_exp_treatments) == "YearStart")) {
       simulation_years[, "simulationStartYear"] <-
@@ -2493,28 +2621,39 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
     unique_simulation_years <- data.frame(
       simulationStartYear = SFSW2_prj_meta[["sim_time"]][["simstartyr"]],
       StartYear = SFSW2_prj_meta[["sim_time"]][["startyr"]],
-      EndYear = SFSW2_prj_meta[["sim_time"]][["endyr"]])
+      EndYear = SFSW2_prj_meta[["sim_time"]][["endyr"]]
+    )
   }
 
   # write to the database
-  sql <- paste("INSERT INTO simulation_years VALUES(NULL,",
-    ":simulationStartYear, :StartYear, :EndYear)")
+  sql <- paste(
+    "INSERT INTO simulation_years",
+    "VALUES(NULL, :simulationStartYear, :StartYear, :EndYear)"
+  )
   rs <- dbSendStatement(con_dbOut, sql)
   dbBind(rs, params = as.list(unique_simulation_years))
   dbClearResult(rs)
 
   #Insert the data into the treatments table
-  sql <- paste0("INSERT INTO treatments VALUES(", paste0(":",
-    colnames(db_combined_exp_treatments), collapse = ", "), ")")
+  sql <- paste0(
+    "INSERT INTO treatments VALUES(",
+    paste0(":", colnames(db_combined_exp_treatments), collapse = ", "),
+    ")"
+  )
   rs <- dbSendStatement(con_dbOut, sql)
   dbBind(rs, params = as.list(db_combined_exp_treatments))
   dbClearResult(rs)
 
 
   #------ scenario_labels table
-  dbExecute(con_dbOut, paste("CREATE TABLE",
-    "scenario_labels(id INTEGER PRIMARY KEY AUTOINCREMENT,",
-    "label TEXT UNIQUE NOT NULL)"))
+  dbExecute(
+    con_dbOut,
+    paste0(
+      "CREATE TABLE scenario_labels(",
+      "id INTEGER PRIMARY KEY AUTOINCREMENT,",
+      "label TEXT UNIQUE NOT NULL)"
+    )
+  )
 
   sql <- "INSERT INTO scenario_labels VALUES(NULL, :label)"
   rs <- dbSendStatement(con_dbOut, sql)
@@ -2525,21 +2664,34 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   #------ run_labels table
   # Note: invariant to 'include_YN', i.e., do not
   # subset 'SFSW2_prj_inputs[["SWRunInformation"]]'
-  dbExecute(con_dbOut, paste("CREATE TABLE",
-    "run_labels(id INTEGER PRIMARY KEY AUTOINCREMENT,",
-    "label TEXT UNIQUE NOT NULL);"))
+  dbExecute(
+    con_dbOut,
+    paste0(
+      "CREATE TABLE run_labels(",
+      "id INTEGER PRIMARY KEY AUTOINCREMENT,",
+      "label TEXT UNIQUE NOT NULL);"
+    )
+  )
   temp <- if (useExperimentals) {
-      temp1 <- formatC(SFSW2_prj_inputs[["SWRunInformation"]][, "site_id"],
-        width = SFSW2_prj_meta[["sim_size"]][["digitsN_total"]],
-        format = "d", flag = "0")
-      temp2 <- rep(SFSW2_prj_inputs[["sw_input_experimentals"]][, "Label"],
-        each = SFSW2_prj_meta[["sim_size"]][["runsN_main"]])
-      paste(temp1, temp2, SFSW2_prj_inputs[["SWRunInformation"]]$Label,
-        sep = "_")
+    temp1 <- formatC(
+      SFSW2_prj_inputs[["SWRunInformation"]][, "site_id"],
+      width = SFSW2_prj_meta[["sim_size"]][["digitsN_total"]],
+      format = "d", flag = "0"
+    )
+    temp2 <- rep(
+      SFSW2_prj_inputs[["sw_input_experimentals"]][, "Label"],
+      each = SFSW2_prj_meta[["sim_size"]][["runsN_main"]]
+    )
+    paste(
+      temp1,
+      temp2,
+      SFSW2_prj_inputs[["SWRunInformation"]]$Label,
+      sep = "_"
+    )
 
-    } else {
-      SFSW2_prj_inputs[["SWRunInformation"]]$Label
-    }
+  } else {
+    SFSW2_prj_inputs[["SWRunInformation"]]$Label
+  }
 
   sql <- "INSERT INTO run_labels VALUES(NULL, :label)"
   rs <- dbSendStatement(con_dbOut, sql)
@@ -2550,52 +2702,79 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
   #------ runs table
   # Note: invariant to 'include_YN', i.e., do not
   # subset 'SFSW2_prj_inputs[["SWRunInformation"]]'
-  dbExecute(con_dbOut, paste("CREATE TABLE",
-    "runs(P_id INTEGER PRIMARY KEY, label_id INTEGER NOT NULL,",
-    "site_id INTEGER NOT NULL, treatment_id INTEGER NOT NULL,",
-    "scenario_id INTEGER NOT NULL,",
-    "FOREIGN KEY(label_id) REFERENCES run_labels(id),",
-    "FOREIGN KEY(site_id) REFERENCES sites(id),",
-    "FOREIGN KEY(treatment_id) REFERENCES treatments(id),",
-    "FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));"))
+  dbExecute(
+    con_dbOut,
+    paste0(
+      "CREATE TABLE runs(",
+      "P_id INTEGER PRIMARY KEY,",
+      "label_id INTEGER NOT NULL,",
+      "site_id INTEGER NOT NULL,",
+      "treatment_id INTEGER NOT NULL,",
+      "scenario_id INTEGER NOT NULL,",
+      "FOREIGN KEY(label_id) REFERENCES run_labels(id),",
+      "FOREIGN KEY(site_id) REFERENCES sites(id),",
+      "FOREIGN KEY(treatment_id) REFERENCES treatments(id),",
+      "FOREIGN KEY(scenario_id) REFERENCES scenario_labels(id));"
+    )
+  )
 
-  db_runs <- data.frame(matrix(data = 0,
-    nrow = SFSW2_prj_meta[["sim_size"]][["runsN_Pid"]], ncol = 5,
-    dimnames = list(NULL,
-      c("P_id", "label_id", "site_id", "treatment_id", "scenario_id"))))
+  db_runs <- data.frame(
+    matrix(
+      data = 0,
+      nrow = SFSW2_prj_meta[["sim_size"]][["runsN_Pid"]],
+      ncol = 5,
+      dimnames = list(
+        NULL,
+        c("P_id", "label_id", "site_id", "treatment_id", "scenario_id")
+      )
+    )
+  )
+
   db_runs$P_id <- seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_Pid"]])
-  db_runs$label_id <- rep(seq_len(
-    SFSW2_prj_meta[["sim_size"]][["runsN_total"]]),
-    each = SFSW2_prj_meta[["sim_scens"]][["N"]])
-  db_runs$site_id <- rep(rep(
-    SFSW2_prj_inputs[["SWRunInformation"]]$site_id,
-    times = max(SFSW2_prj_meta[["sim_size"]][["expN"]], 1L)),
-    each = SFSW2_prj_meta[["sim_scens"]][["N"]])
-  db_runs$scenario_id <- rep(seq_len(
-    SFSW2_prj_meta[["sim_scens"]][["N"]]),
-    times = SFSW2_prj_meta[["sim_size"]][["runsN_total"]])
+  db_runs$label_id <- rep(
+    seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_total"]]),
+    each = SFSW2_prj_meta[["sim_scens"]][["N"]]
+  )
+  db_runs$site_id <- rep(
+    rep(
+      SFSW2_prj_inputs[["SWRunInformation"]]$site_id,
+      times = max(SFSW2_prj_meta[["sim_size"]][["expN"]], 1L)
+    ),
+    each = SFSW2_prj_meta[["sim_scens"]][["N"]]
+  )
+  db_runs$scenario_id <- rep(
+    seq_len(SFSW2_prj_meta[["sim_scens"]][["N"]]),
+    times = SFSW2_prj_meta[["sim_size"]][["runsN_total"]]
+  )
 
   temp <- if (useExperimentals) {
-      as.vector(matrix(data = exp_start_rows,
-        nrow = SFSW2_prj_meta[["sim_size"]][["runsN_main"]],
-        ncol = SFSW2_prj_meta[["sim_size"]][["expN"]], byrow = TRUE))
-    } else NULL
+    as.vector(matrix(
+      data = exp_start_rows,
+      nrow = SFSW2_prj_meta[["sim_size"]][["runsN_main"]],
+      ncol = SFSW2_prj_meta[["sim_size"]][["expN"]],
+      byrow = TRUE
+    ))
+  }
 
   db_runs$treatment_id <- if (useTreatments) {
-      if (useExperimentals) {
-        rep(temp + treatments_unique_map - 1,
-          each = SFSW2_prj_meta[["sim_scens"]][["N"]])
-      } else {
-        rep(treatments_unique_map, each = SFSW2_prj_meta[["sim_scens"]][["N"]])
-      }
+    if (useExperimentals) {
+      rep(
+        temp + treatments_unique_map - 1,
+        each = SFSW2_prj_meta[["sim_scens"]][["N"]]
+      )
     } else {
-      if (useExperimentals) {
-        rep(temp, each = SFSW2_prj_meta[["sim_scens"]][["N"]])
-      } else 1
+      rep(treatments_unique_map, each = SFSW2_prj_meta[["sim_scens"]][["N"]])
     }
+  } else {
+    if (useExperimentals) {
+      rep(temp, each = SFSW2_prj_meta[["sim_scens"]][["N"]])
+    } else 1
+  }
 
-  sql <- paste("INSERT INTO runs VALUES(:P_id, :label_id, :site_id,",
-    ":treatment_id, :scenario_id)")
+  sql <- paste0(
+    "INSERT INTO runs VALUES(",
+    ":P_id, :label_id, :site_id, :treatment_id, :scenario_id)"
+  )
   rs <- dbSendStatement(con_dbOut, sql)
   dbBind(rs, params = as.list(db_runs))
   dbClearResult(rs)
@@ -2612,14 +2791,16 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       if (length(icol) > 0)
         sites_columns2 <- sites_columns2[-icol]
     }
+
   } else {
     sites_columns2 <- NULL
   }
 
   for (k_excl in c("Labels", "Experimental_Label", "WeatherFolder")) {
     icol <- grep(k_excl, sites_columns1, ignore.case = TRUE)
-    if (length(icol) > 0)
+    if (length(icol) > 0) {
       sites_columns1 <- sites_columns1[-icol]
+    }
   }
 
   treatment_columns <- colnames(db_combined_exp_treatments)[- (1:3)]
@@ -2629,11 +2810,14 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       treatment_columns)]
   }
 
-  header_columns <- paste(c(
+  header_columns <- paste(
+    c(
       "runs.P_id",
       "run_labels.label AS Labels",
-      paste0("sites.\"", sites_columns1, "\" AS \"", sites_columns1, "\"",
-        collapse = ", "),
+      paste0(
+        "sites.\"", sites_columns1, "\" AS \"", sites_columns1, "\"",
+        collapse = ", "
+      ),
       if (!is.null(sites_columns2)) {
         paste0("sites.\"", sites_columns2, "\"", collapse = ", ")
       },
@@ -2647,30 +2831,35 @@ dbOutput_create_Design <- function(con_dbOut, SFSW2_prj_meta,
       "simulation_years.StartYear",
       "simulation_years.simulationStartYear",
       "simulation_years.EndYear",
-      "scenario_labels.label AS Scenario"),
-    collapse = ", ")
+      "scenario_labels.label AS Scenario"
+    ),
+    collapse = ", "
+  )
 
-  dbExecute(con_dbOut, paste0(
-    "CREATE VIEW header ",
-    "AS SELECT ", header_columns, " ",
-    "FROM runs, run_labels, sites, ",
-      if (useExperimentals) "experimental_labels, ",
-      "treatments, scenario_labels, simulation_years, weatherfolders ",
-    "WHERE ",
-      "runs.label_id=run_labels.id AND ",
-      "runs.site_id=sites.id AND ",
-      "runs.treatment_id=treatments.id AND ",
-      "runs.scenario_id=scenario_labels.id AND ",
-      if (useTreatmentWeatherFolder) {
-        "treatments.LookupWeatherFolder_id=weatherfolders.id AND "
-      } else {
-        "sites.WeatherFolder_id=weatherfolders.id AND "
-      },
-      if (useExperimentals) {
-        "treatments.experimental_id=experimental_labels.id AND "
-      },
-    "treatments.simulation_years_id=simulation_years.id"
-  ))
+  dbExecute(
+    con_dbOut,
+    paste0(
+      "CREATE VIEW header ",
+      "AS SELECT ", header_columns, " ",
+      "FROM runs, run_labels, sites, ",
+        if (useExperimentals) "experimental_labels, ",
+        "treatments, scenario_labels, simulation_years, weatherfolders ",
+      "WHERE ",
+        "runs.label_id=run_labels.id AND ",
+        "runs.site_id=sites.id AND ",
+        "runs.treatment_id=treatments.id AND ",
+        "runs.scenario_id=scenario_labels.id AND ",
+        if (useTreatmentWeatherFolder) {
+          "treatments.LookupWeatherFolder_id=weatherfolders.id AND "
+        } else {
+          "sites.WeatherFolder_id=weatherfolders.id AND "
+        },
+        if (useExperimentals) {
+          "treatments.experimental_id=experimental_labels.id AND "
+        },
+      "treatments.simulation_years_id=simulation_years.id"
+    )
+  )
 
   invisible(NULL)
 }
@@ -2680,39 +2869,70 @@ dbOutput_create_OverallAggregationTable <- function(con_dbOut, fields) {
   ncol_dbOut_overall <- sum(fields[, "N"])
 
   fieldnames <- if (ncol_dbOut_overall > 0) {
-      paste0(paste0("\"", unlist(fields[, "fields"]), "\""), " REAL",
-        collapse = ", ")
-    } else {
-      NULL
-    }
+    paste0(
+      paste0("\"", unlist(fields[, "fields"]), "\""),
+      " REAL",
+      collapse = ", "
+    )
+  }
 
-  meanString <- paste(c("\"P_id\" INTEGER PRIMARY KEY", fieldnames),
-    collapse = ", ")
-  sdString <- paste(c("\"P_id\" INTEGER PRIMARY KEY",
-    gsub("_mean", "_sd", fieldnames)), collapse = ", ")
+  meanString <- paste(
+    c("\"P_id\" INTEGER PRIMARY KEY", fieldnames),
+    collapse = ", "
+  )
 
-  dbExecute(con_dbOut, paste0("CREATE TABLE \"aggregation_overall_mean\"",
-    "(", meanString, ")"))
-  dbExecute(con_dbOut, paste0("CREATE TABLE \"aggregation_overall_sd\" (",
-    sdString, ")"))
+  sdString <- paste(
+    c("\"P_id\" INTEGER PRIMARY KEY", gsub("_mean", "_sd", fieldnames)),
+    collapse = ", "
+  )
 
-  list(ncol_dbOut_overall = ncol_dbOut_overall, meanString = meanString,
-    sdString = sdString)
+  dbExecute(
+    con_dbOut,
+    paste0(
+      "CREATE TABLE \"aggregation_overall_mean\"",
+      "(", meanString, ")"
+    )
+  )
+  dbExecute(
+    con_dbOut,
+    paste0("CREATE TABLE \"aggregation_overall_sd\"",
+      "(", sdString, ")"
+    )
+  )
+
+  list(
+    ncol_dbOut_overall = ncol_dbOut_overall,
+    meanString = meanString,
+    sdString = sdString
+  )
 }
 
 dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) {
   dailySQL <- dailyLayersSQL <- NULL
 
   if (req_aggs[["N"]] > 0) {
-    doy_colnames <- paste0("doy", formatC(seq_len(366), width = 3, format = "d",
-      flag = "0"))
-    doy_colnames <- paste0(paste0("\"", doy_colnames, "\""), " REAL",
-      collapse = ", ")
+    doy_colnames <- paste0(
+      "doy",
+      formatC(seq_len(366), width = 3, format = "d", flag = "0")
+    )
+    doy_colnames <- paste0(
+      paste0("\"", doy_colnames, "\""),
+      " REAL",
+      collapse = ", "
+    )
 
-    dailySQL <- paste(c("\"P_id\" INTEGER PRIMARY KEY", doy_colnames),
-      collapse = ", ")
-    dailyLayersSQL <- paste(c("\"P_id\" INTEGER", "\"Soil_Layer\" INTEGER",
-      doy_colnames, "PRIMARY KEY (\"P_id\", \"Soil_Layer\")"), collapse = ", ")
+    dailySQL <- paste(
+      c("\"P_id\" INTEGER PRIMARY KEY", doy_colnames),
+      collapse = ", "
+    )
+    dailyLayersSQL <- paste(
+      c(
+        "\"P_id\" INTEGER",
+        "\"Soil_Layer\" INTEGER",
+        doy_colnames, "PRIMARY KEY (\"P_id\", \"Soil_Layer\")"
+      ),
+      collapse = ", "
+    )
 
     for (doi in seq_len(req_aggs[["N"]])) {
       if (regexpr("SWAbulk", req_aggs[["tag"]][doi]) > 0) {
@@ -2721,7 +2941,8 @@ dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) {
         agg.resp <- req_aggs[["tag"]][doi]
       }
       #"VWCbulk", "VWCmatric", "SWCbulk", "SWPmatric", "SWAbulk"
-      agg.analysis <- switch(EXPR = agg.resp,
+      agg.analysis <- switch(
+        EXPR = agg.resp,
         AET = 1,
         Transpiration = 2,
         EvaporationSoil = 1,
@@ -2745,20 +2966,25 @@ dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) {
         TemperatureMax = 1,
         SoilTemperature = 2,
         Runoff = 1,
-        Runon = 1)
+        Runon = 1
+      )
       tableName <- paste0("aggregation_doy_", req_aggs[["tag"]][doi])
 
       if (agg.analysis == 1) {
-        SQL_Table_Definitions1 <- paste0("CREATE TABLE \"", tableName,
-          "_Mean\" (", dailySQL, ");")
-        SQL_Table_Definitions2 <- paste0("CREATE TABLE \"", tableName,
-          "_SD\" (", dailySQL, ");")
+        SQL_Table_Definitions1 <- paste0(
+          "CREATE TABLE \"", tableName, "_Mean\" (", dailySQL, ");"
+        )
+        SQL_Table_Definitions2 <- paste0(
+          "CREATE TABLE \"", tableName, "_SD\" (", dailySQL, ");"
+        )
 
       } else {
-        SQL_Table_Definitions1 <- paste0("CREATE TABLE \"", tableName,
-          "_Mean\" (", dailyLayersSQL, ");")
-        SQL_Table_Definitions2 <- paste0("CREATE TABLE \"", tableName,
-          "_SD\" (", dailyLayersSQL, ");")
+        SQL_Table_Definitions1 <- paste0(
+          "CREATE TABLE \"", tableName, "_Mean\" (", dailyLayersSQL, ");"
+        )
+        SQL_Table_Definitions2 <- paste0(
+          "CREATE TABLE \"", tableName, "_SD\" (", dailyLayersSQL, ");"
+        )
       }
 
       dbExecute(con_dbOut, paste(SQL_Table_Definitions1, collapse = "\n"))
@@ -2766,7 +2992,10 @@ dbOutput_create_DailyAggregationTable <- function(con_dbOut, req_aggs) {
     }
   }
 
-  list(dailySQL = dailySQL, dailyLayersSQL = dailyLayersSQL)
+  list(
+    dailySQL = dailySQL,
+    dailyLayersSQL = dailyLayersSQL
+  )
 }
 
 
@@ -2901,20 +3130,26 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
       cat("\n")}, add = TRUE)
   }
 
-  if (SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] &&
-    file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])) {
+  if (
+    SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]] &&
+    file.exists(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+  ) {
 
     unlink(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
   }
 
-  con_dbOut <- try(dbConnect(SQLite(),
-    dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]]))
+  con_dbOut <- try(dbConnect(
+    SQLite(),
+    dbname = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
+  )
   on.exit(dbDisconnect(con_dbOut), add = TRUE)
 
   if (inherits(con_dbOut, "try-error")) {
     unlink(SFSW2_prj_meta[["fnames_out"]][["dbOutput"]])
-    stop(paste("Creation of output database failed:", con_dbOut,
-      collapse = ", "))
+    stop(paste(
+      "Creation of output database failed:", con_dbOut,
+      collapse = ", "
+    ))
   }
 
   set_PRAGMAs(con_dbOut, PRAGMA_settings2())
@@ -2923,7 +3158,8 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
 
   #--- Check whether dbOutput exists and has a suitable design
   # Has suitable tables?
-  isgood <- length(tables) > 0 &&
+  isgood <-
+    length(tables) > 0 &&
     all(dbOutput_ListDesignTables() %in% tables) &&
     "aggregation_overall_mean" %in% tables
 
@@ -2933,10 +3169,13 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
 
     fields <- generate_OverallAggregation_fields(
       aon = SFSW2_prj_meta[["prj_todos"]][["aon"]],
-      opt_agg = SFSW2_prj_meta[["opt_agg"]])
+      opt_agg = SFSW2_prj_meta[["opt_agg"]]
+    )
 
     # Has correct (number of) fields in table `aggregation_overall_mean`
-    isgood <- isgood && ncol_dbOut_overall == sum(fields[, "N"]) &&
+    isgood <-
+      isgood &&
+      ncol_dbOut_overall == sum(fields[, "N"]) &&
       identical(temp[-1], unlist(fields[, "fields"]))
 
     if (isgood) {
@@ -2950,29 +3189,37 @@ make_dbOutput <- function(SFSW2_prj_meta, SFSW2_prj_inputs, verbose = FALSE) {
 
   fields <- generate_OverallAggregation_fields(
     aon = SFSW2_prj_meta[["prj_todos"]][["aon"]],
-    opt_agg = SFSW2_prj_meta[["opt_agg"]])
+    opt_agg = SFSW2_prj_meta[["opt_agg"]]
+  )
 
   res_oa <- dbOutput_create_OverallAggregationTable(con_dbOut, fields)
   add_dbOutput_index(con_dbOut)
 
-  res_da <- dbOutput_create_DailyAggregationTable(con_dbOut,
-    req_aggs = SFSW2_prj_meta[["prj_todos"]][["adaily"]])
+  res_da <- dbOutput_create_DailyAggregationTable(
+    con_dbOut,
+    req_aggs = SFSW2_prj_meta[["prj_todos"]][["adaily"]]
+  )
 
   if (SFSW2_prj_meta[["prj_todos"]][["do_ensembles"]]) {
-    dbOutput_create_EnsembleTables(con_dbOut,
+    dbOutput_create_EnsembleTables(
+      con_dbOut,
       dbOutput = SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
       sim_scens = SFSW2_prj_meta[["sim_scens"]],
       meanString = res_oa[["meanString"]], sdString = res_oa[["sdString"]],
       dailySQL = res_da[["dailySQL"]],
       dailyLayersSQL = res_da[["dailyLayersSQL"]],
       do_ensembles = SFSW2_prj_meta[["prj_todos"]][["do_ensembles"]],
-      wipe_dbOut = SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]])
+      wipe_dbOut = SFSW2_prj_meta[["prj_todos"]][["wipe_dbOut"]]
+    )
   }
 
   #--- run optimize on database
   dbExecute(con_dbOut, "PRAGMA optimize")
 
-  list(fields = fields, ncol_dbOut_overall = res_oa[["ncol_dbOut_overall"]])
+  list(
+    fields = fields,
+    ncol_dbOut_overall = res_oa[["ncol_dbOut_overall"]]
+  )
 }
 
 

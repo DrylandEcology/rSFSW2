@@ -302,7 +302,8 @@ extract_climate_NCEPCFSR <- function(MMC, SWRunInformation,
   }
 
   #--- SET UP PARALLELIZATION
-  setup_SFSW2_cluster(opt_parallel,
+  setup_SFSW2_cluster(
+    opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
     verbose = opt_verbosity[["verbose"]],
     print.debug = opt_verbosity[["print.debug"]]
@@ -323,7 +324,8 @@ extract_climate_NCEPCFSR <- function(MMC, SWRunInformation,
 
   MMC[["idone"]]["NCEPCFSR1"] <- FALSE
   todos <-
-    has_incompletedata(MMC[["data"]]) | is.na(MMC[["source"]]) |
+    has_incompletedata(MMC[["data"]]) |
+    is.na(MMC[["source"]]) |
     MMC[["source"]] == "ClimateNormals_NCEPCFSR_Global"
 
   if (resume) {
@@ -418,7 +420,9 @@ extract_climate_NCEPCFSR <- function(MMC, SWRunInformation,
         ))
       }
 
-      MMC <- update_MeanMonthlyClimate(MMC, i_good,
+      MMC <- update_MeanMonthlyClimate(
+        MMC,
+        i_good,
         SFSW2_prj_meta[["sim_size"]],
         digits = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
         SFSW2_prj_meta[["fnames_in"]]
@@ -456,27 +460,37 @@ ExtractData_MeanMonthlyClimate <- function(exinfo, SFSW2_prj_meta,
   )
 
   if (exinfo$ExtractSkyDataFromNOAAClimateAtlas_USA) {
-    MMC <- extract_climate_NOAAClimAtlas(MMC,
+    MMC <- extract_climate_NOAAClimAtlas(
+      MMC,
       sim_size = SFSW2_prj_meta[["sim_size"]],
       sim_space = SFSW2_prj_meta[["sim_space"]],
       project_paths = SFSW2_prj_meta[["project_paths"]],
-      fnames_in = SFSW2_prj_meta[["fnames_in"]], opt_chunks, resume, verbose
+      fnames_in = SFSW2_prj_meta[["fnames_in"]],
+      opt_chunks,
+      resume,
+      verbose
     )
   }
 
   if (exinfo$ExtractSkyDataFromNCEPCFSR_Global) {
-    MMC <- extract_climate_NCEPCFSR(MMC,
+    MMC <- extract_climate_NCEPCFSR(
+      MMC,
       SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
-      SFSW2_prj_meta, opt_parallel,
-      opt_chunks, resume, verbose
+      SFSW2_prj_meta,
+      opt_parallel,
+      opt_chunks,
+      resume,
+      verbose
     )
   }
 
-  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_mainfield(MMC,
+  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_mainfield(
+    MMC,
     sim_size = SFSW2_prj_meta[["sim_size"]],
     SFSW2_prj_inputs[["SWRunInformation"]],
     SFSW2_prj_meta[["fnames_in"]],
-    field_sources, field_include
+    field_sources,
+    field_include
   )
 
   SFSW2_prj_inputs[["sw_input_cloud_use"]] <- MMC[["use"]]
