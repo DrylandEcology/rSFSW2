@@ -2134,6 +2134,47 @@ gridMET_download_and_check <- function(dir_data, desc = gridMET_metadata()) {
 }
 
 
+
+get_gridMET_cellID <- function(x, crs = 4326, fname_gridMET) {
+
+  stopifnot(sf::st_crs(crs) == sf::st_crs(4326))
+  xy_WGS84 <- rSW2st::as_points(x, to_class = "sp", crs = crs)
+
+  #--- Determine centroids of 1/24-degree gridMET gridcell
+  r <- raster::raster(fname_gridMET)
+
+  # (2020-June-15): raster package does not correctly parse projection
+  # information of gridMET file(s)
+  if (!grepl("+datum=WGS84", raster::crs(r, asText = TRUE))) {
+    raster::crs(r) <- as(sf::st_crs(4326), "CRS")
+  }
+
+  # for some reason raster has swapped x/y axes
+  tmp <- raster::bbox(r)
+  if (all(tmp[1, ] > 0) && all(tmp[2, ] < 0)) {
+    r <- raster::flip(raster::t(r), direction = "x")
+  }
+
+  gm_xy <- raster::xyFromCell(
+    r,
+    cell = raster::cellFromXY(r, xy_WGS84)
+  )
+
+  cell_id <- paste0(
+    "gridMET_",
+    formatC(round(gm_xy[, 1], 4), digits = 4, format = "f"),
+    "_",
+    formatC(round(gm_xy[, 2], 4), digits = 4, format = "f")
+  )
+
+
+  list(
+    cellID = cell_id,
+    dm_WGS84 = gm_xy
+  )
+}
+
+
 #' Extract daily gridded weather data from the \var{gridMET} dataset
 #'
 #' Extracts daily gridded weather data, including precipitation,
@@ -2578,12 +2619,12 @@ dw_gridMET_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
 
         if (any(there)) {
           dw_source[there] <- "gridMET_NorthAmerica"
-          dw_names[there] <- paste0(
-            site_dat[there, "Label"], "_gridMET_",
-            formatC(site_dat[there, "X_WGS84"], digits = 5, format = "f"),
-            "_",
-            formatC(site_dat[there, "Y_WGS84"], digits = 5, format = "f")
-          )
+
+          # Name of weather gridcell based on centroid coordinates
+          dw_names[there] <- get_gridMET_cellID(
+            x = sp_locs[there, , drop = FALSE],
+            fname_gridMET = ftemp
+          )[["cellID"]]
         }
       }
     }
