@@ -8,11 +8,12 @@ extract_daily_weather_from_gridMET(
   dir_data,
   site_ids,
   site_ids_by_dbW,
-  coords,
+  coords_WGS84,
   start_year,
   end_year,
   comp_type = "gzip",
-  dbW_digits = 2,
+  dbW_digits = 4,
+  chunksize = 10000,
   verbose = FALSE
 )
 }
@@ -23,8 +24,8 @@ extract_daily_weather_from_gridMET(
 \item{site_ids}{An integer vector. The indices of sites for which to extract
 \var{gridMET} weather data.}
 
-\item{coords}{A two-dimensional numerical object. The coordinates for each
-site in \var{WGS84}.}
+\item{coords_WGS84}{A two-dimensional numerical object.
+The coordinates for each site in \var{WGS84}.}
 
 \item{start_year}{An integer value. The first calendar year for which to
 extract daily weather data.}
