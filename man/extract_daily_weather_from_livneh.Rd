@@ -9,13 +9,13 @@ extract_daily_weather_from_livneh(
   dir_temp,
   site_ids,
   site_ids_by_dbW,
-  coords,
+  coords_WGS84,
   start_year,
   end_year,
   f_check = TRUE,
   backup = TRUE,
   comp_type = "gzip",
-  dbW_digits = 2,
+  dbW_digits = 4,
   verbose = FALSE
 )
 }
@@ -26,7 +26,7 @@ extract_daily_weather_from_livneh(
 
 \item{site_ids}{the sites to gather weather data for}
 
-\item{coords}{the coordinates for each site in \var{WGS84} format}
+\item{coords_WGS84}{the coordinates for each site in \var{WGS84} format}
 
 \item{start_year}{the start year in the sequence of data to gather}
 

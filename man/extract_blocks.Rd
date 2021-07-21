@@ -15,7 +15,7 @@ extract_blocks(x, y, weights = FALSE)
 represents the corners of an
 \code{\link[raster:Extent-class]{raster::Extent}} object.}
 
-\item{weights}{logical. If \code{TRUE} and \code{normalizeWeights=FALSE}, the function returns, for each polygon, a matrix with the cell values and the approximate fraction of each cell that is covered by the polygon(rounded to 1/100). If \code{TRUE} and  \code{normalizeWeights=TRUE} the weights are normalized such that they add up to one. The weights can be used for averaging; see examples. This option can be useful (but slow) if the polygons are small relative to the cells size of the Raster* object}
+\item{weights}{logical. If \code{TRUE} the fraction of a cell that is covered is returned or used by \code{fun}. These can be used as weights can be used for averaging; see examples. If \code{exact} is \code{FALSE}, this is the approximate fraction of each cell that is covered by the polygon, rounded to 1/100 }
 }
 \value{
 A list with one item for each extent of \code{y}.

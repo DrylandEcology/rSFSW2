@@ -25,7 +25,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
   end_year,
   dir_temp = tempdir(),
   dbW_compression_type = "gzip",
-  dbW_digits = 2L,
+  dbW_digits = 4L,
   verbose = FALSE
 )
 }

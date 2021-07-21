@@ -82,15 +82,11 @@ find_sites_with_bad_weather <- function(
     rs <- dbSendStatement(con, sql)
     on.exit(dbClearResult(rs), add = TRUE)
 
-    for (k in seq_along(do_chunks)) {
-      if (verbose) {
-        print(paste0(
-          "'find_sites_with_bad_weather': ", Sys.time(),
-          " is checking availability of climate scenarios in 'dbWeather': ",
-          "chunk ", k, " out of ", length(do_chunks), " chunks of 'sites'"
-        ))
-      }
+    if (verbose) {
+      pb <- utils::txtProgressBar(max = length(do_chunks), style = 3)
+    }
 
+    for (k in seq_along(do_chunks)) {
       # Get site_id, scenario_id from dbWeather for chunked requested site_ids
       dbBind(
         rs,
@@ -104,6 +100,7 @@ find_sites_with_bad_weather <- function(
       res <- dbFetch(rs)
 
       if (dim(res)[1] > 0) {
+        res <- unique(res)
         tmp <- tapply(res[, "Scenario"], res[, "Site_id"], length)
         tmp <- cbind(Site_id = as.integer(names(tmp)), scenN = tmp)
 
@@ -115,7 +112,13 @@ find_sites_with_bad_weather <- function(
           todos[siteID_by_dbW %in% tmp[i_good, "Site_id"]] <- FALSE
         }
       }
+
+      if (verbose) {
+        utils::setTxtProgressBar(pb, k)
+      }
     }
+
+    if (verbose) close(pb)
 
   } else {
     stop(
