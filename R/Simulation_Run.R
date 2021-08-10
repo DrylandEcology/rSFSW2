@@ -1634,7 +1634,16 @@ do_OneSite <- function(
             }
         )
 
+        if (all(names(tmp) %in% c("grass", "shrub"))) {
+          warning(
+            "Function `rSOILWAT2::estimate_PotNatVeg_biomass()` estimated ",
+            "biomass for grasses and shrubs, but not for forbs and trees; ",
+            "use estimated grass biomass for forbs as well."
+          )
+        }
+
         rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3] <- tmp[["grass"]][, 1:3]
+        rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 1:3] <- tmp[["grass"]][, 1:3]
         rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 1:3] <- tmp[["shrub"]][, 1:3]
       }
 
