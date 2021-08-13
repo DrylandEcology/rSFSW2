@@ -333,7 +333,12 @@ opt_out_fix <- list(
   #   - Create from a subset of temporary text files (fast)
   dbOutCurrent_from_tempTXT = FALSE,
   #   - Subset scenarios to climate.ambient (slow)
-  dbOutCurrent_from_dbOut = FALSE
+  dbOutCurrent_from_dbOut = FALSE,
+
+  # Output variables produced by rSOILWAT2
+  #   - Create minimal (TRUE) or full (FALSE) set of output variables
+  #     The minimal set is sufficient for some cases and is c. 70% smaller
+  minimal_rSOILWAT2_output = FALSE
 )
 
 

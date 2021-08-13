@@ -423,6 +423,19 @@ is_project_description_outdated <- function(meta) {
     )
   }
 
+
+  has <- "minimal_rSOILWAT2_output" %in% names(meta[["opt_out_fix"]])
+  if (!has) {
+    warning(
+      "Outdated project description: ",
+      "The element `minimal_rSOILWAT2_output` ",
+      "of list 'opt_out_fix' is absent; ",
+      "it was added after v4.3.0; ",
+      "assuming previous behavior, i.e., setting as if `FALSE`; ",
+      "please update description."
+    )
+  }
+
 }
 
 

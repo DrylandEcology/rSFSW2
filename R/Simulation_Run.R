@@ -1088,8 +1088,25 @@ do_OneSite <- function(
     if (sw_input_weather_use["RunOffOnPerSnowmelt_Percent"])
       rSOILWAT2::swWeather_pct_SnowRunoff(swRunScenariosData[[1]]) <- i_sw_input_weather$RunOffOnPerSnowmelt_Percent
 
+    # Request SOILWAT2 output
+    if (isTRUE(opt_out_fix[["minimal_rSOILWAT2_output"]])) {
+      slot(slot(swRunScenariosData[[1]], "output"), "use")[] <- FALSE
+
+      tmp <- c(
+        "sw_temp", "sw_precip", "sw_snow",
+        "sw_inf_soil", "sw_deepdrain",
+        "sw_vwcbulk", "sw_swcbulk", "sw_swp", "sw_soiltemp",
+        "sw_aet", "sw_pet",
+        "sw_veg"
+      )
+      rSOILWAT2::activate_swOUT_OutKey(swRunScenariosData[[1]]) <-
+        swof[names(swof) %in% tmp]
+    }
+
     # Set simulation_timescales fix to daily, monthly, and yearly
-    rSOILWAT2::swOUT_TimeStepsForEveryKey(swRunScenariosData[[1]]) <- c(daily = 0, monthly = 2, yearly = 3)
+    rSOILWAT2::swOUT_TimeStepsForEveryKey(swRunScenariosData[[1]]) <-
+      c(daily = 0, monthly = 2, yearly = 3)
+
 
     #############Get Weather Data################
     print_debug(opt_verbosity, tag_simfid, "creating", "daily weather")
