@@ -5440,11 +5440,19 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
     if (identical(SFSW2_glovars[["p_type"]], "socket")) {
 
-      parallel::clusterCall(SFSW2_glovars[["p_cl"]],
+      parallel::clusterCall(
+        SFSW2_glovars[["p_cl"]],
         fun = rSOILWAT2::dbW_setConnection,
-        dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
-      on.exit(parallel::clusterEvalQ(SFSW2_glovars[["p_cl"]],
-        rSOILWAT2::dbW_disconnectConnection()), add = TRUE)
+        dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]]
+      )
+
+      on.exit(
+        parallel::clusterEvalQ(
+          SFSW2_glovars[["p_cl"]],
+          rSOILWAT2::dbW_disconnectConnection()
+        ),
+        add = TRUE
+      )
 
 #TODO: It seems like a bad hack to make this work without exporting the full data.frames
 # (e.g., SFSW2_prj_inputs[["SWRunInformation"]], SFSW2_prj_inputs[["sw_input_soillayers"]],
@@ -5456,21 +5464,56 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       temp_ids <- cbind(i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]], i_site = i_sites)
       temp_seqs <- seq_along(MoreArgs[["sim_size"]][["runIDs_todo"]])
 
-      runs.completed <- parallel::clusterMap(SFSW2_glovars[["p_cl"]],
+      runs.completed <- parallel::clusterMap(
+        cl = SFSW2_glovars[["p_cl"]],
         fun = do_OneSite,
         i_sim = temp_ids[, "i_sim"],
-        i_SWRunInformation = split(SFSW2_prj_inputs[["SWRunInformation"]][temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_soillayers = split(SFSW2_prj_inputs[["sw_input_soillayers"]][temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_treatments = split(SFSW2_prj_inputs[["sw_input_treatments"]][temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_cloud = split(SFSW2_prj_inputs[["sw_input_cloud"]][temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_prod = split(SFSW2_prj_inputs[["sw_input_prod"]][temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_site = split(SFSW2_prj_inputs[["sw_input_site"]][temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_soils = split(SFSW2_prj_inputs[["sw_input_soils"]][temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_weather = split(SFSW2_prj_inputs[["sw_input_weather"]][temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_climscen = split(SFSW2_prj_inputs[["sw_input_climscen"]][temp_ids[, "i_site"], ], temp_seqs),
-        i_sw_input_climscen_values = split(SFSW2_prj_inputs[["sw_input_climscen_values"]][temp_ids[, "i_site"], ], temp_seqs),
+        i_SWRunInformation = split(
+          SFSW2_prj_inputs[["SWRunInformation"]][temp_ids[, "i_site"], ],
+          temp_seqs
+        ),
+        i_sw_input_soillayers = split(
+          SFSW2_prj_inputs[["sw_input_soillayers"]][temp_ids[, "i_site"], ],
+          temp_seqs
+        ),
+        i_sw_input_treatments = split(
+          SFSW2_prj_inputs[["sw_input_treatments"]][temp_ids[, "i_site"], ],
+          temp_seqs
+        ),
+        i_sw_input_cloud = split(
+          SFSW2_prj_inputs[["sw_input_cloud"]][temp_ids[, "i_site"], ],
+          temp_seqs
+        ),
+        i_sw_input_prod = split(
+          SFSW2_prj_inputs[["sw_input_prod"]][temp_ids[, "i_site"], ],
+          temp_seqs
+        ),
+        i_sw_input_site = split(
+          SFSW2_prj_inputs[["sw_input_site"]][temp_ids[, "i_site"], ],
+          temp_seqs
+        ),
+        i_sw_input_soils = split(
+          SFSW2_prj_inputs[["sw_input_soils"]][temp_ids[, "i_site"], ],
+          temp_seqs
+        ),
+        i_sw_input_weather = split(
+          SFSW2_prj_inputs[["sw_input_weather"]][temp_ids[, "i_site"], ],
+          temp_seqs
+        ),
+        i_sw_input_climscen = split(
+          SFSW2_prj_inputs[["sw_input_climscen"]][temp_ids[, "i_site"], ],
+          temp_seqs
+        ),
+        i_sw_input_climscen_values = split(
+          SFSW2_prj_inputs[["sw_input_climscen_values"]][temp_ids[, "i_site"], ],
+          temp_seqs
+        ),
         MoreArgs = list(SimParams = MoreArgs),
-        RECYCLE = FALSE, SIMPLIFY = FALSE, USE.NAMES = FALSE, .scheduling = "dynamic")
+        RECYCLE = FALSE,
+        SIMPLIFY = FALSE,
+        USE.NAMES = FALSE,
+        .scheduling = "dynamic"
+      )
 
       runs.completed <- length(unlist(runs.completed))
     }
