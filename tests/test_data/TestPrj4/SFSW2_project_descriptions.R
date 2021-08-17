@@ -413,14 +413,21 @@ sim_time <- list(
 
 #------ Requested climate conditions
 req_scens <- list(
+  # Era of MIP: "CMIP3", "CMIP5", "CMIP6"
+  mip_era = "CMIP5",
+
   # Name of climatic conditions of the daily weather input when monthly climate
   #   perturbations are all off
   ambient = "Current",
 
-  # Name of atmospheric CO2-concentration dataset to be used for "ambient"
+  # Name of atmospheric CO2-concentration dataset(s) to be used for "ambient"
   # conditions.
-  # The string must match a column name of `LookupCO2data/AtmosCO2.csv`
-  tag_aCO2_ambient = "Fix360ppm", # e.g., "Fix360ppm", etc.
+  # The string(s) must each match a column name of `rSOILWAT2::sw2_tr_CO2a`.
+  # Yearly values from the first matched column are used until that
+  # column has no more values, then the second matched column is used, etc.
+  # (see ranges of years in documentation of `rSOILWAT2::sw2_tr_CO2a`).
+  # An error is produced if no value can be found.
+  tag_aCO2_ambient = "Fix360ppm",
 
   # Names of climate scenarios
   #   - If a simulation project does not include future climate conditions,

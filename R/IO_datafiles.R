@@ -699,8 +699,36 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
     }
 
     if (any(create_treatments == "LookupCO2data")) {
-      tr_input_CO2data <- SFSW2_read_csv(
-        fnames_in[["LookupCO2data"]])
+      tmp_CO2data <- SFSW2_read_csv(fnames_in[["LookupCO2data"]])
+
+      # Append to rSOILWAT2 data
+      tr1 <- rSOILWAT2::sw2_tr_CO2a
+
+      # Add years?
+      needs_yrs <- !(tmp_CO2data[, "Year"] %in% tr1[, "Year"])
+      if (any(needs_yrs)) {
+        tmp <- range(c(tmp_CO2data[, "Year"], tr1[, "Year"]))
+        tr2 <- data.frame(matrix(
+          nrow = tmp[2] - tmp[1] + 1,
+          ncol = ncol(tr1),
+          dimnames = list(NULL, colnames(tr1))
+        ))
+        tr2[, "Year"] <- seq.int(tmp[1], tmp[2])
+
+        ids <- match(tr2[, "Year"], tr1[, "Year"], nomatch = 0)
+        tr2[ids > 0, colnames(tr1)[-1]] <- tr1[ids, -1]
+        tr1 <- tr2
+      }
+
+      # Add data?
+      tmp <- colnames(tmp_CO2data)
+      needs_vars <- tmp[!(tmp %in% colnames(tr1))]
+      if (length(needs_vars) > 0) {
+        ids <- match(tr1[, "Year"], tmp_CO2data[, "Year"], nomatch = 0)
+        tr1[ids > 0, needs_vars] <- tmp_CO2data[ids, needs_vars]
+      }
+
+      tr_input_CO2data <- tr1
     }
 
     if (any(create_treatments == "LookupClimateTemp")) {

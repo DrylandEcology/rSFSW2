@@ -390,6 +390,17 @@ is_project_description_outdated <- function(meta) {
     )
   }
 
+  has <- "mip_era" %in% names(meta[["req_scens"]])
+  if (!has) {
+    warning(
+      "Outdated project description: ",
+      "The element `mip_era` ",
+      "of list 'req_scens' is required if climate scenarios are simulated; ",
+      "it was added after v4.3.0; ",
+      "please update description."
+    )
+  }
+
   has <- "tag_aCO2_ambient" %in% names(meta[["req_scens"]])
   if (!has) {
     warning(

@@ -1249,9 +1249,46 @@ do_OneSite <- function(
 
         # Locate the atmospheric CO2 concentration dataset name
         if (toupper(i_sw_input_treatments$LookupCO2data) == "FILL") {
-          # Did the user request to use the values associated with the
-          # model scenario names?
-          scenario_CO2 <- sim_scens[["df"]][sc, "ConcScen"]
+
+          if (
+            sc == 1 &&
+            isTRUE(grepl(
+              "fix",
+              sim_scens[["df"]][sc, "ConcScen"],
+              ignore.case = TRUE
+            ))
+          ) {
+            # Historical time period "fixed" CO2 name --> use "as is"
+            scenario_CO2 <- sim_scens[["df"]][sc, "ConcScen"]
+
+          } else {
+            # Use values associated with the model scenario
+
+            # Remove "." and "-"
+            scenario_CO2 <- gsub("[.-]", "", sim_scens[["df"]][sc, "ConcScen"])
+
+            # add CMIP info if not already present
+            if (
+              "mip_era" %in% names(sim_scens) &&
+              !isTRUE(grepl(sim_scens[["mip_era"]], scenario_CO2))
+            ) {
+              scenario_CO2 <- paste0(sim_scens[["mip_era"]], "_", scenario_CO2)
+            }
+
+            # add historical tag last (if not already present) -- in case
+            # we start simulating yearly
+            if (!isTRUE(grepl("historical", scenario_CO2))) {
+              scenario_CO2 <- paste0(
+                scenario_CO2,
+                "|",
+                if ("mip_era" %in% names(sim_scens)) {
+                  paste0(sim_scens[["mip_era"]], "_historical")
+                } else {
+                  "historical"
+                }
+              )
+            }
+          }
 
         } else {
           # Did the user override the scenario name?
@@ -5461,7 +5498,10 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 # hence, I use split() to convert the data.frames to lists where the elements correspond
 # to the rows.
 
-      temp_ids <- cbind(i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]], i_site = i_sites)
+      temp_ids <- cbind(
+        i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]],
+        i_site = i_sites
+      )
       temp_seqs <- seq_along(MoreArgs[["sim_size"]][["runIDs_todo"]])
 
       runs.completed <- parallel::clusterMap(

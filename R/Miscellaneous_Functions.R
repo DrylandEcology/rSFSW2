@@ -845,7 +845,7 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
   # Fill in information for ambient scenario
   climScen[1, "Model"] <- sim_scens[["ambient"]]
   climScen[1, "ConcScen"] <- if ("tag_aCO2_ambient" %in% names(sim_scens)) {
-    sim_scens[["tag_aCO2_ambient"]]
+    paste0(sim_scens[["tag_aCO2_ambient"]], collapse = "|")
   } else {
     "Fix360ppm"
   }
