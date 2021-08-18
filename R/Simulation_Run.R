@@ -454,6 +454,10 @@ do_OneSite <- function(
       tmp <- length(soilLayers_N)
       if (tmp != 1) {
         if (tmp == 0) {
+          if (anyNA(soildepth)) {
+            stop(tag_simfid, " has no soil depth.")
+          }
+
           # there is no soil layer that ends at the provided soil depth:
           # the next deeper layer boundary is used, if there is any,
           # or the deepest available layer
