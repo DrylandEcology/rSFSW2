@@ -130,6 +130,7 @@ do_OneSite <- function(
     stop(tag_funid, ": not enough time to simulate.")
   }
 
+  # --- Attach `SimParams` to local environment ------
   list2env(as.list(SimParams), envir = environment())
 
   if (
@@ -178,7 +179,8 @@ do_OneSite <- function(
     }, add = TRUE)
   }
 
-  # Set RNG seed for random number use by functions
+  # --- Set RNG seed ------
+  # Used by functions
   #   - Aggregation GISSM: calc_TimeToGerminate
   #   - dbExecute2
   i_seed <-
@@ -200,7 +202,7 @@ do_OneSite <- function(
     ))
   }
 
-#-----------------------Check for experimentals
+  # --- Check for experimentals ------
   if (sim_size[["expN"]] > 0 && length(create_experimentals) > 0) {
 
     i_exp <- it_exp(i_sim, sim_size[["runsN_main"]])
@@ -244,7 +246,7 @@ do_OneSite <- function(
   }
 
 
-#------------------------Preparations for simulation run
+  # --- Preparations for simulation run ------
   all_Pids <- it_Pid(
     i_sim,
     runN = sim_size[["runsN_main"]],
@@ -379,7 +381,7 @@ do_OneSite <- function(
     dir.create2(tmp, showWarnings = opt_verbosity[["print.debug"]])
   }
 
-  #--- Load previously created rSOILWAT2 run objets
+  # --- Load rSOILWAT2 input objects ------
   objnames_saveRsoilwatInput <- c(
     "swRunScenariosData",
     "i_sw_weatherList",
@@ -419,7 +421,7 @@ do_OneSite <- function(
   }
 
 
-  #----Get preparations done
+  # --- Further preparations ------
   if (any(tasks == 1L)) {
     #------Learn about soil layer structure
     soil_source <- NULL
@@ -545,7 +547,7 @@ do_OneSite <- function(
 
 
 
-#------------------------CREATE RUNS
+  # --- CREATE RUNS ------
   if (any(tasks[, "create"] == 1L)) {
     print_debug(opt_verbosity, tag_simfid, "section", "create simulation")
 
@@ -1980,8 +1982,11 @@ do_OneSite <- function(
     }
   } #end if do create runs
 
-  if (opt_out_run[["makeInputForExperimentalDesign"]] && sim_size[["expN"]] > 0 &&
-    length(create_experimentals) > 0) {
+  if (
+    opt_out_run[["makeInputForExperimentalDesign"]] &&
+    sim_size[["expN"]] > 0 &&
+    length(create_experimentals) > 0
+  ) {
 
     #This file will be used to remake the input files for experimentals
     infiletext <- c(paste(i_label, paste(i_SWRunInformation[-1],
@@ -2024,7 +2029,7 @@ do_OneSite <- function(
 
 
 
-#------------------------EXECUTE & AGGREGATE SOILWAT2
+  # --- EXECUTE & AGGREGATE SOILWAT2 ------
   if (!exists("swRunScenariosData") || !exists("i_sw_weatherList")) {
     tasks[, "aggregate"] <- -1L
 
@@ -2093,6 +2098,7 @@ do_OneSite <- function(
   DeltaX <- c(NA, 0L)
   is_SOILTEMP_INSTABLE <- rep(NA, sim_scens[["N"]])
 
+  # --- Loop over scenarios ------
   for (sc in sim_seq_scens) {
     tag_simpidfid <- paste0("[run", i_sim, "/PID", all_Pids[sc], "/sc", sc,
       "/work", fid, "]")
@@ -2101,6 +2107,8 @@ do_OneSite <- function(
 
     itime <- sim_scens[["df"]][sc, "itime"]
 
+
+    # --- Load rSOILWAT2 output objects ------
     if (
       file.exists(f_sw_output[sc]) &&
         ((tasks[sc, "execute"] == 1L && opt_behave[["resume"]]) ||
@@ -2126,6 +2134,8 @@ do_OneSite <- function(
       }
     }
 
+
+    # --- Run rSOILWAT2 simulation ------
     if (tasks[sc, "execute"] == 1L) {
       runDataSC <- NULL
 
@@ -2135,25 +2145,35 @@ do_OneSite <- function(
       if (DeltaX[2] > 0) {
         print_debug(opt_verbosity, tag_simpidfid, "using pre-determined DeltaX", DeltaX[1])
 
-        if (DeltaX[2] == 2L)
+        if (DeltaX[2] == 2L) {
           rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- DeltaX[1]
+        }
       }
 
-      runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                     weatherList = i_sw_weatherList[[scw]],
-                echo = FALSE, quiet = TRUE),
-              silent = TRUE)
+      runDataSC <- try(
+        rSOILWAT2::sw_exec(
+          inputData = swRunScenariosData[[sc]],
+          weatherList = i_sw_weatherList[[scw]],
+          echo = FALSE,
+          quiet = TRUE
+        ),
+        silent = TRUE
+      )
 
       # Testing for error in soil temperature module
       is_SOILTEMP_INSTABLE[sc] <- rSOILWAT2::has_soilTemp_failed()
 
       if (is_SOILTEMP_INSTABLE[sc]) {
-        ## Incrementing deltaX and recalling SOILWAT2 until the temperature is at least normal or the loop executes ten times
+        ## Increment deltaX and re-run SOILWAT2 until the temperature is at least normal or the loop executes ten times
         i_soil_rep <- 0
         DeltaX[1] <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"]
 
-        while (!inherits(runDataSC, "try-error") && is_SOILTEMP_INSTABLE[sc] &&
-          DeltaX[1] <= mDepth && i_soil_rep < 10) {
+        while (
+          !inherits(runDataSC, "try-error") &&
+          is_SOILTEMP_INSTABLE[sc] &&
+          DeltaX[1] <= mDepth &&
+          i_soil_rep < 10
+        ) {
 
           ## Make sure that the increment for the soil layers is a multiple of the MaxDepth,
           #   modulus of 0 means no remainder and thus a multiple of the MaxDepth
@@ -2165,19 +2185,27 @@ do_OneSite <- function(
           ## recall Soilwat with the new deltaX parameter and continue to do so with increasing deltax until resolved or executed 10 times
           rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"] <- min(DeltaX[1], mDepth)
           print_debug(opt_verbosity, tag_simpidfid, "SOILWAT2 called again with deltaX (cm) =",
-            rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"])
+          rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"])
 
-          runDataSC <- try(rSOILWAT2::sw_exec(inputData = swRunScenariosData[[sc]],
-                     weatherList = i_sw_weatherList[[scw]],
-                echo = FALSE, quiet = TRUE),
-              silent = TRUE)
+          runDataSC <- try(
+            rSOILWAT2::sw_exec(
+              inputData = swRunScenariosData[[sc]],
+              weatherList = i_sw_weatherList[[scw]],
+              echo = FALSE,
+              quiet = TRUE
+            ),
+            silent = TRUE
+          )
 
           ## Test to check and see if SOILTEMP is stable so that the loop can break - this will be based on parts being > 1.0
           is_SOILTEMP_INSTABLE[sc] <- rSOILWAT2::has_soilTemp_failed()
           i_soil_rep <- i_soil_rep + 1
         }
 
-        DeltaX[2] <- if (!inherits(runDataSC, "try-error") && !is_SOILTEMP_INSTABLE[sc]) 2L else -1L
+        DeltaX[2] <- if (
+          !inherits(runDataSC, "try-error") &&
+          !is_SOILTEMP_INSTABLE[sc]
+        ) 2L else -1L
 
         #TODO: change deltaX_Param for all [> sc] as well
         if (opt_out_run[["saveRsoilwatInput"]]) {
@@ -2185,7 +2213,10 @@ do_OneSite <- function(
         }
 
       } else {
-        DeltaX <- c(rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"], 1L)
+        DeltaX <- c(
+          rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["deltaX_Param"],
+          1L
+        )
       }
 
       if (inherits(runDataSC, "try-error") || DeltaX[2] < 0) {
@@ -2197,15 +2228,21 @@ do_OneSite <- function(
       }
     }
 
-    if (tasks[sc, "execute"] > 0L && exists("runDataSC"))
+    if (tasks[sc, "execute"] > 0L && exists("runDataSC")) {
       tasks[sc, "execute"] <- 2L
+    }
 
 
-#------------------------AGGREGATE SOILWAT2 OUTPUT
-    if (tasks[sc, "execute"] != 2L && !exists("swRunScenariosData") || !exists("runDataSC") ||
-      !exists("grasses.c3c4ann.fractions") || !exists("ClimatePerturbationsVals") ||
-      !exists("is_SOILTEMP_INSTABLE") || !inherits(runDataSC, "swOutput")) {
-
+    # --- AGGREGATE SOILWAT2 OUTPUT ------
+    if (
+      tasks[sc, "execute"] != 2L &&
+      !exists("swRunScenariosData") ||
+      !exists("runDataSC") ||
+      !exists("grasses.c3c4ann.fractions") ||
+      !exists("ClimatePerturbationsVals") ||
+      !exists("is_SOILTEMP_INSTABLE") ||
+      !inherits(runDataSC, "swOutput")
+    ) {
       tasks[sc, "aggregate"] <- -1L
     }
 
@@ -2216,8 +2253,10 @@ do_OneSite <- function(
       #   1.) Exclude_ClimateAmbient is true in treatments
       #   2.) That Run is set to Exclude_ClimateAmbient
       #   3.) Our current Scenario is Current
-      Exclude_ClimateAmbient <- any(create_treatments == "Exclude_ClimateAmbient") &&
-        i_sw_input_treatments$Exclude_ClimateAmbient && sc == 1 && i_sim != 1
+      Exclude_ClimateAmbient <-
+        any(create_treatments == "Exclude_ClimateAmbient") &&
+        i_sw_input_treatments$Exclude_ClimateAmbient && sc == 1 &&
+        i_sim != 1
 
 
       #--- Output tables: 'overall aggregation'
@@ -2230,9 +2269,18 @@ do_OneSite <- function(
       ) {
 
       if (Exclude_ClimateAmbient || sim_size[["ncol_dbOut_overall"]] == 0L) {
-        temp <- paste(c(all_Pids[sc], if (sim_size[["ncol_dbOut_overall"]] > 0)
-          paste0(rep("NULL", sim_size[["ncol_dbOut_overall"]]), collapse = ",")),
-          collapse = ", ")
+        temp <- paste(
+          c(
+            all_Pids[sc],
+            if (sim_size[["ncol_dbOut_overall"]] > 0) {
+              paste0(
+                rep("NULL", sim_size[["ncol_dbOut_overall"]]),
+                collapse = ","
+              )
+            }
+          ),
+          collapse = ", "
+        )
         resMeans <- resSDs <- rep(NA, length = sim_size[["ncol_dbOut_overall"]])
         nv <- 1L + sim_size[["ncol_dbOut_overall"]]
 
@@ -4936,23 +4984,43 @@ do_OneSite <- function(
         #---Aggregation: done with options
       }
 
-        #--- Write overall aggregation results to dbTempOut
+
+        # --- Output tables: overall aggregations ------
         nv1 <- nv - 1
-        if (sim_size[["ncol_dbOut_overall"]] == nv1 && tasks[sc, "aggregate"] != 0L) {
+        if (
+          sim_size[["ncol_dbOut_overall"]] == nv1 &&
+          tasks[sc, "aggregate"] != 0L
+        ) {
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut: overall")
 
           if (isTRUE(unname(do_out[["aggregation_overall"]][sc, "aggregation_overall_mean"]))) {
             resMeans[!is.finite(resMeans)] <- "NULL"
-            temp <- paste0(c(all_Pids[sc], resMeans[seq_len(nv1)]), collapse = ",")
+            temp <- paste0(
+              c(all_Pids[sc], resMeans[seq_len(nv1)]),
+              collapse = ","
+            )
 
-            SQL <- paste0("INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ");")
-            res <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["print.debug"]],
-              seed = i_seed)
+            SQL <- paste0(
+              "INSERT INTO \"aggregation_overall_mean\" VALUES (", temp, ")"
+            )
+            res <- dbExecute2(
+              dbTempFile,
+              SQL = SQL,
+              verbose = opt_verbosity[["print.debug"]],
+              seed = i_seed
+            )
 
-            if (opt_behave[["keep_dbWork_updated"]] && res &&
-              isTRUE(opt_out_fix[["use_granular_control"]])) {
-              res <- dbWork_update_granular(path = project_paths[["dir_out"]],
-                table = "aggregation_overall_mean", Pid = all_Pids[sc], status = FALSE)
+            if (
+              opt_behave[["keep_dbWork_updated"]] &&
+              res &&
+              isTRUE(opt_out_fix[["use_granular_control"]])
+            ) {
+              res <- dbWork_update_granular(
+                path = project_paths[["dir_out"]],
+                table = "aggregation_overall_mean",
+                Pid = all_Pids[sc],
+                status = FALSE
+              )
             }
 
             do_out[["aggregation_overall"]][sc, "aggregation_overall_mean"] <- !res
@@ -4960,31 +5028,54 @@ do_OneSite <- function(
 
           if (isTRUE(unname(do_out[["aggregation_overall"]][sc, "aggregation_overall_sd"]))) {
             resSDs[!is.finite(resSDs)] <- "NULL"
-            temp <- paste0(c(all_Pids[sc], resSDs[seq_len(nv1)]), collapse = ",")
+            temp <- paste0(
+              c(all_Pids[sc], resSDs[seq_len(nv1)]),
+              collapse = ","
+            )
 
-            SQL <- paste0("INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ");")
-            res <- dbExecute2(dbTempFile, SQL, verbose = opt_verbosity[["print.debug"]],
-              seed = i_seed)
+            SQL <- paste0(
+              "INSERT INTO \"aggregation_overall_sd\" VALUES (", temp, ")"
+            )
+            res <- dbExecute2(
+              dbTempFile,
+              SQL = SQL,
+              verbose = opt_verbosity[["print.debug"]],
+              seed = i_seed
+            )
 
-            if (opt_behave[["keep_dbWork_updated"]] && res &&
-              isTRUE(opt_out_fix[["use_granular_control"]])) {
-              res <- dbWork_update_granular(path = project_paths[["dir_out"]],
-                table = "aggregation_overall_sd", Pid = all_Pids[sc], status = FALSE)
+            if (
+              opt_behave[["keep_dbWork_updated"]] &&
+              res &&
+              isTRUE(opt_out_fix[["use_granular_control"]])
+            ) {
+              res <- dbWork_update_granular(
+                path = project_paths[["dir_out"]],
+                table = "aggregation_overall_sd",
+                Pid = all_Pids[sc],
+                status = FALSE
+              )
             }
 
             do_out[["aggregation_overall"]][sc, "aggregation_overall_sd"] <- !res
           }
 
-          res <- !do_out[["aggregation_overall"]][sc, "aggregation_overall_mean"] &&
+          res <-
+            !do_out[["aggregation_overall"]][sc, "aggregation_overall_mean"] &&
             !do_out[["aggregation_overall"]][sc, "aggregation_overall_sd"]
+
           tasks[sc, "aggregate"] <- if (res) 2L else 0L
 
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "write to dbTempOut done")
 
         } else {
-          print(paste0(tag_simpidfid, ": aggregation unsuccessful:",
-            " incorrect number of aggregated variables: n = ", nv1,
-            " instead of ", sim_size[["ncol_dbOut_overall"]]))
+          print(
+            paste0(
+              tag_simpidfid,
+              ": aggregation unsuccessful:",
+              " incorrect number of aggregated variables: n = ", nv1,
+              " instead of ", sim_size[["ncol_dbOut_overall"]]
+            )
+          )
           tasks[sc, "aggregate"] <- 0L
         }
 
@@ -4992,10 +5083,12 @@ do_OneSite <- function(
       } # end of 'overall aggregation'
 
 
-      #--- Output tables: 'mean daily'
-      if (prj_todos[["adaily"]][["N"]] > 0 &&
-          (!opt_behave[["resume"]] || (opt_behave[["resume"]] &&
-              do_out[["agg"]][sc, "aggregation_doy"]))) {
+      # --- Output tables: 'mean daily' ------
+      if (
+        prj_todos[["adaily"]][["N"]] > 0 &&
+        (!opt_behave[["resume"]] || (opt_behave[["resume"]] &&
+        do_out[["agg"]][sc, "aggregation_doy"]))
+      ) {
 
         #aggregate for each response variable
         for (doi in seq_len(prj_todos[["adaily"]][["N"]])) {
@@ -5217,7 +5310,7 @@ do_OneSite <- function(
         tasks[sc, "aggregate"] <- if (res && tasks[sc, "aggregate"] != 0L) 2L else 0L
       }#end if daily output
 
-      # Determine success of 'aggregate' section
+      # --- Determine success of 'aggregate' section ------
       if (tasks[sc, "aggregate"] == 1L) {
         tasks[sc, "aggregate"] <- 2L
       }
@@ -5226,52 +5319,78 @@ do_OneSite <- function(
 
   } #end loop through scenarios
 
+
+  # --- WRAP UP ------
   if (any(tasks[, "aggregate"] == 0L)) {
-    print(paste0(tag_simfid, ": not all aggregation results successful with ",
-      paste(tasks[, "aggregate"], collapse = "-")))
+    print(
+      paste0(
+        tag_simfid,
+        ": not all aggregation results successful with ",
+        paste(tasks[, "aggregate"], collapse = "-")
+      )
+    )
   }
 
   delta.do_OneSite <- round(difftime(Sys.time(), t.do_OneSite, units = "secs"), 2)
   status <- all(unlist(tasks) != 0)
 
   if (opt_behave[["keep_dbWork_updated"]] &&
-    !(SFSW2_glovars[["p_has"]] && SFSW2_glovars[["p_type"]] == "mpi")) {
-    temp <- dbWork_update_job(project_paths[["dir_out"]], i_sim,
-      status = if (status) "completed" else "failed", time_s = delta.do_OneSite,
-      verbose = opt_verbosity[["print.debug"]])
+    !(SFSW2_glovars[["p_has"]] && SFSW2_glovars[["p_type"]] == "mpi")
+  ) {
+    temp <- dbWork_update_job(
+      project_paths[["dir_out"]],
+      runID = i_sim,
+      status = if (status) "completed" else "failed",
+      time_s = delta.do_OneSite,
+      verbose = opt_verbosity[["print.debug"]]
+    )
   }
 
   if (status) {
     if (opt_verbosity[["verbose"]]) {
-      msg <- paste0("rSFSW2's ", tmp_call, ": ", tag_simfid, ": completed in ",
-        delta.do_OneSite, " ", units(delta.do_OneSite))
+      msg <- paste0(
+        "rSFSW2's ", tmp_call, ": ",
+        tag_simfid, ": completed in ",
+        delta.do_OneSite, " ", units(delta.do_OneSite)
+      )
 
       if (opt_behave[["keep_dbWork_updated"]]) {
         percent_complete <- dbWork_report_completion(project_paths[["dir_out"]])
 
-        msg <- paste0(msg, "; simulation project is ", round(percent_complete, 2),
-          "% complete")
+        msg <- paste0(
+          msg,
+          "; simulation project is ", round(percent_complete, 2), "% complete"
+        )
 
         if (opt_verbosity[["print.eta"]]) {
           # ETA estimation
-          n_todo <- ceiling(dbWork_Ntodo(project_paths[["dir_out"]]) /
-            SFSW2_glovars[["p_workersN"]])
+          n_todo <- ceiling(
+            dbWork_Ntodo(project_paths[["dir_out"]]) / SFSW2_glovars[["p_workersN"]]
+          )
           agg_timing <- dbWork_agg_timing(project_paths[["dir_out"]])
           deta <- round(n_todo * agg_timing[c("mean", "sd")])
 
           # 95% prediction interval
-          temp <- if (agg_timing["n"] > 1) stats::qt(0.975, agg_timing["n"]) else NA
+          temp <- if (agg_timing["n"] > 1) {
+            stats::qt(0.975, agg_timing["n"])
+          } else {
+            NA
+          }
           pi95 <- deta["sd"] * sqrt(1 + 1 / agg_timing["n"]) * temp
-          pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
-              paste(round(pi95 / 3600), "h")
-            } else if (pi95 > 60) {
-              paste(round(pi95 / 60), "min")
-            } else {
-              paste(round(pi95), "s")
-            }
 
-          msg <- paste0(msg, " with ETA (mean plus/minus 95%-PI) = ",
-            Sys.time() + deta["mean"], " +/- ", pi95)
+          pi95 <- if (is.na(pi95)) "NA" else if (pi95 > 3600) {
+            paste(round(pi95 / 3600), "h")
+          } else if (pi95 > 60) {
+            paste(round(pi95 / 60), "min")
+          } else {
+            paste(round(pi95), "s")
+          }
+
+          msg <- paste0(
+            msg,
+            " with ETA (mean plus/minus 95%-PI) = ",
+            Sys.time() + deta["mean"], " +/- ", pi95
+          )
         }
       }
 
@@ -5279,10 +5398,19 @@ do_OneSite <- function(
     }
 
   } else {
-    print(paste0(tag_funid, ": unsuccessful after ", delta.do_OneSite, " ",
-      units(delta.do_OneSite), " with status of tasks = ",
-      paste0(colnames(tasks), ": ", apply(tasks, 2, paste, collapse = ", "),
-      collapse = " / ")))
+    print(
+      paste0(
+        tag_funid,
+        ": unsuccessful after ",
+        delta.do_OneSite, " ",
+        units(delta.do_OneSite),
+        " with status of tasks = ",
+        paste0(
+          colnames(tasks), ": ", apply(tasks, 2, paste, collapse = ", "),
+          collapse = " / "
+        )
+      )
+    )
   }
 
   on.exit()
@@ -5311,8 +5439,10 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
       cat("\n")}, add = TRUE)
   }
 
-  i_sites <- it_site(MoreArgs[["sim_size"]][["runIDs_todo"]],
-    MoreArgs[["sim_size"]][["runsN_main"]])
+  i_sites <- it_site(
+    MoreArgs[["sim_size"]][["runIDs_todo"]],
+    MoreArgs[["sim_size"]][["runsN_main"]]
+  )
 
 
   #--- prepare the temporary output databases
