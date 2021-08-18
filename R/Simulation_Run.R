@@ -5425,6 +5425,11 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
   runs.completed <- 0
 
+  on.exit(
+    print(summary(warnings())),
+    add = TRUE
+  )
+
   if (MoreArgs[["opt_verbosity"]][["verbose"]]) {
     t1 <- Sys.time()
     tmp_call <- shQuote(match.call()[1])
@@ -5623,12 +5628,25 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
         add = TRUE
       )
 
-#TODO: It seems like a bad hack to make this work without exporting the full data.frames
-# (e.g., SFSW2_prj_inputs[["SWRunInformation"]], SFSW2_prj_inputs[["sw_input_soillayers"]],
-# ...) to the workers. clusterLapplyLB does not work because do_OneSite has two indices
-# (i.e., i_sim and i_site). clusterMap operates on elements (i.e., columns of data.frames);
-# hence, I use split() to convert the data.frames to lists where the elements correspond
-# to the rows.
+      #TODO: It seems like a bad hack to make this work without exporting the
+      #full data.frames (e.g., SFSW2_prj_inputs[["SWRunInformation"]],
+      #SFSW2_prj_inputs[["sw_input_soillayers"]], ...) to the workers.
+      #clusterLapplyLB does not work because do_OneSite has two indices (i.e.,
+      #i_sim and i_site). clusterMap operates on elements (i.e., columns of
+      #data.frames); hence, I use split() to convert the data.frames to lists
+      #where the elements correspond to the rows.
+
+      # Use function from package "collapse" which is c. 30-50 times faster
+      # than base R "split"
+      fun_split <- if (requireNamespace("collapse")) {
+        collapse::rsplit
+      } else {
+        message(
+          "Splitting of input data frames required for parallelization by ",
+          "`sockets`, but this can be a slow process for large projects."
+        )
+        base::split
+      }
 
       temp_ids <- cbind(
         i_sim = MoreArgs[["sim_size"]][["runIDs_todo"]],
@@ -5640,43 +5658,43 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
         cl = SFSW2_glovars[["p_cl"]],
         fun = do_OneSite,
         i_sim = temp_ids[, "i_sim"],
-        i_SWRunInformation = split(
+        i_SWRunInformation = fun_split(
           SFSW2_prj_inputs[["SWRunInformation"]][temp_ids[, "i_site"], ],
           temp_seqs
         ),
-        i_sw_input_soillayers = split(
+        i_sw_input_soillayers = fun_split(
           SFSW2_prj_inputs[["sw_input_soillayers"]][temp_ids[, "i_site"], ],
           temp_seqs
         ),
-        i_sw_input_treatments = split(
+        i_sw_input_treatments = fun_split(
           SFSW2_prj_inputs[["sw_input_treatments"]][temp_ids[, "i_site"], ],
           temp_seqs
         ),
-        i_sw_input_cloud = split(
+        i_sw_input_cloud = fun_split(
           SFSW2_prj_inputs[["sw_input_cloud"]][temp_ids[, "i_site"], ],
           temp_seqs
         ),
-        i_sw_input_prod = split(
+        i_sw_input_prod = fun_split(
           SFSW2_prj_inputs[["sw_input_prod"]][temp_ids[, "i_site"], ],
           temp_seqs
         ),
-        i_sw_input_site = split(
+        i_sw_input_site = fun_split(
           SFSW2_prj_inputs[["sw_input_site"]][temp_ids[, "i_site"], ],
           temp_seqs
         ),
-        i_sw_input_soils = split(
+        i_sw_input_soils = fun_split(
           SFSW2_prj_inputs[["sw_input_soils"]][temp_ids[, "i_site"], ],
           temp_seqs
         ),
-        i_sw_input_weather = split(
+        i_sw_input_weather = fun_split(
           SFSW2_prj_inputs[["sw_input_weather"]][temp_ids[, "i_site"], ],
           temp_seqs
         ),
-        i_sw_input_climscen = split(
+        i_sw_input_climscen = fun_split(
           SFSW2_prj_inputs[["sw_input_climscen"]][temp_ids[, "i_site"], ],
           temp_seqs
         ),
-        i_sw_input_climscen_values = split(
+        i_sw_input_climscen_values = fun_split(
           SFSW2_prj_inputs[["sw_input_climscen_values"]][temp_ids[, "i_site"], ],
           temp_seqs
         ),
