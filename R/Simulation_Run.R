@@ -2223,9 +2223,11 @@ do_OneSite <- function(
       #--- Output tables: 'overall aggregation'
       print_debug(opt_verbosity, tag_simpidfid, "section", "overall aggregation")
 
-      if (!opt_behave[["resume"]] || (opt_behave[["resume"]] &&
-        do_out[["agg"]][sc, "aggregation_overall"]) && sim_size[["ncol_dbOut_overall"]] > 0) {
-
+      if (
+        !opt_behave[["resume"]] ||
+        (opt_behave[["resume"]] &&do_out[["agg"]][sc, "aggregation_overall"]) &&
+        sim_size[["ncol_dbOut_overall"]] >= 0
+      ) {
 
       if (Exclude_ClimateAmbient || sim_size[["ncol_dbOut_overall"]] == 0L) {
         temp <- paste(c(all_Pids[sc], if (sim_size[["ncol_dbOut_overall"]] > 0)

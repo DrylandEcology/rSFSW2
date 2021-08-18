@@ -553,6 +553,8 @@ req_scens <- list(
 # Turn aggregation for variable groups on (1) or off (0), don't delete any names
 req_out <- list(
   # Overall aggregated output table
+  #   - Note: `dbOutput` is created even if no aggregated output is requested
+  #     (because it is used internally by the code to organize simulations)
   overall_out = c(
   #---Aggregation: SOILWAT2 inputs
     "input_SoilProfile", 1,
