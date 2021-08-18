@@ -5638,7 +5638,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
       # Use function from package "collapse" which is c. 30-50 times faster
       # than base R "split"
-      fun_split <- if (requireNamespace("collapse")) {
+      fun_split <- if (requireNamespace("collapse", quietly = TRUE)) {
         collapse::rsplit
       } else {
         message(
