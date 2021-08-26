@@ -61,8 +61,7 @@ Batjes, N. H. 2012. ISRIC-WISE derived soil properties on a
 
 Batjes N.H. 2016. Harmonised soil property values for broad-scale
   modelling (WISE30sec) with estimates of global soil carbon stocks.
-  Geoderma 269, 61-68
-  (\url{http://dx.doi.org/10.1016/j.geoderma.2016.01.034}).
+  Geoderma 269, 61-68, \doi{10.1016/j.geoderma.2016.01.034}
 
 Batjes N.H. 2015. World soil property estimates for broad-scale
   modelling (WISE30sec, version 1.0). Report 2015/01, ISRIC-World Soil

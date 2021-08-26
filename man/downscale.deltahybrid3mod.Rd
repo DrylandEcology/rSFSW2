@@ -63,7 +63,7 @@ Anandhi, A., A. Frei, D. C. Pierson, E. M. Schneiderman, M. S. Zion, D.
 
 Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of
  climate change projections on streamflow in the Nooksack River basin, Northwest
- Washington. Hydrological Processes: \url{http://dx.doi.org/10.1002/hyp.10012}.
+ Washington. Hydrological Processes: \doi{10.1002/hyp.10012}.
 
 Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
  matching as an improvement to the equidistant approach in bias correction of

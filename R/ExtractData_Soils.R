@@ -499,8 +499,7 @@ try_cell_ISRICWISE <- function(i, sim_cells_SUIDs, template_simulationSoils,
 #'  The Netherlands. \url{http://library.wur.nl/WebQuery/wurpubs/443845}
 #' @references Batjes N.H. 2016. Harmonised soil property values for broad-scale
 #'   modelling (WISE30sec) with estimates of global soil carbon stocks.
-#'   Geoderma 269, 61-68
-#'   (\url{http://dx.doi.org/10.1016/j.geoderma.2016.01.034}).
+#'   Geoderma 269, 61-68, \doi{10.1016/j.geoderma.2016.01.034}
 #' @references Batjes N.H. 2015. World soil property estimates for broad-scale
 #'   modelling (WISE30sec, version 1.0). Report 2015/01, ISRIC-World Soil
 #'   Information, Wageningen [available at ISRIC Soil Data Hub],

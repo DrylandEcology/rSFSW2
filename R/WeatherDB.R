@@ -1111,11 +1111,11 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(
 #'   Thornton, P.E., Running, S.W., White, M.A. 1997.
 #'   Generating surfaces of daily meteorological variables over large regions of
 #'   complex terrain. Journal of Hydrology 190: 214 - 251.
-#'   \url{http://dx.doi.org/10.1016/S0022-1694(96)03128-9}
+#'   \doi{10.1016/S0022-1694(96)03128-9}
 #'
 #' @references
 #'   Daymet: Daily Surface Weather Data on a 1-km Grid for North America,
-#'   Version 4. \url{https://doi.org/10.3334/ORNLDAAC/1840}
+#'   Version 4. \doi{10.3334/ORNLDAAC/1840}
 #' @references
 #'   \url{https://github.com/khufkens/daymetr}
 #'
@@ -1757,7 +1757,7 @@ get_NCEPCFSR_data <- function(
 #'   (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010.
 #'   Research Data Archive at the National Center for Atmospheric Research,
 #'   Computational and Information Systems Laboratory.
-#'   \url{http://dx.doi.org/10.5065/D6513W89}.
+#'   \doi{10.5065/D6513W89}.
 #' @export
 GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW,
   dat_sites, tag_WeatherFolder, start_year, end_year, meta_cfsr,

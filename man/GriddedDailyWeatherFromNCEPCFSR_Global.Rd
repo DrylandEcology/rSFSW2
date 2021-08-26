@@ -55,5 +55,5 @@ Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis
   (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010.
   Research Data Archive at the National Center for Atmospheric Research,
   Computational and Information Systems Laboratory.
-  \url{http://dx.doi.org/10.5065/D6513W89}.
+  \doi{10.5065/D6513W89}.
 }

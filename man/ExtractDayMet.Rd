@@ -55,10 +55,10 @@ Thornton, P.E., Rupesh Shrestha, M.M. Thornton, S.C. Kao, Y. Wei,
 Thornton, P.E., Running, S.W., White, M.A. 1997.
   Generating surfaces of daily meteorological variables over large regions of
   complex terrain. Journal of Hydrology 190: 214 - 251.
-  \url{http://dx.doi.org/10.1016/S0022-1694(96)03128-9}
+  \doi{10.1016/S0022-1694(96)03128-9}
 
 Daymet: Daily Surface Weather Data on a 1-km Grid for North America,
-  Version 4. \url{https://doi.org/10.3334/ORNLDAAC/1840}
+  Version 4. \doi{10.3334/ORNLDAAC/1840}
 
 \url{https://github.com/khufkens/daymetr}
 }
