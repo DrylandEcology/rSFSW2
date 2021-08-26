@@ -927,79 +927,131 @@ do_OneSite <- function(
     print_debug(opt_verbosity, tag_simfid, "creating", "soils")
 
     # Use fixed column names
-    soil_cols <- c("depth_cm", "matricd", "gravel_content", "EvapBareSoil_frac",
-                    "transpGrass_frac", "transpShrub_frac", "transpTree_frac",
-                    "transpForb_frac", "sand", "clay", "imperm", "soilTemp_c")
+    soil_cols <- c(
+      "depth_cm", "matricd", "gravel_content", "EvapBareSoil_frac",
+      "transpGrass_frac", "transpShrub_frac", "transpTree_frac",
+      "transpForb_frac", "sand", "clay", "imperm", "soilTemp_c"
+    )
     soil_swdat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]])
     dimnames(soil_swdat)[[2]] <- soil_cols
 
     done.Imperm_L1 <- FALSE
-    if (sw_input_soils_use["Imperm_L1"] && any(create_treatments == "soilsin")) {
+
+    if (
+      sw_input_soils_use["Imperm_L1"] &&
+      any(create_treatments == "soilsin")
+    ) {
       soil_swdat[1, "imperm"] <- i_sw_input_soils$Imperm_L1
       done.Imperm_L1 <- TRUE
     }
 
     use_transpregion <- sw_input_soils_use[paste0("TranspRegion_L", ld)]
-    if (!identical(soil_source, "tr_soilsin") &&
-      sum(sw_input_soils_use) + {if (done.Imperm_L1) -1 else 0} - sum(use_transpregion) > 0) {
+    if (
+      !identical(soil_source, "tr_soilsin") &&
+      sum(sw_input_soils_use) +
+        {if (done.Imperm_L1) -1 else 0} - sum(use_transpregion) > 0
+    ) {
 
-      # Calculate soil layer structure, because any(create_treatments == "soilsin") and soilsin may have a different soil layer structure than the datafiles
+      # Calculate soil layer structure,
+      # because any(create_treatments == "soilsin") and
+      # soilsin may have a different soil layer structure than the datafiles
       temp <- stats::na.omit(as.numeric(
         i_sw_input_soillayers[grepl("depth_L", names(i_sw_input_soillayers))]
       ))
 
-      layers_depth.datafile <- temp[temp <= as.numeric(i_sw_input_soillayers["SoilDepth_cm"])]
+      tmp2 <- temp <= as.numeric(i_sw_input_soillayers["SoilDepth_cm"])
+      layers_depth.datafile <- temp[tmp2]
 
       if (length(layers_depth.datafile) == 0) {
-        # this condition arises if i_sw_input_soillayers["SoilDepth_cm"] < i_sw_input_soillayers["depth_L1"]
+        # this condition arises if
+        # i_sw_input_soillayers["SoilDepth_cm"] <
+        #   i_sw_input_soillayers["depth_L1"]
         layers_depth.datafile <- temp[1]
       }
 
       if (!identical(layers_depth.datafile, soil_swdat[, "depth_cm"])) {
-        # different soil layer structure in soilsin and datafile AND since variables are
-        # flagged in sw_input_soils_use => use only datafile values
-        soilLayers_N <- findInterval(i_sw_input_soillayers["SoilDepth_cm"] - SFSW2_glovars[["toln"]],
-          c(0, layers_depth.datafile))
-        soilLayers_N <- min(length(layers_depth.datafile), soilLayers_N, na.rm = TRUE)
+        # different soil layer structure in soilsin and datafile AND
+        # since variables are flagged in sw_input_soils_use
+        # => use only datafile values
+        soilLayers_N <- findInterval(
+          i_sw_input_soillayers["SoilDepth_cm"] - SFSW2_glovars[["toln"]],
+          c(0, layers_depth.datafile)
+        )
+        soilLayers_N <- min(
+          length(layers_depth.datafile),
+          soilLayers_N,
+          na.rm = TRUE
+        )
         soilLayers_N <- max(1, soilLayers_N, na.rm = TRUE)
         layers_depth <- adjustLayersDepth(layers_depth.datafile, soilLayers_N)
         layers_width <- rSW2data::getLayersWidth(layers_depth)
         ld <- setLayerSequence(soilLayers_N)
 
-        DeepestTopLayer <- setDeepestTopLayer(layers_depth, opt_agg[["aon_toplayer_cm"]])
+        DeepestTopLayer <- setDeepestTopLayer(
+          layers_depth,
+          opt_agg[["aon_toplayer_cm"]]
+        )
         topL <- setTopLayer(soilLayers_N, DeepestTopLayer)
         bottomL <- setBottomLayer(soilLayers_N, DeepestTopLayer)
       }
 
       #compile soil information from both sources
-      soildat <- matrix(0, nrow = soilLayers_N, ncol = length(soil_cols),
-                        dimnames = list(NULL, soil_cols))
+      soildat <- matrix(
+        0,
+        nrow = soilLayers_N,
+        ncol = length(soil_cols),
+        dimnames = list(NULL, soil_cols)
+      )
       soildat[, "depth_cm"] <- layers_depth.datafile[ld]
       infile_cols <- names(sw_input_soils_use)
 
-      coefs <- list(infile = c("Matricd", "GravelContent", "EvapCoeff", "Grass_TranspCoeff",
-                                "Shrub_TranspCoeff", "Tree_TranspCoeff", "Forb_TranspCoeff",
-                                "Sand", "Clay", "Imperm", "SoilTemp"),
-                    sw = soil_cols[-1])
+      coefs <- list(
+        infile = c(
+          "Matricd", "GravelContent", "EvapCoeff",
+          "Grass_TranspCoeff", "Shrub_TranspCoeff", "Tree_TranspCoeff",
+          "Forb_TranspCoeff",
+          "Sand", "Clay", "Imperm", "SoilTemp"
+        ),
+        sw = soil_cols[-1]
+      )
+
       for (iv in seq_along(coefs[[1]])) {
-        icol <- grep(coefs[["infile"]][iv], infile_cols, ignore.case = TRUE, value = TRUE)
-        if (length(icol) > soilLayers_N)
+        icol <- grep(
+          coefs[["infile"]][iv],
+          infile_cols,
+          ignore.case = TRUE,
+          value = TRUE
+        )
+
+        if (length(icol) > soilLayers_N) {
           icol <- icol[ld]
+        }
 
         if (length(icol) > 0) {
-          luse <- list(use = which(sw_input_soils_use[icol]),
-                        other = intersect(
-                                  which(!sw_input_soils_use[icol]),
-                                  seq_len(dim(soil_swdat)[1])))
-          for (k in 1:2) if (any(luse[[k]])) {
-            temp <- if (k == 1L) {
+          luse <- list(
+            use = which(sw_input_soils_use[icol]),
+            other = intersect(
+              which(!sw_input_soils_use[icol]),
+              seq_len(dim(soil_swdat)[1])
+            )
+          )
+
+          for (k in 1:2) {
+            if (any(luse[[k]])) {
+              temp <- if (k == 1L) {
                 as.numeric(i_sw_input_soils[, icol[luse[[k]]]])
               } else {
                 soil_swdat[luse[[k]], coefs[["sw"]][iv]]
               }
-            if (isTRUE(grepl("coeff", coefs[["infile"]][iv], ignore.case = TRUE)))
-              temp <- rSW2utils::scale_by_sum(temp)
-            soildat[luse[[k]], coefs[["sw"]][iv]] <- temp
+
+              if (isTRUE(
+                grepl("coeff", coefs[["infile"]][iv], ignore.case = TRUE)
+              )) {
+                temp <- rSW2utils::scale_by_sum(temp)
+              }
+
+              soildat[luse[[k]], coefs[["sw"]][iv]] <- temp
+            }
           }
         }
       }
@@ -1008,16 +1060,22 @@ do_OneSite <- function(
       if (opt_sim[["fix_depth_to_layers"]]) {
         for (k in soilLayers_N:1) {
           temp <- soildat[k, c("matricd", "sand", "clay")]
-          if (any(!is.na(temp)))
+
+          if (any(!is.na(temp))) {
             break
+          }
         }
+
         if (soilLayers_N != k) {
           soilLayers_N <- k
           layers_depth <- adjustLayersDepth(layers_depth, soilLayers_N)
           layers_width <- rSW2data::getLayersWidth(layers_depth)
           ld <- setLayerSequence(soilLayers_N)
 
-          DeepestTopLayer <- setDeepestTopLayer(layers_depth, opt_agg[["aon_toplayer_cm"]])
+          DeepestTopLayer <- setDeepestTopLayer(
+            layers_depth,
+            opt_agg[["aon_toplayer_cm"]]
+          )
           topL <- setTopLayer(soilLayers_N, DeepestTopLayer)
           bottomL <- setBottomLayer(soilLayers_N, DeepestTopLayer)
 
@@ -1030,20 +1088,31 @@ do_OneSite <- function(
       icols <- seq_along(soil_cols)[-icol_excl]
       bad_data <- !check_soil_data(soildat[, -icol_excl, drop = FALSE])
 
-      if (any(bad_data)) for (l in ld) {
-        lbad <- bad_data[l, ]
-        if (any(lbad)) {
-          if (l > 1L) {
-            soildat[l, icols[lbad]] <- soildat[l - 1L, icols[lbad]]
-            print(paste0(tag_simfid, ": layer ", l, " filled in with data imputed from ",
-              "previous layer: ", paste(names(lbad)[lbad], collapse = ", ")))
+      if (any(bad_data)) {
+        for (l in ld) {
+          lbad <- bad_data[l, ]
 
-          } else {
-            print(paste0(tag_simfid, ": data missing for 1st layer -> no data to impute: ",
-              "simulation will fail"))
-            print(soildat[l, icols])
-            tasks[, "create"] <- 0L
-            break
+          if (any(lbad)) {
+
+            if (l > 1L) {
+              soildat[l, icols[lbad]] <- soildat[l - 1L, icols[lbad]]
+              print(paste0(
+                tag_simfid, ": layer ", l,
+                " filled in with data imputed from ",
+                "previous layer: ",
+                paste(names(lbad)[lbad], collapse = ", ")
+              ))
+
+            } else {
+              print(paste0(
+                tag_simfid,
+                ": data missing for 1st layer -> no data to impute: ",
+                "simulation will fail"
+              ))
+              print(soildat[l, icols])
+              tasks[, "create"] <- 0L
+              break
+            }
           }
         }
       }
@@ -1055,12 +1124,13 @@ do_OneSite <- function(
       check_soil <- check_soil_data(soil_swdat)
 
       if (!all(check_soil)) {
-        print(paste0(tag_simfid, ": soil data didn't pass quality checks for:",
-          paste(soil_cols[colSums(!check_soil) > 0], collapse = ", ")))
+        print(paste0(
+          tag_simfid, ": soil data didn't pass quality checks for:",
+          paste(soil_cols[colSums(!check_soil) > 0], collapse = ", ")
+        ))
         print(soil_swdat)
         tasks[, "create"] <- 0L
       }
-
     }
 
     rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]]) <- soil_swdat
