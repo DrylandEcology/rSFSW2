@@ -528,8 +528,12 @@ load_preprocessed_inputs <- function(SFSW2_prj_meta, verbose = FALSE) {
 
 
 #' Load and prepare inputs for a \pkg{rSFSW2} simulation project
-process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
-  verbose = FALSE) {
+process_inputs <- function(
+  project_paths,
+  fnames_in,
+  use_preprocin = TRUE,
+  verbose = FALSE
+) {
 
   temp_call <- shQuote(match.call()[1])
   if (verbose) {
@@ -841,7 +845,9 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
 
     inputs <- list2env(x = temp, envir = new.env(parent = emptyenv()))
 
-    saveRDS(inputs, file = fnames_in[["fpreprocin"]])
+    if (use_preprocin) {
+      saveRDS(inputs, file = fnames_in[["fpreprocin"]])
+    }
 
   } else {
     inputs <- readRDS(fnames_in[["fpreprocin"]])
