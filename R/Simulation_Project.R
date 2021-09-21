@@ -450,8 +450,12 @@ is_project_description_outdated <- function(meta) {
 }
 
 
-gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE,
-  verbose = FALSE) {
+gather_project_inputs <- function(
+  SFSW2_prj_meta,
+  use_preprocin = TRUE,
+  verbose = FALSE,
+  resave = TRUE
+) {
 
   #--- Import data
   if (
@@ -481,10 +485,12 @@ gather_project_inputs <- function(SFSW2_prj_meta, use_preprocin = TRUE,
       checked = !SFSW2_prj_inputs[["do_check_include"]]
     )
 
-    save_to_rds_with_backup(
-      SFSW2_prj_meta,
-      file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]
-    )
+    if (resave) {
+      save_to_rds_with_backup(
+        SFSW2_prj_meta,
+        file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]
+      )
+    }
   }
 
   # Make sure that input-tracker is updated correctly if inputs were
