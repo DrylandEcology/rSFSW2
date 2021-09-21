@@ -1,18 +1,16 @@
-^appveyor\.yml$
-^\.appveyor_clear_cache\.txt$
-^\.travis\.yml$
-^codecov\.yml$
+^LICENSE\.md$
 ^CODE_OF_CONDUCT\.md$
+^Meta$
+^doc$
 ^data-raw$
-^.lintr$
-
-# RStudio stuff
+\.git*
+^\.travis\.yml$
+^\.appveyor\.yml$
+^\.appveyor_clear_cache\.txt$
+^codecov\.yml$
+^\.lintr$
+^\.github$
 ^.*\.Rproj$
 ^\.Rproj\.user$
-
-# CRAN stuff
 ^cran-comments\.md$
 ^NEWS\.md$
-
-^doc$
-^Meta$
