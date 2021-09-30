@@ -81,7 +81,7 @@ make_dbW <- function(
   ids_used <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
 
   tmp_by_dbW <- merge(
-    {
+    { # nolint
       tmp_var <- c(
         ID_by_rSFSW2 = "site_id",
         Longitude = "X_WGS84",
@@ -94,14 +94,14 @@ make_dbW <- function(
       )
       tmp[tmp == "NA"] <- NA
       tmp
-    },
-    {
+    }, # nolint
+    { # nolint
       tmp_dbW <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]]
       data.frame(
         ID_by_rSFSW2 = ids_used,
         ID_by_dbW = if (is.null(tmp_dbW)) NA else tmp_dbW
       )
-    },
+    }, # nolint
     by = "ID_by_rSFSW2"
   )
 
@@ -746,15 +746,17 @@ ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica <- function(dir_data,
   weathDataList
 }
 
-# Lambert Conformal Conic (LCC) projection
-# https://daymet.ornl.gov/overview
+# Lambert Conformal Conic (\var{LCC}) projection
+# \url{https://daymet.ornl.gov/overview}
 get_crs_LCC_DayMet <- function() {
+  # nolint start
       # "+proj=lcc",
       # "+lat_1=25 +lat_2=60 +lat_0=42.5",
       # "+lon_0=-100",
       # "+x_0=0 +y_0=0",
       # "+datum=WGS84",
       # "+units=m +no_defs"
+  # nolint end
 
   sf::st_crs(
     paste0(
@@ -814,13 +816,20 @@ get_DayMet_tileID <- function(x, crs = 4326) {
 #'
 #' @inheritParams rSW2st::as_points
 #'
-#' @return A named list with elements: \itemize{
-#'   \item cellID A character vector identifying daymet \var{gridcell}/pixels
-#'         with \var{LCC} coordinates of their lower-left corner.
-#'   \item dm_LCC A numeric matrix with \var{x} and \var{y} coordinates
-#'         of the \var{gridcell} centers in \var{LCC} projection.
-#'   \item dm_WGS84 A numeric matrix with \var{longitude} and \var{latitude}
-#'         coordinates of the \var{gridcell} centers.
+#' @return A named list with elements: \describe{
+#'   \item{cellID}{
+#'     A character vector identifying \var{daymet}
+#'     \var{gridcell}/pixels with \var{LCC} coordinates of their
+#'     lower-left corner.
+#'   }
+#'   \item{dm_LCC}{
+#'     A numeric matrix with \var{x} and \var{y} coordinates
+#'     of the \var{gridcell} centers in \var{LCC} projection.
+#'   }
+#'   \item{dm_WGS84}{
+#'     A numeric matrix with \var{longitude} and \var{latitude}
+#'     coordinates of the \var{gridcell} centers.
+#'   }
 #' }
 get_DayMet_cellID <- function(x, crs = 4326) {
   crs_LCC <- get_crs_LCC_DayMet()
@@ -1106,7 +1115,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(
 #'   Thornton, P.E., Rupesh Shrestha, M.M. Thornton, S.C. Kao, Y. Wei,
 #'   and B.E. Wilson.
 #'   Developments in a daily gridded meteorological data set for North America
-#'   -- Daymet Version 4. Draft Manuscript
+#'   -- \var{Daymet} Version 4. Draft Manuscript
 #' @references
 #'   Thornton, P.E., Running, S.W., White, M.A. 1997.
 #'   Generating surfaces of daily meteorological variables over large regions of
@@ -1114,7 +1123,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(
 #'   \doi{10.1016/S0022-1694(96)03128-9}
 #'
 #' @references
-#'   Daymet: Daily Surface Weather Data on a 1-km Grid for North America,
+#'   \var{Daymet}: Daily Surface Weather Data on a 1-km Grid for North America,
 #'   Version 4. \doi{10.3334/ORNLDAAC/1840}
 #' @references
 #'   \url{https://github.com/khufkens/daymetr}

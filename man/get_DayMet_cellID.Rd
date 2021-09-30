@@ -26,13 +26,20 @@ or of a class including
   or a \code{\link[sf]{sf}} or \code{\link[sf]{sfc}} class.}
 }
 \value{
-A named list with elements: \itemize{
-  \item cellID A character vector identifying daymet \var{gridcell}/pixels
-        with \var{LCC} coordinates of their lower-left corner.
-  \item dm_LCC A numeric matrix with \var{x} and \var{y} coordinates
-        of the \var{gridcell} centers in \var{LCC} projection.
-  \item dm_WGS84 A numeric matrix with \var{longitude} and \var{latitude}
-        coordinates of the \var{gridcell} centers.
+A named list with elements: \describe{
+  \item{cellID}{
+    A character vector identifying \var{daymet}
+    \var{gridcell}/pixels with \var{LCC} coordinates of their
+    lower-left corner.
+  }
+  \item{dm_LCC}{
+    A numeric matrix with \var{x} and \var{y} coordinates
+    of the \var{gridcell} centers in \var{LCC} projection.
+  }
+  \item{dm_WGS84}{
+    A numeric matrix with \var{longitude} and \var{latitude}
+    coordinates of the \var{gridcell} centers.
+  }
 }
 }
 \description{

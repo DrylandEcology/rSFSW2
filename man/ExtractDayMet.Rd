@@ -50,14 +50,14 @@ resolution.
 Thornton, P.E., Rupesh Shrestha, M.M. Thornton, S.C. Kao, Y. Wei,
   and B.E. Wilson.
   Developments in a daily gridded meteorological data set for North America
-  -- Daymet Version 4. Draft Manuscript
+  -- \var{Daymet} Version 4. Draft Manuscript
 
 Thornton, P.E., Running, S.W., White, M.A. 1997.
   Generating surfaces of daily meteorological variables over large regions of
   complex terrain. Journal of Hydrology 190: 214 - 251.
   \doi{10.1016/S0022-1694(96)03128-9}
 
-Daymet: Daily Surface Weather Data on a 1-km Grid for North America,
+\var{Daymet}: Daily Surface Weather Data on a 1-km Grid for North America,
   Version 4. \doi{10.3334/ORNLDAAC/1840}
 
 \url{https://github.com/khufkens/daymetr}

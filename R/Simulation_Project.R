@@ -172,7 +172,7 @@ obtain_existing_rSFSW2_project <- function(
 ) {
   objects <- match.arg(objects, several.ok = TRUE)
 
-  tmp <- setNames(vector("list", length = length(objects)), objects)
+  tmp <- stats::setNames(vector("list", length = length(objects)), objects)
 
   # Short-cutting `init_rSFSW2_project()`
   fmetar <- file.path(path, sub("\\.R|r$", ".rds", fmetar))

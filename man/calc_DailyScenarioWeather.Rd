@@ -16,7 +16,7 @@ calc_DailyScenarioWeather(
   compression_type,
   getYears,
   sim_scen_ids,
-  dir_out_temp,
+  dir_out_tmp,
   dir_failed,
   fdbWeather,
   resume,
