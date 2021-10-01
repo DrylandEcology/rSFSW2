@@ -95,7 +95,8 @@ climscen_metadata <- function() {
         id_gcm = 2,
         id_scen = 1,
         id_run = 3,
-        id_time = 6
+        id_timestart = 6,
+        id_timeend = 6
       )
     ),
 
@@ -128,7 +129,8 @@ climscen_metadata <- function() {
         id_gcm = 5,
         id_scen = 6,
         id_run = 7,
-        id_time = 8
+        id_timestart = 8,
+        id_timeend = 8
       )
     ),
 
@@ -158,7 +160,8 @@ climscen_metadata <- function() {
         id_gcm = 2,
         id_scen = 1,
         id_run = 3,
-        id_time = 6
+        id_timestart = 6,
+        id_timeend = 6
       )
     ),
 
@@ -188,7 +191,8 @@ climscen_metadata <- function() {
         id_gcm = 5,
         id_scen = 6,
         id_run = 7,
-        id_time = 8
+        id_timestart = 8,
+        id_timeend = 8
       )
     ),
 
@@ -242,7 +246,8 @@ climscen_metadata <- function() {
         id_gcm = 4,
         id_scen = 5,
         id_run = 6,
-        id_time = 7
+        id_timestart = 7,
+        id_timeend = 7
       )
     ),
 
@@ -272,7 +277,8 @@ climscen_metadata <- function() {
         id_gcm = 3,
         id_scen = 4,
         id_run = 5,
-        id_time = 6
+        id_timestart = 6,
+        id_timeend = 6
       )
     ),
 
@@ -302,7 +308,9 @@ climscen_metadata <- function() {
         id_gcm = 4,
         id_scen = 6,
         id_run = 5,
-        id_time = 7
+        id_timestart = 7,
+        id_timeend = 8
+      )
       )
     )
   )
@@ -4800,8 +4808,22 @@ select_suitable_CFs <- function(
     tmp_times <- lapply(
       fnc_parts2[ids_fnc],
       function(x) {
-        tmp <- x[climDB_meta[["str_fname"]]["id_time"]]
-        seq.int(as.integer(substr(tmp, 1, 4)), as.integer(substr(tmp, 8, 11)))
+        startyear <- substr(x[climDB_meta[["str_fname"]]["id_timestart"]], 1, 4)
+        tmp_end <- if (
+          climDB_meta[["str_fname"]]["id_timestart"] ==
+          climDB_meta[["str_fname"]]["id_timeend"]
+        ) {
+          strsplit(
+            x[climDB_meta[["str_fname"]]["id_timestart"]],
+            split = "-",
+            fixed = TRUE
+          )[[1]][2]
+        } else {
+          substr(x[climDB_meta[["str_fname"]]["id_timeend"]], 1, 4)
+        }
+        endyear <- substr(tmp_end, 1, 4)
+
+        seq.int(from = as.integer(startyear), to = as.integer(endyear))
       }
     )
 
@@ -5539,7 +5561,8 @@ get_climatechange_data <- function(
       ),
       id_scen = c("historical", "rcp26", "rcp45", "rcp60", "rcp85"),
       id_run = NULL,
-      id_time = NULL
+      id_timestart = NULL,
+      id_timeend = NULL
     )
     climDB_files <- NULL
   }
