@@ -5,7 +5,6 @@
 \title{Extract daily climate scenario data}
 \usage{
 calc_DailyScenarioWeather(
-  ids_ToDo,
   clim_source,
   climDB_meta,
   climDB_files,
@@ -13,6 +12,7 @@ calc_DailyScenarioWeather(
   reqRCPsPerGCM,
   reqDownscalingsPerGCM,
   locations,
+  meta_locations,
   compression_type,
   getYears,
   sim_scen_ids,
@@ -20,7 +20,8 @@ calc_DailyScenarioWeather(
   dir_failed,
   fdbWeather,
   resume,
-  verbose
+  chunk_size = 500L,
+  verbose = FALSE
 )
 }
 \description{

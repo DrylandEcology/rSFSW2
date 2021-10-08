@@ -2,7 +2,7 @@
 % Please edit documentation in R/ExtractData_ClimateDownscaling.R
 \name{PrepareClimateScenarios}
 \alias{PrepareClimateScenarios}
-\title{Extracts climate change scenarios and downscales monthly to daily time series}
+\title{Extracts monthly or daily climate change scenarios}
 \usage{
 PrepareClimateScenarios(
   SFSW2_prj_meta,
@@ -14,5 +14,59 @@ PrepareClimateScenarios(
 )
 }
 \description{
-Extracts climate change scenarios and downscales monthly to daily time series
+Downscales monthly to daily time series
 }
+\section{Details}{
+ Overview of algorithm:
+
+Function \code{PrepareClimateScenarios}
+\itemize{
+\item calls \code{ExtractClimateChangeScenarios()}
+}
+
+-> function \code{\link{ExtractClimateChangeScenarios}}
+\enumerate{
+\item prepares parallel setup
+\item loops over \var{clim_sources} calling \code{get_climatechange_data()}
+}
+
+-> function \code{\link{get_climatechange_data}}
+\enumerate{
+\item loops over repeated attempts calling \code{tryToGet_ClimDB()}
+\item calls \code{copy_tempdata_to_dbW()}
+}
+
+-> function \code{\link{tryToGet_ClimDB()}}
+\itemize{
+\item implements separate logic for monthly and daily data sets
+\item monthly data set
+\itemize{
+\item loops in parallel over \var{GCM} x location combinations
+calling \code{try_MonthlyScenarioWeather()}
+}
+\item daily data set
+\itemize{
+\item loops over chunks of locations
+\enumerate{
+\item calls \code{calc_DailyScenarioWeather()}
+\item calls \code{copy_tempdata_to_dbW()}
+}
+}
+}
+
+-> function \code{\link{calc_DailyScenarioWeather()}}
+\itemize{
+\item loops in parallel over \var{GCM} x \var{scenarios}
+calling \code{get_DailyScenarioData_netCDF()}
+}
+
+-> function \code{\link{get_DailyScenarioData_netCDF()}}
+\itemize{
+\item loops over chunks of locations
+\enumerate{
+\item calls \code{get_DailyGCMdata_netCDF()}
+\item calls \code{try_prepare_site_with_daily_scenario_weather()}
+}
+}
+}
+

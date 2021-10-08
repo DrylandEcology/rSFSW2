@@ -282,7 +282,7 @@ climscen_metadata <- function() {
       )
     ),
 
-    CMIP5_MACAv2metdata_USA = list(
+    CMIP5_MACAv2metdataAgg_USA = list(
       convention = "CF",
       tres = "daily",
       bbox = fill_bounding_box(
@@ -311,6 +311,36 @@ climscen_metadata <- function() {
         id_timestart = 7,
         id_timeend = 8
       )
+    ),
+
+    CMIP5_MACAv2metdata_USA = list(
+      convention = "CF",
+      tres = "daily",
+      bbox = fill_bounding_box(
+        template_bbox,
+        list(y = c(25.063, 49.396), x = -360 + c(235.228, 292.935))
+      ),
+      tbox = fill_bounding_box(
+        template_tbox,
+        list(t1 = c(1950, 2005), t2 = c(2006, 2099))
+      ),
+      var_desc = data.frame(
+        varname = c("precipitation", "air_temperature", "air_temperature", NA),
+        tag = tmp <- c("pr", "tasmin", "tasmax", "tas"),
+        fileVarTags = paste0("_", tmp, "_"),
+        unit_given = c("mm", "K", "K", "K"),
+        unit_real = c("mm/d", "K", "K", "K"),
+        row.names = var_names_fixed,
+        stringsAsFactors = FALSE
+      ),
+      sep_fname = "_",
+      str_fname = c(
+        id_var = 2,
+        id_gcm = 3,
+        id_scen = 5,
+        id_run = 4,
+        id_timestart = 6,
+        id_timeend = 7
       )
     )
   )
@@ -3429,6 +3459,7 @@ calc_MonthlyScenarioWeather <- function(
         scenario_names = all_scens
       )
 
+      stopifnot(!tmp[["is_sequential"]])
       fnc_gcmXscens <- tmp[["files"]]
       rip <- tmp[["rip"]]
     }
@@ -4006,9 +4037,14 @@ try_MonthlyScenarioWeather <- function(
 #------Daily netCDF extractions------
 
 extract_daily_variable_netCDF <- function(
-  filename,
+  filenames,
+  list_df_sites,
+  var_std,
   variable,
   unit,
+  unit_from,
+  var_rSW2,
+  unit_rSW2,
   tres = "daily",
   startyear,
   endyear,
@@ -4019,51 +4055,85 @@ extract_daily_variable_netCDF <- function(
 
   tres <- match.arg(tres)
 
-  nc <- ncdf4::nc_open(
-    filename = filename,
-    write = FALSE,
-    readunlim = TRUE,
-    verbose = FALSE
-  )
-  on.exit(ncdf4::nc_close(nc))
-
-  nc_var <- grep(
-    paste0("\\b", variable, "\\b"),
-    names(nc$var),
-    value = TRUE,
-    ignore.case = TRUE
+  rsw2_time <- as.Date(
+    apply(list_df_sites[[1]][, c("Year", "DOY")], 1, paste0, collapse = "-"),
+    "%Y-%j"
   )
 
-  stopifnot(length(nc_var) > 0)
-  stopifnot(isTRUE(tolower(unit) == tolower(nc$var[[nc_var]]$units)))
+  for (knc in seq_along(filenames)) {
+    nc <- ncdf4::nc_open(
+      filename = filenames[knc],
+      write = FALSE,
+      readunlim = TRUE,
+      verbose = FALSE
+    )
 
-  # dimnames
-  nc_perm <- sapply(nc$var[[nc_var]]$dim, function(x) x$name)
-  it <- grep("(\\btime\\b)|(\\bt\\b)", nc_perm, ignore.case = TRUE)
-  ilat <- grep("(\\lat\\b)|(\\blatitude\\b)", nc_perm, ignore.case = TRUE)
-  ilon <- grep("(\\lon\\b)|(\\blongitude\\b)", nc_perm, ignore.case = TRUE)
-  dimnames <- rep(NA, length = 3)
-  dimnames[it] <- "time"
-  dimnames[ilat] <- "latitude"
-  dimnames[ilon] <- "longitude"
+    nc_var <- grep(
+      paste0("\\b", variable, "\\b"),
+      names(nc$var),
+      value = TRUE,
+      ignore.case = TRUE
+    )
 
-  list(
-    nct = get_TimeIndices_netCDF(
-      filename = nc,
-      startyear = startyear,
-      endyear = endyear,
-      tres = tres
-    ),
+    stopifnot(length(nc_var) > 0)
+    stopifnot(isTRUE(tolower(unit) == tolower(nc$var[[nc_var]]$units)))
 
-    ncg = get_SpatialIndices_netCDF(
+    #--- Dimensions
+    nc_perm <- sapply(nc$var[[nc_var]]$dim, function(x) x$name)
+    it <- grep("(\\btime\\b)|(\\bt\\b)", nc_perm, ignore.case = TRUE)
+    ilat <- grep("(\\lat\\b)|(\\blatitude\\b)", nc_perm, ignore.case = TRUE)
+    ilon <- grep("(\\lon\\b)|(\\blongitude\\b)", nc_perm, ignore.case = TRUE)
+    dimnames <- rep(NA, length = 3)
+    dimnames[it] <- "time"
+    dimnames[ilat] <- "latitude"
+    dimnames[ilon] <- "longitude"
+
+    nct <- read_time_netCDF(nc, tres = tres)
+    ids_nct <- match(rsw2_time, as.Date(nct[["time"]]), nomatch = 0)
+    ids_nct2 <- ids_nct > 0
+
+    ncg <- get_SpatialIndices_netCDF(
       filename = nc,
       lon = lon,
       lat = lat
-    ),
+    )
 
-    dimnames = dimnames,
-    values = ncdf4::ncvar_get(nc, varid = variable)
-  )
+    ks_count <- ks_start <- rep(1, length = 3)
+    ks_start[it] <- min(ids_nct[ids_nct2])
+    ks_count[it] <- sum(ids_nct2)
+
+    for (ks in seq_along(list_df_sites)) {
+      ks_start[ilon] <- ncg[["ix"]][ks]
+      ks_start[ilat] <- ncg[["iy"]][ks]
+
+      tmp <- ncdf4::ncvar_get(
+        nc,
+        varid = variable,
+        start = ks_start,
+        count = ks_count
+      )
+
+      if (var_std == "prcp") {
+        tmp <- rSW2utils::convert_precipitation(
+          x = tmp,
+          unit_from = unit_from,
+          unit_to = unit_rSW2
+        )
+      } else if (var_std %in% c("tmin", "tmax", "tmean")) {
+        tmp <- rSW2utils::convert_temperature(
+          x = tmp,
+          unit_from = unit_from,
+          unit_to = unit_rSW2
+        )
+      }
+
+      list_df_sites[[ks]][ids_nct2, var_rSW2] <- tmp[ids_nct]
+    }
+
+    ncdf4::nc_close(nc)
+  }
+
+  list_df_sites
 }
 
 #' Extract all daily \var{GCM} projection values for precipitation, minimum and
@@ -4075,14 +4145,20 @@ extract_daily_variable_netCDF <- function(
 get_DailyGCMdata_netCDF <- function(
   i_tag,
   climDB_meta,
+  is_sequential,
   ncFiles,
   startyear,
   endyear,
   lon,
-  lat
+  lat,
+  df_site_template,
+  var_map
 ) {
 
   ctmp <- i_tag
+
+  list_df_sites <- lapply(seq_along(lon), function(k) df_site_template)
+
 
   #--- Extract precipitation data
   ftmp1 <- grep(
@@ -4092,32 +4168,41 @@ get_DailyGCMdata_netCDF <- function(
     value = TRUE
   )
 
-  if (length(ftmp1) == 1) {
-    prcp <- extract_daily_variable_netCDF(
-      filename = ftmp1,
-      variable = climDB_meta[["var_desc"]]["prcp", "varname"],
-      unit = climDB_meta[["var_desc"]]["prcp", "unit_given"],
-      tres = climDB_meta[["tres"]],
-      startyear = startyear,
-      endyear = endyear,
-      lon = lon,
-      lat = lat
+  if (length(ftmp1) == 0) {
+    stop(
+      "No suitable netCDF file with precipitation data ",
+      "available for combination ", ctmp
     )
   } else {
-    if (length(ftmp1) > 1) {
+    if (!is_sequential && length(ftmp1) > 1) {
       stop(
         "More than one netCDF file with precipitation data ",
         "available for combination ", ctmp,
         " with files = ",
         paste(shQuote(basename(ftmp1)), collapse = "/")
       )
-    } else {
-      stop(
-        "No suitable netCDF file with precipitation data ",
-        "available for combination ", ctmp
-      )
     }
   }
+
+  var <- "prcp"
+  itmp <- var_map[, "vars_get_DailyGCMdata_netCDF"] == var
+
+  list_df_sites <- extract_daily_variable_netCDF(
+    filenames = ftmp1,
+    list_df_sites = list_df_sites,
+    var_std = var,
+    variable = climDB_meta[["var_desc"]][var, "varname"],
+    unit = climDB_meta[["var_desc"]][var, "unit_given"],
+    unit_from = climDB_meta[["var_desc"]][var, "unit_real"],
+    var_rSW2 = var_map[itmp, "vars_rSW2"],
+    unit_rSW2 = var_map[itmp, "units_rSW2"],
+    tres = climDB_meta[["tres"]],
+    startyear = startyear,
+    endyear = endyear,
+    lon = lon,
+    lat = lat
+  )
+
 
   #--- Extract temperature data
   ftmp3 <- grep(
@@ -4134,29 +4219,7 @@ get_DailyGCMdata_netCDF <- function(
   )
 
   if (length(ftmp3) > 0 && length(ftmp4) > 0) {
-    if (length(ftmp3) == 1 && length(ftmp4) == 1) {
-      tmin <- extract_daily_variable_netCDF(
-        filename = ftmp3,
-        variable = climDB_meta[["var_desc"]]["tmin", "varname"],
-        unit = climDB_meta[["var_desc"]]["tmin", "unit_given"],
-        tres = climDB_meta[["tres"]],
-        startyear = startyear,
-        endyear = endyear,
-        lon = lon,
-        lat = lat
-      )
-
-      tmax <- extract_daily_variable_netCDF(
-        filename = ftmp4,
-        variable = climDB_meta[["var_desc"]]["tmax", "varname"],
-        unit = climDB_meta[["var_desc"]]["tmax", "unit_given"],
-        tres = climDB_meta[["tres"]],
-        startyear = startyear,
-        endyear = endyear,
-        lon = lon,
-        lat = lat
-      )
-    } else {
+    if (!is_sequential && (length(ftmp3) > 1 || length(ftmp4) > 1)) {
       stop(
         "More than one netCDF file with tmin/tmax data ",
         "available for combination ", ctmp,
@@ -4166,7 +4229,51 @@ get_DailyGCMdata_netCDF <- function(
         paste(shQuote(basename(ftmp4)), collapse = "/")
       )
     }
+
+    var <- "tmin"
+    itmp <- var_map[, "vars_get_DailyGCMdata_netCDF"] == var
+
+    list_df_sites <- extract_daily_variable_netCDF(
+      filenames = ftmp3,
+      list_df_sites = list_df_sites,
+      var_std = var,
+      variable = climDB_meta[["var_desc"]][var, "varname"],
+      unit = climDB_meta[["var_desc"]][var, "unit_given"],
+      unit_from = climDB_meta[["var_desc"]][var, "unit_real"],
+      var_rSW2 = var_map[itmp, "vars_rSW2"],
+      unit_rSW2 = var_map[itmp, "units_rSW2"],
+      tres = climDB_meta[["tres"]],
+      startyear = startyear,
+      endyear = endyear,
+      lon = lon,
+      lat = lat
+    )
+
+    var <- "tmax"
+    itmp <- var_map[, "vars_get_DailyGCMdata_netCDF"] == var
+
+    list_df_sites <- extract_daily_variable_netCDF(
+      filenames = ftmp4,
+      list_df_sites = list_df_sites,
+      var_std = var,
+      variable = climDB_meta[["var_desc"]][var, "varname"],
+      unit = climDB_meta[["var_desc"]][var, "unit_given"],
+      unit_from = climDB_meta[["var_desc"]][var, "unit_real"],
+      var_rSW2 = var_map[itmp, "vars_rSW2"],
+      unit_rSW2 = var_map[itmp, "units_rSW2"],
+      tres = climDB_meta[["tres"]],
+      startyear = startyear,
+      endyear = endyear,
+      lon = lon,
+      lat = lat
+    )
+
+
   } else {
+    vars <- c("tmin", "tmax", "tmean")
+    unit_from <- climDB_meta[["var_desc"]][vars, "unit_real"]
+    stopifnot(unit_from[1] == unit_from[2], unit_from[1] == unit_from[3])
+
     ftmp2 <- grep(
       climDB_meta[["var_desc"]]["tmean", "fileVarTags"],
       ncFiles,
@@ -4174,64 +4281,54 @@ get_DailyGCMdata_netCDF <- function(
       value = TRUE
     )
 
-    if (length(ftmp2) == 1) {
-      tmean <- extract_daily_variable_netCDF(
-        filename = ftmp2,
-        variable = climDB_meta[["var_desc"]]["tmean", "varname"],
-        unit = climDB_meta[["var_desc"]]["tmean", "unit_given"],
-        tres = climDB_meta[["tres"]],
-        startyear = startyear,
-        endyear = endyear,
-        lon = lon,
-        lat = lat
+    if (length(ftmp2) == 0) {
+      stop(
+        "No suitable netCDF file with mean temperature data ",
+        "available for combination ", ctmp
       )
-
-      tmin <- tmax <- tmean
-      vars <- c("tmin", "tmax", "tmean")
-      unit_from <- climDB_meta[["var_desc"]][vars, "unit_real"]
-      stopifnot(unit_from[1] == unit_from[2], unit_from[1] == unit_from[3])
     } else {
-      if (length(ftmp2) > 1) {
+      if (!is_sequential && length(ftmp2) > 1) {
         stop(
-          "More than one netCDF file with tmean data ",
+          "More than one netCDF file with mean temperature data ",
           "available for combination ", ctmp,
           " with files = ",
           paste(shQuote(basename(ftmp2)), collapse = "/")
         )
-      } else {
-        stop(
-          "No suitable netCDF file with temperature data ",
-          "available for combination ", ctmp
-        )
       }
+    }
+
+    var <- "tmin"
+    itmp <- var_map[, "vars_get_DailyGCMdata_netCDF"] == var
+
+    list_df_sites <- extract_daily_variable_netCDF(
+      filenames = ftmp1,
+      list_df_sites = list_df_sites,
+      var_std = var,
+      variable = climDB_meta[["var_desc"]]["tmean", "varname"],
+      unit = climDB_meta[["var_desc"]]["tmean", "unit_given"],
+      unit_from = climDB_meta[["var_desc"]]["tmean", "unit_real"],
+      var_rSW2 = var_map[itmp, "vars_rSW2"],
+      unit_rSW2 = var_map[itmp, "units_rSW2"],
+      tres = climDB_meta[["tres"]],
+      startyear = startyear,
+      endyear = endyear,
+      lon = lon,
+      lat = lat
+    )
+
+    # Copy tmean to both tmin/tmax
+    var_rSW2 <- var_map[itmp, "vars_rSW2"]
+    var <- "tmax"
+    itmp2 <- var_map[, "vars_get_DailyGCMdata_netCDF"] == var
+    var2_rSW2 <- var_map[itmp2, "vars_rSW2"]
+
+    for (ks in seq_along(list_df_sites)) {
+      list_df_sites[[ks]][, var2_rSW2] <- list_df_sites[[ks]][, var_rSW2]
     }
   }
 
-  #--- Convert units
-  prcp[["values"]] <- rSW2utils::convert_precipitation(
-    x = prcp[["values"]],
-    dpm = NA,
-    unit_from = climDB_meta[["var_desc"]]["prcp", "unit_real"],
-    unit_to = "cm/day"
-  )
 
-  tmin[["values"]] <- rSW2utils::convert_temperature(
-    x = tmin[["values"]],
-    unit_from = climDB_meta[["var_desc"]]["tmin", "unit_real"],
-    unit_to = "C"
-  )
-
-  tmax[["values"]] <- rSW2utils::convert_temperature(
-    x = tmax[["values"]],
-    unit_from = climDB_meta[["var_desc"]]["tmax", "unit_real"],
-    unit_to = "C"
-  )
-
-  list(
-    tmax = tmax,
-    tmin = tmin,
-    prcp = prcp
-  )
+  list_df_sites
 }
 
 
@@ -4246,6 +4343,7 @@ get_DailyScenarioData_netCDF <- function(
   climDB_meta,
   climDB_files,
   locations,
+  meta_locations = list(N = nrow(locations), offset = 0),
   getYears,
   fdbWeather,
   compression_type,
@@ -4253,7 +4351,8 @@ get_DailyScenarioData_netCDF <- function(
   dir_out_tmp,
   dir_failed,
   resume,
-  verbose
+  chunk_size = 500L,
+  verbose = FALSE
 ) {
 
   if (!rSOILWAT2::dbW_IsValid()) {
@@ -4261,17 +4360,6 @@ get_DailyScenarioData_netCDF <- function(
   }
 
   ids_Done <- NULL
-
-  #--- Determine RCP x GCM
-  sim_scen <- sim_scen_ids1[id_sim_scen]
-  id <- strsplit(sim_scen, split = ".", fixed = TRUE)[[1]]
-  gcm <- id[4]
-  igcm <- which(tolower(gcm) == tolower(reqGCMs))
-  stopifnot(length(igcm) == 1)
-  scen <- id[3]
-  isc <- which(tolower(scen) == tolower(reqRCPsPerGCM[[igcm]]))
-  stopifnot(length(isc) == 1)
-  slice <- if (tolower(scen) == "historical") "first" else "second"
 
 
   #--- Determine which sites still need data
@@ -4287,29 +4375,48 @@ get_DailyScenarioData_netCDF <- function(
 
   n_todo_sites <- length(ids_todo_sites)
 
-  if (length(ids_todo_sites) > 0) {
+  if (n_todo_sites > 0) {
+    # Create chunked index over sites:
     # `ids_seq_todo_sites is indexing objects subset by `ids_todo_sites`,
     # e.g., `x`
-    ids_seq_todo_sites <- seq_along(ids_todo_sites)
+    ids_seq_todo_sites <- rSW2utils::make_chunks(
+      n_todo_sites,
+      chunk_size = chunk_size
+    )
+    n_chunks <- length(ids_seq_todo_sites)
+
+    #--- Determine RCP x GCM
+    sim_scen <- sim_scen_ids1[id_sim_scen]
+    id <- strsplit(sim_scen, split = ".", fixed = TRUE)[[1]]
+    gcm <- id[4]
+    igcm <- which(tolower(gcm) == tolower(reqGCMs))
+    stopifnot(length(igcm) == 1)
+    scen <- id[3]
+    isc <- which(tolower(scen) == tolower(reqRCPsPerGCM[[igcm]]))
+    stopifnot(length(isc) == 1)
+    slice <- if (tolower(scen) == "historical") "first" else "second"
+
 
     if (verbose) {
       print(
         paste(
           "'get_DailyScenarioData_netCDF':", Sys.time(),
           "extracting data from", shQuote(sim_scen),
-          "for sites n =", n_todo_sites
+          "for sites n =", n_todo_sites,
+          "distributed in chunks k =", n_chunks
         )
       )
     }
 
     var_map <- data.frame(
-      vars_rSOILWAT2 = c("Tmax_C", "Tmin_C", "PPT_cm"),
+      vars_rSW2 = c("Tmax_C", "Tmin_C", "PPT_cm"),
+      units_rSW2 = c("C", "C", "cm/day"),
       vars_get_DailyGCMdata_netCDF = c("tmax", "tmin", "prcp"),
       stringsAsFactors = FALSE
     )
 
 
-    #--- Select netCDF files for this 'gcm', scenarios, and variables
+    #--- Select netCDF files for this 'gcm', scenario, and variables
     tmp <- select_suitable_CFs(
       climDB_files = climDB_files,
       climDB_meta = climDB_meta,
@@ -4320,68 +4427,83 @@ get_DailyScenarioData_netCDF <- function(
 
     fnc_gcmXscens <- tmp[["files"]]
     rip <- tmp[["rip"]]
+    is_sequential = tmp[["is_sequential"]]
 
 
-    #--- Extract data (for all sites at once)
-    x <- try(
-      get_DailyGCMdata_netCDF(
-        i_tag = paste(c(gcm, scen, rip), collapse = " * "),
-        climDB_meta = climDB_meta,
-        ncFiles = fnc_gcmXscens,
-        startyear = getYears[[slice]][1, 1],
-        endyear = getYears[[slice]][1, 2],
-        lon = locations[ids_todo_sites, "X_WGS84"],
-        lat = locations[ids_todo_sites, "Y_WGS84"]
-      ),
-      silent = TRUE
+    #--- Prepare template for daily weather data
+    tmp <- getYears[[paste0(slice, "_dates")]][[1]]
+
+    df_site_template <- data.frame(
+      Year = 1900 + tmp$year,
+      DOY = 1 + tmp$yday,
+      Tmax_C = NA,
+      Tmin_C = NA,
+      PPT_cm = NA
     )
 
-    if (!inherits(x, "try-error")) {
-      df_time <- x[["prcp"]][["nct"]][["time"]]
 
-      df_site_template <- data.frame(
-        Year = 1900 + df_time$year,
-        DOY = 1 + df_time$yday,
-        Tmax_C = NA,
-        Tmin_C = NA,
-        PPT_cm = NA
-      )
+    #--- Extract data (for chunk of sites)
+    for (k in seq_len(n_chunks)) {
+      ids_todo_chunk <- ids_todo_sites[ids_seq_todo_sites[[k]]]
+      locations_chunk <- locations[ids_todo_chunk, , drop = FALSE]
 
-      #--- Convert array into rSOILWAT2 weather objects for each site
-      tmp_ids <- lapply(
-        X = ids_seq_todo_sites,
-        FUN = try_prepare_site_with_daily_scenario_weather,
-        data = x,
-        rcp = scen,
-        scenario = sim_scen,
-        scenario_id_by_dbW = sim_scen_ids1_by_dbW[id_sim_scen],
-        site_ids_by_dbW = locations[ids_todo_sites, "Site_id_by_dbW"],
-        var_map = var_map,
-        df_time = df_time,
-        df_site_template = df_site_template,
-        compression_type = compression_type,
-        write_tmp_to_disk = write_tmp_to_disk,
-        path = file.path(dir_out_tmp, tolower(gcm)),
-        filenames = paste0(
-          clim_source,
-          "_SiteID", locations[ids_todo_sites, "site_id"], "-",
-          gcm, "-", scen,
-          ".rds"
+      x <- try(
+        get_DailyGCMdata_netCDF(
+          i_tag = paste(c(gcm, scen, rip), collapse = " * "),
+          climDB_meta = climDB_meta,
+          is_sequential = is_sequential,
+          ncFiles = fnc_gcmXscens,
+          startyear = getYears[[slice]][1, 1],
+          endyear = getYears[[slice]][1, 2],
+          lon = locations_chunk[, "X_WGS84"],
+          lat = locations_chunk[, "Y_WGS84"],
+          df_site_template = df_site_template,
+          var_map = var_map
         ),
-        dir_failed = dir_failed
+        silent = TRUE
       )
 
-      tmp_ids <- as.vector(stats::na.omit(unlist(tmp_ids)))
+      if (!inherits(x, "try-error")) {
+        #--- Convert list into rSOILWAT2 weather objects for each site
+        tmp_ids <- try_prepare_site_with_daily_scenario_weather(
+          x,
+          rcp = scen,
+          scenario = sim_scen,
+          scenario_id_by_dbW = sim_scen_ids1_by_dbW[id_sim_scen],
+          site_ids_by_dbW = locations_chunk[, "Site_id_by_dbW"],
+          compression_type = compression_type,
+          write_tmp_to_disk = write_tmp_to_disk,
+          path = file.path(dir_out_tmp, tolower(gcm)),
+          filenames = paste0(
+            clim_source,
+            "_SiteID", locations_chunk[, "site_id"], "-",
+            gcm, "-", scen,
+            ".rds"
+          ),
+          dir_failed = dir_failed
+        )
 
-      if (length(tmp_ids) > 0) {
-        ids_Done <- (ids_todo_sites[tmp_ids] - 1) * length(reqGCMs) + igcm
+        tmp_ids <- as.vector(stats::na.omit(unlist(tmp_ids)))
+
+        if (length(tmp_ids) > 0) {
+          #--- Translate `tmp_ids` into values for `ids_ToDo`/`ids_AllToDo`,
+          # i.e., length(reqGCMs) x nrow(locations_all)
+          # `meta_locations` corrects for chunking of `locations` by
+          # function `tryToGet_ClimDB()`
+          ids_Done <- c(
+            ids_Done,
+            (igcm - 1) * meta_locations[["N"]] +
+              meta_locations[["offset"]] + ids_todo_chunk[tmp_ids]
+          )
+        }
+
+      } else {
+        print(paste(
+          "'get_DailyScenarioData_netCDF': ",
+          "call to 'get_DailyGCMdata_netCDF' failed with error message:",
+          shQuote(attr(x, "condition")[["message"]])
+        ))
       }
-    } else {
-      print(paste(
-        "'get_DailyScenarioData_netCDF': ",
-        "call to 'get_DailyGCMdata_netCDF' failed with error message:",
-        shQuote(attr(x, "condition")[["message"]])
-      ))
     }
   }
 
@@ -4390,51 +4512,21 @@ get_DailyScenarioData_netCDF <- function(
 
 
 prepare_site_with_daily_scenario_weather <- function(
-  i,
-  data,
+  x,
   rcp,
   scenario,
   scenario_id_by_dbW,
   site_id_by_dbW,
-  var_map,
-  df_time,
-  df_site_template,
   compression_type,
   write_tmp_to_disk,
   filename
 ) {
 
-  df_site <- df_site_template
-
-  years <- range(df_site[, "Year"], na.rm = TRUE)
-
-  for (iv in seq_len(nrow(var_map))) {
-    v1 <- var_map[iv, "vars_get_DailyGCMdata_netCDF"]
-    v2 <- var_map[iv, "vars_rSOILWAT2"]
-
-    ix <- data[[v1]][["ncg"]][["ix"]][i]
-    iy <- data[[v1]][["ncg"]][["iy"]][i]
-
-    ids <- rep(NA, 3)
-    ilon <- which("longitude" == data[[v1]][["dimnames"]])
-    ids[ilon] <- ix
-    ilat <- which("latitude" == data[[v1]][["dimnames"]])
-    ids[ilat] <- iy
-
-    tmp <- eval(expr = str2expression(paste0(
-      "data[['", v1, "']][['values']][",
-      paste(ifelse(is.na(ids), "", ids), collapse = ","),
-      "]"
-    )))
-
-    idt <- match(df_time, data[[v1]][["nct"]][["time"]], nomatch = 0)
-
-    df_site[idt > 0, v2] <- tmp[idt]
-  }
+  years <- range(x[, "Year"], na.rm = TRUE)
 
   scen_fut_daily <- rSOILWAT2::dbW_dataframe_to_weatherData(
-    weatherDF = df_site,
-    weatherDF_dataColumns = colnames(df_site)[-1]
+    weatherDF = x,
+    weatherDF_dataColumns = colnames(x)[-1]
   )
 
   blob_scen_fut_daily <- rSOILWAT2::dbW_weatherData_to_blob(
@@ -4480,15 +4572,11 @@ prepare_site_with_daily_scenario_weather <- function(
 }
 
 try_prepare_site_with_daily_scenario_weather <- function(
-  i,
-  data,
+  x,
   rcp,
   scenario,
   scenario_id_by_dbW,
   site_ids_by_dbW,
-  var_map,
-  df_time,
-  df_site_template,
   compression_type,
   write_tmp_to_disk,
   path,
@@ -4496,37 +4584,36 @@ try_prepare_site_with_daily_scenario_weather <- function(
   dir_failed
 ) {
 
-  tmp <- try(
-    prepare_site_with_daily_scenario_weather(
-      i = i,
-      data = data,
-      rcp = rcp,
-      scenario = scenario,
-      scenario_id_by_dbW = scenario_id_by_dbW,
-      site_id_by_dbW = site_ids_by_dbW[i],
-      var_map = var_map,
-      df_time = df_time,
-      df_site_template = df_site_template,
-      compression_type = compression_type,
-      write_tmp_to_disk = write_tmp_to_disk,
-      filename = file.path(path, filenames[i])
-    )
-  )
+  res <- rep(NA, length(x))
 
-  if (inherits(tmp, "try-error")) {
-    print(paste(Sys.time(), tmp))
-
-    save(
-      list = ls(),
-      file = file.path(
-        dir_failed,
-        paste0("ClimScenDaily_failed_", filenames[i], ".RData")
+  for (i in seq_along(x)) {
+    tmp <- try(
+      prepare_site_with_daily_scenario_weather(
+        x[[i]],
+        rcp = rcp,
+        scenario = scenario,
+        scenario_id_by_dbW = scenario_id_by_dbW,
+        site_id_by_dbW = site_ids_by_dbW[i],
+        compression_type = compression_type,
+        write_tmp_to_disk = write_tmp_to_disk,
+        filename = file.path(path, filenames[i])
       )
     )
 
-    res <- NA
-  } else {
-    res <- i
+    if (inherits(tmp, "try-error")) {
+      print(paste(Sys.time(), tmp))
+
+      save(
+        list = ls(),
+        file = file.path(
+          dir_failed,
+          paste0("ClimScenDaily_failed_", filenames[i], ".RData")
+        )
+      )
+
+    } else {
+      res[i] <- i
+    }
   }
 
   res
@@ -4553,7 +4640,6 @@ try_prepare_site_with_daily_scenario_weather <- function(
 #' @seealso \code{\link{calc_MonthlyScenarioWeather}}
 #'
 calc_DailyScenarioWeather <- function(
-  ids_ToDo,
   clim_source,
   climDB_meta,
   climDB_files,
@@ -4561,6 +4647,7 @@ calc_DailyScenarioWeather <- function(
   reqRCPsPerGCM,
   reqDownscalingsPerGCM,
   locations,
+  meta_locations,
   compression_type,
   getYears,
   sim_scen_ids,
@@ -4568,12 +4655,11 @@ calc_DailyScenarioWeather <- function(
   dir_failed,
   fdbWeather,
   resume,
-  verbose
+  chunk_size = 500L,
+  verbose = FALSE
 ) {
 
-  #--- ids_ToDo based on length(reqGCMs) x nrow(locations)
-  # TODO: this should also consider reqRCPs
-  ids_Done <- NULL
+  ids_Done <- NULL # values of `ids_ToDo` that are completed
 
   stopifnot(all(unlist(reqDownscalingsPerGCM) == "idem"))
 
@@ -4604,6 +4690,7 @@ calc_DailyScenarioWeather <- function(
           ids_seq_scens,
           get_DailyScenarioData_netCDF,
           locations = locations,
+          meta_locations = meta_locations,
           sim_scen_ids1 = sim_scen_ids[-1],
           sim_scen_ids1_by_dbW = sim_scen_ids1_by_dbW,
           reqGCMs = reqGCMs,
@@ -4618,8 +4705,10 @@ calc_DailyScenarioWeather <- function(
           dir_out_tmp = dir_out_tmp,
           dir_failed = dir_failed,
           resume = resume,
+          chunk_size = chunk_size,
           verbose = verbose
         )
+
       } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
         parallel::clusterCall(
           SFSW2_glovars[["p_cl"]],
@@ -4639,6 +4728,7 @@ calc_DailyScenarioWeather <- function(
           x = ids_seq_scens,
           fun = get_DailyScenarioData_netCDF,
           locations = locations,
+          meta_locations = meta_locations,
           sim_scen_ids1 = sim_scen_ids[-1],
           sim_scen_ids1_by_dbW = sim_scen_ids1_by_dbW,
           reqGCMs = reqGCMs,
@@ -4653,8 +4743,10 @@ calc_DailyScenarioWeather <- function(
           dir_out_tmp = dir_out_tmp,
           dir_failed = dir_failed,
           resume = resume,
+          chunk_size = chunk_size,
           verbose = verbose
         )
+
       } else {
         ids_Done <- NULL
       }
@@ -4665,6 +4757,7 @@ calc_DailyScenarioWeather <- function(
         ids_seq_scens,
         FUN = get_DailyScenarioData_netCDF,
         locations = locations,
+        meta_locations = meta_locations,
         sim_scen_ids1 = sim_scen_ids[-1],
         sim_scen_ids1_by_dbW = sim_scen_ids1_by_dbW,
         reqGCMs = reqGCMs,
@@ -4679,9 +4772,11 @@ calc_DailyScenarioWeather <- function(
         dir_out_tmp = dir_out_tmp,
         dir_failed = dir_failed,
         resume = resume,
+        chunk_size = chunk_size,
         verbose = verbose
       )
     }
+
   } else {
     print(paste(
       "'calc_DailyScenarioWeather': ",
@@ -4777,9 +4872,12 @@ select_suitable_CFs <- function(
     )
   }
 
-  # Double check what time period to choose (the one with the most overlap to
-  # requested years) if multiple netCDF files for selected combination of
-  # scen x var x rip are present
+  #--- Presence of multiple netCDFs per `scen x var x rip` combination
+  # Determine cause of multiple netCDFS:
+  # * (partially) duplicate files one of which covers the requested time period
+  # * multiple sequential files that combined cover the requested time period
+  is_sequential <- FALSE
+
   pnc_count_rip <- array(
     pnc_count[, , rip],
     dim = dim(pnc_count)[1:2],
@@ -4798,6 +4896,7 @@ select_suitable_CFs <- function(
   )
 
   for (k in seq_len(nrow(i_count_rip))) {
+    itmp_remove <- NULL
     tmp_var <- colnames(pnc_count_rip)[i_count_rip[k, "col"]]
     tmp_scen <- rownames(pnc_count_rip)[i_count_rip[k, "row"]]
 
@@ -4805,6 +4904,7 @@ select_suitable_CFs <- function(
       fnc_parts2,
       function(x) any(x == rip) && any(x == tmp_var) && any(x == tmp_scen)
     ))
+
     tmp_times <- lapply(
       fnc_parts2[ids_fnc],
       function(x) {
@@ -4827,12 +4927,38 @@ select_suitable_CFs <- function(
       }
     )
 
-    tmp_overlap <- sapply(tmp_times, function(x) sum(x %in% req_years))
-    imax_overlap <- which.max(tmp_overlap) # the one to keep
-    itmp_remove <- ids_fnc[-imax_overlap]
+    # Temporal overlap with requested years (remove files without overlap)
+    has_overlap1 <- sapply(tmp_times, function(x) sum(x %in% req_years))
+    itmp_remove <- c(itmp_remove, ids_fnc[has_overlap1 == 0])
 
-    files <- files[-itmp_remove]
-    fnc_parts2 <- fnc_parts2[-itmp_remove]
+    # Temporal overlap among netCDFs or sequential?
+    tmp_overlap2 <- outer(
+      tmp_times,
+      tmp_times,
+      FUN = function(x, y) {
+        sapply(
+          seq_along(x),
+          function(k) any(intersect(x[[k]], y[[k]]))
+        )
+      }
+    )
+    tmp_overlap2[lower.tri(tmp_overlap2, diag = TRUE)] <- NA
+
+    if (any(tmp_overlap2, na.rm = TRUE)) {
+      # Duplicate files that (partially) cover the requested time period
+      # --> select the one with the longest coverage
+      itmp_remove <- c(itmp_remove, ids_fnc[-which.max(has_overlap1)])
+
+    } else {
+      # Multiple sequential files that combined cover the requested time period
+      # --> keep the ones that (partially) cover the requested time period
+      is_sequential <- TRUE
+    }
+
+    if (length(itmp_remove) > 0) {
+      files <- files[-itmp_remove]
+      fnc_parts2 <- fnc_parts2[-itmp_remove]
+    }
   }
 
   # Subset files to selected rip
@@ -4853,23 +4979,44 @@ select_suitable_CFs <- function(
     function(x) x[climDB_meta[["str_fname"]][c("id_scen", "id_var")]]
   )
   pnc_count <- table(ptmp[1, ], ptmp[2, ])
-  pnc_tmp <- apply(pnc_count, 2, function(x) sum(x == 1) >= n_scens)
+  pnc_tmp <- apply(
+    pnc_count,
+    MARGIN = 2,
+    FUN = function(x) {
+      tmp <- if (is_sequential) sum(x >= 1) else sum(x == 1)
+      tmp >= n_scens
+    }
+  )
 
-  pnc_avail <- pnc_tmp[climDB_meta[["var_desc"]]["prcp", "tag"]] && (
-    pnc_tmp[climDB_meta[["var_desc"]]["tmean", "tag"]] ||
-      all(pnc_tmp[climDB_meta[["var_desc"]][c("tmin", "tmax"), "tag"]]))
+  pnc_avail <- stats::setNames(
+    rep(FALSE, length(climDB_meta[["var_desc"]][, "tag"])),
+    climDB_meta[["var_desc"]][, "tag"]
+  )
 
+  pnc_avail[climDB_meta[["var_desc"]]["prcp", "tag"]] <-
+    climDB_meta[["var_desc"]]["prcp", "tag"] %in% names(pnc_tmp) &&
+      pnc_tmp[climDB_meta[["var_desc"]]["prcp", "tag"]]
 
-  if (!pnc_avail) {
+  pnc_avail[climDB_meta[["var_desc"]][c("tmean", "tmin", "tmax"), "tag"]] <-
+    (
+      climDB_meta[["var_desc"]]["tmean", "tag"] %in% names(pnc_tmp) &&
+        pnc_tmp[climDB_meta[["var_desc"]]["tmean", "tag"]]
+    ) ||
+    all(
+      climDB_meta[["var_desc"]][c("tmin", "tmax"), "tag"] %in% names(pnc_tmp) &
+        pnc_tmp[climDB_meta[["var_desc"]][c("tmin", "tmax"), "tag"]]
+    )
+
+  if (!all(pnc_avail)) {
     stop(
       "File(s) for model ", shQuote(model_name),
       " and scenario(s) ", paste(shQuote(scenario_names), collapse = "/"),
       " not available for required variables: ",
-      paste(shQuote(names(pnc_tmp)[!pnc_tmp]), collapse = "/")
+      paste(shQuote(names(pnc_avail)[!pnc_avail]), collapse = "/")
     )
   }
 
-  list(rip = rip, files = files)
+  list(rip = rip, files = files, is_sequential = is_sequential)
 }
 
 #' Organizes the calls (in parallel) which obtain specified scenario weather
@@ -4880,9 +5027,9 @@ select_suitable_CFs <- function(
 #'
 #' @section Details:
 #' The daily extractions parallelize over \var{GCM} x \var{scenario}
-#' combinations, i.e., data for all \var{locations} are extracted for
+#' combinations, i.e., data for chunks of \var{locations} are extracted for
 #' one value of \var{GCM} x \var{scenario} at a time. This is good if
-#' file handling is slow and memory is not limiting.
+#' file handling is slow and chunk size is adjusted to fit available memory.
 #'
 #' The monthly extractions parallelize over \var{GCM} x \var{locations}
 #' combinations, i.e., data for one \var{location} is extracted for
@@ -4903,6 +5050,7 @@ tryToGet_ClimDB <- function(
   reqRCPsPerGCM,
   reqDownscalingsPerGCM,
   locations,
+  is_idem,
   getYears,
   assocYears,
   project_paths,
@@ -4914,43 +5062,65 @@ tryToGet_ClimDB <- function(
   seeds_DS,
   sim_scens,
   resume,
-  verbose,
-  print.debug,
+  chunk_size = 500L,
+  verbose = FALSE,
+  print.debug = FALSE,
   seed = NA
 ) {
+
+  #--- ids_ToDo based on length(reqGCMs) x nrow(locations)
 
   # requests ids_ToDo: fastest if nc file is
   #  - DONE: permutated to (lat, lon, time) instead (time, lat, lon)
   #  - TODO: many sites are extracted from one nc-read instead of one site
   #          per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
-  # TODO: create chunks for ids_ToDo of size sites_per_chunk_N that use the
-  #      same access to a nc file and distribute among workersN
+  #          (DONE for `is_idem`)
 
-  do_idem <-
-    "dall" %in% rownames(sim_time[["future_yrs"]]) &&
-      "idem" %in% unlist(reqDownscalingsPerGCM) &&
-      "daily" %in% climDB_meta[["tres"]] &&
-      use_CF
-
-  if (do_idem) {
-    ids_Done <- calc_DailyScenarioWeather(
-      ids_ToDo = ids_ToDo,
-      clim_source = clim_source,
-      climDB_meta = climDB_meta,
-      climDB_files = climDB_files,
-      reqGCMs = reqGCMs,
-      reqRCPsPerGCM = reqRCPsPerGCM,
-      reqDownscalingsPerGCM = reqDownscalingsPerGCM,
-      locations = locations,
-      compression_type = dbW_compression_type,
-      getYears = getYears,
-      sim_scen_ids = sim_scens[["id"]],
-      dir_out_tmp = project_paths[["dir_out_temp"]],
-      dir_failed = dir_failed,
-      fdbWeather = fdbWeather,
-      resume = resume,
-      verbose = verbose
+  if (is_idem) {
+    #--- Create chunked index over locations
+    ids_seq_todo_sites <- rSW2utils::make_chunks(
+      nrow(locations),
+      chunk_size = chunk_size
     )
+    n_chunks <- length(ids_seq_todo_sites)
+
+    #--- Loop over chunks
+    for (k in seq_len(n_chunks)) {
+      ids_todo_chunk <- ids_todo_sites[ids_seq_todo_sites[[k]]]
+
+      #--- Extract data
+      ids_Done <- calc_DailyScenarioWeather(
+        clim_source = clim_source,
+        climDB_meta = climDB_meta,
+        climDB_files = climDB_files,
+        reqGCMs = reqGCMs,
+        reqRCPsPerGCM = reqRCPsPerGCM,
+        reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+        locations = locations[ids_todo_chunk, , drop = FALSE],
+        meta_locations = list(
+          N = nrow(locations),
+          offset = min(ids_todo_chunk) - 1
+        ),
+        compression_type = dbW_compression_type,
+        getYears = getYears,
+        sim_scen_ids = sim_scens[["id"]],
+        dir_out_tmp = project_paths[["dir_out_temp"]],
+        dir_failed = dir_failed,
+        fdbWeather = fdbWeather,
+        resume = resume,
+        chunk_size = chunk_size,
+        verbose = verbose
+      )
+
+      #--- Process any temporary datafile
+      copy_tempdata_to_dbW(
+        fdbWeather = fdbWeather,
+        clim_source = clim_source,
+        dir_out_tmp = project_paths[["dir_out_temp"]],
+        verbose = verbose
+      )
+    }
+
   } else {
     stopifnot("daily" != climDB_meta[["tres"]])
 
@@ -4971,14 +5141,19 @@ tryToGet_ClimDB <- function(
         ids_Done <- Rmpi::mpi.applyLB(
           ids_ToDo,
           try_MonthlyScenarioWeather,
-          clim_source = clim_source, use_CF = use_CF, use_NEX = use_NEX,
-          climDB_meta = climDB_meta, climDB_files = climDB_files,
-          reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
+          clim_source = clim_source,
+          use_CF = use_CF,
+          use_NEX = use_NEX,
+          climDB_meta = climDB_meta,
+          climDB_files = climDB_files,
+          reqGCMs = reqGCMs,
+          reqRCPsPerGCM = reqRCPsPerGCM,
           reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
           locations = locations,
           compression_type = dbW_compression_type,
-          getYears = getYears, assocYears = assocYears,
+          getYears = getYears,
+          assocYears = assocYears,
           sim_time = sim_time,
           seeds_DS = seeds_DS,
           opt_DS = sim_scens[["opt_DS"]],
@@ -5346,7 +5521,7 @@ calc_timeSlices <- function(sim_time, tbox) {
   timeSlices
 }
 
-calc_getYears <- function(timeSlices) {
+calc_getYears <- function(timeSlices, is_idem = FALSE) {
   # get unique time slices
   tmp1 <- unique_times(timeSlices, slice = "first")
   tmp2 <- unique_times(timeSlices, slice = "second")
@@ -5358,7 +5533,7 @@ calc_getYears <- function(timeSlices) {
     second = tmp2
   )
 
-  # Monthly time-series
+  # Monthly/daily time-series
   tmp1 <- list(
     ISOdate(x[["first"]][, 1], 1, 1, tz = "UTC"),
     ISOdate(x[["first"]][, 2], 12, 31, tz = "UTC")
@@ -5368,47 +5543,68 @@ calc_getYears <- function(timeSlices) {
     ISOdate(x[["second"]][, 2], 12, 31, tz = "UTC")
   )
 
-  x[["first_dates"]] <- lapply(
+  daily_dates_first <- lapply(
     seq_len(x[["n_first"]]),
     function(it) {
       as.POSIXlt(seq(
         from = tmp1[[1]][it],
         to = tmp1[[2]][it],
-        by = "1 month"
-      ))
-    }
-  )
-  x[["second_dates"]] <- lapply(
-    seq_len(x[["n_second"]]),
-    function(it) {
-      as.POSIXlt(seq(
-        from = tmp2[[1]][it],
-        to = tmp2[[2]][it],
-        by = "1 month"
+        by = "1 day"
       ))
     }
   )
 
-  # Days per month
-  x[["first_dpm"]] <- lapply(
-    seq_len(x[["n_first"]]),
-    function(it) {
-      tmp <- as.POSIXlt(seq(
-        from = tmp1[[1]][it],
-        to = tmp1[[2]][it],
-        by = "1 day"
-      ))
-      rle(tmp$mon)$lengths
-    }
-  )
-  x[["second_dpm"]] <- lapply(
+  daily_dates_second <- lapply(
     seq_len(x[["n_second"]]),
     function(it) {
-      tmp <- as.POSIXlt(seq(
+      as.POSIXlt(seq(
         from = tmp2[[1]][it],
         to = tmp2[[2]][it],
         by = "1 day"
       ))
+    }
+  )
+
+  x[["first_dates"]] <- if (is_idem) {
+    daily_dates_first
+  } else {
+    lapply(
+      seq_len(x[["n_first"]]),
+      function(it) {
+        as.POSIXlt(seq(
+          from = tmp1[[1]][it],
+          to = tmp1[[2]][it],
+          by = "1 month"
+        ))
+      }
+    )
+  }
+
+  x[["second_dates"]] <- if (is_idem) {
+    daily_dates_second
+  } else {
+    lapply(
+      seq_len(x[["n_second"]]),
+      function(it) {
+        as.POSIXlt(seq(
+          from = tmp2[[1]][it],
+          to = tmp2[[2]][it],
+          by = "1 month"
+        ))
+      }
+    )
+  }
+
+  # Days per month
+  x[["first_dpm"]] <- lapply(
+    daily_dates_first,
+    function(tmp) {
+      rle(tmp$mon)$lengths
+    }
+  )
+  x[["second_dpm"]] <- lapply(
+    daily_dates_second,
+    function(tmp) {
       rle(tmp$mon)$lengths
     }
   )
@@ -5417,10 +5613,16 @@ calc_getYears <- function(timeSlices) {
 }
 
 
-calc_assocYears <- function(sim_time, reqRCPs, getYears, timeSlices) {
+calc_assocYears <- function(
+  sim_time,
+  reqRCPs,
+  getYears,
+  timeSlices,
+  is_idem = FALSE
+) {
   deltas <- rownames(sim_time[["future_yrs"]])
 
-  if ("dall" %in% deltas) {
+  if (is_idem && "dall" %in% deltas) {
     future_N <- 0
     names_assocYears <- "dall"
   } else {
@@ -5465,6 +5667,7 @@ get_climatechange_data <- function(
   climDB_meta,
   dbW_compression_type,
   resume,
+  chunk_size = 500L,
   verbose = FALSE,
   print.debug = FALSE
 ) {
@@ -5520,6 +5723,20 @@ get_climatechange_data <- function(
       stop("Could find no files for ", shQuote(clim_source), " in ", dir_ex_dat)
     }
 
+    # Fix `climDB_meta` in case files represent time-combined MACA data
+    if (isTRUE(identical(clim_source, "CMIP5_MACAv2metdata_USA"))) {
+      tmp <- unique(sapply(
+        strsplit(basename(climDB_files), split = "_", fixed = TRUE),
+        function(x) paste0(x[1:2], collapse = "_")
+      ))
+
+      if (isTRUE(identical(tmp, "agg_macav2metdata"))) {
+        climDB_meta <- climscen_metadata()[["CMIP5_MACAv2metdataAgg_USA"]]
+      }
+    }
+
+
+    # Extract metadata from file names
     climDB_fname_meta <- strsplit(
       basename(climDB_files),
       split = climDB_meta[["sep_fname"]],
@@ -5623,6 +5840,12 @@ get_climatechange_data <- function(
     )
   }
 
+  is_idem <-
+    "dall" %in% rownames(SFSW2_prj_meta[["sim_time"]][["future_yrs"]]) &&
+    "idem" %in% unlist(SFSW2_prj_meta[["sim_scens"]][["reqDSsPerM"]]) &&
+    "daily" %in% climDB_meta[["tres"]] &&
+    use_CF
+
   # calculate time slices
   timeSlices <- calc_timeSlices(
     sim_time = SFSW2_prj_meta[["sim_time"]],
@@ -5630,14 +5853,18 @@ get_climatechange_data <- function(
   )
 
   # calculate 'getYears' object
-  getYears <- calc_getYears(timeSlices)
+  getYears <- calc_getYears(
+    timeSlices,
+    is_idem = is_idem
+  )
 
   # Logical on how to select from getYears
   assocYears <- calc_assocYears(
     sim_time = SFSW2_prj_meta[["sim_time"]],
     reqRCPs = reqRCPs,
     getYears = getYears,
-    timeSlices = timeSlices
+    timeSlices = timeSlices,
+    is_idem = is_idem
   )
 
 
@@ -5657,6 +5884,8 @@ get_climatechange_data <- function(
   # the object `locations` may change), i.e., they should be used locally,
   # but not for files, logs, etc. across repeated calls --
   # for those, use instead `locations[i, "site_id"]` and GCM.
+
+  #--- ids_AllToDo is length(reqGCMs) x nrow(locations)
   ids_AllToDo <- seq_len(requestN)
   ids_Done <- NULL
 
@@ -5690,6 +5919,7 @@ get_climatechange_data <- function(
       reqRCPsPerGCM = reqRCPsPerGCM,
       reqDownscalingsPerGCM = SFSW2_prj_meta[["sim_scens"]][["reqDSsPerM"]],
       locations = locations,
+      is_idem = is_idem,
       getYears = getYears,
       assocYears = assocYears,
       project_paths = SFSW2_prj_meta[["project_paths"]],
@@ -5701,6 +5931,7 @@ get_climatechange_data <- function(
       seeds_DS = SFSW2_prj_meta[["rng_specs"]][["seeds_DS"]][ids_seeds],
       sim_scens = SFSW2_prj_meta[["sim_scens"]],
       resume = resume,
+      chunk_size = chunk_size,
       verbose = verbose,
       print.debug = print.debug
     )
@@ -5883,6 +6114,7 @@ ExtractClimateChangeScenarios <- function(
         climDB_meta = climDB_metas[[clim_source]],
         dbW_compression_type = dbW_compression_type,
         resume = resume,
+        chunk_size = opt_chunks[["ensembleCollectSize"]],
         verbose = verbose,
         print.debug = print.debug
       )
@@ -6114,7 +6346,44 @@ ExtractClimateWizard <- function(
 }
 
 
-#' Extracts climate change scenarios and downscales monthly to daily time series
+#' Extracts monthly or daily climate change scenarios
+#'
+#' Downscales monthly to daily time series
+#'
+#' @section Details: Overview of algorithm:
+#'
+#' Function \code{PrepareClimateScenarios}
+#'    * calls `ExtractClimateChangeScenarios()`
+#'
+#' -> function \code{\link{ExtractClimateChangeScenarios}}
+#'    1) prepares parallel setup
+#'    1) loops over \var{clim_sources} calling `get_climatechange_data()`
+#'
+#' -> function \code{\link{get_climatechange_data}}
+#'    1) loops over repeated attempts calling `tryToGet_ClimDB()`
+#'    1) calls `copy_tempdata_to_dbW()`
+#'
+#' -> function \code{\link{tryToGet_ClimDB()}}
+#'    * implements separate logic for monthly and daily data sets
+#'    * monthly data set
+#'      * loops in parallel over \var{GCM} x location combinations
+#'        calling `try_MonthlyScenarioWeather()`
+#'
+#'    * daily data set
+#'      * loops over chunks of locations
+#'        1) calls `calc_DailyScenarioWeather()`
+#'        1) calls `copy_tempdata_to_dbW()`
+#'
+#' -> function \code{\link{calc_DailyScenarioWeather()}}
+#'    * loops in parallel over \var{GCM} x \var{scenarios}
+#'      calling `get_DailyScenarioData_netCDF()`
+#'
+#' -> function \code{\link{get_DailyScenarioData_netCDF()}}
+#'    * loops over chunks of locations
+#'      1) calls `get_DailyGCMdata_netCDF()`
+#'      1) calls `try_prepare_site_with_daily_scenario_weather()`
+#'
+#' @md
 #' @export
 PrepareClimateScenarios <- function(
   SFSW2_prj_meta,
@@ -6226,7 +6495,7 @@ PrepareClimateScenarios <- function(
 
 #-----Obtain climate projection data------
 
-#' Check and prepare local copy of \var{CMIP5_MACAv2metdata} dataset
+#' Check and prepare local copy of aggregated \var{CMIP5_MACAv2metdata} dataset
 #'
 #' @param locations A data frame. Two columns \code{X_WGS84} and
 #'   \code{Y_WGS84} of locations describe rectangle
@@ -6261,7 +6530,7 @@ PrepareClimateScenarios <- function(
 #'
 #' @export
 obtain_CMIP5_MACAv2metdata_USA <- function(locations, dir_ex_fut) {
-  climDB_meta <- climscen_metadata()[["CMIP5_MACAv2metdata_USA"]]
+  climDB_meta <- climscen_metadata()[["CMIP5_MACAv2metdataAgg_USA"]]
 
   dir_ex_dat <- file.path(
     dir_ex_fut,
