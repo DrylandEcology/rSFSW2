@@ -5728,6 +5728,7 @@ get_climatechange_data <- function(
     project_paths = SFSW2_prj_meta[["project_paths"]],
     clim_source = clim_source
   )
+
   dir_failed <- file.path(
     SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
     "failed_get_climatechange_data"
@@ -6131,6 +6132,9 @@ ExtractClimateChangeScenarios <- function(
   # loop through data sources
   sites_GCM_source <- SFSW2_prj_inputs[["SWRunInformation"]][todos, "GCM_sources"]
   clim_sources <- stats::na.exclude(unique(sites_GCM_source))
+  if ("NA" %in% clim_sources) {
+    clim_sources <- clim_sources[!(clim_sources %in% "NA")]
+  }
   icols <- c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")
 
   for (clim_source in clim_sources) {
@@ -6478,8 +6482,13 @@ PrepareClimateScenarios <- function(
 
   if (resume) {
     # Process any temporary datafile from a potential previous run
-    clim_sources <- unique(SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"])
+    clim_sources <- unique(
+      SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"]
+    )
     clim_sources <- stats::na.exclude(clim_sources)
+    if ("NA" %in% clim_sources) {
+      clim_sources <- clim_sources[!(clim_sources %in% "NA")]
+    }
 
     for (k in seq_along(clim_sources)) {
       copy_tempdata_to_dbW(
