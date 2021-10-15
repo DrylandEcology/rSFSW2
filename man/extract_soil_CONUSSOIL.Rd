@@ -9,7 +9,7 @@ extract_soil_CONUSSOIL(
   MMC,
   sim_size,
   sim_space,
-  dir_ex_soil,
+  project_paths,
   fnames_in,
   resume,
   verbose,

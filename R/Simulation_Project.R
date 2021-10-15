@@ -822,7 +822,9 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
   #------ EXTERNAL INPUTS
   #------ DAILY WEATHER
   if (todo_intracker(SFSW2_prj_meta, "dbW_paths", "prepared")) {
-    SFSW2_prj_meta <- set_paths_to_dailyweather_datasources(SFSW2_prj_meta)
+    SFSW2_prj_meta[["project_paths"]] <- set_paths_to_dailyweather_datasources(
+      project_paths = SFSW2_prj_meta[["project_paths"]]
+    )
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(
       SFSW2_prj_meta[["input_status"]],

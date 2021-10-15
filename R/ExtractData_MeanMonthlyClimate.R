@@ -1,4 +1,39 @@
 
+#' Set default paths to mean monthly climate data sets unless already specified
+#' @noRd
+get_path_to_meanmonthlyclimate_datasources <- function(
+  project_paths,
+  clim_source
+) {
+  dir_ex_dat <- NULL
+
+  pp <- project_paths
+  ncs <- paste0("dir_", clim_source)
+
+  if (identical(clim_source, "ClimateAtlasUS")) {
+    dir_ex_dat <- if (has_elem_name(ncs, pp)) {
+      pp[[ncs]]
+    } else {
+      file.path(pp[["dir_ex_weather"]], "ClimateAtlasUS")
+    }
+
+  } else if (identical(clim_source, "NCEPCFSR")) {
+    dir_ex_dat <- if (has_elem_name("dir_NCEPCFSR", pp)) {
+      pp[["dir_NCEPCFSR"]]
+    } else {
+      file.path(
+        pp[["dir_ex_weather"]],
+        "NCEPCFSR_Global",
+        "CFSR_weather_prog08032012"
+      )
+    }
+
+  }
+
+  dir_ex_dat
+}
+
+
 prepare_MeanMonthlyClimate <- function(SWRunInformation, sim_size,
   field_sources, field_include, how_determine_sources, sw_input_cloud_use,
   sw_input_cloud) {
@@ -83,7 +118,10 @@ extract_climate_NOAAClimAtlas <- function(MMC, sim_size, sim_space,
 
     # NOAA Climate Atlas: provides no information on height above ground:
     # assuming 2-m which is what is required by SOILWAT2
-    dir_ex_dat <- file.path(project_paths[["dir_ex_weather"]], "ClimateAtlasUS")
+    dir_ex_dat <- get_path_to_meanmonthlyclimate_datasources(
+      project_paths = project_paths,
+      clim_source = "ClimateAtlasUS"
+    )
     stopifnot(file.exists(dir_ex_dat))
 
     dir_noaaca <- list(
@@ -354,9 +392,14 @@ extract_climate_NCEPCFSR <- function(MMC, SWRunInformation,
       !dir.exists(SFSW2_prj_meta[["prepd_CFSR"]][["dir_ex_cfsr"]])
     ) {
 
+      dir_ex_dat <- get_path_to_meanmonthlyclimate_datasources(
+        project_paths = SFSW2_prj_meta[["project_paths"]],
+        clim_source = "NCEPCFSR"
+      )
+
       SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
         dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
-        dir.cfsr.data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]
+        dir.cfsr.data = dir_ex_dat
       ))
     }
 

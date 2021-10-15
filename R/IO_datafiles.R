@@ -168,6 +168,13 @@ check_requested_sites <- function(include_YN, SWRunInformation, fnames_in,
 }
 
 
+
+has_elem_name <- function(name_data, pp) {
+  name_data %in% names(pp) && isTRUE(nchar(pp[[name_data]]) > 0)
+}
+
+
+
 map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
   verbose = FALSE) {
 

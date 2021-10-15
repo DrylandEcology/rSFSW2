@@ -25,23 +25,8 @@ opt_platform <- list(
 
 #------ Paths to simulation framework project folders
 project_paths <- list(
-  dir_prj = dir_prj <- {
-    # path to simulation project
-    temp <- if (identical(opt_platform[["host"]], "local")) {
-        "SFSW2_default_project" # change to "~/YOURPROJECT"
-      } else if (identical(opt_platform[["host"]], "hpc")) {
-        getwd()
-      }
-
-    if (dir.exists(temp)) {
-      if (interactive()) setwd(temp)
-    } else {
-      warning("'project_paths[['dir_prj']]' = ", shQuote(temp),
-        "does not exist. Code uses ", shQuote(getwd()), " instead.",
-        call. = FALSE, immediate. = TRUE)
-    }
-    getwd()
-  },
+  # path to simulation project
+  dir_prj = dir_prj <- getwd(),
 
   # Path to inputs
   dir_in = dir_in <- file.path(dir_prj, "1_Input"),
@@ -83,7 +68,42 @@ project_paths <- list(
   # Path to soil data
   dir_ex_soil = file.path(dir_ex, "Soils"),
   # Path to topographic data
-  dir_ex_dem = file.path(dir_ex, "Topography")
+  dir_ex_dem = file.path(dir_ex, "Topography"),
+
+  #--- Paths to historic weather data (defaults used if not specified)
+  # see `set_paths_to_dailyweather_datasources()`
+  dir_maurer2002 = NA,
+  dir_daymet = NA,
+  dir_NRCan = NA,
+  dir_Livneh2013 = NA,
+  dir_gridMET = NA,
+  dir_NCEPCFSR = NA,
+
+  #--- Paths to mean monthly climate data (defaults used if not specified)
+  # see `get_path_to_meanmonthlyclimate_datasources()`
+  dir_ClimateAtlasUS = NA,
+
+  #--- Paths to projected climate data (defaults used if not specified)
+  # see `get_path_to_projectedclimate_datasources()`
+  dir_CMIP5_BCSD_GDODCPUCLLNL_USA = NA,
+  dir_BCSD_GDODCPUCLLNL_Global = NA,
+  dir_CMIP5_MACAv2metdata_USA = NA,
+  dir_ESGF_Global = NA,
+  dir_BCSD_SageSeer_USA = NA,
+  dir_BCSD_NEX_USA = NA,
+  dir_ClimateWizardEnsembles_USA = NA,
+  dir_ClimateWizardEnsembles_Global = NA,
+
+  #--- Paths to soils data (defaults used if not specified)
+  # see `get_path_to_soil_datasources()`
+  dir_CONUSSOILFromSTATSGO_USA = NA,
+  dir_ISRICWISEv12 = NA,
+  dir_ISRICWISE30secV1a = NA,
+
+  #--- Paths to elevation data (defaults used if not specified)
+  # see `get_path_to_elevation_datasources()`
+  dir_NED_USA = NA,
+  dir_HWSD_Global = NA
 )
 
 
@@ -120,10 +140,10 @@ fnames_in <- list(
 
   # Database with daily weather data
   fdbWeather = if (identical(opt_platform[["host"]], "local")) {
-      file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3")
-    } else if (identical(opt_platform[["host"]], "hpc")) {
-      file.path(project_paths[["dir_prj"]], "..", "dbWeatherData.sqlite3")
-    },
+    file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3")
+  } else if (identical(opt_platform[["host"]], "hpc")) {
+    file.path(project_paths[["dir_prj"]], "..", "dbWeatherData.sqlite3")
+  },
 
   # Raster describing spatial interpretation of simulation experiment
   # if scorp == "cell"
@@ -167,28 +187,22 @@ opt_input <- list(
   req_data = c(
       # Daily weather data for current conditions
       #   - Maurer et al. 2002: 1/8-degree res. for 1949-2010; data expected at
-      #     file.path(project_paths[["dir_ex_weather"]], "Maurer+_2002updated",
-      #     "DAILY_FORCINGS")
+      #     project_paths[["dir_maurer2002"]]
       "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,
       #   - Thornton et al. 1997: 1-km res. for 1980-current; data expected at
-      #     file.path(project_paths[["dir_ex_weather"]], "DayMet_NorthAmerica",
-      #     "DownloadedSingleCells_FromDayMetv4_NorthAmerica")
+      #     project_paths[["dir_daymet"]]
       "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,
       #   - McKenney et al. 2011: 10-km res. for 1950-2013; use with dbW;
-      #     data expected at file.path(project_paths[["dir_ex_weather"]],
-      #     "NRCan_10km_Canada", "DAILY_GRIDS")
+      #     data expected at project_paths[["dir_NRCan"]]
       "GriddedDailyWeatherFromNRCan_10km_Canada", 0,
       #   - Saha et al. 2010: 0.3125-deg res. for 1979-2010; use with dbW;
-      #     data expected at file.path(project_paths[["dir_ex_weather"]],
-      #     "NCEPCFSR_Global", "CFSR_weather_prog08032012")
+      #     data expected at project_paths[["dir_NCEPCFSR"]]
       "GriddedDailyWeatherFromNCEPCFSR_Global", 0,
       #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at
-      #     file.path(project_paths[["dir_ex_weather"]], "Livneh_NA_2013",
-      #     "MONTHLY_GRIDS")
+      #     project_paths[["dir_Livneh2013"]]
       "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
       #   - Abatzoglou et al. 2013: 1/24 degree res. for 1979-yesterday;
-      #     data expected at file.path(project_paths[["dir_ex_weather"]],
-      #     "gridMET_4km_NA", "YEARLY_GRIDS");
+      #     data expected at project_paths[["dir_gridMET"]],
       #     obtain data with function `gridMET_download_and_check`
       "GriddedDailyWeatherFromgridMET_NorthAmerica", 0,
 
@@ -201,32 +215,28 @@ opt_input <- list(
       "ExtractClimateChangeScenarios", 0,
 
       # Mean monthly wind, relative humidity, and 100% - sunshine
-      #   - NCDC 2005: data expected at file.path(
-      #     project_paths[["dir_ex_weather"]], "ClimateAtlasUS")
+      #   - NCDC 2005: data expected at project_paths[["dir_ClimateAtlasUS"]]
       "ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
-      #   - Saha et al. 2010: project_paths[["dir_ex_weather"]],
-      #     "NCEPCFSR_Global", "CFSR_weather_prog08032012")
+      #   - Saha et al. 2010: project_paths[["dir_NCEPCFSR"]]
       "ExtractSkyDataFromNCEPCFSR_Global", 0,
 
       # Topography
       #   - NED, National Elevation Dataset (ned.usgs.gov): 1-arcsec res;
-      #     data expected at project_paths[["dir_ex_dem"]], "NED_USA",
-      #     "NED_1arcsec")
+      #     data expected at project_paths[["dir_NED_USA"]]
       "ExtractElevation_NED_USA", 0,
       #   - Harmonized World Soil Database: 30-arcsec res; data expected
-      #     at project_paths[["dir_ex_dem"]], "HWSD")
+      #     at project_paths[["dir_HWSD_Global"]]
       "ExtractElevation_HWSD_Global", 0,
 
       # Soil texture
       #   - Harmonized World Soil Database: 1-km re-gridded; data expected
-      #     at project_paths[["dir_ex_soil"]], "CONUSSoil", "output", "albers")
+      #     at project_paths[["dir_CONUSSOILFromSTATSGO_USA"]]
       "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
       #   - ISRIC-WISE 5-arcmin v1.2 (2012): 5-arcmin re-gridded; data expected
-      #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b",
-      #     "Grid", "smw5by5min")
+      #     at project_paths[["dir_ISRICWISEv12"]]
       "ExtractSoilDataFromISRICWISEv12_Global", 0,
       #   - ISRIC-WISE 30-arsec v1.0 (2016): 30-arcsec re-gridded; data expected
-      #     at project_paths[["dir_ex_soil"]], "WISE", "WISE30sec_v1a")
+      #     at project_paths[["dir_ISRICWISE30secV1a"]]
       "ExtractSoilDataFromISRICWISE30secV1a_Global", 0
   ),
 
@@ -507,6 +517,8 @@ req_scens <- list(
     #     - "CMIP5_MACAv2metdata_USA": daily time series at 1/24-degree
     #       resolution for the US (requires `method_DS = "idem"`)
     #     - "ESGF_Global": monthly time-series at varying resolution
+    # Path to dataset: default or specify in `project_paths` as element
+    # named as "dir_<dataset>"
       dataset1 = "CMIP5_BCSD_GDODCPUCLLNL_USA"
   ),
 

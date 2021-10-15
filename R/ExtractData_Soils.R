@@ -1,6 +1,66 @@
 #------------------------------------------------------------------------------#
 #------EXTRACT SOIL CHARACTERISTICS------
 
+
+#' Set default paths to soils data sets unless already specified
+#' @noRd
+get_path_to_soil_datasources <- function(
+  project_paths,
+  soil_source
+) {
+  dir_ex_dat <- NULL
+
+  pp <- project_paths
+  ncs <- paste0("dir_", soil_source)
+
+  dir_soil <- pp[["dir_ex_soil"]]
+
+  if (identical(soil_source, "ISRICWISEv12")) {
+    dir_ex_dat <- if (has_elem_name(ncs, pp)) {
+      pp[[ncs]]
+    } else {
+      file.path(dir_soil, "WISE", "wise5by5min_v1b")
+    }
+  }
+
+  if (identical(soil_source, "ISRICWISE30secV1a")) {
+    dir_ex_dat <- if (has_elem_name(ncs, pp)) {
+      pp[[ncs]]
+    } else {
+      file.path(dir_soil, "WISE", "WISE30sec_v1a")
+    }
+  }
+
+  if (identical(soil_source, "CONUSSOILFromSTATSGO_USA")) {
+    dir_ex_dat <- if (has_elem_name(ncs, pp)) {
+      pp[[ncs]]
+    } else {
+      file.path(dir_soil, "NRCS", "CONUSSoil", "output", "albers")
+    }
+  }
+
+  dir_ex_dat
+}
+
+
+prepare_MeanMonthlyClimate <- function(SWRunInformation, sim_size,
+  field_sources, field_include, how_determine_sources, sw_input_cloud_use,
+  sw_input_cloud) {
+
+  sites_monthlyclim_source <- get_datasource_mainfield(SWRunInformation,
+    field_sources, sim_size, how_determine_sources)
+
+  dtemp <- array(NA, dim = c(sim_size[["runsN_sites"]], 3, 12),
+    dimnames = list(NULL, c("RH", "cover", "wind"), NULL))
+
+  do_include <- get_datasource_includefield(SWRunInformation, field_include,
+    sim_size)
+
+  list(source = sites_monthlyclim_source, data = dtemp, idone = vector(),
+    use = sw_input_cloud_use, input = sw_input_cloud, do_include = do_include)
+}
+
+
 #' Preparations for the extraction of external soil datasets
 prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
   field_include, how_determine_sources, sw_input_soillayers, sw_input_soils_use,
@@ -96,7 +156,7 @@ adjust_soils_todos <- function(todos, MMC, sim_size) {
 #'   Saxton et al. 2006: \eqn{bulkd = matricd * (1 - rockvol) + rockvol * 2.65}
 #'   If this variable is indeed \var{\dQuote{bulk density}}, then equation 20
 #'   (Saxton et al. 2006) would give negative values
-extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
+extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, project_paths,
   fnames_in, resume, verbose, default_TOC_GperKG = 0) {
 
   if (verbose) {
@@ -171,9 +231,9 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, dir_ex_soil,
     res <- rSW2exter::extract_soils_Miller1998_CONUSSoil(
       x = sim_space[["run_sites"]][todos, ],
       vars = c("bd", "rockvol", "sand", "clay", "silt"),
-      path = file.path(
-        dir_ex_soil,
-        "NRCS", "CONUSSoil", "output", "albers"
+      path = get_path_to_soil_datasources(
+        project_paths = project_paths,
+        soil_source = "CONUSSOILFromSTATSGO_USA"
       ),
       replace_missing_fragvol_with_zero = "at_surface",
       impute = TRUE,
@@ -524,7 +584,7 @@ try_cell_ISRICWISE <- function(i, sim_cells_SUIDs, template_simulationSoils,
 #'     }
 #'   }
 extract_soil_ISRICWISE <- function(MMC, sim_size, sim_space,
-  dir_ex_soil, fnames_in, dataset = c("ISRICWISEv12", "ISRICWISE30secV1a"),
+  project_paths, fnames_in, dataset = c("ISRICWISEv12", "ISRICWISE30secV1a"),
   resume, verbose) {
 
   dataset <- match.arg(dataset)
@@ -575,13 +635,17 @@ extract_soil_ISRICWISE <- function(MMC, sim_size, sim_space,
     is_ToDo <- seq_along(run_sites_wise)
 
     #---extract data
+    dir.ex.dat <- get_path_to_soil_datasources(
+      project_paths = project_paths,
+      soil_source = dataset
+    )
+
     if (dataset == "ISRICWISEv12") {
       rat_att <- NULL
       var_tags <- list(suid = "SUID", density = "BULK", sand = "SDTO",
         clay = "CLPC", rock = "CFRAG", carbon = "TOTC")
       val_rocks <- -7
 
-      dir.ex.dat <- file.path(dir_ex_soil, "WISE", "wise5by5min_v1b")
       fwise_grid <- file.path(dir.ex.dat, "Grid", "smw5by5min")
       fwise_table <- file.path(dir.ex.dat, "WISEsummaryFile.csv")
 
@@ -591,7 +655,6 @@ extract_soil_ISRICWISE <- function(MMC, sim_size, sim_space,
         clay = "CLPC", rock = "CFRAG", carbon = "ORGC")
       val_rocks <- c(-3, -7)
 
-      dir.ex.dat <- file.path(dir_ex_soil, "WISE", "WISE30sec_v1a")
       fwise_grid <- file.path(dir.ex.dat, "GISfiles", "wise30sec_fin")
       fwise_table <- file.path(dir.ex.dat, "Interchangeable_format",
         "HW30s_FULL.txt")
@@ -808,7 +871,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
       MMC,
       sim_size = SFSW2_prj_meta[["sim_size"]],
       sim_space = SFSW2_prj_meta[["sim_space"]],
-      dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
+      project_paths = SFSW2_prj_meta[["project_paths"]],
       fnames_in = SFSW2_prj_meta[["fnames_in"]],
       resume = resume,
       verbose = verbose
@@ -820,7 +883,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
       MMC,
       sim_size = SFSW2_prj_meta[["sim_size"]],
       sim_space = SFSW2_prj_meta[["sim_space"]],
-      dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
+      project_paths = SFSW2_prj_meta[["project_paths"]],
       fnames_in = SFSW2_prj_meta[["fnames_in"]],
       dataset = "ISRICWISE30secV1a",
       resume = resume,
@@ -832,7 +895,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
     MMC <- extract_soil_ISRICWISE(MMC,
       sim_size = SFSW2_prj_meta[["sim_size"]],
       sim_space = SFSW2_prj_meta[["sim_space"]],
-      dir_ex_soil = SFSW2_prj_meta[["project_paths"]][["dir_ex_soil"]],
+      project_paths = SFSW2_prj_meta[["project_paths"]],
       fnames_in = SFSW2_prj_meta[["fnames_in"]],
       dataset = "ISRICWISEv12",
       resume = resume,

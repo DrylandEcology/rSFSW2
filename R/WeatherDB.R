@@ -366,7 +366,7 @@ make_dbW <- function(
       i_by_rSFSW2 <- adds[ids_NRCan_extraction, "ID_by_rSFSW2"]
 
       ExtractGriddedDailyWeatherFromNRCan_10km_Canada(
-        dir_data = SFSW2_prj_meta[["project_paths"]][["dir.ex.NRCan"]],
+        dir_data = SFSW2_prj_meta[["project_paths"]][["dir_NRCan"]],
         site_ids = i_by_rSFSW2,
         site_ids_by_dbW = adds[ids_NRCan_extraction, "ID_by_dbW"],
         coords_WGS84 = SWRunInformation[i_by_rSFSW2, c("X_WGS84", "Y_WGS84"),
@@ -384,7 +384,7 @@ make_dbW <- function(
       i_by_rSFSW2 <- adds[ids_Livneh_extraction, "ID_by_rSFSW2"]
 
       extract_daily_weather_from_livneh(
-        dir_data     = SFSW2_prj_meta[["project_paths"]][["dir.ex.Livneh2013"]],
+        dir_data     = SFSW2_prj_meta[["project_paths"]][["dir_Livneh2013"]],
         dir_temp     = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
         site_ids     = i_by_rSFSW2,
         site_ids_by_dbW = adds[ids_Livneh_extraction, "ID_by_dbW"],
@@ -426,7 +426,7 @@ make_dbW <- function(
         SFSW2_prj_meta[["prepd_CFSR"]] <- try(prepare_NCEPCFSR_extraction(
           dir_in = SFSW2_prj_meta[["project_paths"]][["dir_in"]],
           dir.cfsr.data =
-            SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]]
+            SFSW2_prj_meta[["project_paths"]][["dir_NCEPCFSR"]]
         ))
       }
 
@@ -2805,12 +2805,12 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources,
   fun_dw_source <- paste("dw", dw_avail_sources2, sep = "_")
 
   path_dw_source <- list(
-    NRCan_10km_Canada = project_paths[["dir.ex.NRCan"]],
+    NRCan_10km_Canada = project_paths[["dir_NRCan"]],
     Maurer2002_NorthAmerica = project_paths[["dir_maurer2002"]],
     LookupWeatherFolder =
       file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"),
-    NCEPCFSR_Global = project_paths[["dir.ex.NCEPCFSR"]],
-    Livneh2013_NorthAmerica = project_paths[["dir.ex.Livneh2013"]],
+    NCEPCFSR_Global = project_paths[["dir_NCEPCFSR"]],
+    Livneh2013_NorthAmerica = project_paths[["dir_Livneh2013"]],
     DayMet_NorthAmerica = project_paths[["dir_daymet"]],
     gridMET_NorthAmerica = project_paths[["dir_gridMET"]]
   )
@@ -2876,28 +2876,51 @@ dw_determine_sources <- function(dw_source, exinfo, dw_avail_sources,
   SWRunInformation
 }
 
+#' Set default paths to weather data sets unless already specified
+#' @noRd
+set_paths_to_dailyweather_datasources <- function(project_paths) {
 
-set_paths_to_dailyweather_datasources <- function(SFSW2_prj_meta) {
+  pp <- project_paths
+  dir_dW <- pp[["dir_ex_weather"]]
 
-  dir_dW <- SFSW2_prj_meta[["project_paths"]][["dir_ex_weather"]]
+  if (!has_elem_name("dir_maurer2002", pp)) {
+    pp[["dir_maurer2002"]] <- file.path(
+      dir_dW, "Maurer+_2002updated", "DAILY_FORCINGS"
+    )
+  }
 
-  SFSW2_prj_meta[["project_paths"]][["dir_maurer2002"]] <- file.path(dir_dW,
-      "Maurer+_2002updated", "DAILY_FORCINGS")
+  if (!has_elem_name("dir_daymet", pp)) {
+    pp[["dir_daymet"]] <- file.path(
+      dir_dW,
+      "DayMet_NorthAmerica",
+      "DownloadedSingleCells_FromDayMetv4_NorthAmerica"
+    )
+  }
 
-  SFSW2_prj_meta[["project_paths"]][["dir_daymet"]] <- file.path(dir_dW,
-    "DayMet_NorthAmerica", "DownloadedSingleCells_FromDayMetv4_NorthAmerica")
+  if (!has_elem_name("dir_NRCan", pp)) {
+    pp[["dir_NRCan"]] <- file.path(
+      dir_dW, "NRCan_10km_Canada", "DAILY_GRIDS"
+    )
+  }
 
-  SFSW2_prj_meta[["project_paths"]][["dir.ex.NRCan"]] <- file.path(dir_dW,
-    "NRCan_10km_Canada", "DAILY_GRIDS")
+  if (!has_elem_name("dir_Livneh2013", pp)) {
+    pp[["dir_Livneh2013"]] <- file.path(
+      dir_dW, "Livneh_NA_2013", "MONTHLY_GRIDS"
+    )
+  }
 
-  SFSW2_prj_meta[["project_paths"]][["dir.ex.Livneh2013"]] <- file.path(dir_dW,
-    "Livneh_NA_2013", "MONTHLY_GRIDS")
+  if (!has_elem_name("dir_gridMET", npp)) {
+    pp[["dir_gridMET"]] <- file.path(
+      dir_dW, "gridMET_4km_NA", "YEARLY_GRIDS"
+    )
+  }
 
-  SFSW2_prj_meta[["project_paths"]][["dir_gridMET"]] <- file.path(dir_dW,
-    "gridMET_4km_NA", "YEARLY_GRIDS")
+  if (!has_elem_name("dir_NCEPCFSR", pp)) {
+    pp[["dir_NCEPCFSR"]] <- file.path(
+      dir_dW, "NCEPCFSR_Global", "CFSR_weather_prog08032012"
+    )
+  }
 
-  SFSW2_prj_meta[["project_paths"]][["dir.ex.NCEPCFSR"]] <- file.path(dir_dW,
-    "NCEPCFSR_Global", "CFSR_weather_prog08032012")
 
-  SFSW2_prj_meta
+  pp
 }

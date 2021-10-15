@@ -1,5 +1,50 @@
 #---Downscaling/bias-correction functions
 
+
+#' Set default paths to projected climate data sets unless already specified
+#' @noRd
+get_path_to_projectedclimate_datasources <- function(
+  project_paths,
+  clim_source
+) {
+  dir_ex_dat <- NULL
+
+  pp <- project_paths
+  dir_clim <- file.path(pp[["dir_ex_fut"]], "ClimateScenarios")
+  ncs <- paste0("dir_", clim_source)
+
+  if (identical(clim_source, "CMIP3_ClimateWizardEnsembles_Global")) {
+    dir_ex_dat <- if (has_elem_name(ncs, pp)) {
+      pp[[ncs]]
+    } else {
+      file.path(dir_clim, "ClimateWizardEnsembles_Global")
+    }
+
+  } else if (identical(clim_source, "CMIP3_ClimateWizardEnsembles_USA")) {
+    dir_ex_dat <- if (has_elem_name(ncs, pp)) {
+      pp[[ncs]]
+    } else {
+      file.path(dir_clim, "ClimateWizardEnsembles_USA")
+    }
+
+  } else {
+    dir_ex_dat <- if (has_elem_name(ncs, pp)) {
+      pp[[ncs]]
+    } else {
+      tmp <- strsplit(clim_source, split = "_", fixed = TRUE)[[1]]
+      file.path(
+        dir_clim,
+        tmp[1],
+        paste(tmp[-1], collapse = "_")
+      )
+    }
+  }
+
+  dir_ex_dat
+}
+
+
+
 #' Meta data for climate scenarios
 #' @export
 climscen_metadata <- function() {
@@ -5678,12 +5723,10 @@ get_climatechange_data <- function(
 
   # Global flags
   repeatN_max <- 3
-  tmp <- strsplit(clim_source, split = "_", fixed = TRUE)[[1]]
-  dir_ex_dat <- file.path(
-    SFSW2_prj_meta[["project_paths"]][["dir_ex_fut"]],
-    "ClimateScenarios",
-    tmp[1],
-    paste(tmp[-1], collapse = "_")
+
+  dir_ex_dat <- get_path_to_projectedclimate_datasources(
+    project_paths = SFSW2_prj_meta[["project_paths"]],
+    clim_source = clim_source
   )
   dir_failed <- file.path(
     SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
@@ -6182,12 +6225,19 @@ ExtractClimateWizard <- function(
     if (any("CMIP3_ClimateWizardEnsembles_Global" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]])) {
       # Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
       # accessed via climatewizard.org on July 10, 2012
-      dir_ex_dat <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_ex_fut"]], "ClimateScenarios", "ClimateWizardEnsembles_Global")
+      dir_ex_dat <- get_path_to_projectedclimate_datasources(
+        SFSW2_prj_meta[["project_paths"]],
+        "CMIP3_ClimateWizardEnsembles_Global"
+      )
     }
+
     if (any("CMIP3_ClimateWizardEnsembles_USA" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]])) {
       # Maurer, E. P., L. Brekke, T. Pruitt, and P. B. Duffy. 2007. Fine-resolution climate projections enhance regional climate change impact studies. Eos Transactions AGU 88:504.
       # accessed via climatewizard.org
-      dir_ex_dat <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_ex_fut"]], "ClimateScenarios", "ClimateWizardEnsembles_USA")
+      dir_ex_dat <- get_path_to_projectedclimate_datasources(
+        SFSW2_prj_meta[["project_paths"]],
+        "CMIP3_ClimateWizardEnsembles_USA"
+      )
     }
 
     list.scenarios.external <- basename(list.dirs2(

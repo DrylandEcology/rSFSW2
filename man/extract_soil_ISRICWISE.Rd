@@ -8,7 +8,7 @@ extract_soil_ISRICWISE(
   MMC,
   sim_size,
   sim_space,
-  dir_ex_soil,
+  project_paths,
   fnames_in,
   dataset = c("ISRICWISEv12", "ISRICWISE30secV1a"),
   resume,
