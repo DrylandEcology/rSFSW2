@@ -5094,7 +5094,7 @@ tryToGet_ClimDB <- function(
   reqGCMs,
   reqRCPsPerGCM,
   reqDownscalingsPerGCM,
-  locations,
+  locations0,
   is_idem,
   getYears,
   assocYears,
@@ -5113,7 +5113,7 @@ tryToGet_ClimDB <- function(
   seed = NA
 ) {
 
-  #--- ids_ToDo based on length(reqGCMs) x nrow(locations)
+  #--- ids_ToDo based on length(reqGCMs) x nrow(locations0)
 
   # requests ids_ToDo: fastest if nc file is
   #  - DONE: permutated to (lat, lon, time) instead (time, lat, lon)
@@ -5122,17 +5122,17 @@ tryToGet_ClimDB <- function(
   #          (DONE for `is_idem`)
 
   if (is_idem) {
-    #--- Create chunked index over locations
+    #--- Create chunked index over locations0
+    # `ids_todo_sites` is an index for `locations0`
+    n_sites <- nrow(locations0)
     ids_seq_todo_sites <- rSW2utils::make_chunks(
-      nrow(locations),
+      n_sites,
       chunk_size = chunk_size
     )
     n_chunks <- length(ids_seq_todo_sites)
 
     #--- Loop over chunks
     for (k in seq_len(n_chunks)) {
-      ids_todo_chunk <- ids_todo_sites[ids_seq_todo_sites[[k]]]
-
       #--- Extract data
       ids_Done <- calc_DailyScenarioWeather(
         clim_source = clim_source,
@@ -5141,10 +5141,10 @@ tryToGet_ClimDB <- function(
         reqGCMs = reqGCMs,
         reqRCPsPerGCM = reqRCPsPerGCM,
         reqDownscalingsPerGCM = reqDownscalingsPerGCM,
-        locations = locations[ids_todo_chunk, , drop = FALSE],
+        locations = locations0[ids_seq_todo_sites[[k]], , drop = FALSE],
         meta_locations = list(
-          N = nrow(locations),
-          offset = min(ids_todo_chunk) - 1
+          N = n_sites,
+          offset = min(ids_seq_todo_sites[[k]]) - 1
         ),
         compression_type = dbW_compression_type,
         getYears = getYears,
@@ -5195,7 +5195,7 @@ tryToGet_ClimDB <- function(
           reqRCPsPerGCM = reqRCPsPerGCM,
           reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
-          locations = locations,
+          locations = locations0,
           compression_type = dbW_compression_type,
           getYears = getYears,
           assocYears = assocYears,
@@ -5235,7 +5235,7 @@ tryToGet_ClimDB <- function(
           reqRCPsPerGCM = reqRCPsPerGCM,
           reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
-          locations = locations,
+          locations = locations0,
           compression_type = dbW_compression_type,
           getYears = getYears,
           assocYears = assocYears,
@@ -5270,7 +5270,7 @@ tryToGet_ClimDB <- function(
         reqRCPsPerGCM = reqRCPsPerGCM,
         reqDownscalingsPerGCM = reqDownscalingsPerGCM,
         climate.ambient = climate.ambient,
-        locations = locations,
+        locations = locations0,
         compression_type = dbW_compression_type,
         getYears = getYears,
         assocYears = assocYears,
@@ -5962,7 +5962,7 @@ get_climatechange_data <- function(
       reqGCMs = reqGCMs,
       reqRCPsPerGCM = reqRCPsPerGCM,
       reqDownscalingsPerGCM = SFSW2_prj_meta[["sim_scens"]][["reqDSsPerM"]],
-      locations = locations,
+      locations0 = locations,
       is_idem = is_idem,
       getYears = getYears,
       assocYears = assocYears,
