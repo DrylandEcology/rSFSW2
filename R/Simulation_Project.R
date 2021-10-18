@@ -1388,17 +1388,23 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   #--- Check scenario weather
   if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "checked")) {
 
+    tmp_ids <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
     icheck <- find_sites_with_bad_weather(
       fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-      site_labels = SFSW2_prj_inputs[["SWRunInformation"]][
-        SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "WeatherFolder"],
+      site_labels =
+        SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
+      siteID_by_dbW =
+        SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][tmp_ids],
       scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
       chunk_size = opt_chunks[["ensembleCollectSize"]],
-      verbose = opt_verbosity[["verbose"]])
+      verbose = opt_verbosity[["verbose"]]
+    )
 
     if (any(icheck)) {
-      stop("Daily scenario weather data are not available for n = ",
-        sum(icheck), " sites.")
+      stop(
+        "Daily scenario weather data are not available for n = ",
+        sum(icheck), " sites."
+      )
     }
 
     SFSW2_prj_meta[["input_status"]] <- update_intracker(

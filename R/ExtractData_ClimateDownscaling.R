@@ -6171,14 +6171,18 @@ ExtractClimateChangeScenarios <- function(
   # Prepare 'include_YN_climscen'
   include_YN_climscen <- rep(0L, SFSW2_prj_meta[["sim_size"]][["runsN_main"]])
 
+  tmp_ids <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
   tmp <- find_sites_with_bad_weather(
     fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-    site_labels = SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "WeatherFolder"],
+    site_labels =
+      SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
+    siteID_by_dbW =
+      SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][tmp_ids],
     scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
     chunk_size = opt_chunks[["ensembleCollectSize"]],
     verbose = verbose
   )
-  include_YN_climscen[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]] <- ifelse(tmp, 0L, 1L)
+  include_YN_climscen[tmp_ids] <- ifelse(tmp, 0L, 1L)
 
   SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
   utils::write.csv(
@@ -6500,16 +6504,20 @@ PrepareClimateScenarios <- function(
     }
 
     # Determine which climate scenario extractions and downscalings remain to be done
+    tmp_ids <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
     tmp <- find_sites_with_bad_weather(
       fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-      site_labels = SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "WeatherFolder"],
+      site_labels =
+        SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
+      siteID_by_dbW =
+        SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][tmp_ids],
       scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
       chunk_size = opt_chunks[["ensembleCollectSize"]],
       verbose = opt_verbosity[["verbose"]]
     )
 
     todos <- SFSW2_prj_inputs[["include_YN"]]
-    todos[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]] <- tmp
+    todos[tmp_ids] <- tmp
   } else {
     todos <- SFSW2_prj_inputs[["include_YN"]] &
       (SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"] %in%
