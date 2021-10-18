@@ -2909,7 +2909,7 @@ set_paths_to_dailyweather_datasources <- function(project_paths) {
     )
   }
 
-  if (!has_elem_name("dir_gridMET", npp)) {
+  if (!has_elem_name("dir_gridMET", pp)) {
     pp[["dir_gridMET"]] <- file.path(
       dir_dW, "gridMET_4km_NA", "YEARLY_GRIDS"
     )
