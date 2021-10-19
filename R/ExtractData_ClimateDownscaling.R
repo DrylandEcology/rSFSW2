@@ -3396,7 +3396,6 @@ calc_MonthlyScenarioWeather <- function(
   opt_DS,
   project_paths,
   dir_failed,
-  resume,
   verbose,
   print.debug
 ) {
@@ -3478,12 +3477,10 @@ calc_MonthlyScenarioWeather <- function(
   df_wdataOut <- c(tmp, as.list(tmp1))
 
   #--- Determine if any are already downscaled and stored in weather database
-  if (resume) {
-    df_wdataOut[["todo"]] <- !rSOILWAT2::dbW_has_weatherData(
-      Site_ids = Site_id_by_dbW,
-      Scenario_ids = df_wdataOut[["Scenario_id"]]
-    )[1, ]
-  }
+  df_wdataOut[["todo"]] <- !rSOILWAT2::dbW_has_weatherData(
+    Site_ids = Site_id_by_dbW,
+    Scenario_ids = df_wdataOut[["Scenario_id"]]
+  )[1, ]
   ids_down <- which(df_wdataOut[["todo"]])
 
   if (length(ids_down) > 0) {
@@ -3997,7 +3994,6 @@ try_MonthlyScenarioWeather <- function(
   project_paths,
   dir_failed,
   fdbWeather,
-  resume,
   verbose,
   print.debug
 ) {
@@ -4051,7 +4047,6 @@ try_MonthlyScenarioWeather <- function(
       opt_DS = opt_DS,
       project_paths = project_paths,
       dir_failed = dir_failed,
-      resume = resume,
       verbose = verbose,
       print.debug = print.debug
     ))
@@ -4395,7 +4390,6 @@ get_DailyScenarioData_netCDF <- function(
   write_tmp_to_disk,
   dir_out_tmp,
   dir_failed,
-  resume,
   chunk_size = 500L,
   verbose = FALSE
 ) {
@@ -4409,14 +4403,11 @@ get_DailyScenarioData_netCDF <- function(
 
   #--- Determine which sites still need data
   # `ids_todo_sites` is an index for `locations`
-  if (resume) {
-    ids_todo_sites <- which(!as.vector(rSOILWAT2::dbW_has_weatherData(
-      Site_ids = locations[, "Site_id_by_dbW"],
-      Scenario_ids = sim_scen_ids1_by_dbW[id_sim_scen]
-    )))
-  } else {
-    ids_todo_sites <- seq_len(nrow(locations))
-  }
+  ids_todo_sites <- which(!as.vector(rSOILWAT2::dbW_has_weatherData(
+    Site_ids = locations[, "Site_id_by_dbW"],
+    Scenario_ids = sim_scen_ids1_by_dbW[id_sim_scen]
+  )))
+  #ids_todo_sites <- seq_len(nrow(locations))
 
   n_todo_sites <- length(ids_todo_sites)
 
@@ -4699,7 +4690,6 @@ calc_DailyScenarioWeather <- function(
   dir_out_tmp,
   dir_failed,
   fdbWeather,
-  resume,
   chunk_size = 500L,
   verbose = FALSE
 ) {
@@ -4749,7 +4739,6 @@ calc_DailyScenarioWeather <- function(
           write_tmp_to_disk = SFSW2_glovars[["p_has"]],
           dir_out_tmp = dir_out_tmp,
           dir_failed = dir_failed,
-          resume = resume,
           chunk_size = chunk_size,
           verbose = verbose
         )
@@ -4787,7 +4776,6 @@ calc_DailyScenarioWeather <- function(
           write_tmp_to_disk = SFSW2_glovars[["p_has"]],
           dir_out_tmp = dir_out_tmp,
           dir_failed = dir_failed,
-          resume = resume,
           chunk_size = chunk_size,
           verbose = verbose
         )
@@ -4816,7 +4804,6 @@ calc_DailyScenarioWeather <- function(
         write_tmp_to_disk = SFSW2_glovars[["p_has"]],
         dir_out_tmp = dir_out_tmp,
         dir_failed = dir_failed,
-        resume = resume,
         chunk_size = chunk_size,
         verbose = verbose
       )
@@ -5106,7 +5093,6 @@ tryToGet_ClimDB <- function(
   sim_time,
   seeds_DS,
   sim_scens,
-  resume,
   chunk_size = 500L,
   verbose = FALSE,
   print.debug = FALSE,
@@ -5152,7 +5138,6 @@ tryToGet_ClimDB <- function(
         dir_out_tmp = project_paths[["dir_out_temp"]],
         dir_failed = dir_failed,
         fdbWeather = fdbWeather,
-        resume = resume,
         chunk_size = chunk_size,
         verbose = verbose
       )
@@ -5205,7 +5190,6 @@ tryToGet_ClimDB <- function(
           project_paths = project_paths,
           dir_failed = dir_failed,
           fdbWeather = fdbWeather,
-          resume = resume,
           verbose = verbose, print.debug = print.debug
         )
       } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
@@ -5245,7 +5229,6 @@ tryToGet_ClimDB <- function(
           project_paths = project_paths,
           dir_failed = dir_failed,
           fdbWeather = fdbWeather,
-          resume = resume,
           verbose = verbose,
           print.debug = print.debug
         )
@@ -5280,7 +5263,6 @@ tryToGet_ClimDB <- function(
         project_paths = project_paths,
         dir_failed = dir_failed,
         fdbWeather = fdbWeather,
-        resume = resume,
         verbose = verbose,
         print.debug = print.debug
       )
@@ -5711,7 +5693,6 @@ get_climatechange_data <- function(
   locations,
   climDB_meta,
   dbW_compression_type,
-  resume,
   chunk_size = 500L,
   verbose = FALSE,
   print.debug = FALSE
@@ -5974,7 +5955,6 @@ get_climatechange_data <- function(
       sim_time = SFSW2_prj_meta[["sim_time"]],
       seeds_DS = SFSW2_prj_meta[["rng_specs"]][["seeds_DS"]][ids_seeds],
       sim_scens = SFSW2_prj_meta[["sim_scens"]],
-      resume = resume,
       chunk_size = chunk_size,
       verbose = verbose,
       print.debug = print.debug
@@ -6054,7 +6034,6 @@ ExtractClimateChangeScenarios <- function(
   todos,
   opt_parallel,
   opt_chunks,
-  resume,
   verbose = FALSE,
   print.debug = FALSE
 ) {
@@ -6160,7 +6139,6 @@ ExtractClimateChangeScenarios <- function(
         locations = locations,
         climDB_meta = climDB_metas[[clim_source]],
         dbW_compression_type = dbW_compression_type,
-        resume = resume,
         chunk_size = opt_chunks[["ensembleCollectSize"]],
         verbose = verbose,
         print.debug = print.debug
@@ -6447,10 +6425,12 @@ PrepareClimateScenarios <- function(
   SFSW2_prj_meta,
   SFSW2_prj_inputs,
   opt_parallel,
-  resume,
+  todo_method = c("dbW", "fmain"),
   opt_verbosity,
   opt_chunks
 ) {
+
+  todo_method <- match.arg(todo_method)
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
@@ -6484,47 +6464,98 @@ PrepareClimateScenarios <- function(
     }
   )
 
-  if (resume) {
-    # Process any temporary datafile from a potential previous run
-    clim_sources <- unique(
-      SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"]
-    )
-    clim_sources <- stats::na.exclude(clim_sources)
-    if ("NA" %in% clim_sources) {
-      clim_sources <- clim_sources[!(clim_sources %in% "NA")]
-    }
 
-    for (k in seq_along(clim_sources)) {
-      copy_tempdata_to_dbW(
-        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-        clim_source = clim_sources[k],
-        dir_out_tmp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-        verbose = opt_verbosity[["verbose"]]
-      )
-    }
+  #--- Process any temporary datafile from a potential previous run
+  clim_sources <- unique(
+    SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"]
+  )
+  clim_sources <- stats::na.exclude(clim_sources)
+  if ("NA" %in% clim_sources) {
+    clim_sources <- clim_sources[!(clim_sources %in% "NA")]
+  }
 
-    # Determine which climate scenario extractions and downscalings remain to be done
-    tmp_ids <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
-    tmp <- find_sites_with_bad_weather(
+  for (k in seq_along(clim_sources)) {
+    copy_tempdata_to_dbW(
       fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-      site_labels =
-        SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
-      siteID_by_dbW =
-        SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][tmp_ids],
-      scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
-      chunk_size = opt_chunks[["ensembleCollectSize"]],
+      clim_source = clim_sources[k],
+      dir_out_tmp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
       verbose = opt_verbosity[["verbose"]]
     )
+  }
 
-    todos <- SFSW2_prj_inputs[["include_YN"]]
-    todos[tmp_ids] <- tmp
-  } else {
-    todos <- SFSW2_prj_inputs[["include_YN"]] &
-      (SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"] %in%
-        SFSW2_prj_meta[["sim_scens"]][["sources"]])
+
+  #--- Determine sites for which climate scenario extractions remain to be done
+  todos <-
+    todos &
+    SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"] %in%
+    SFSW2_prj_meta[["sim_scens"]][["sources"]]
+
+  if (todo_method == "dbW") {
+    #--- Compare against weather database
+
+    tmp_ids <- which(todos)
+
+    # Sites for which climate scenario resources are not already completed
+    resave_fmain <- FALSE
+    tmp_var <- "ClimateScenarioSources_Completed"
+
+    if (tmp_var %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]])) {
+      tmp_ids <- intersect(
+        tmp_ids,
+        which(!(SFSW2_prj_inputs[["SWRunInformation"]][, tmp_var] %in% 1))
+      )
+    } else {
+      resave_fmain <- TRUE
+      SFSW2_prj_inputs[["SWRunInformation"]][, tmp_var] <- NA
+    }
+
+    # Check sites
+    if (length(tmp_ids) > 0) {
+      tmp <- find_sites_with_bad_weather(
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+        site_labels =
+          SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
+        siteID_by_dbW =
+          SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][tmp_ids],
+        scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
+        chunk_size = opt_chunks[["ensembleCollectSize"]],
+        verbose = opt_verbosity[["verbose"]]
+      )
+
+      # Determine sites for which we still need to extract data
+      todos[tmp_ids] <- tmp
+
+      # Update information in fmain
+      resave_fmain <- TRUE
+      SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, tmp_var] <-
+        as.integer(!tmp)
+
+    } else {
+      todos[] <- FALSE
+    }
+
+    if (resave_fmain) {
+      utils::write.csv(
+        SFSW2_prj_inputs[["SWRunInformation"]],
+        file = SFSW2_prj_meta[["fnames_in"]][["fmain"]],
+        row.names = FALSE
+      )
+      unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
+    }
+
+  } else if (todo_method == "fmain") {
+    #--- Compare against fmain
+    tmp_var <- "ClimateScenarioSources_Completed"
+    if (tmp_var %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]])) {
+      todos <-
+        todos &
+        !(SFSW2_prj_inputs[["SWRunInformation"]][, tmp_var] %in% 1)
+    }
   }
   names(todos) <- NULL
 
+
+  #--- Extract
   if (any(todos)) {
     if (any("NEX" %in% conventions) || any("CF" %in% conventions)) {
       tmp <- ExtractClimateChangeScenarios(
@@ -6534,7 +6565,6 @@ PrepareClimateScenarios <- function(
         todos = todos,
         opt_parallel = opt_parallel,
         opt_chunks = opt_chunks,
-        resume = resume,
         verbose = opt_verbosity[["verbose"]],
         print.debug = opt_verbosity[["print.debug"]]
       )

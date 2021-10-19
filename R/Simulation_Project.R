@@ -1091,7 +1091,11 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
         SFSW2_prj_meta,
         SFSW2_prj_inputs,
         opt_parallel,
-        resume = opt_behave[["resume"]],
+        todo_method = if ("climscen_todo_method" %in% names(opt_behave)) {
+          opt_behave[["climscen_todo_method"]]
+        } else {
+          if (opt_behave[["resume"]]) "dbW" else "fmain"
+        },
         opt_verbosity,
         opt_chunks
       )

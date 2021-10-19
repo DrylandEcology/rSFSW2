@@ -27,6 +27,11 @@ opt_behave <- list(
   #    'LookupTranspRegions', and 'LookupSnowDensity'
   #  - It doesn't repeat calls to 'do_OneSite' that are listed in 'runIDs_done'
   resume = TRUE,
+  # Determines how completion of climate scenario data is determined at
+  # the site level:
+  #  - "dbW" - scan the weather database (accurate but slow)
+  #  - "fmain" - use the "ClimateScenarioSources_Completed" of fmain (quick)
+  climscen_todo_method = "dbW",
   # Use preprocessed input data if available
   use_preprocin = TRUE,
   # Update dbWork for each output element if TRUE (can cause traffic jams in
