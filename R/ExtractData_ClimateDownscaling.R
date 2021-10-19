@@ -332,7 +332,7 @@ climscen_metadata <- function() {
       tres = "daily",
       bbox = fill_bounding_box(
         template_bbox,
-        list(y = c(25.063, 49.396), x = -360 + c(235.228, 292.935))
+        list(y = c(25.06308, 49.39602), x = c(-124.77216, -67.06476))
       ),
       tbox = fill_bounding_box(
         template_tbox,
@@ -363,7 +363,7 @@ climscen_metadata <- function() {
       tres = "daily",
       bbox = fill_bounding_box(
         template_bbox,
-        list(y = c(25.063, 49.396), x = -360 + c(235.228, 292.935))
+        list(y = c(25.06308, 49.39602), x = c(-124.77216, -67.06476))
       ),
       tbox = fill_bounding_box(
         template_tbox,
