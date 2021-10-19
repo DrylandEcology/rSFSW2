@@ -4644,7 +4644,20 @@ try_prepare_site_with_daily_scenario_weather <- function(
         list = ls(),
         file = file.path(
           dir_failed,
-          paste0("ClimScenDaily_failed_", filenames[i], ".RData")
+          paste0(
+            "ClimScenDaily_failed_",
+            # remove file extension
+            paste0(
+              # nolint start
+              {
+                tmp <- strsplit(filenames[i], split = ".", fixed = TRUE)[[1]]
+                tmp[seq_len(length(tmp) - 1)]
+              },
+              # nolint end
+              collapse = "."
+            ),
+            ".RData"
+          )
         )
       )
 
