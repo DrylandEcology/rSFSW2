@@ -6486,7 +6486,7 @@ PrepareClimateScenarios <- function(
 
   #--- Determine sites for which climate scenario extractions remain to be done
   todos <-
-    todos &
+    SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN"] %in% 1 &
     SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"] %in%
     SFSW2_prj_meta[["sim_scens"]][["sources"]]
 
