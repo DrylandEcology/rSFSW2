@@ -4590,6 +4590,7 @@ prepare_site_with_daily_scenario_weather <- function(
     df_wdataOut[["weatherData"]] <- list(blob_scen_fut_daily)
 
     saveRDS(object = df_wdataOut, file = filename)
+
   } else {
     # Insert into weather database directly:
     # Faster than writing to disk and then importing into dbWeather by
@@ -4604,7 +4605,7 @@ prepare_site_with_daily_scenario_weather <- function(
     )
   }
 
-  i
+  invisible(NULL)
 }
 
 try_prepare_site_with_daily_scenario_weather <- function(
