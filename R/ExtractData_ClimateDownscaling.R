@@ -5280,6 +5280,7 @@ copy_tempdata_to_dbW <- function(
   fdbWeather,
   clim_source,
   dir_out_tmp,
+  exclude_patterns = "failed",
   verbose = FALSE
 ) {
 
@@ -5301,6 +5302,19 @@ copy_tempdata_to_dbW <- function(
     include.dirs = FALSE,
     no.. = TRUE
   )
+
+  # Remove data files from "failed" attempts
+  ids_remove <- if (!anyNA(exclude_patterns)) {
+    tmp <- file.path(dirname(tmp_files), basename(tmp_files))
+    unique(unlist(lapply(exclude_patterns, function(x) grep(x, tmp))))
+  }
+  if (length(ids_remove) > 0) {
+    tmp_files <- tmp_files[-ids_remove]
+  }
+
+  # Make sure that we only process "rds" files (e.g., exclude rda/RData files)
+  tmp_files <- grep(".rds\\>", tmp_files, value = TRUE)
+
 
   if (length(tmp_files) > 0) {
     if (verbose) {
