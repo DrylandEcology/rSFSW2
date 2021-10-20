@@ -6183,7 +6183,7 @@ ExtractClimateChangeScenarios <- function(
     site_labels =
       SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
     siteID_by_dbW =
-      SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][tmp_ids],
+      SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]],
     scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
     chunk_size = opt_chunks[["ensembleCollectSize"]],
     verbose = verbose
@@ -6539,12 +6539,14 @@ PrepareClimateScenarios <- function(
 
     # Check sites
     if (length(tmp_ids) > 0) {
+      tmp_ids2 <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]] %in% tmp_ids
+
       tmp <- find_sites_with_bad_weather(
         fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
         site_labels =
           SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
         siteID_by_dbW =
-          SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][tmp_ids],
+          SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][tmp_ids2],
         scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
         chunk_size = opt_chunks[["ensembleCollectSize"]],
         verbose = opt_verbosity[["verbose"]]
