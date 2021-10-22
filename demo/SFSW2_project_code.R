@@ -29,6 +29,17 @@ library("rSFSW2")
 
 t_job_start <- Sys.time()
 
+
+#------ Grab command line arguments (if any)
+# e.g., `Rscript SFSW2_project_code.R -nparallel=10`
+
+args <- commandArgs(trailingOnly = TRUE)
+
+nparallel <- if (any(ids <- grepl("-nparallel", args))) {
+  as.integer(sub("-nparallel=", "", args[ids]))
+}
+
+
 #------ Turn on/off actions to be carried out by simulation framework
 actions <- list(
   # Input checking
@@ -102,6 +113,11 @@ SFSW2_prj_meta <- update_actions(
   actions,
   wipe_dbOutput = opt_out_run[["wipe_dbOutput"]]
 )
+
+
+if (isTRUE(is.finite(nparallel))) {
+  opt_parallel[["num_cores"]] <- max(0, nparallel - 1)
+}
 
 
 ################################################################################
