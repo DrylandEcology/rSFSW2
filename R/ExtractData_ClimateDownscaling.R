@@ -5131,8 +5131,27 @@ tryToGet_ClimDB <- function(
     )
     n_chunks <- length(ids_seq_todo_sites)
 
+    if (verbose) {
+      print(
+        paste(
+          "'tryToGet_ClimDB':", Sys.time(),
+          "extracting daily data for sites n =", n_sites,
+          "distributed in chunks k =", n_chunks
+        )
+      )
+    }
+
     #--- Loop over chunks
     for (k in seq_len(n_chunks)) {
+      if (verbose) {
+        print(
+          paste(
+            "'tryToGet_ClimDB':", Sys.time(),
+            "working on chunk", k, "out of k =", n_chunks, "chunks"
+          )
+        )
+      }
+
       #--- Extract data
       ids_Done <- calc_DailyScenarioWeather(
         clim_source = clim_source,
