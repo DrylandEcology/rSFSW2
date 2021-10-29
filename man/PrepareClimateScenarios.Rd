@@ -8,7 +8,7 @@ PrepareClimateScenarios(
   SFSW2_prj_meta,
   SFSW2_prj_inputs,
   opt_parallel,
-  resume,
+  todo_method = c("dbW", "fmain"),
   opt_verbosity,
   opt_chunks
 )
@@ -20,7 +20,8 @@ Downscales monthly to daily time series
  Overview of algorithm:
 
 Function \code{PrepareClimateScenarios}
-\itemize{
+\enumerate{
+\item calls \code{copy_tempdata_to_dbW()}
 \item calls \code{ExtractClimateChangeScenarios()}
 }
 
@@ -49,7 +50,7 @@ calling \code{try_MonthlyScenarioWeather()}
 \item loops over chunks of locations
 \enumerate{
 \item calls \code{calc_DailyScenarioWeather()}
-\item calls \code{copy_tempdata_to_dbW()}
+\item calls \code{copy_tempdata_to_dbW()} (if not parallel)
 }
 }
 }

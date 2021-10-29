@@ -11,7 +11,6 @@ ExtractClimateChangeScenarios(
   todos,
   opt_parallel,
   opt_chunks,
-  resume,
   verbose = FALSE,
   print.debug = FALSE
 )

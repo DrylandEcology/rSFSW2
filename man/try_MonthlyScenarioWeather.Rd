@@ -25,7 +25,6 @@ try_MonthlyScenarioWeather(
   project_paths,
   dir_failed,
   fdbWeather,
-  resume,
   verbose,
   print.debug
 )

@@ -19,7 +19,6 @@ calc_DailyScenarioWeather(
   dir_out_tmp,
   dir_failed,
   fdbWeather,
-  resume,
   chunk_size = 500L,
   verbose = FALSE
 )

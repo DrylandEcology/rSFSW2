@@ -29,7 +29,6 @@ calc_MonthlyScenarioWeather(
   opt_DS,
   project_paths,
   dir_failed,
-  resume,
   verbose,
   print.debug
 )
