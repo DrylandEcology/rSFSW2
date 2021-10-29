@@ -5441,34 +5441,35 @@ copy_tempdata_to_dbW <- function(
 #' (for that you need a new row in the \var{\sQuote{InputMain}} spreadsheet)
 climscen_determine_sources <- function(
   climDB_metas,
-  SFSW2_prj_meta,
-  SFSW2_prj_inputs
+  xmain,
+  runIDs_sites,
+  runsN_sites,
+  how_determine_sources = c("SWRunInformation", "order"),
+  scen_sources,
+  fmain,
+  fpreprocin
 ) {
+  how_determine_sources <- match.arg(how_determine_sources)
 
-  xy <- SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], c("X_WGS84", "Y_WGS84")]
+  xy <- xmain[runIDs_sites, c("X_WGS84", "Y_WGS84")]
 
-  update_SWRunInformation <- FALSE
-
-  sites_GCM_source <- if (
-    SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]] == "SWRunInformation" &&
-      "GCM_sources" %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]])
+  if (
+    how_determine_sources == "SWRunInformation" &&
+      "GCM_sources" %in% colnames(xmain)
   ) {
-    sites_GCM_source <- SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"]
+    sites_GCM_source <- prev_sites_GCM_source <-
+      xmain[runIDs_sites, "GCM_sources"]
   } else if (
-    SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]] == "order" ||
-      !("GCM_sources" %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]]))
+    how_determine_sources == "order" || !("GCM_sources" %in% colnames(xmain))
   ) {
-    rep(NA, times = SFSW2_prj_meta[["sim_size"]][["runsN_sites"]])
-  } else {
-    stop(
-      "'climscen_determine_sources': does not recognize source ",
-      shQuote(SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]])
-    )
+    sites_GCM_source <- rep(NA, times = runsN_sites)
+    prev_sites_GCM_source <- NULL
   }
 
-  # determine which data product to use for each site based on bounding boxes of datasets
-  i_use <- rep(FALSE, times = SFSW2_prj_meta[["sim_size"]][["runsN_sites"]])
-  for (ds in SFSW2_prj_meta[["sim_scens"]][["sources"]]) {
+  # determine which data product to use for each site
+  # based on bounding boxes of datasets
+  i_use <- rep(FALSE, times = runsN_sites)
+  for (ds in scen_sources) {
     i_use <- in_box(
       xy,
       climDB_metas[[ds]][["bbox"]]$lon,
@@ -5488,16 +5489,13 @@ climscen_determine_sources <- function(
   }
 
   # write data to disk
-  SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"] <-
-    as.character(sites_GCM_source)
-  utils::write.csv(
-    SFSW2_prj_inputs[["SWRunInformation"]],
-    file = SFSW2_prj_meta[["fnames_in"]][["fmain"]],
-    row.names = FALSE
-  )
-  unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
+  if (!isTRUE(all.equal(sites_GCM_source, prev_sites_GCM_source))) {
+    xmain[runIDs_sites, "GCM_sources"] <- as.character(sites_GCM_source)
+    utils::write.csv(xmain, file = fmain, row.names = FALSE)
+    unlink(fpreprocin)
+  }
 
-  SFSW2_prj_inputs[["SWRunInformation"]]
+  xmain
 }
 
 
@@ -5893,6 +5891,7 @@ get_climatechange_data <- function(
     any(grepl("historic", climDB_struct[["id_scen"]], ignore.case = TRUE))
   )
 
+
   #--- put requests together
   # TODO: probably better to include scenarios as well, e.g.,
   # consider requestN <- length(reqRCPs) * length(reqGCMs) * nrow(locations)
@@ -6013,15 +6012,15 @@ get_climatechange_data <- function(
     ids_Done <- sort(unique(c(ids_Done, out)))
   }
 
-  # Process any temporary datafile from a current run
+  #--- Process any temporary datafile from a current run
   copy_tempdata_to_dbW(
     fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-    clim_source,
+    clim_source = clim_source,
     dir_out_tmp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-    verbose
+    verbose = verbose
   )
 
-  # Determine progress
+  #--- Determine progress
   if (length(ids_Done) > 0) {
     if (verbose) {
       print(paste(
@@ -6037,7 +6036,7 @@ get_climatechange_data <- function(
     ids_ToDo <- ids_AllToDo
   }
 
-  # Clean up: report unfinished locations, etc.
+  #--- Clean up: report unfinished locations, etc.
   if (length(ids_ToDo) > 0) {
     print(paste(
       length(ids_ToDo),
@@ -6439,7 +6438,8 @@ ExtractClimateWizard <- function(
 #' @section Details: Overview of algorithm:
 #'
 #' Function \code{PrepareClimateScenarios}
-#'    * calls `ExtractClimateChangeScenarios()`
+#'    1) calls `copy_tempdata_to_dbW()`
+#'    2) calls `ExtractClimateChangeScenarios()`
 #'
 #' -> function \code{\link{ExtractClimateChangeScenarios}}
 #'    1) prepares parallel setup
@@ -6451,6 +6451,7 @@ ExtractClimateWizard <- function(
 #'
 #' -> function \code{\link{tryToGet_ClimDB()}}
 #'    * implements separate logic for monthly and daily data sets
+#'
 #'    * monthly data set
 #'      * loops in parallel over \var{GCM} x location combinations
 #'        calling `try_MonthlyScenarioWeather()`
@@ -6458,7 +6459,7 @@ ExtractClimateWizard <- function(
 #'    * daily data set
 #'      * loops over chunks of locations
 #'        1) calls `calc_DailyScenarioWeather()`
-#'        1) calls `copy_tempdata_to_dbW()`
+#'        1) calls `copy_tempdata_to_dbW()` (if not parallel)
 #'
 #' -> function \code{\link{calc_DailyScenarioWeather()}}
 #'    * loops in parallel over \var{GCM} x \var{scenarios}
@@ -6503,9 +6504,15 @@ PrepareClimateScenarios <- function(
 
   SFSW2_prj_inputs[["SWRunInformation"]] <- climscen_determine_sources(
     climDB_metas = climDB_metas,
-    SFSW2_prj_meta = SFSW2_prj_meta,
-    SFSW2_prj_inputs = SFSW2_prj_inputs
+    xmain = SFSW2_prj_inputs[["SWRunInformation"]],
+    runIDs_sites = SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],
+    runsN_sites = SFSW2_prj_meta[["sim_size"]][["runsN_sites"]],
+    how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
+    scen_sources = SFSW2_prj_meta[["sim_scens"]][["sources"]],
+    fmain = SFSW2_prj_meta[["fnames_in"]][["fmain"]],
+    fpreprocin = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]
   )
+
 
   conventions <- sapply(
     SFSW2_prj_meta[["sim_scens"]][["sources"]],
