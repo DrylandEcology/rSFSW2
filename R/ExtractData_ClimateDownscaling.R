@@ -5176,12 +5176,15 @@ tryToGet_ClimDB <- function(
       )
 
       #--- Process any temporary datafile
-      copy_tempdata_to_dbW(
-        fdbWeather = fdbWeather,
-        clim_source = clim_source,
-        dir_out_tmp = project_paths[["dir_out_temp"]],
-        verbose = verbose
-      )
+      # (in sequential call so to not waste parallel core-time)
+      if (!SFSW2_glovars[["p_has"]]) {
+        copy_tempdata_to_dbW(
+          fdbWeather = fdbWeather,
+          clim_source = clim_source,
+          dir_out_tmp = project_paths[["dir_out_temp"]],
+          verbose = verbose
+        )
+      }
     }
 
   } else {
