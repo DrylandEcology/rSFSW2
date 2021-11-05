@@ -216,7 +216,7 @@ You can contribute to this project in different ways:
 - __Code documentation__
 
   * Read the section "Object documentation" in
-    [Wickham's book "R packages"](http://r-pkgs.had.co.nz/man.html)
+    [Wickham's book "R packages"](https://r-pkgs.org/man.html)
 
   * Use [`roxygen2`](https://CRAN.R-project.org/package=roxygen2/vignettes/formatting.html)
     to write inline code documentation
@@ -441,11 +441,11 @@ You can contribute to this project in different ways:
       coverage after merging into master does not decrease.
     * Please, don't use the CIs for debugging -- debug locally
 
-  * We use the framework of [testthat](https://github.com/hadley/testthat) for
+  * We use the framework of [testthat](https://github.com/r-lib/testthat) for
     unit testing and other tests for the package
 
   * Read the section "Testing" in
-    [Wickham's book "R packages"](http://r-pkgs.had.co.nz/tests.html)
+    [Wickham's book "R packages"](https://r-pkgs.org/tests.html)
     for additional information
 
 
