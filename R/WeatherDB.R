@@ -153,11 +153,9 @@ make_dbW <- function(
 
       # - Site is already in weather database but without ambient weather data
       #   (e.g., because a previous run was prematurely terminated)
-      imiss_by_dbW <- find_sites_with_bad_weather(
-        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-        siteID_by_dbW = tmp_by_dbW[, "ID_by_dbW"],
+      imiss_by_dbW <- !rSOILWAT2::dbW_have_sites_all_weatherData(
+        site_ids = tmp_by_dbW[, "ID_by_dbW"],
         scen_labels = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
-        chunk_size = opt_chunks[["ensembleCollectSize"]],
         verbose = verbose
       )
 

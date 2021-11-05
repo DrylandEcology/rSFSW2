@@ -6199,16 +6199,16 @@ ExtractClimateChangeScenarios <- function(
   include_YN_climscen <- rep(0L, SFSW2_prj_meta[["sim_size"]][["runsN_main"]])
 
   tmp_ids <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
-  tmp <- find_sites_with_bad_weather(
-    fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+
+  tmp <- !rSOILWAT2::dbW_have_sites_all_weatherData(
     site_labels =
       SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
     siteID_by_dbW =
       SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]],
     scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
-    chunk_size = opt_chunks[["ensembleCollectSize"]],
     verbose = verbose
   )
+
   include_YN_climscen[tmp_ids] <- ifelse(tmp, 0L, 1L)
 
   SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
@@ -6568,16 +6568,19 @@ PrepareClimateScenarios <- function(
 
     # Check sites
     if (length(tmp_ids) > 0) {
+      rSOILWAT2::dbW_setConnection(
+        dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]]
+      )
+      on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
+
       tmp_ids2 <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]] %in% tmp_ids
 
-      tmp <- find_sites_with_bad_weather(
-        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+      tmp <- !rSOILWAT2::dbW_have_sites_all_weatherData(
         site_labels =
           SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
-        siteID_by_dbW =
+        site_ids =
           SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][tmp_ids2],
         scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
-        chunk_size = opt_chunks[["ensembleCollectSize"]],
         verbose = opt_verbosity[["verbose"]]
       )
 

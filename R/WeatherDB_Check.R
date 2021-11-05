@@ -16,121 +16,16 @@ find_sites_with_bad_weather <- function(
   chunk_size = 500L,
   verbose = FALSE
 ) {
+  .Deprecated("dbW_have_sites_all_weatherData", package = "rSOILWAT2")
 
-  if (verbose) {
-    t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
-
-    on.exit({
-      print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-      cat("\n")}, add = TRUE)
-  }
-
-  # The pairs of arguments should be both NULL; if they both are not NULL,
-  # then they must of identical length
-  si_ltemp <- c(length(site_labels), length(siteID_by_dbW))
-  si_ntemp <- c(is.null(site_labels), is.null(siteID_by_dbW))
-  sc_ltemp <- c(length(scen_labels), length(scenID_by_dbW))
-  sc_ntemp <- c(is.null(scen_labels), is.null(scenID_by_dbW))
-
-  stopifnot(
-    !(si_ntemp[1] && si_ntemp[2]),
-    si_ntemp[1] || si_ntemp[2] || identical(si_ltemp[1], si_ltemp[2])
+  !rSOILWAT2::dbW_have_sites_all_weatherData(
+    site_labels = site_labels,
+    site_ids = siteID_by_dbW,
+    scen_labels = scen_labels,
+    scen_ids = scenID_by_dbW,
+    verbose = verbose
   )
-  stopifnot(
-    !(sc_ntemp[1] && sc_ntemp[2]),
-    sc_ntemp[1] || sc_ntemp[2] || identical(sc_ltemp[1], sc_ltemp[2])
-  )
-
-  req_scenN <- max(sc_ltemp)
-  n_todos <- max(si_ltemp)
-  todos <- rep(TRUE, n_todos)
-
-  con <- dbConnect(SQLite(), dbname = fdbWeather, flags = SQLITE_RO)
-  on.exit(dbDisconnect(con), add = TRUE)
-  rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
-  on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
-
-  if (dbExistsTable(con, "WeatherData")) {
-    if (is.null(siteID_by_dbW)) {
-      if (verbose) {
-        print(paste0("rSFSW2's ", temp_call, ": is calling the potentially ",
-          "time-consuming function 'rSOILWAT2::dbW_getSiteId'"))
-      }
-      siteID_by_dbW <- rSOILWAT2::dbW_getSiteId(Labels = site_labels)
-    }
-    if (anyNA(siteID_by_dbW)) {
-      stop("Not all sites (labels) available in weather database.")
-    }
-
-    if (is.null(scenID_by_dbW)) {
-      scenID_by_dbW <- rSOILWAT2::dbW_getScenarioId(Scenario = scen_labels)
-    }
-    if (anyNA(scenID_by_dbW)) {
-      stop("Not all sites (labels) available in weather database.")
-    }
-
-    do_chunks <- parallel::splitIndices(n_todos, ceiling(n_todos / chunk_size))
-
-    sql <- paste0(
-      "SELECT Site_id, Scenario FROM WeatherData ",
-      "WHERE Site_id IN (:x1) ",
-      "AND Scenario IN (:x2) ORDER BY Site_id, Scenario"
-    )
-    rs <- dbSendStatement(con, sql)
-    on.exit(dbClearResult(rs), add = TRUE)
-
-    if (verbose) {
-      pb <- utils::txtProgressBar(max = length(do_chunks), style = 3)
-    }
-
-    for (k in seq_along(do_chunks)) {
-      # Get site_id, scenario_id from dbWeather for chunked requested site_ids
-      dbBind(
-        rs,
-        params = as.list(expand.grid(
-          x1 = siteID_by_dbW[do_chunks[[k]]],
-          x2 = scenID_by_dbW,
-          KEEP.OUT.ATTRS = FALSE,
-          stringsAsFactors = FALSE
-        ))
-      )
-      res <- dbFetch(rs)
-
-      if (dim(res)[1] > 0) {
-        res <- unique(res)
-        tmp <- tapply(res[, "Scenario"], res[, "Site_id"], length)
-        tmp <- cbind(Site_id = as.integer(names(tmp)), scenN = tmp)
-
-        # Compare expected with what is available in dbWeather
-        # Good: all requested scenarios are available: set their todos to FALSE
-        i_good <- tmp[, "scenN"] >= req_scenN
-
-        if (any(i_good)) {
-          todos[siteID_by_dbW %in% tmp[i_good, "Site_id"]] <- FALSE
-        }
-      }
-
-      if (verbose) {
-        utils::setTxtProgressBar(pb, k)
-      }
-    }
-
-    if (verbose) close(pb)
-
-  } else {
-    stop(
-      "'find_sites_with_bad_weather': table 'WeatherData' is missing ",
-      "from 'dbWeather'"
-    )
-  }
-
-  todos
 }
-
-
 
 #' Checks data in a weather database
 #'

@@ -1391,16 +1391,19 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 
   #--- Check scenario weather
   if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "checked")) {
+    rSOILWAT2::dbW_setConnection(
+      dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]]
+    )
+    on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
     tmp_ids <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
-    icheck <- find_sites_with_bad_weather(
-      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+
+    icheck <- !rSOILWAT2::dbW_have_sites_all_weatherData(
       site_labels =
         SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
-      siteID_by_dbW =
+      site_ids =
         SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]],
       scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
-      chunk_size = opt_chunks[["ensembleCollectSize"]],
       verbose = opt_verbosity[["verbose"]]
     )
 
