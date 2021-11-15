@@ -27,6 +27,11 @@ opt_behave <- list(
   #    'LookupTranspRegions', and 'LookupSnowDensity'
   #  - It doesn't repeat calls to 'do_OneSite' that are listed in 'runIDs_done'
   resume = TRUE,
+  # Determines how completion of climate scenario data is determined at
+  # the site level:
+  #  - "dbW" - scan the weather database (accurate but slow)
+  #  - "fmain" - use the "ClimateScenarioSources_Completed" of fmain (quick)
+  climscen_todo_method = "dbW",
   # Use preprocessed input data if available
   use_preprocin = TRUE,
   # Update dbWork for each output element if TRUE (can cause traffic jams in
@@ -48,22 +53,27 @@ opt_parallel <- list(
     !SFSW2_prj_meta[["opt_platform"]][["no_parallel"]],
 
   # Number of cores/workers/slaves if job is run in parallel
-  num_cores = if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]],
-    "local")) {
-      if (identical(tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_")), "false") ||
-          identical(tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_")), "")) 4 else 2
-    } else if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "hpc")) {
-      4
-    },
+  num_cores = if (
+    identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "local")
+  ) {
+      if (
+        identical(tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_")), "false") ||
+        identical(tolower(Sys.getenv("_R_CHECK_LIMIT_CORES_")), "")
+      ) 4 else 2
+  } else if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "hpc")) {
+    4
+  },
+
   # Parallel_backend:
   #   - "socket" = "cluster" (via package 'parallel') or
   #   - "mpi" (via 'Rmpi')
-  parallel_backend = if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]],
-    "local")) {
-      "socket"
-    } else if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "hpc")) {
-      "mpi"
-    },
+  parallel_backend = if (
+    identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "local")
+  ) {
+    "socket"
+  } else if (identical(SFSW2_prj_meta[["opt_platform"]][["host"]], "hpc")) {
+    "mpi"
+  },
 
   # Computation time requests: time limits are only enforced if
   #   parallel_backend is "mpi"
@@ -71,7 +81,11 @@ opt_parallel <- list(
     wall_time_s = 12 * 3600, # requested wall time
     one_sim_s = 60, # time needed to complete one call to do_OneSite()
     one_concat_s = 60 # time needed to process one temporary SQL file
-  )
+  ),
+
+  # Read & write weather database concurrently if parallel?
+  # Only used if rSOILWAT2 >= v5.0.2 and weather database in wal mode
+  concurrent_RW_dbW = TRUE
 )
 
 

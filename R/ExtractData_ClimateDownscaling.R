@@ -4720,6 +4720,7 @@ calc_DailyScenarioWeather <- function(
   dir_out_tmp,
   dir_failed,
   fdbWeather,
+  dbW_mode,
   chunk_size = 500L,
   verbose = FALSE
 ) {
@@ -4741,6 +4742,21 @@ calc_DailyScenarioWeather <- function(
     )
 
     ids_seq_scens <- seq_along(sim_scen_ids1_by_dbW)
+
+
+    # Write data directly to dbW
+    # (instead of indirectly via temporary disk files):
+    # if not parallel or if `concurrent_RW_dbW` exists and is set to TRUE
+    # and "rSOILWAT2" is capable of handling it (starting with v5.0.2)
+    # and if dbW is in WAL mode (so that writers don't block readers)
+    write_tmp_to_dbW <-
+      !SFSW2_glovars[["p_has"]] &&
+      isTRUE(
+        opt_parallel[["concurrent_RW_dbW"]] &&
+        getNamespaceVersion("rSOILWAT2") >= "5.0.2" &&
+        identical(dbW_mode, "wal")
+      )
+
 
     #--- Extract and loop over GCM x RCP combinations (in parallel)
     if (SFSW2_glovars[["p_has"]]) {
@@ -4766,7 +4782,7 @@ calc_DailyScenarioWeather <- function(
           getYears = getYears,
           fdbWeather = fdbWeather,
           compression_type = compression_type,
-          write_tmp_to_disk = SFSW2_glovars[["p_has"]],
+          write_tmp_to_disk = !write_tmp_to_dbW,
           dir_out_tmp = dir_out_tmp,
           dir_failed = dir_failed,
           chunk_size = chunk_size,
@@ -4803,7 +4819,7 @@ calc_DailyScenarioWeather <- function(
           getYears = getYears,
           fdbWeather = fdbWeather,
           compression_type = compression_type,
-          write_tmp_to_disk = SFSW2_glovars[["p_has"]],
+          write_tmp_to_disk = !write_tmp_to_dbW,
           dir_out_tmp = dir_out_tmp,
           dir_failed = dir_failed,
           chunk_size = chunk_size,
@@ -4831,7 +4847,7 @@ calc_DailyScenarioWeather <- function(
         getYears = getYears,
         fdbWeather = fdbWeather,
         compression_type = compression_type,
-        write_tmp_to_disk = SFSW2_glovars[["p_has"]],
+        write_tmp_to_disk = !write_tmp_to_dbW,
         dir_out_tmp = dir_out_tmp,
         dir_failed = dir_failed,
         chunk_size = chunk_size,
@@ -5131,11 +5147,28 @@ tryToGet_ClimDB <- function(
 
   #--- ids_ToDo based on length(reqGCMs) x nrow(locations0)
 
+  # Query mode of dbWeather
+  con <- DBI::dbConnect(RSQLite::SQLite(), fdbWeather)
+  dbW_mode <- tolower(DBI::dbGetQuery(con, "PRAGMA journal_mode")[1, 1])
+  DBI::dbDisconnect(con)
+
+  if (!identical(dbW_mode, "wal")) {
+    cat(
+      "Weather database is not in WAL mode:",
+      "WAL mode is recommended when adding data in parallel, i.e.,\n",
+      "    ```DBI::dbExecute(con, 'PRAGMA journal_mode = wal')```\n\n",
+      "Reset to default `delete` mode once weather database is complete,",
+      "i.e.,\n",
+      "    ```DBI::dbExecute(con, 'PRAGMA journal_mode = delete')```\n\n"
+    )
+  }
+
   # requests ids_ToDo: fastest if nc file is
   #  - DONE: permutated to (lat, lon, time) instead (time, lat, lon)
   #  - TODO: many sites are extracted from one nc-read instead of one site
   #          per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
   #          (DONE for `is_idem`)
+
 
   if (is_idem) {
     #--- Create chunked index over locations0
@@ -5187,6 +5220,7 @@ tryToGet_ClimDB <- function(
         dir_out_tmp = project_paths[["dir_out_temp"]],
         dir_failed = dir_failed,
         fdbWeather = fdbWeather,
+        dbW_mode = dbW_mode,
         chunk_size = chunk_size,
         verbose = verbose
       )
