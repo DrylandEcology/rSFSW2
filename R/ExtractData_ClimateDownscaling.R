@@ -5398,52 +5398,69 @@ copy_tempdata_to_dbW <- function(
       ok <- 0
       fail <- FALSE
       ftmp <- file.path(dir_out_tmp, f)
-      df_wdataOut <- try(readRDS(file = ftmp))
 
-      if (
-        !inherits(df_wdataOut, "try-error") &&
-          all(req_wdata_fields %in% names(df_wdataOut))
-      ) {
-        for (k in which(df_wdataOut[["todo"]])) {
-          if (!is.na(df_wdataOut[["weatherData"]][k])) {
-            res <- try(rSOILWAT2:::dbW_addWeatherDataNoCheck(
-              Site_id = df_wdataOut[["Site_id_by_dbW"]][k],
-              Scenario_id = df_wdataOut[["Scenario_id"]][k],
-              StartYear = df_wdataOut[["StartYear"]][k],
-              EndYear = df_wdataOut[["EndYear"]][k],
-              weather_blob = df_wdataOut[["weatherData"]][k][[1]]
-            ))
+      if (file.exists(ftmp)) {
+        df_wdataOut <- try(readRDS(file = ftmp), silent = !verbose)
 
-            if (!inherits(res, "try-error")) {
-              ok <- ok + 1
-            } else {
-              fail <- TRUE
+        if (
+          !inherits(df_wdataOut, "try-error") &&
+            all(req_wdata_fields %in% names(df_wdataOut))
+        ) {
+          for (k in which(df_wdataOut[["todo"]])) {
+            if (!is.na(df_wdataOut[["weatherData"]][k])) {
+              res <- try(rSOILWAT2:::dbW_addWeatherDataNoCheck(
+                Site_id = df_wdataOut[["Site_id_by_dbW"]][k],
+                Scenario_id = df_wdataOut[["Scenario_id"]][k],
+                StartYear = df_wdataOut[["StartYear"]][k],
+                EndYear = df_wdataOut[["EndYear"]][k],
+                weather_blob = df_wdataOut[["weatherData"]][k][[1]]
+              ))
+
+              if (!inherits(res, "try-error")) {
+                ok <- ok + 1
+              } else {
+                fail <- TRUE
+              }
             }
           }
+
+          if (verbose) {
+            print(paste0(
+              Sys.time(), ": temporary scenario file ", shQuote(f),
+              " successfully added n = ", ok,
+              " out of t = ", sum(df_wdataOut[["todo"]]),
+              " records to weather database",
+              if (fail) " and some failed to add"
+            ))
+          }
+
+        } else {
+          cat(
+            "Temporary scenario file", shQuote(f), "cannot be read,",
+            "likely because it is corrupted, already processed,",
+            "or contains malformed data.",
+            fill = TRUE
+          )
+          fail <- TRUE
         }
 
+        if (fail) {
+          ftmp_to <- file.path(dir_failed, f)
+          if (!dir.exists(dirname(ftmp_to))) {
+            dir.create(dirname(ftmp_to), recursive = TRUE, showWarnings = FALSE)
+          }
+          file.rename(from = ftmp, to = ftmp_to)
+        } else {
+          unlink(ftmp)
+        }
+
+      } else {
         if (verbose) {
-          print(paste0(
-            Sys.time(), ": temporary scenario file ", shQuote(f),
-            " successfully added n = ", ok,
-            " out of t = ", sum(df_wdataOut[["todo"]]),
-            " records to weather database",
-            if (fail) " and some failed to add"
-          ))
+          cat(
+            "Temporary scenario file", shQuote(f), "does not exist anymore.",
+            fill = TRUE
+          )
         }
-      } else {
-        print(paste(
-          "Temporary scenario file", shQuote(f),
-          "cannot be read, likely because it is corrupted",
-          "or contains malformed data."
-        ))
-        fail <- TRUE
-      }
-
-      if (fail) {
-        file.rename(from = ftmp, to = file.path(dir_failed, f))
-      } else {
-        unlink(ftmp)
       }
     }
   }
