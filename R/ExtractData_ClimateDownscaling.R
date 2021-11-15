@@ -4637,6 +4637,22 @@ try_prepare_site_with_daily_scenario_weather <- function(
       )
     )
 
+    if (inherits(tmp, "try-error") && isFALSE(write_tmp_to_disk)) {
+      # If directly writing to dbW fails, then write temporary file to disk
+      tmp <- try(
+        prepare_site_with_daily_scenario_weather(
+          x[[i]],
+          rcp = rcp,
+          scenario = scenario,
+          scenario_id_by_dbW = scenario_id_by_dbW,
+          site_id_by_dbW = site_ids_by_dbW[i],
+          compression_type = compression_type,
+          write_tmp_to_disk = TRUE,
+          filename = file.path(path, filenames[i])
+        )
+      )
+    }
+
     if (inherits(tmp, "try-error")) {
       print(paste(Sys.time(), tmp))
 
