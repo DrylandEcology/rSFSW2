@@ -6617,21 +6617,17 @@ PrepareClimateScenarios <- function(
   if (todo_method == "dbW") {
     #--- Compare against weather database
 
-    tmp_ids <- which(todos)
-
     # Sites for which climate scenario resources are not already completed
-    resave_fmain <- FALSE
+    resave_fmain <- !(
+      tmp_var %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]])
+    )
     tmp_var <- "ClimateScenarioSources_Completed"
 
-    if (tmp_var %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]])) {
-      tmp_ids <- intersect(
-        tmp_ids,
-        which(!(SFSW2_prj_inputs[["SWRunInformation"]][, tmp_var] %in% 1))
-      )
-    } else {
-      resave_fmain <- TRUE
+    if (resave_fmain) {
       SFSW2_prj_inputs[["SWRunInformation"]][, tmp_var] <- NA
     }
+
+    tmp_ids <- which(todos)
 
     # Check sites
     if (length(tmp_ids) > 0) {
@@ -6677,8 +6673,7 @@ PrepareClimateScenarios <- function(
     tmp_var <- "ClimateScenarioSources_Completed"
     if (tmp_var %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]])) {
       todos <-
-        todos &
-        !(SFSW2_prj_inputs[["SWRunInformation"]][, tmp_var] %in% 1)
+        todos & !(SFSW2_prj_inputs[["SWRunInformation"]][, tmp_var] %in% 1)
     }
   }
   names(todos) <- NULL
