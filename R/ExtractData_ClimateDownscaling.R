@@ -6616,12 +6616,12 @@ PrepareClimateScenarios <- function(
 
   if (todo_method == "dbW") {
     #--- Compare against weather database
+    tmp_var <- "ClimateScenarioSources_Completed"
 
     # Sites for which climate scenario resources are not already completed
     resave_fmain <- !(
       tmp_var %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]])
     )
-    tmp_var <- "ClimateScenarioSources_Completed"
 
     if (resave_fmain) {
       SFSW2_prj_inputs[["SWRunInformation"]][, tmp_var] <- NA
