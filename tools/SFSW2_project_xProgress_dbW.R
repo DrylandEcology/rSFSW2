@@ -11,16 +11,29 @@ con <- RSQLite::dbConnect(
   flags = RSQLite::SQLITE_RO
 )
 
+# Count unique projected weather data objects
+tmp <- RSQLite::dbGetQuery(
+  con,
+  paste(
+    "SELECT Scenario, COUNT(DISTINCT Site_id) FROM WeatherData ",
+    "WHERE Scenario > 1",
+    "GROUP BY Scenario"
+  )
+)
+cat("Unique projected weather objects, n =", sum(tmp[, 2]), fill = TRUE)
+
+# Count total projected weather data objects
 tmp <- RSQLite::dbGetQuery(
   con,
   "SELECT COUNT(*) FROM WeatherData WHERE Scenario > 1"
 )
-cat("Projected weather objects, n =", as.integer(tmp), fill = TRUE)
+cat("Total projected weather objects, n =", as.integer(tmp), fill = TRUE)
 
 
+# Count sites with any projected weather data
 tmp <- RSQLite::dbGetQuery(
   con,
-  "SELECT COUNT(DISTINCT Site_Id) FROM WeatherData WHERE Scenario > 1"
+  "SELECT COUNT(DISTINCT Site_id) FROM WeatherData WHERE Scenario > 1"
 )
 cat("Sites with projected objects, n =", as.integer(tmp), fill = TRUE)
 
