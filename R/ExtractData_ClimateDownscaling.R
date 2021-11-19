@@ -4754,7 +4754,7 @@ calc_DailyScenarioWeather <- function(
 
     cat(
       "Projected daily weather data objects are",
-      if (write_tmp_do_dbW) {
+      if (write_tmp_to_dbW) {
         "directly inserted to the weather database."
       } else {
         "written to disk as temporary files and later added to the database."
