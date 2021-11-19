@@ -4560,15 +4560,38 @@ prepare_site_with_daily_scenario_weather <- function(
 
   years <- range(x[, "Year"], na.rm = TRUE)
 
-  scen_fut_daily <- rSOILWAT2::dbW_dataframe_to_weatherData(
-    weatherDF = x,
-    weatherDF_dataColumns = colnames(x)[-1]
-  )
+  rownames(x) <- NULL
+
 
   blob_scen_fut_daily <- rSOILWAT2::dbW_weatherData_to_blob(
-    weatherData = scen_fut_daily,
+    weatherData = rSOILWAT2::dbW_dataframe_to_weatherData(
+      weatherDF = x,
+      weatherDF_dataColumns = colnames(x)[-1]
+    ),
     type = compression_type
   )
+
+  if (!write_tmp_to_disk) {
+    # Insert into weather database directly:
+    # Faster than writing to disk and then importing into dbWeather by
+    # `copy_tempdata_to_dbW`
+    # (but parallel concurrent writing to dbW requires to catch errors and
+    # ideally wal-mode so that writers don't block readers)
+    tmp <- try(
+      rSOILWAT2:::dbW_addWeatherDataNoCheck(
+        Site_id = site_id_by_dbW,
+        Scenario_id = scenario_id_by_dbW,
+        StartYear = years[1],
+        EndYear = years[2],
+        weather_blob = blob_scen_fut_daily
+      ),
+      silent = TRUE
+    )
+
+    # Write to disk instead if inserting to dbW failed
+    write_tmp_to_disk <- inherits(tmp, "try-error")
+  }
+
 
   if (write_tmp_to_disk) {
     # Prepare object for later insertion into weather database
@@ -4590,19 +4613,6 @@ prepare_site_with_daily_scenario_weather <- function(
     df_wdataOut[["weatherData"]] <- list(blob_scen_fut_daily)
 
     saveRDS(object = df_wdataOut, file = filename)
-
-  } else {
-    # Insert into weather database directly:
-    # Faster than writing to disk and then importing into dbWeather by
-    # `copy_tempdata_to_dbW` -- but only possible if not working in parallel
-    # mode
-    rSOILWAT2:::dbW_addWeatherDataNoCheck(
-      Site_id = site_id_by_dbW,
-      Scenario_id = scenario_id_by_dbW,
-      StartYear = years[1],
-      EndYear = years[2],
-      weather_blob = blob_scen_fut_daily
-    )
   }
 
   invisible(NULL)
@@ -4636,22 +4646,6 @@ try_prepare_site_with_daily_scenario_weather <- function(
         filename = file.path(path, filenames[i])
       )
     )
-
-    if (inherits(tmp, "try-error") && isFALSE(write_tmp_to_disk)) {
-      # If directly writing to dbW fails, then write temporary file to disk
-      tmp <- try(
-        prepare_site_with_daily_scenario_weather(
-          x[[i]],
-          rcp = rcp,
-          scenario = scenario,
-          scenario_id_by_dbW = scenario_id_by_dbW,
-          site_id_by_dbW = site_ids_by_dbW[i],
-          compression_type = compression_type,
-          write_tmp_to_disk = TRUE,
-          filename = file.path(path, filenames[i])
-        )
-      )
-    }
 
     if (inherits(tmp, "try-error")) {
       print(paste(Sys.time(), tmp))
@@ -4746,16 +4740,27 @@ calc_DailyScenarioWeather <- function(
 
     # Write data directly to dbW
     # (instead of indirectly via temporary disk files):
-    # if not parallel or if `concurrent_RW_dbW` exists and is set to TRUE
+    # if not parallel or
+    # if `concurrent_RW_dbW` exists and is set to TRUE
     # and "rSOILWAT2" is capable of handling it (starting with v5.0.2)
     # and if dbW is in WAL mode (so that writers don't block readers)
     write_tmp_to_dbW <-
-      !SFSW2_glovars[["p_has"]] &&
+      !SFSW2_glovars[["p_has"]] ||
       isTRUE(
         opt_parallel[["concurrent_RW_dbW"]] &&
         getNamespaceVersion("rSOILWAT2") >= "5.0.2" &&
         identical(dbW_mode, "wal")
       )
+
+    cat(
+      "Projected daily weather data objects are",
+      if (write_tmp_do_dbW) {
+        "directly inserted to the weather database."
+      } else {
+        "written to disk as temporary files and later added to the database."
+      },
+      "\n"
+    )
 
 
     #--- Extract and loop over GCM x RCP combinations (in parallel)
