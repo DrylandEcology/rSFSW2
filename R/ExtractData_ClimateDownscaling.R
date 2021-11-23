@@ -6275,7 +6275,7 @@ ExtractClimateChangeScenarios <- function(
   tmp <- !rSOILWAT2::dbW_have_sites_all_weatherData(
     site_labels =
       SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
-    siteID_by_dbW =
+    site_ids =
       SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]],
     scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
     verbose = verbose
