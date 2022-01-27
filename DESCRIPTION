@@ -14,7 +14,7 @@ Depends:
     R (>= 3.5.0),
     methods
 Imports:
-    rSOILWAT2 (>= 5.0.2),
+    rSOILWAT2 (>= 5.0.4),
     rSW2utils,
     rSW2st,
     rSW2data,

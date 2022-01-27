@@ -72,19 +72,16 @@ get_minVersion_rSOILWAT2 <- function() {
 #'
 #' @export
 check_rSW2_version <- function(object, strict = TRUE) {
-  tmp1 <- rSOILWAT2::get_version(object)
-  tmp2 <- SFSW2_glovars[["minVersion_rSOILWAT2"]]
-
-  res <- if (is.na(tmp1) || is.na(tmp2)) {
-    FALSE
-  } else {
-    as.numeric_version(tmp1) >= as.numeric_version(tmp2)
-  }
+  res <- rSOILWAT2::check_version(
+    object,
+    expected_version = SFSW2_glovars[["minVersion_rSOILWAT2"]]
+  )
 
   if (!strict && !res) {
     warning(
-      "Code requires 'rSOILWAT2' v", tmp2,
-      ", but ", shQuote(deparse(substitute(object))), "has v", tmp1
+      "Code requires 'rSOILWAT2' v", SFSW2_glovars[["minVersion_rSOILWAT2"]],
+      ", but ", shQuote(deparse(substitute(object))), "has v",
+      rSOILWAT2::get_version(object)
     )
     res <- TRUE
   }
