@@ -410,12 +410,13 @@ do_OneSite <- function(
 
     if (
       !inherits(tmp, "try-error") &&
-      all(sapply(objnames_saveRsoilwatInput, exists)) &&
+      all(sapply(objnames_saveRsoilwatInput, exists, where = environment())) &&
       check_rSW2_version(
         object = swRunScenariosData[[1]],
         strict = opt_out_run[["enforce_rSW2_version"]]
       )
     ) {
+      print_debug(opt_verbosity, tag_simfid, "section", "existing rSOILWAT2 input object loaded")
       tasks[, "create"] <- 2L
     }
   }
@@ -2204,6 +2205,7 @@ do_OneSite <- function(
           strict = opt_out_run[["enforce_rSW2_version"]]
         )
       ) {
+        print_debug(opt_verbosity, tag_simfid, "section", "existing rSOILWAT2 output object loaded")
         tasks[sc, "execute"] <- 2L
       }
     }
