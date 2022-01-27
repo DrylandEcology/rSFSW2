@@ -2231,7 +2231,7 @@ do_OneSite <- function(
           inputData = swRunScenariosData[[sc]],
           weatherList = i_sw_weatherList[[scw]],
           echo = FALSE,
-          quiet = TRUE
+          quiet = !opt_verbosity[["print.debug"]]
         ),
         silent = TRUE
       )
