@@ -500,16 +500,22 @@ setup_SFSW2_cluster <- function(opt_parallel, dir_out, verbose = FALSE,
         SFSW2_glovars[["p_cl"]] <- parallel::makePSOCKcluster(
           opt_parallel[["num_cores"]],
           outfile = if (verbose) {
-              temp <- file.path(dir_out,
-                paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_olog_cluster.txt"))
-              if (utils::packageVersion("parallel") >= "3.5.0") {
-                temp
-              } else {
-                # previous versions of `parallel:::newPSOCKnode` didn't call
-                # `shQuote` on `outfile` before processing in a shell
-                shQuote(temp)
-              }
-            } else "")
+            tmp <- file.path(
+              dir_out,
+              paste0(format(Sys.time(), "%Y%m%d-%H%M"), "_olog_cluster.txt")
+            )
+
+            if (utils::packageVersion("parallel") >= "3.5.0") {
+              tmp
+            } else {
+              # previous versions of `parallel:::newPSOCKnode` didn't call
+              # `shQuote` on `outfile` before processing in a shell
+              shQuote(tmp)
+            }
+          } else {
+            ""
+          }
+        )
 
         SFSW2_glovars[["p_pids"]] <- as.integer(
           parallel::clusterCall(SFSW2_glovars[["p_cl"]], fun = Sys.getpid))

@@ -836,7 +836,7 @@ ExtractData_Soils <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
   #--- SET UP PARALLELIZATION
   setup_SFSW2_cluster(
     opt_parallel,
-    dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
+    dir_out = SFSW2_prj_meta[["project_paths"]][["dir_log"]],
     verbose = opt_verbosity[["verbose"]],
     print.debug = opt_verbosity[["print.debug"]]
   )

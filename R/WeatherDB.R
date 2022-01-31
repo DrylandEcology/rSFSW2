@@ -326,7 +326,7 @@ make_dbW <- function(
       #--- Set up parallelization
       setup_SFSW2_cluster(
         opt_parallel,
-        dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
+        dir_out = SFSW2_prj_meta[["project_paths"]][["dir_log"]],
         verbose = verbose
       )
       on.exit(exit_SFSW2_cluster(verbose), add = TRUE)

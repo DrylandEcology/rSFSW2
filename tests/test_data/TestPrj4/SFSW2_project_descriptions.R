@@ -53,6 +53,7 @@ project_paths <- list(
   # Path to various other output
   dir_out_expDesign = file.path(dir_out, "Experimentals_Input_Data"),
   dir_out_traces = file.path(dir_out, "Time_Traces"),
+  dir_log = file.path(dir_prj, "logs"),
 
   # Path from where external data are extraced
   dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {

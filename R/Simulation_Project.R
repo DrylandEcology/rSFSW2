@@ -411,10 +411,12 @@ init_rSFSW2_project <- function(
     SFSW2_prj_meta[["input_status"]] <- init_intracker()
   }
 
-  is_project_description_outdated(SFSW2_prj_meta)
+  SFSW2_prj_meta <- is_project_description_outdated(SFSW2_prj_meta)
 
-  save_to_rds_with_backup(SFSW2_prj_meta,
-    file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]])
+  save_to_rds_with_backup(
+    SFSW2_prj_meta,
+    file = SFSW2_prj_meta[["fnames_in"]][["fmeta"]]
+  )
 
   SFSW2_prj_meta
 }
@@ -500,6 +502,21 @@ is_project_description_outdated <- function(meta) {
     )
   }
 
+  has <- "dir_log" %in% names(meta[["project_paths"]])
+  if (!has) {
+    warning(
+      "Outdated project description: ",
+      "The element `dir_log` ",
+      "of list 'project_paths' is absent; ",
+      "it was added after v4.3.0; ",
+      "assuming previous behavior, i.e., setting as if `dir_prj`; ",
+      "please update description."
+    )
+
+    meta[["project_paths"]][["dir_log"]] <- meta[["project_paths"]][["dir_prj"]]
+  }
+
+  meta
 }
 
 
@@ -1727,7 +1744,7 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   #   - loop calling do_OneSite
   #   - ensembles
   setup_SFSW2_cluster(opt_parallel,
-    dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
+    dir_out = SFSW2_prj_meta[["project_paths"]][["dir_log"]],
     verbose = opt_verbosity[["verbose"]],
     print.debug = opt_verbosity[["print.debug"]])
   on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
