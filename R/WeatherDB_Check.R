@@ -663,10 +663,6 @@ check_weatherDB <- function(
         summarize_weather(
           i,
           iclimate = climate[i, ],
-          scen = dbW_iScenarioTable[
-            as.integer(climate[i, "Scenario_id"]),
-            "Scenario"
-          ],
           startyear = startyear,
           endyear = endyear,
           db_name = fdbWeather
