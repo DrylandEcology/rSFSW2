@@ -524,15 +524,14 @@ check_weatherDB <- function(
     type = "PSOCK",
     outfile = "workers_log.txt"
   )
-  temp <- parallel::clusterExport(cl, "name_wid")
+  tmp <- parallel::clusterExport(cl, "name_wid", envir = environment())
 
   # TODO (drs): it is ok to load into globalenv() because this happens on
   # workers and not on main -> R CMD CHECK reports this nevertheless as issue
-  temp <- parallel::clusterApply(
+  tmp <- try(parallel::clusterApply(
     cl,
-    seq_len(n_cores), function(x) assign(name_wid, x, pos = 1L)
-  ) # worker identification number
-
+    seq_len(n_cores), function(x) assign(name_wid, x, envir = parent.frame(2))
+  )) # worker identification number
 
 
   #---Connect to weather database
