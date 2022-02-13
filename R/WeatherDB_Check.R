@@ -100,15 +100,10 @@ find_sites_with_bad_weather <- function(
   )
 }
 
-.cwdb_process_good_extractions <- function(
-  climate,
-  ids_todo,
-  var_out = vars,
-  file = fout
-) {
+.cwdb_process_good_extractions <- function(climate, ids_todo, var_out, file) {
 
-  if (file.exists(fout)) {
-    climate_good <- utils::read.csv(fout, header = TRUE)
+  if (file.exists(file)) {
+    climate_good <- utils::read.csv(file, header = TRUE)
 
     # Transfer to output
     if (nrow(climate_good) > 0) {
@@ -116,7 +111,7 @@ find_sites_with_bad_weather <- function(
         out = climate,
         data = climate_good,
         match_vars = c("Site_id_by_dbW", "Scenario_id"),
-        copy_vars = c("Status", vars),
+        copy_vars = c("Status", var_out),
         ids_out = ids_todo
       )
       climate <- temp[["out"]]
@@ -141,7 +136,7 @@ find_sites_with_bad_weather <- function(
 
 
 
-.cwdb_check_entry <- function(i, idss, data, vars, repeats) {
+.cwdb_check_entry <- function(i, idss, data, var_out, repeats) {
   # 3 types of entries in 'data'
   #  - # of duplicates < repeats ==> (-1) repeat: do not copy to 'climate';
   #     leave lines in 'ftemp'
@@ -170,7 +165,7 @@ find_sites_with_bad_weather <- function(
 
   if (NROW(tr) >= repeats) {
     variation <- apply(
-      tr[, c("Status", vars)],
+      tr[, c("Status", var_out)],
       MARGIN = 2,
       FUN = function(x) {
         # duplicates with and without NAs OR
@@ -235,7 +230,7 @@ find_sites_with_bad_weather <- function(
             "climate_progress",
             "idus_ss",
             "repeats",
-            "vars",
+            "var_out",
             ".cwdb_check_entry"
           ),
           envir = environment()
@@ -250,12 +245,13 @@ find_sites_with_bad_weather <- function(
             cl,
             X = seq_along(ids_unique),
             FUN = function(i) {
-            .cwdb_check_entry(
-              i,
-              idss = idus_ss[i, ],
-              data = climate_progress,
-              vars = vars,
-              repeats = repeats)
+              .cwdb_check_entry(
+                i,
+                idss = idus_ss[i, ],
+                data = climate_progress,
+                var_out = var_out,
+                repeats = repeats
+              )
             }
           )
         ))
@@ -300,7 +296,7 @@ find_sites_with_bad_weather <- function(
         temp <- .cwdb_copy_matches(
           out = climate, data = climate_good,
           match_vars = c("Site_id_by_dbW", "Scenario_id"),
-          copy_vars = c("Status", vars),
+          copy_vars = c("Status", var_out),
           ids_out = ids_todo
         )
 
@@ -365,11 +361,12 @@ find_sites_with_bad_weather <- function(
 
 summarize_weather <- function(
   i,
+  wid,
   iclimate,
   startyear,
   endyear,
   db_name,
-  outfile
+  fname_template
 ) {
 
   if (i %% 1000 == 1) {
@@ -439,7 +436,7 @@ summarize_weather <- function(
   # Temporary output
   utils::write.table(
     iclimate,
-    file = outfile,
+    file = sub("-X.csv", paste0("-", wid, ".csv"), fname_template),
     append = TRUE,
     sep = ",",
     dec = ".",
@@ -458,7 +455,7 @@ summarize_weather <- function(
 #' @param dir_prj A character string. The directory path the \pkg{rSFSW2}
 #'   simulation project.
 #' @param fdbWeather A character string. The file path of weather database.
-#' @param used_Site_id_by_dbW A numeric vector. A value of \code{NULL}
+#' @param used_Site_id A numeric vector. A value of \code{NULL}
 #'   will process all sites contained in the weather database. Specific
 #'   values will process only those sites.
 #' @param repeats An integer value. The number of times each weather object
@@ -473,7 +470,7 @@ summarize_weather <- function(
 check_weatherDB <- function(
   dir_prj,
   fdbWeather,
-  used_Site_id_by_dbW = NULL,
+  used_Site_id = NULL,
   repeats = 2L,
   do_preprocess_tempfiles = TRUE,
   n_cores = 20L,
@@ -484,7 +481,6 @@ check_weatherDB <- function(
 
   #---Settings
   if (!is.na(seed)) set.seed(seed)
-  name_wid <- ".wid"
 
   vars <- c("MAP_mm", "aPPT_mm_sd", "MAT_C", "MATmax_C", "MATmin_C")
   vars_mult <- "MAP_mm"
@@ -497,6 +493,12 @@ check_weatherDB <- function(
   )
   dir.create(
     dir_temp <- file.path(dir_out, "temp"),
+    recursive = TRUE,
+    showWarnings = FALSE
+  )
+
+  dir.create(
+    dir_log <- file.path(dir_prj, "logs"),
     recursive = TRUE,
     showWarnings = FALSE
   )
@@ -516,22 +518,6 @@ check_weatherDB <- function(
       "Summary_climate_dbWeatherData_", format(Sys.Date(), "%Y%m%d"), ".rds"
     )
   )
-
-
-  #---Calculate in parallel
-  cl <- parallel::makeCluster(
-    n_cores,
-    type = "PSOCK",
-    outfile = "workers_log.txt"
-  )
-  tmp <- parallel::clusterExport(cl, "name_wid", envir = environment())
-
-  # TODO (drs): it is ok to load into globalenv() because this happens on
-  # workers and not on main -> R CMD CHECK reports this nevertheless as issue
-  tmp <- try(parallel::clusterApply(
-    cl,
-    seq_len(n_cores), function(x) assign(name_wid, x, envir = parent.frame(2))
-  )) # worker identification number
 
 
   #---Connect to weather database
@@ -560,10 +546,8 @@ check_weatherDB <- function(
   #  Non-empty rows in 'climate' will be extracted
   used_sites <- dbW_iSiteTable$Latitude > -90 & dbW_iSiteTable$Latitude > -180
 
-  if (length(used_Site_id_by_dbW) > 0) {
-    used_sites <-
-      used_sites &
-      dbW_iSiteTable$Site_id_by_dbW %in% used_Site_id_by_dbW
+  if (length(used_Site_id) > 0) {
+    used_sites <- used_sites & dbW_iSiteTable$Site_id %in% used_Site_id
   }
 
   sitesN <- sum(used_sites)
@@ -579,16 +563,29 @@ check_weatherDB <- function(
   ids_todo <- seq_len(nrow(climate))
 
 
-  #---Check progress
 
+  #---Check progress
   paste0(Sys.time(), ": process previous progress")
 
-  progress <- .cwdb_process_good_extractions(climate, ids_todo)
+  progress <- .cwdb_process_good_extractions(
+    climate = climate,
+    ids_todo = ids_todo,
+    var_out = vars,
+    file = fout
+  )
   climate <- progress[["climate"]]
   ids_todo <- progress[["ids_todo"]]
 
 
   paste0(Sys.time(), ": process previous output")
+
+  #--- Setup parallel
+  cl <- parallel::makeCluster(
+    n_cores,
+    type = "PSOCK",
+    outfile = file.path(dir_log, "checkwDB_log.txt")
+  )
+
 
   if (do_preprocess_tempfiles) {
     progress2 <- .cwdb_process_tempfiles(
@@ -620,27 +617,27 @@ check_weatherDB <- function(
       cl,
       c(
         "climate", "dir_temp", "pattern_temp",
-        "name_wid", "summarize_weather", "fdbWeather", "dbW_iScenarioTable",
+        "summarize_weather", "fdbWeather", "dbW_iScenarioTable",
         "startyear", "endyear"
-      )
-
-      )
-    temp <- parallel::clusterEvalQ(
-      cl,
-      {
-        rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
-      }
+      ),
+      envir = environment()
     )
+
     temp <- parallel::clusterEvalQ(
       cl,
-      {
-        outfile <- file.path(
-          dir_temp,
-          paste0(pattern_temp, "-", get(name_wid), ".csv")
-        )
+      rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
+    )
+
+    temp <- parallel::clusterApply(
+      cl,
+      seq_len(n_cores),
+      fun = function(k) {
         utils::write.table(
           climate[0, ],
-          file = outfile,
+          file = file.path(
+            dir_temp,
+            paste0(pattern_temp, "-", k, ".csv")
+          ),
           append = FALSE,
           sep = ",",
           dec = ".",
@@ -651,23 +648,25 @@ check_weatherDB <- function(
       }
     )
 
-    itests <- unlist(lapply(
-      seq_len(repeats),
-      function(i) sample(x = ids_todo, size = length(ids_todo))
-    ))
 
-    idone <- parallel::parSapply(
+    idone <- parallel::clusterMap(
       cl,
-      X = itests,
-      FUN = function(i) {
+      fun = function(i, k) {
         summarize_weather(
           i,
+          wid = k,
           iclimate = climate[i, ],
           startyear = startyear,
           endyear = endyear,
-          db_name = fdbWeather
+          db_name = fdbWeather,
+          fname_template = file.path(dir_temp, paste0(pattern_temp, "-X.csv"))
         )
-      }
+      },
+      unlist(lapply(
+        seq_len(repeats),
+        function(i) sample(x = ids_todo, size = length(ids_todo))
+      )),
+      seq_len(n_cores)
     )
 
     temp <- parallel::clusterEvalQ(cl, rSOILWAT2::dbW_disconnectConnection())
@@ -717,81 +716,89 @@ check_weatherDB <- function(
     signif(sum(failed) / length(failed), 2)
   ))
 
-  tmp <- climate[failed, ]
-  graphics::plot(tmp[, "Site_id_by_dbW"], tmp[, "Scenario_id"])
+  if (any(failed)) {
+    tmp <- climate[failed, ]
+    graphics::plot(tmp[, "Site_id_by_dbW"], tmp[, "Scenario_id"])
 
-  failed_siteID <- climate[failed, "Site_id_by_dbW"]
-  print(paste0(
-    "Sites with at least one unsuccessful extractions: n = ",
-    length(unique(failed_siteID))
-  ))
-  failed_siteID_freq <- tapply(
-    rep(1, sum(failed)),
-    failed_siteID,
-    sum
-  )
-  probs <- c(0, 0.01, 0.5, 0.99, 1)
-  print(paste0(
-    "Unsuccessful extractions per scenario: quantiles: ",
-    paste(
-      probs,
-      stats::quantile(failed_siteID_freq, probs = probs),
-      sep = "% = ",
-      collapse = ", "
+    failed_siteID <- climate[failed, "Site_id_by_dbW"]
+    print(paste0(
+      "Sites with at least one unsuccessful extractions: n = ",
+      length(unique(failed_siteID))
+    ))
+    failed_siteID_freq <- tapply(
+      rep(1, sum(failed)),
+      failed_siteID,
+      sum
     )
-  ))
+    probs <- c(0, 0.01, 0.5, 0.99, 1)
+    print(paste0(
+      "Unsuccessful extractions per scenario: quantiles: ",
+      paste(
+        probs,
+        stats::quantile(failed_siteID_freq, probs = probs),
+        sep = "% = ",
+        collapse = ", "
+      )
+    ))
 
-  failed_scenID <- climate[failed, "Scenario_id"]
-  print(paste0(
-    "Scenarios with at least one unsuccessful extractions: n = ",
-    length(unique(failed_scenID))
-  ))
+    failed_scenID <- climate[failed, "Scenario_id"]
+    print(paste0(
+      "Scenarios with at least one unsuccessful extractions: n = ",
+      length(unique(failed_scenID))
+    ))
 
-  print(paste0("Unsuccessful extractions per scenario: n = "))
-  print(table(failed_scenID))
+    print(paste0("Unsuccessful extractions per scenario: n = "))
+    print(table(failed_scenID))
+  }
 
 
   # Variation among downscaled scenarios as difference to current
+  ids <- !failed & climate$Scenario_id > 1
 
-  dat <- climate[!failed & climate$Scenario_id > 1, ]
-  dat_cur <-
-    climate[climate$Site_id_by_dbW %in% dat$Site_id_by_dbW &
-    climate$Scenario_id == 1, ]
-  dat <- dat[do.call(order, dat), ]
+  if (any(ids)) {
+    dat <- climate[ids, ]
+    dat_cur <-
+      climate[climate$Site_id_by_dbW %in% dat$Site_id_by_dbW &
+      climate$Scenario_id == 1, ]
+    dat <- dat[do.call(order, dat), ]
 
-  dat_cur <- .cwdb_copy_matches(
-    out = dat,
-    data = dat_cur[do.call(order, dat_cur), ],
-    match_vars = "Site_id_by_dbW",
-    copy_vars = vars
-  )[["out"]]
+    dat_cur <- .cwdb_copy_matches(
+      out = dat,
+      data = dat_cur[do.call(order, dat_cur), ],
+      match_vars = "Site_id_by_dbW",
+      copy_vars = vars
+    )[["out"]]
 
-  dat_diff <- dat
-  for (iv in vars) {
-    dat_diff[, iv] <- if (iv %in% vars_mult) {
-      dat[, iv] / dat_cur[, iv]
-    } else {
-      dat[, iv] - dat_cur[, iv]
-    }
-  }
-
-  for (iv in vars) {
-    print(paste0(
-      "Mean variation within sites among downscaled scenarios ",
-      "for variable ", iv
-    ))
-
-    temp <- stats::aggregate(
-      dat_diff[, iv],
-      by = list(dat_diff$Site_id_by_dbW),
-      FUN = function(x) {
-        rx <- range(x)
-        c(mean = mean(x), min = min(rx), max = max(rx), range = diff(rx))
+    dat_diff <- dat
+    for (iv in vars) {
+      dat_diff[, iv] <- if (iv %in% vars_mult) {
+        dat[, iv] / dat_cur[, iv]
+      } else {
+        dat[, iv] - dat_cur[, iv]
       }
-    )
+    }
 
-    print(round(apply(temp[[2]], 2, mean), 2))
+    for (iv in vars) {
+      print(paste0(
+        "Mean variation within sites among downscaled scenarios ",
+        "for variable ", iv
+      ))
+
+      temp <- stats::aggregate(
+        dat_diff[, iv],
+        by = list(dat_diff$Site_id_by_dbW),
+        FUN = function(x) {
+          rx <- range(x)
+          c(mean = mean(x), min = min(rx), max = max(rx), range = diff(rx))
+        }
+      )
+
+      print(round(apply(temp[[2]], 2, mean), 2))
+    }
+  } else {
+    dat <- NULL
   }
 
-  dat
+
+  list(dat, climate)
 }
