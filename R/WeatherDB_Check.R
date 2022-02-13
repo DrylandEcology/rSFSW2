@@ -422,7 +422,7 @@ summarize_weather <- function(
     wd <- rSOILWAT2::dbW_weatherData_to_dataframe(wtemp)
 
     # Calculate climate variables (this is the slow part of the function)
-    wy_ppt <- tapply(wd[, "PPT_cm"], wd[, "Year"], sum)
+    wy_ppt <- 10 * tapply(wd[, "PPT_cm"], wd[, "Year"], sum)
     iclimate["MAP_mm"] <- round(mean(wy_ppt))
     iclimate["aPPT_mm_sd"] <- round(stats::sd(wy_ppt), 2)
 
