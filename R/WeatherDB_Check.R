@@ -524,7 +524,7 @@ check_weatherDB <- function(
   rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather, FALSE)
   on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
-  fsite <- file.path(file.path(dir_out, "Sites.cvs"))
+  fsite <- file.path(file.path(dir_out, "Sites.csv"))
   if (!file.exists(fsite)) {
     dbW_iSiteTable <- rSOILWAT2::dbW_getSiteTable()
     utils::write.csv(dbW_iSiteTable, file = fsite, row.names = FALSE)
@@ -532,7 +532,7 @@ check_weatherDB <- function(
     dbW_iSiteTable <- utils::read.csv(fsite, header = TRUE)
   }
 
-  fscen <- file.path(file.path(dir_out, "Scenarios.cvs"))
+  fscen <- file.path(file.path(dir_out, "Scenarios.csv"))
   if (!file.exists(fscen)) {
     dbW_iScenarioTable <- rSOILWAT2::dbW_getScenariosTable()
     utils::write.csv(dbW_iScenarioTable, file = fscen, row.names = FALSE)
