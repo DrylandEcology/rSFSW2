@@ -584,7 +584,7 @@ do_OneSite <- function(
       TRRG_done <- TRUE
     }
     if (identical(soil_source, "tr_soilsin")) {
-      rSOILWAT2::set_swSoils(swRunScenariosData[[1]]) <- tr_soil[[i_sw_input_treatments$soilsin]]
+      rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]]) <- tr_soil[[i_sw_input_treatments$soilsin]]
       EVCO_done <- TRCO_done <- TRUE
     }
     if (any(create_treatments == "weathersetupin"))
