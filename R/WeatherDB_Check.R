@@ -509,7 +509,7 @@ check_weatherDB <- function(
     "MAP_mm", "aPPT_mm_sd", "aPPT_mm_trend", "PPT_missing_N",
     "MATmax_C", "aTmax_C_trend", "Tmax_missing_N",
     "MATmin_C", "aTmin_C_trend", "Tmin_missing_N",
-    "MAT_C", "aT_C_trend",
+    "MAT_C", "aTmean_C_trend",
     "startyear",
     "endyear"
   )
