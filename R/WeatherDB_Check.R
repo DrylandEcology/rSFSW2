@@ -362,6 +362,8 @@ find_sites_with_bad_weather <- function(
 summarize_weather <- function(
   i,
   wid,
+  req_Site_id_by_dbW,
+  req_Scenario_id,
   iclimate,
   startyear,
   endyear,
@@ -373,17 +375,17 @@ summarize_weather <- function(
     print(paste0(
       Sys.time(), ": run = ", i,
       ": site_id/scenario_id = ",
-      iclimate["Site_id_by_dbW"], "/", iclimate["Scenario_id"])
-    )
+      req_Site_id_by_dbW, "/", req_Scenario_id
+    ))
   }
 
   # Access data from database
   wtemp <- try(
     rSOILWAT2::dbW_getWeatherData(
-      Site_id = as.integer(iclimate["Site_id_by_dbW"]),
+      Site_id = as.integer(req_Site_id_by_dbW),
       startYear = startyear,
       endYear = endyear,
-      Scenario_id = as.integer(iclimate["Scenario_id"])
+      Scenario_id = as.integer(req_Scenario_id)
     ),
     silent = TRUE
   )
@@ -396,10 +398,10 @@ summarize_weather <- function(
 
     wtemp <- try(
       rSOILWAT2::dbW_getWeatherData(
-        Site_id = as.integer(iclimate["Site_id_by_dbW"]),
+        Site_id = as.integer(req_Site_id_by_dbW),
         startYear = startyear,
         endYear = endyear,
-        Scenario_id = as.integer(iclimate["Scenario_id"])
+        Scenario_id = as.integer(req_Scenario_id)
       ),
       silent = TRUE
     )
@@ -410,27 +412,48 @@ summarize_weather <- function(
     print(paste0(
       Sys.time(), ": run = ", i,
       ": site_id/scenario_id = ",
-      iclimate["Site_id_by_dbW"], "/", iclimate["Scenario_id"],
+      req_Site_id_by_dbW, "/", req_Scenario_id,
       " failed:", wtemp
     ))
 
   } else {
+
+    if (missing(iclimate)) iclimate <- NULL
+
     iclimate["Status"] <- 1
     wd <- rSOILWAT2::dbW_weatherData_to_dataframe(wtemp)
 
     # Calculate climate variables (this is the slow part of the function)
-    wy_ppt <- 10 * tapply(wd[, "PPT_cm"], wd[, "Year"], sum)
-    iclimate["MAP_mm"] <- round(mean(wy_ppt))
-    iclimate["aPPT_mm_sd"] <- round(stats::sd(wy_ppt), 2)
+    wy_ppt <- 10 * tapply(wd[, "PPT_cm"], wd[, "Year"], sum, na.rm = TRUE)
+    iclimate["PPT_missing_N"] <- sum(is.na(wd[, "PPT_cm"]))
+    iclimate["MAP_mm"] <- round(mean(wy_ppt, na.rm = TRUE))
+    iclimate["aPPT_mm_sd"] <- round(stats::sd(wy_ppt, na.rm = TRUE), 2)
+    iclimate["aPPT_mm_trend"] <- unname(
+      round(coef(lm(wy_ppt ~ seq_along(wy_ppt)))[2], 6)
+    )
 
-    wy_tmax <- tapply(wd[, "Tmax_C"], wd[, "Year"], mean)
-    iclimate["MATmax_C"] <- round(mean(wy_tmax), 2)
+    wy_tmax <- tapply(wd[, "Tmax_C"], wd[, "Year"], mean, na.rm = TRUE)
+    iclimate["Tmax_missing_N"] <- sum(is.na(wd[, "PPT_cm"]))
+    iclimate["MATmax_C"] <- round(mean(wy_tmax, na.rm = TRUE), 2)
+    iclimate["aTmax_C_trend"] <- unname(
+      round(coef(lm(wy_tmax ~ seq_along(wy_tmax)))[2], 6)
+    )
 
-    wy_tmin <- tapply(wd[, "Tmin_C"], wd[, "Year"], mean)
-    iclimate["MATmin_C"] <- round(mean(wy_tmin), 2)
+    wy_tmin <- tapply(wd[, "Tmin_C"], wd[, "Year"], mean, na.rm = TRUE)
+    iclimate["Tmin_missing_N"] <- sum(is.na(wd[, "PPT_cm"]))
+    iclimate["MATmin_C"] <- round(mean(wy_tmin, na.rm = TRUE), 2)
+    iclimate["aTmin_C_trend"] <- unname(
+      round(coef(lm(wy_tmin ~ seq_along(wy_tmin)))[2], 6)
+    )
 
-    wy_tmean <- apply(cbind(wy_tmax, wy_tmin), 1, mean)
-    iclimate["MAT_C"] <- round(mean(wy_tmean), 2)
+    wy_tmean <- apply(cbind(wy_tmax, wy_tmin), 1, mean, na.rm = TRUE)
+    iclimate["MAT_C"] <- round(mean(wy_tmean, na.rm = TRUE), 2)
+    iclimate["aTmean_C_trend"] <- unname(
+      round(coef(lm(wy_tmean ~ seq_along(wy_tmean)))[2], 6)
+    )
+
+    iclimate["startyear"] <- min(wd[, "Year"])
+    iclimate["endyear"] <- max(wd[, "Year"])
   }
 
   # Temporary output
@@ -482,7 +505,14 @@ check_weatherDB <- function(
   #---Settings
   if (!is.na(seed)) set.seed(seed)
 
-  vars <- c("MAP_mm", "aPPT_mm_sd", "MAT_C", "MATmax_C", "MATmin_C")
+  vars <- c(
+    "MAP_mm", "aPPT_mm_sd", "aPPT_mm_trend", "PPT_missing_N",
+    "MATmax_C", "aTmax_C_trend", "Tmax_missing_N",
+    "MATmin_C", "aTmin_C_trend", "Tmin_missing_N",
+    "MAT_C", "aT_C_trend",
+    "startyear",
+    "endyear"
+  )
   vars_mult <- "MAP_mm"
 
   #---Paths
@@ -655,6 +685,8 @@ check_weatherDB <- function(
         summarize_weather(
           i,
           wid = k,
+          req_Site_id_by_dbW = climate[i, "Site_id_by_dbW"],
+          req_Scenario_id = climate[i, "Scenario_id"],
           iclimate = climate[i, ],
           startyear = startyear,
           endyear = endyear,
