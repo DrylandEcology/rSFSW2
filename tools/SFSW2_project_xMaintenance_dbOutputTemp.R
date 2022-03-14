@@ -33,6 +33,7 @@ update <- FALSE
 
 ## Adjust `dir_out` element of `project_paths` in local copy of metadata:
 do_adjust_dir_out <- FALSE
+
 ## Relative location of temporary output files
 dir_temp <- "temp"
 
@@ -55,15 +56,17 @@ fmeta <- file.path(dir_prj, "SFSW2_project_descriptions.rds")
 
 
 SFSW2_prj_meta <- if (update || !file.exists(fmeta)) {
-  init_rSFSW2_project(
-    fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"), update = TRUE)
-  } else {
-    readRDS(fmeta)
-  }
+rSFSW2::init_rSFSW2_project(
+  fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"), update = TRUE)
+} else {
+  readRDS(fmeta)
+}
 
-source(file.path(dir_prj, "SFSW2_project_settings.R"), verbose = FALSE,
-  keep.source = FALSE)
-
+source(
+  file.path(dir_prj, "SFSW2_project_settings.R"),
+  verbose = FALSE,
+  keep.source = FALSE
+)
 
 ## Set `project_paths` on local copy of `SFSW2_prj_meta`
 if (do_adjust_dir_out) {
@@ -93,8 +96,10 @@ if (do_use_dbOutput_concat) {
 }
 
 # Location of temporary output files
-dir_out_temp <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-  dir_temp)
+dir_out_temp <- file.path(
+  SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+  dir_temp
+)
 stopifnot(dir.exists(dir_out_temp))
 
 
@@ -106,6 +111,13 @@ opt_parallel[["opt_job_time"]][["wall_time_s"]] <- Inf
 
 
 #--- MOVE THE DATA TO `dbOutput`
-move_output_to_dbOutput(SFSW2_prj_meta, t_job_start, opt_parallel, opt_behave,
-  opt_out_run, opt_verbosity, dir_out_temp = dir_out_temp,
-  check_if_Pid_present = check_if_Pid_present)
+rSFSW2::move_output_to_dbOutput(
+  SFSW2_prj_meta,
+  t_job_start,
+  opt_parallel,
+  opt_behave,
+  opt_out_run,
+  opt_verbosity,
+  dir_out_temp = dir_out_temp,
+  check_if_Pid_present = check_if_Pid_present
+)
