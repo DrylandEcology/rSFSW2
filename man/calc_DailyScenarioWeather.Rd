@@ -14,6 +14,7 @@ calc_DailyScenarioWeather(
   locations,
   meta_locations,
   compression_type,
+  dbW_digits,
   getYears,
   sim_scen_ids,
   dir_out_tmp,

@@ -1051,6 +1051,7 @@ applyDeltas2 <- function(
   ppt_type = NULL,
   dailyPPTceiling,
   sigmaN,
+  dbW_digits = 4L,
   do_checks = FALSE
 ) {
   sw_list <- list()
@@ -1090,7 +1091,11 @@ applyDeltas2 <- function(
       daily2[, "PPT_cm"] <- 0
     }
 
-    sw_list <- rSOILWAT2::dbW_dataframe_to_weatherData(daily2, years)
+    sw_list <- rSOILWAT2::dbW_dataframe_to_weatherData(
+      daily2,
+      years,
+      round = dbW_digits
+    )
   }
   names(sw_list) <- years
 
@@ -1351,6 +1356,7 @@ downscale.raw <- function(
   sim_time = NULL,
   opt_DS = list(ppt_type = "detailed", sigmaN = 6, PPTratioCutoff = 10),
   dailyPPTceiling,
+  dbW_digits = 4L,
   do_checks = TRUE,
   ...
 ) {
@@ -1419,6 +1425,7 @@ downscale.raw <- function(
     ppt_type = opt_DS[["ppt_type"]],
     dailyPPTceiling = dailyPPTceiling,
     sigmaN = opt_DS[["sigmaN"]],
+    dbW_digits = dbW_digits,
     do_checks = do_checks
   )
 }
@@ -1447,6 +1454,7 @@ downscale.delta <- function(
   sim_time = NULL,
   opt_DS = list(ppt_type = "detailed", sigmaN = 6, PPTratioCutoff = 10),
   dailyPPTceiling,
+  dbW_digits = 4L,
   do_checks = TRUE,
   ...
 ) {
@@ -1553,6 +1561,7 @@ downscale.delta <- function(
     ppt_type = opt_DS[["ppt_type"]],
     dailyPPTceiling = dailyPPTceiling,
     sigmaN = opt_DS[["sigmaN"]],
+    dbW_digits = dbW_digits,
     do_checks = do_checks
   )
 }
@@ -2097,6 +2106,7 @@ downscale.deltahybrid3mod <- function(
   ),
   dailyPPTceiling,
   monthly_extremes,
+  dbW_digits = 4L,
   do_checks = TRUE,
   ...
 ) {
@@ -2273,6 +2283,7 @@ downscale.deltahybrid3mod <- function(
     ppt_type = opt_DS[["ppt_type"]],
     dailyPPTceiling,
     sigmaN = opt_DS[["sigmaN"]],
+    dbW_digits = dbW_digits,
     do_checks = do_checks
   )
 }
@@ -3389,6 +3400,7 @@ calc_MonthlyScenarioWeather <- function(
   climate.ambient,
   locations,
   compression_type,
+  dbW_digits,
   getYears,
   assocYears,
   sim_time,
@@ -3877,6 +3889,7 @@ calc_MonthlyScenarioWeather <- function(
           opt_DS = opt_DS,
           dailyPPTceiling = dailyPPTceiling,
           monthly_extremes = monthly_extremes,
+          dbW_digits = dbW_digits,
           do_checks = do_checks,
           add_params = dm_add_params
         ))
@@ -3986,6 +3999,7 @@ try_MonthlyScenarioWeather <- function(
   climate.ambient,
   locations,
   compression_type,
+  dbW_digits,
   getYears,
   assocYears,
   sim_time,
@@ -4041,6 +4055,7 @@ try_MonthlyScenarioWeather <- function(
       climate.ambient = climate.ambient,
       locations = locations,
       compression_type = compression_type,
+      dbW_digits = dbW_digits,
       getYears = getYears, assocYears = assocYears,
       sim_time = sim_time,
       task_seed = seeds_DS[[i]],
@@ -4387,6 +4402,7 @@ get_DailyScenarioData_netCDF <- function(
   getYears,
   fdbWeather,
   compression_type,
+  dbW_digits,
   write_tmp_to_disk,
   dir_out_tmp,
   dir_failed,
@@ -4508,6 +4524,7 @@ get_DailyScenarioData_netCDF <- function(
           scenario_id_by_dbW = sim_scen_ids1_by_dbW[id_sim_scen],
           site_ids_by_dbW = locations_chunk[, "Site_id_by_dbW"],
           compression_type = compression_type,
+          dbW_digits = dbW_digits,
           write_tmp_to_disk = write_tmp_to_disk,
           path = file.path(dir_out_tmp, tolower(gcm)),
           filenames = paste0(
@@ -4554,6 +4571,7 @@ prepare_site_with_daily_scenario_weather <- function(
   scenario_id_by_dbW,
   site_id_by_dbW,
   compression_type,
+  dbW_digits,
   write_tmp_to_disk,
   filename
 ) {
@@ -4566,7 +4584,8 @@ prepare_site_with_daily_scenario_weather <- function(
   blob_scen_fut_daily <- rSOILWAT2::dbW_weatherData_to_blob(
     weatherData = rSOILWAT2::dbW_dataframe_to_weatherData(
       weatherDF = x,
-      weatherDF_dataColumns = colnames(x)[-1]
+      weatherDF_dataColumns = colnames(x)[-1],
+      round = dbW_digits
     ),
     type = compression_type
   )
@@ -4625,6 +4644,7 @@ try_prepare_site_with_daily_scenario_weather <- function(
   scenario_id_by_dbW,
   site_ids_by_dbW,
   compression_type,
+  dbW_digits,
   write_tmp_to_disk,
   path,
   filenames,
@@ -4642,6 +4662,7 @@ try_prepare_site_with_daily_scenario_weather <- function(
         scenario_id_by_dbW = scenario_id_by_dbW,
         site_id_by_dbW = site_ids_by_dbW[i],
         compression_type = compression_type,
+        dbW_digits = dbW_digits,
         write_tmp_to_disk = write_tmp_to_disk,
         filename = file.path(path, filenames[i])
       )
@@ -4709,6 +4730,7 @@ calc_DailyScenarioWeather <- function(
   locations,
   meta_locations,
   compression_type,
+  dbW_digits,
   getYears,
   sim_scen_ids,
   dir_out_tmp,
@@ -4787,6 +4809,7 @@ calc_DailyScenarioWeather <- function(
           getYears = getYears,
           fdbWeather = fdbWeather,
           compression_type = compression_type,
+          dbW_digits = dbW_digits,
           write_tmp_to_disk = !write_tmp_to_dbW,
           dir_out_tmp = dir_out_tmp,
           dir_failed = dir_failed,
@@ -4824,6 +4847,7 @@ calc_DailyScenarioWeather <- function(
           getYears = getYears,
           fdbWeather = fdbWeather,
           compression_type = compression_type,
+          dbW_digits = dbW_digits,
           write_tmp_to_disk = !write_tmp_to_dbW,
           dir_out_tmp = dir_out_tmp,
           dir_failed = dir_failed,
@@ -4852,6 +4876,7 @@ calc_DailyScenarioWeather <- function(
         getYears = getYears,
         fdbWeather = fdbWeather,
         compression_type = compression_type,
+        dbW_digits = dbW_digits,
         write_tmp_to_disk = !write_tmp_to_dbW,
         dir_out_tmp = dir_out_tmp,
         dir_failed = dir_failed,
@@ -5141,6 +5166,7 @@ tryToGet_ClimDB <- function(
   fdbWeather,
   climate.ambient,
   dbW_compression_type,
+  dbW_digits = 4L,
   sim_time,
   seeds_DS,
   sim_scens,
@@ -5220,6 +5246,7 @@ tryToGet_ClimDB <- function(
           offset = min(ids_seq_todo_sites[[k]]) - 1
         ),
         compression_type = dbW_compression_type,
+        dbW_digits = dbW_digits,
         getYears = getYears,
         sim_scen_ids = sim_scens[["id"]],
         dir_out_tmp = project_paths[["dir_out_temp"]],
@@ -5273,6 +5300,7 @@ tryToGet_ClimDB <- function(
           climate.ambient = climate.ambient,
           locations = locations0,
           compression_type = dbW_compression_type,
+          dbW_digits = dbW_digits,
           getYears = getYears,
           assocYears = assocYears,
           sim_time = sim_time,
@@ -5312,6 +5340,7 @@ tryToGet_ClimDB <- function(
           climate.ambient = climate.ambient,
           locations = locations0,
           compression_type = dbW_compression_type,
+          dbW_digits = dbW_digits,
           getYears = getYears,
           assocYears = assocYears,
           sim_time = sim_time,
@@ -5346,6 +5375,7 @@ tryToGet_ClimDB <- function(
         climate.ambient = climate.ambient,
         locations = locations0,
         compression_type = dbW_compression_type,
+        dbW_digits = dbW_digits,
         getYears = getYears,
         assocYears = assocYears,
         sim_time = sim_time,
@@ -5813,6 +5843,7 @@ get_climatechange_data <- function(
   locations,
   climDB_meta,
   dbW_compression_type,
+  dbW_digits = 4L,
   chunk_size = 500L,
   verbose = FALSE,
   print.debug = FALSE
@@ -6073,6 +6104,7 @@ get_climatechange_data <- function(
       fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
       climate.ambient = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
       dbW_compression_type = dbW_compression_type,
+      dbW_digits = dbW_digits,
       sim_time = SFSW2_prj_meta[["sim_time"]],
       seeds_DS = SFSW2_prj_meta[["rng_specs"]][["seeds_DS"]][ids_seeds],
       sim_scens = SFSW2_prj_meta[["sim_scens"]],
@@ -6260,6 +6292,7 @@ ExtractClimateChangeScenarios <- function(
         locations = locations,
         climDB_meta = climDB_metas[[clim_source]],
         dbW_compression_type = dbW_compression_type,
+        dbW_digits = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
         chunk_size = opt_chunks[["ensembleCollectSize"]],
         verbose = verbose,
         print.debug = print.debug

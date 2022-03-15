@@ -17,6 +17,7 @@ downscale.deltahybrid3mod(
     sigmaN = 6, PPTratioCutoff = 10, fix_spline = "attempt"),
   dailyPPTceiling,
   monthly_extremes,
+  dbW_digits = 4L,
   do_checks = TRUE,
   ...
 )

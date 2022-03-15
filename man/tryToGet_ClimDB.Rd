@@ -24,6 +24,7 @@ tryToGet_ClimDB(
   fdbWeather,
   climate.ambient,
   dbW_compression_type,
+  dbW_digits = 4L,
   sim_time,
   seeds_DS,
   sim_scens,
