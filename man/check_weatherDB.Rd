@@ -7,7 +7,7 @@
 check_weatherDB(
   dir_prj,
   fdbWeather,
-  used_Site_id_by_dbW = NULL,
+  used_Site_id = NULL,
   repeats = 2L,
   do_preprocess_tempfiles = TRUE,
   n_cores = 20L,
@@ -22,7 +22,7 @@ simulation project.}
 
 \item{fdbWeather}{A character string. The file path of weather database.}
 
-\item{used_Site_id_by_dbW}{A numeric vector. A value of \code{NULL}
+\item{used_Site_id}{A numeric vector. A value of \code{NULL}
 will process all sites contained in the weather database. Specific
 values will process only those sites.}
 
