@@ -4770,7 +4770,7 @@ calc_DailyScenarioWeather <- function(
       !SFSW2_glovars[["p_has"]] ||
       isTRUE(
         opt_parallel[["concurrent_RW_dbW"]] &&
-        getNamespaceVersion("rSOILWAT2") >= "5.0.2" &&
+        getNamespaceVersion("rSOILWAT2") >= as.numeric_version("5.0.2") &&
         identical(dbW_mode, "wal")
       )
 

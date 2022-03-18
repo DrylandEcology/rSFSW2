@@ -906,7 +906,7 @@ get_DayMet_NorthAmerica <- function(
   if (get_from_ornl) {
     stopifnot(requireNamespace("daymetr"))
 
-    if (getNamespaceVersion("daymetr") < "1.1") {
+    if (getNamespaceVersion("daymetr") < as.numeric_version("1.1")) {
       # 'daymetr::download_daymet' saves downloaded file on disk in current
       # working directory
       wd_prev <- getwd()
