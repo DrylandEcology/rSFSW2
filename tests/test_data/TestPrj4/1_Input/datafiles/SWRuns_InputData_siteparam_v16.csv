@@ -1,0 +1,2 @@
+Label,SWRC_name,PDF_name,SWC_min,SWC_init,SWC_wet,SWC_YearlyReset,SWC_Deepdrain,PET_multiplier,SoilTemp_Flag,SoilTempC_atUpperBoundary,SoilTempC_atLowerBoundary,SoilTemp_BiomassLimiter_gPERm2,SoilTemp_T1constant_a,SoilTemp_T1constant_b,SoilTemp_T1constant_c,SoilTemp_SoilThermCondct,SoilTemp_cs_constant,SoilTemp_SpecificHeatCapacity,SoilTemp_deltaX_cm,SoilTemp_MaxDepth_cm,RunoffPercent_fromPondedWater,RunonPercent_fromPondedWater,Param_UnsaturatedPercolation
+UseInformationToCreateSoilWatRuns,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0

@@ -57,10 +57,10 @@ project_paths <- list(
 
   # Path from where external data are extraced
   dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
-      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
-    } else if (identical(opt_platform[["host"]], "hpc")) {
-      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
-    },
+    file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
+  } else if (identical(opt_platform[["host"]], "hpc")) {
+    file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
+  },
   # Path to historic weather and climate data including
   #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
   dir_ex_weather = file.path(dir_ex, "Weather_Past"),
@@ -114,11 +114,11 @@ fnames_in <- list(
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
   ftreatDesign = "SWRuns_InputData_TreatmentDesign_v18.csv",
-  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v11.csv",
+  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v12.csv",
 
   fclimnorm = "SWRuns_InputData_cloud_v10.csv",
   fvegetation = "SWRuns_InputData_prod_v11.csv",
-  fsite = "SWRuns_InputData_siteparam_v15.csv",
+  fsite = "SWRuns_InputData_siteparam_v16.csv",
   fsoils = "SWRuns_InputData_soils_v12.csv",
   fweathersetup = "SWRuns_InputData_weathersetup_v10.csv",
   fclimscen_delta = "SWRuns_InputData_ClimateScenarios_Change_v11.csv",

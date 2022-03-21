@@ -911,6 +911,13 @@ do_OneSite <- function(
       if (any(site_use))
         rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[1]])[flagsSW][site_use] <-
           as.numeric(i_sw_input_site[flagsIn][site_use])
+
+      flags <- c("SWRC_name", "PDF_name")
+      site_use <- sw_input_site_use[flags]
+      if (any(site_use)) {
+        rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])[site_use] <-
+          i_sw_input_site[flags][site_use]
+      }
     }
 
 
