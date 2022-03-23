@@ -4104,11 +4104,13 @@ extract_daily_variable_netCDF <- function(
   startyear,
   endyear,
   lon,
-  lat
+  lat,
+  na_impute = c("if1missing", "no")
 ) {
   stopifnot(requireNamespace("ncdf4"))
 
   tres <- match.arg(tres)
+  na_impute <- match.arg(na_impute)
 
   rsw2_time <- as.Date(
     apply(list_df_sites[[1]][, c("Year", "DOY")], 1, paste0, collapse = "-"),
@@ -4182,7 +4184,39 @@ extract_daily_variable_netCDF <- function(
         )
       }
 
-      list_df_sites[[ks]][ids_nct2, var_rSW2] <- tmp[ids_nct]
+      tmp <- tmp[ids_nct]
+
+      #--- Check for missing values
+      if (na_impute != "no") {
+        # --> copy from previous/following day if only one day is missing
+        # for instance, MACAv2-gridmet RCP8.5 bcc-csm1-1 has 2099-Dec-31 missing
+        isna <- is.na(tmp)
+        nisna <- sum(isna)
+
+        if (nisna > 0) {
+          if (nisna == 1) {
+            message(
+              "One day missing (copied from adjacent value): ",
+              shQuote(basename(filenames[knc]))
+            )
+
+            idsna <- which(isna)
+            tmp[idsna] <- if (idsna == 1) {
+              tmp[idsna + 1]
+            } else {
+              tmp[idsna - 1]
+            }
+
+          } else {
+            stop(
+              "More than one day missing: ",
+              shQuote(basename(filenames[knc]))
+            )
+          }
+        }
+      }
+
+      list_df_sites[[ks]][ids_nct2, var_rSW2] <- tmp
     }
 
     ncdf4::nc_close(nc)
