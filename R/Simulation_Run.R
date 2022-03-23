@@ -67,6 +67,7 @@ do_OneSite <- function(
   i_sw_input_prod,
   i_sw_input_site,
   i_sw_input_soils,
+  i_sw_input_swrcp,
   i_sw_input_weather,
   i_sw_input_climscen,
   i_sw_input_climscen_values,
@@ -871,6 +872,8 @@ do_OneSite <- function(
     #add site information to siteparamin
     print_debug(opt_verbosity, tag_simfid, "creating", "site parameters")
 
+    uses_NoPDF <- FALSE
+
     if (any(sw_input_site_use)) {
       flags <- c("SWC_min", "SWC_init", "SWC_wet")
       site_use <- sw_input_site_use[flags]
@@ -915,8 +918,19 @@ do_OneSite <- function(
       flags <- c("SWRC_name", "PDF_name")
       site_use <- sw_input_site_use[flags]
       if (any(site_use)) {
+        tmp <- rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])
         rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])[site_use] <-
           i_sw_input_site[flags][site_use]
+
+        # Handle "NoPDF" and refer to input of "SWRCp"
+        uses_NoPDF <-
+          rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])[2] == "NoPDF"
+
+        if (uses_NoPDF) {
+          # set PDF temporary to a value so that setting soil properties
+          # will not trigger an error about mis-match in numbers of layers
+          rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])[2] <- tmp[2]
+        }
       }
     }
 
@@ -1163,6 +1177,34 @@ do_OneSite <- function(
       }
     }
 
+
+    # add SWRCp (PDF = "NoPDF")
+    if (uses_NoPDF) {
+      # convert from wide to semi-long format
+      req_vars <- paste0("Params", seq_len(6))
+
+      swrcp <- reshape(
+        i_sw_input_swrcp,
+        direction = "long",
+        idvar = "Label",
+        timevar = "Layer",
+        varying = grep("Params", colnames(i_sw_input_swrcp), value = TRUE),
+        v.names = req_vars,
+        sep = "_L"
+      )
+
+      if (nrow(swrcp) != nrow(soil_swdat)) {
+        stop(
+          "SWRCp has different layers (n = ", nrow(swrcp), ") ",
+          "than soil properties (n = ", nrow(soil_swdat), ")."
+        )
+      }
+
+      rSOILWAT2::swSoils_SWRCp(swRunScenariosData[[1]]) <-
+        swrcp[, req_vars, drop = FALSE]
+
+      rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])[2] <- "NoPDF"
+    }
 
     #add weather setup information to weatherin
     if (sw_input_weather_use["SnowFlag"])
@@ -2090,6 +2132,9 @@ do_OneSite <- function(
       collapse = opt_out_fix[["ExpInput_Seperator"]]),
       sep = opt_out_fix[["ExpInput_Seperator"]]))
     infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_soils[-1],
+      collapse = opt_out_fix[["ExpInput_Seperator"]]),
+      sep = opt_out_fix[["ExpInput_Seperator"]]))
+    infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_swrcp[-1],
       collapse = opt_out_fix[["ExpInput_Seperator"]]),
       sep = opt_out_fix[["ExpInput_Seperator"]]))
     infiletext <- c(infiletext, paste(i_label, paste(i_sw_input_weather[-1],
@@ -5618,6 +5663,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
               i_sw_input_prod = SFSW2_prj_inputs[["sw_input_prod"]][i_site, ],
               i_sw_input_site = SFSW2_prj_inputs[["sw_input_site"]][i_site, ],
               i_sw_input_soils = SFSW2_prj_inputs[["sw_input_soils"]][i_site, ],
+              i_sw_input_swrcp = SFSW2_prj_inputs[["sw_input_swrcp"]][i_site, ],
               i_sw_input_weather = SFSW2_prj_inputs[["sw_input_weather"]][i_site, ],
               i_sw_input_climscen = SFSW2_prj_inputs[["sw_input_climscen"]][i_site, ],
               i_sw_input_climscen_values = SFSW2_prj_inputs[["sw_input_climscen_values"]][i_site, ],
@@ -5769,6 +5815,10 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
           SFSW2_prj_inputs[["sw_input_soils"]][temp_ids[, "i_site"], ],
           temp_seqs
         ),
+        i_sw_input_swrcp = fun_split(
+          SFSW2_prj_inputs[["sw_input_swrcp"]][temp_ids[, "i_site"], ],
+          temp_seqs
+        ),
         i_sw_input_weather = fun_split(
           SFSW2_prj_inputs[["sw_input_weather"]][temp_ids[, "i_site"], ],
           temp_seqs
@@ -5812,6 +5862,7 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
           i_sw_input_prod = SFSW2_prj_inputs[["sw_input_prod"]][i_site, ],
           i_sw_input_site = SFSW2_prj_inputs[["sw_input_site"]][i_site, ],
           i_sw_input_soils = SFSW2_prj_inputs[["sw_input_soils"]][i_site, ],
+          i_sw_input_swrcp = SFSW2_prj_inputs[["sw_input_swrcp"]][i_site, ],
           i_sw_input_weather = SFSW2_prj_inputs[["sw_input_weather"]][i_site, ],
           i_sw_input_climscen = SFSW2_prj_inputs[["sw_input_climscen"]][i_site, ],
           i_sw_input_climscen_values = SFSW2_prj_inputs[["sw_input_climscen_values"]][i_site, ],

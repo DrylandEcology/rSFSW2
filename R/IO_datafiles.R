@@ -421,8 +421,10 @@ complete_with_defaultpaths <- function(project_paths, fnames_in) {
   }
 
   # full names of files located in 'dir_in_dat'
-  ftemp <- c("fclimnorm", "fvegetation", "fsite", "fsoils", "fweathersetup",
-    "fclimscen_delta", "fclimscen_values")
+  ftemp <- c(
+    "fclimnorm", "fvegetation", "fsite", "fsoils", "fswrcp", "fweathersetup",
+    "fclimscen_delta", "fclimscen_values"
+  )
 
   for (f in ftemp) {
     if (f %in% names(fnames_in) &&
@@ -635,12 +637,42 @@ process_inputs <- function(
       verbose = verbose)
     sw_input_site_use <- temp[["use"]]
 
-    temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fsoils"]],
-      nrowsClasses = nrowsClasses), error = print)
+    temp <- tryCatch(
+      SFSW2_read_inputfile(fnames_in[["fsoils"]], nrowsClasses = nrowsClasses),
+      error = print
+    )
     sw_input_soils_use <- temp[["use"]]
     sw_input_soils <- temp[["data"]]
-    sw_input_soils <- fix_rowlabels(sw_input_soils, SWRunInformation,
-      verbose = verbose)
+    sw_input_soils <- fix_rowlabels(
+      sw_input_soils,
+      SWRunInformation,
+      verbose = verbose
+    )
+
+    if (file.exists(fnames_in[["fswrcp"]])) {
+      sw_input_swrcp <- tryCatch(
+        SFSW2_read_csv(
+          file = fnames_in[["fswrcp"]],
+          nrowsClasses = nrowsClasses
+        ),
+        error = print
+      )
+    } else {
+      message("The file ", shQuote(fnames_in[["fswrcp"]]), " does not exist.")
+      # Add a minimal mock data.frame
+      sw_input_swrcp <- as.data.frame(
+        array(
+          dim = c(nrow(SWRunInformation), 1 + 6),
+          dimnames = list(NULL, c("Label", paste0("Params", seq_len(6), "_L1")))
+        )
+      )
+    }
+
+    sw_input_swrcp <- fix_rowlabels(
+      x = sw_input_swrcp,
+      main = SWRunInformation,
+      verbose = verbose
+    )
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fweathersetup"]],
       nrowsClasses = nrowsClasses), error = print)
@@ -829,6 +861,7 @@ process_inputs <- function(
       sw_input_site = sw_input_site,
       sw_input_soils_use = sw_input_soils_use,
       sw_input_soils = sw_input_soils,
+      sw_input_swrcp = sw_input_swrcp,
       sw_input_weather_use = sw_input_weather_use,
       sw_input_weather = sw_input_weather,
       sw_input_climscen_use = sw_input_climscen_use,

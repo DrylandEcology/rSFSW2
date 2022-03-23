@@ -120,6 +120,7 @@ fnames_in <- list(
   fvegetation = "SWRuns_InputData_prod_v11.csv",
   fsite = "SWRuns_InputData_siteparam_v16.csv",
   fsoils = "SWRuns_InputData_soils_v12.csv",
+  fswrcp = "SWRuns_InputData_SWRCp_v1.csv",
   fweathersetup = "SWRuns_InputData_weathersetup_v10.csv",
   fclimscen_delta = "SWRuns_InputData_ClimateScenarios_Change_v11.csv",
   fclimscen_values = "SWRuns_InputData_ClimateScenarios_Values_v11.csv",
