@@ -367,6 +367,11 @@ do_OneSite <- function(
 
   # Prepare directory structure in case SOILWAT2 input/output is requested
   # to be stored on disk
+  d_sw_outfailed <- file.path(
+    dirname(project_paths[["dir_out_sw"]]),
+    paste0(basename(project_paths[["dir_out_sw"]]), "_failed"),
+    i_label
+  )
   tmp <- file.path(project_paths[["dir_out_sw"]], i_label)
   f_sw_input <- file.path(tmp, "sw_input.RData")
   f_sw_output <- file.path(
@@ -2053,7 +2058,15 @@ do_OneSite <- function(
 
     # Save input data if requested
     if (opt_out_run[["saveRsoilwatInput"]]) {
-      save(list = objnames_saveRsoilwatInput, file = f_sw_input)
+      ftmp <- if (any(has_failed)) {
+        # Save in dedicated folder if failed
+        dir.create(d_sw_outfailed, recursive = TRUE, showWarnings = FALSE)
+        file.path(d_sw_outfailed, basename(f_sw_input))
+      } else {
+        f_sw_input
+      }
+
+      save(list = objnames_saveRsoilwatInput, file = ftmp)
     }
   } #end if do create runs
 
@@ -2285,8 +2298,17 @@ do_OneSite <- function(
 
         #TODO: change deltaX_Param for all [> sc] as well
         if (opt_out_run[["saveRsoilwatInput"]]) {
-          save(list = objnames_saveRsoilwatInput, file = f_sw_input)
+          ftmp <- if (DeltaX[2] < 0) {
+            # Save in dedicated folder if failed
+            dir.create(d_sw_outfailed, recursive = TRUE, showWarnings = FALSE)
+            file.path(d_sw_outfailed, basename(f_sw_input))
+          } else {
+            f_sw_input
+          }
+
+          save(list = objnames_saveRsoilwatInput, file = ftmp)
         }
+
 
       } else {
         DeltaX <- c(
@@ -2295,13 +2317,23 @@ do_OneSite <- function(
         )
       }
 
-      if (inherits(runDataSC, "try-error") || DeltaX[2] < 0) {
+      out_failed <- inherits(runDataSC, "try-error") || DeltaX[2] < 0
+      if (out_failed) {
         tasks[sc, "execute"] <- 0L
       }
 
-      if (opt_out_run[["saveRsoilwatOutput"]]) {
-        save(runDataSC, is_SOILTEMP_INSTABLE, file = f_sw_output[sc])
+      if (opt_out_run[["saveRsoilwatInput"]]) {
+        ftmp <- if (out_failed) {
+          # Save in dedicated folder if failed
+          dir.create(d_sw_outfailed, recursive = TRUE, showWarnings = FALSE)
+          file.path(d_sw_outfailed, basename(f_sw_output[sc]))
+        } else {
+          f_sw_output[sc]
+        }
+
+        save(runDataSC, is_SOILTEMP_INSTABLE, file = ftmp)
       }
+
     }
 
     if (tasks[sc, "execute"] > 0L && exists("runDataSC")) {
