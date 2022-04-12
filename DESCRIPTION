@@ -17,7 +17,7 @@ Imports:
     rSOILWAT2 (>= 5.0.4),
     rSW2utils,
     rSW2st,
-    rSW2data,
+    rSW2data (>= 0.1.3),
     rSW2funs,
     RSQLite (>= 2.2.4),
     raster (>= 2.5.8),
