@@ -440,9 +440,9 @@ sim_time <- list(
   DScur_endyr = endyr,
 
   future_yrs = list(
-    c(d <- 0, startyr + d, endyr + d), # historical runs of GCMs
-    c(d <- 40, startyr + d, endyr + d),
-    c(d <- 90, startyr + d, endyr + d - 1) # most GCMs don't have data for 2100
+    historical = c(NA, 1950, 2005), # historical runs of GCMs
+    RCP45 = c(NA, 2006, 2099),
+    RCP85 = c(NA, 2006, 2099)
   )
 )
 
@@ -470,33 +470,34 @@ req_scens <- list(
   #     then set models = NULL
   #   - If climate datafiles used, then in the order of data in the those
   #     datafiles
-  #   - This is a list of all GCMs for CMIP5 provided by GDO-DCP-UC-LLNL:
-  #     37 RCP4.5, 35 RCP8.5
-  #     Excluded: 'HadCM3' and 'MIROC4h' because data only available until 2035
-  models = c("RCP45.ACCESS1-0", "RCP45.ACCESS1-3", "RCP45.bcc-csm1-1",
-    "RCP45.bcc-csm1-1-m", "RCP45.BNU-ESM", "RCP45.CanESM2", "RCP45.CCSM4",
-    "RCP45.CESM1-BGC", "RCP45.CESM1-CAM5", "RCP45.CMCC-CM", "RCP45.CNRM-CM5",
-    "RCP45.CSIRO-Mk3-6-0", "RCP45.EC-EARTH", "RCP45.FGOALS-g2",
-    "RCP45.FGOALS-s2", "RCP45.FIO-ESM", "RCP45.GFDL-CM3", "RCP45.GFDL-ESM2G",
-    "RCP45.GFDL-ESM2M", "RCP45.GISS-E2-H-CC", "RCP45.GISS-E2-R",
-    "RCP45.GISS-E2-R-CC", "RCP45.HadGEM2-AO", "RCP45.HadGEM2-CC",
-    "RCP45.HadGEM2-ES", "RCP45.inmcm4", "RCP45.IPSL-CM5A-LR",
-    "RCP45.IPSL-CM5A-MR", "RCP45.IPSL-CM5B-LR", "RCP45.MIROC-ESM",
-    "RCP45.MIROC-ESM-CHEM", "RCP45.MIROC5", "RCP45.MPI-ESM-LR",
-    "RCP45.MPI-ESM-MR", "RCP45.MRI-CGCM3", "RCP45.NorESM1-M",
-    "RCP45.NorESM1-ME",
+  # Example: available models and experiments in MACA for CMIP5
+  models = c(
+    "historical.bcc-csm1-1", "historical.bcc-csm1-1-m", "historical.BNU-ESM",
+    "historical.CanESM2", "historical.CCSM4", "historical.CNRM-CM5",
+    "historical.CSIRO-Mk3-6-0", "historical.GFDL-ESM2G",
+    "historical.GFDL-ESM2M", "historical.HadGEM2-CC365",
+    "historical.HadGEM2-ES365", "historical.inmcm4", "historical.IPSL-CM5A-LR",
+    "historical.IPSL-CM5A-MR", "historical.IPSL-CM5B-LR",
+    "historical.MIROC-ESM", "historical.MIROC-ESM-CHEM", "historical.MIROC5",
+    "historical.MRI-CGCM3", "historical.NorESM1-M",
 
-             "RCP85.ACCESS1-0", "RCP85.ACCESS1-3", "RCP85.bcc-csm1-1",
-    "RCP85.bcc-csm1-1-m", "RCP85.BNU-ESM", "RCP85.CanESM2", "RCP85.CCSM4",
-    "RCP85.CESM1-BGC", "RCP85.CESM1-CAM5", "RCP85.CMCC-CM", "RCP85.CNRM-CM5",
-    "RCP85.CSIRO-Mk3-6-0", "RCP85.EC-EARTH", "RCP85.FGOALS-g2",
-    "RCP85.FGOALS-s2", "RCP85.FIO-ESM", "RCP85.GFDL-CM3", "RCP85.GFDL-ESM2G",
-    "RCP85.GFDL-ESM2M",                       "RCP85.GISS-E2-R",
-                          "RCP85.HadGEM2-AO", "RCP85.HadGEM2-CC",
-    "RCP85.HadGEM2-ES", "RCP85.inmcm4", "RCP85.IPSL-CM5A-LR",
-    "RCP85.IPSL-CM5A-MR", "RCP85.IPSL-CM5B-LR", "RCP85.MIROC-ESM",
-    "RCP85.MIROC-ESM-CHEM", "RCP85.MIROC5", "RCP85.MPI-ESM-LR",
-    "RCP85.MPI-ESM-MR", "RCP85.MRI-CGCM3", "RCP85.NorESM1-M", "RCP85.NorESM1-ME"
+    "RCP45.bcc-csm1-1", "RCP45.bcc-csm1-1-m", "RCP45.BNU-ESM",
+    "RCP45.CanESM2", "RCP45.CCSM4", "RCP45.CNRM-CM5",
+    "RCP45.CSIRO-Mk3-6-0", "RCP45.GFDL-ESM2G",
+    "RCP45.GFDL-ESM2M", "RCP45.HadGEM2-CC365",
+    "RCP45.HadGEM2-ES365", "RCP45.inmcm4", "RCP45.IPSL-CM5A-LR",
+    "RCP45.IPSL-CM5A-MR", "RCP45.IPSL-CM5B-LR",
+    "RCP45.MIROC-ESM", "RCP45.MIROC-ESM-CHEM", "RCP45.MIROC5",
+    "RCP45.MRI-CGCM3", "RCP45.NorESM1-M",
+
+    "RCP85.bcc-csm1-1", "RCP85.bcc-csm1-1-m", "RCP85.BNU-ESM",
+    "RCP85.CanESM2", "RCP85.CCSM4", "RCP85.CNRM-CM5",
+    "RCP85.CSIRO-Mk3-6-0", "RCP85.GFDL-ESM2G",
+    "RCP85.GFDL-ESM2M", "RCP85.HadGEM2-CC365",
+    "RCP85.HadGEM2-ES365", "RCP85.inmcm4", "RCP85.IPSL-CM5A-LR",
+    "RCP85.IPSL-CM5A-MR", "RCP85.IPSL-CM5B-LR",
+    "RCP85.MIROC-ESM", "RCP85.MIROC-ESM-CHEM", "RCP85.MIROC5",
+    "RCP85.MRI-CGCM3", "RCP85.NorESM1-M"
   ),
 
   sources = c(
@@ -536,7 +537,7 @@ req_scens <- list(
   #   - "delta" (Hay et al. 2002)
   #   - "hybrid-delta" (Hamlet et al. 2010), "hybrid-delta-3mod"
   #   - "wgen-package" (Steinschneider & Brown 2013 WRR, doi:10.1002/wrcr.20528
-  method_DS = "hybrid-delta-3mod",
+  method_DS = "idem",
 
   # Downscaling parameters
   opt_DS = list(
