@@ -516,6 +516,21 @@ is_project_description_outdated <- function(meta) {
     meta[["project_paths"]][["dir_log"]] <- meta[["project_paths"]][["dir_prj"]]
   }
 
+  has <- c("id_sim", "id_to_dbW") %in% colnames(meta[["sim_scens"]][["df"]])
+  if (any(!has)) {
+    warning(
+      "Outdated project description: ",
+      "The columns `id_sim` and/or `id_to_dbW` of `sim_scens[['df']]` ",
+      "were not calculated; ",
+      "it was added after v4.3.0; ",
+      "assuming previous behavior, ",
+      "i.e., setting `id_sim` and `id_to_dbW` equal to the previous `id`."
+    )
+
+    meta[["sim_scens"]][["df"]][, "id_to_dbW"] <- meta[["sim_scens"]][["id"]]
+    meta[["sim_scens"]][["df"]][, "id_sim"] <- meta[["sim_scens"]][["id"]]
+  }
+
   meta
 }
 
@@ -1420,7 +1435,9 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
         SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
       site_ids =
         SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]],
-      scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
+      scen_labels = unique(
+        SFSW2_prj_meta[["sim_scens"]][["df"]][, "id_to_dbW"]
+      ),
       verbose = opt_verbosity[["verbose"]]
     )
 
@@ -1792,10 +1809,18 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   #------------------------OVERALL TIMING
   delta.overall <- difftime(Sys.time(), t1, units = "secs")
 
-  compile_overall_timer(SFSW2_prj_meta[["fnames_out"]][["timerfile"]],
+  compile_overall_timer(
+    SFSW2_prj_meta[["fnames_out"]][["timerfile"]],
     SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-    SFSW2_glovars[["p_workersN"]], runs.completed,
-    SFSW2_prj_meta[["sim_scens"]][["N"]], 0, delta.overall, NA, 0, 0)
+    SFSW2_glovars[["p_workersN"]],
+    runs.completed,
+    nrow(SFSW2_prj_meta[["sim_scens"]][["df"]]),
+    0,
+    delta.overall,
+    NA,
+    0,
+    0
+  )
 
   if (opt_verbosity[["verbose"]]) {
     print(utils::sessionInfo())

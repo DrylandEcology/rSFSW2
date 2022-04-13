@@ -159,11 +159,16 @@ add_granular_dbWork <- function(SFSW2_prj_meta) {
 
     #--- Create table content: add one row per Pid
     temp_pids <- seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_Pid"]])
-    temp_runIDs <- it_sim2(temp_pids, SFSW2_prj_meta[["sim_scens"]][["N"]])
+    temp_runIDs <- it_sim2(
+      temp_pids,
+      nrow(SFSW2_prj_meta[["sim_scens"]][["df"]])
+    )
 
-    sql <- paste("SELECT runID_total, include_YN FROM work",
+    sql <- paste(
+      "SELECT runID_total, include_YN FROM work",
       "WHERE runID_total IN (?)",
-      "ORDER BY runID_total")
+      "ORDER BY runID_total"
+    )
     rs <- dbSendStatement(con, sql)
     dbBind(rs, list(unique(temp_runIDs)))
     temp_include_YN <- dbFetch(rs)

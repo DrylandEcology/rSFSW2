@@ -5282,7 +5282,7 @@ tryToGet_ClimDB <- function(
         compression_type = dbW_compression_type,
         dbW_digits = dbW_digits,
         getYears = getYears,
-        sim_scen_ids = sim_scens[["id"]],
+        sim_scen_ids = unique(sim_scens[["df"]][, "id_to_dbW"]),
         dir_out_tmp = project_paths[["dir_out_temp"]],
         dir_failed = dir_failed,
         fdbWeather = fdbWeather,
@@ -5647,7 +5647,7 @@ is_NEX <- function(climDB_meta) {
 
 #' Calculate historical and future simulation time slices
 #'
-#' @param sim_time A list with elements \code{future_N}, \code{future_yrs},
+#' @param sim_time A list with elements \code{future_yrs},
 #'  \code{DScur_startyr}, and \code{DScur_endyr}.
 #' @param tbox A data.frame or matrix with two rows \code{start} and
 #'  \code{end} and two columns \code{first} and \code{second} describing years
@@ -5666,7 +5666,7 @@ calc_timeSlices <- function(sim_time, tbox) {
     future_N <- 0
     runs <- "dall"
   } else {
-    future_N <- sim_time[["future_N"]]
+    future_N <- length(deltas)
     runs <- c("historical", deltas)
   }
 
@@ -5696,7 +5696,7 @@ calc_timeSlices <- function(sim_time, tbox) {
     }
 
     # future conditions for downscaling
-    for (it in seq_len(sim_time[["future_N"]])) {
+    for (it in seq_len(future_N)) {
       it4 <- 4L * it
       timeSlices[3 + it4, 4] <- max(
         tbox["start", "second"],
@@ -5837,7 +5837,7 @@ calc_assocYears <- function(
     future_N <- 0
     names_assocYears <- "dall"
   } else {
-    future_N <- sim_time[["future_N"]]
+    future_N <- length(deltas)
     names_assocYears <- c(
       "historical",
       paste0(deltas, ".", rep(reqRCPs, each = future_N))
@@ -6344,7 +6344,9 @@ ExtractClimateChangeScenarios <- function(
       SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
     site_ids =
       SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]],
-    scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
+    scen_labels = unique(
+      SFSW2_prj_meta[["sim_scens"]][["df"]][, "id_to_dbW"]
+    ),
     verbose = verbose
   )
 
@@ -6395,7 +6397,11 @@ ExtractClimateWizard <- function(
     )
   }
 
-  if (SFSW2_prj_meta[["sim_scens"]][["N"]] > 1) {
+  id_dbW <- unique(
+    SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
+  )
+
+  if (length(id_dbW) > 0) {
     if (any("CMIP3_ClimateWizardEnsembles_Global" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]])) {
       # Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
       # accessed via climatewizard.org on July 10, 2012
@@ -6420,7 +6426,11 @@ ExtractClimateWizard <- function(
       recursive = FALSE
     ))
 
-    if (all(SFSW2_prj_meta[["sim_scens"]][["id"]][-1] %in% list.scenarios.external)) {
+    id_dbW <- unique(
+      SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
+    )
+
+    if (all(id_dbW %in% list.scenarios.external)) {
       # locations of simulation runs
       locations <- sp::SpatialPoints(
         coords = SFSW2_prj_inputs[["SWRunInformation"]][todos, c("X_WGS84", "Y_WGS84")],
@@ -6430,8 +6440,13 @@ ExtractClimateWizard <- function(
       # keep track of successful/unsuccessful climate scenarios
       include_YN_climscen <- rep(FALSE, SFSW2_prj_meta[["sim_size"]][["runsN_main"]])
 
-      for (sc in seq_len(SFSW2_prj_meta[["sim_scens"]][["N"]] - 1)) {
-        dir_ex_dat.sc <- file.path(dir_ex_dat, SFSW2_prj_meta[["sim_scens"]][["id"]][1 + sc])
+      id_dbW <- unique(
+        SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
+      )
+
+      for (sc in seq_along(id_dbW)) {
+        dir_ex_dat.sc <- file.path(dir_ex_dat, id_dbW[sc])
+
         tmp <- basename(list.dirs2(
           path = dir_ex_dat.sc,
           full.names = FALSE,
@@ -6542,7 +6557,10 @@ ExtractClimateWizard <- function(
       )
       unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
-      include_YN_climscen <- as.numeric(include_YN_climscen >= (SFSW2_prj_meta[["sim_scens"]][["N"]] - 1))
+      tmpn <- length(unique(
+        SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
+      ))
+      include_YN_climscen <- as.numeric(include_YN_climscen >= tmpn)
       SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
       utils::write.csv(
         SFSW2_prj_inputs[["SWRunInformation"]],
@@ -6715,7 +6733,9 @@ PrepareClimateScenarios <- function(
           SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
         site_ids =
           SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][tmp_ids2],
-        scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
+        scen_labels = unique(
+          SFSW2_prj_meta[["sim_scens"]][["df"]][, "id_to_dbW"]
+        ),
         verbose = opt_verbosity[["verbose"]]
       )
 

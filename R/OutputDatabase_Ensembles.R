@@ -4,16 +4,20 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
   if (length(sim_scens[["ensemble.levels"]]) > 0)
     sim_scens[["ensemble.levels"]] <- sort(sim_scens[["ensemble.levels"]])
 
-  sim_scens[["has_ensembles"]] <- sim_scens[["N"]] > 1 &&
+  sim_scens[["has_ensembles"]] <- nrow(sim_scens[["df"]]) > 1 &&
     !is.null(sim_scens[["ensemble.families"]]) &&
     length(sim_scens[["ensemble.levels"]]) > 0 &&
     all(is.numeric(sim_scens[["ensemble.levels"]]))
 
   if (sim_scens[["has_ensembles"]]) {
     sim_scens[["ensemble.families"]] <- paste0(rownames(SFSW2_prj_meta[["sim_time"]][["future_yrs"]]), ".",
-      rep(sim_scens[["ensemble.families"]], each = SFSW2_prj_meta[["sim_time"]][["future_N"]]))  #add (multiple) future_yrs
-    scenarios.ineach.ensemble <- sapply(sim_scens[["ensemble.families"]], function(x)
-      grepl(x, sim_scens[["id"]], ignore.case = TRUE))
+      rep(sim_scens[["ensemble.families"]], each = nrow(SFSW2_prj_meta[["sim_time"]][["future_yrs"]])))  #add (multiple) future_yrs
+    scenarios.ineach.ensemble <- sapply(
+      sim_scens[["ensemble.families"]],
+      function(x) {
+        grepl(x, sim_scens[["df"]][, "id_sim"], ignore.case = TRUE)
+      }
+    )
     temp <- apply(scenarios.ineach.ensemble, 2, any)
 
     sim_scens[["ensemble.families"]] <- sim_scens[["ensemble.families"]][temp]
@@ -140,7 +144,7 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
       #Grab x rows at a time
       SQL <- paste0("SELECT MAX(P_id) FROM '", Table, "';")
       maxP_id <- as.integer(dbGetQuery(con, SQL))
-      maxRun_id <- (maxP_id/sim_scens[["N"]])
+      maxRun_id <- (maxP_id/nrow(sim_scens[["df"]]))
 
       for (j in 1:length(ensemble.families)) {
         EnsembleTimeStop <- Sys.time() - t.overall
@@ -156,17 +160,17 @@ update_scenarios_with_ensembles <- function(SFSW2_prj_meta) {
         LastPid <- integer(length = length(EnsembleFamilyLevelTables))
         for (i in 1:length(LastPid)) {
           SQL <- paste0("SELECT MAX(P_id) FROM '", EnsembleFamilyLevelTables[i], "';")
-          LastPid[i] <- as.integer(dbGetQuery(conEnsembleDB, SQL))+(sim_scens[["N"]]-1)#Need to add all the scenarios because last P_id will always be Current
+          LastPid[i] <- as.integer(dbGetQuery(conEnsembleDB, SQL))+(nrow(sim_scens[["df"]])-1)#Need to add all the scenarios because last P_id will always be Current
         }
         if (any(is.na(LastPid))) { #If any of the tables are empty we need to start at the beginning
           minRun_id <- 1
         } else {
-          minRun_id <- (min(LastPid)/sim_scens[["N"]])+1 #This is already done so we add one
+          minRun_id <- (min(LastPid)/nrow(sim_scens[["df"]]))+1 #This is already done so we add one
         }
         #########################
         for (i in seq(minRun_id, maxRun_id, opt_chunks[["ensembleCollectSize"]])) {
-          start <- (i-1)*sim_scens[["N"]]+1
-          stop <- (min(i+opt_chunks[["ensembleCollectSize"]]-1, maxRun_id)-1)*sim_scens[["N"]]+sim_scens[["N"]]
+          start <- (i-1)*nrow(sim_scens[["df"]])+1
+          stop <- (min(i+opt_chunks[["ensembleCollectSize"]]-1, maxRun_id)-1)*nrow(sim_scens[["df"]])+nrow(sim_scens[["df"]])
           dataScen.Mean <- read.scenarios(Table = Table, start = start, stop = stop, ensemble.family = ensemble.family, export.header = TRUE)
           Table <- sub(pattern = "Mean", replacement = "stats::sd", Table)
           dataScen_sd <- read.scenarios(Table = Table, start = start, stop = stop, ensemble.family = ensemble.family, export.header = FALSE)

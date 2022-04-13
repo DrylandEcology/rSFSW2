@@ -247,11 +247,13 @@ do_OneSite <- function(
 
 
   # --- Preparations for simulation run ------
+  N_sim_scens <- nrow(sim_scens[["df"]])
+
   all_Pids <- it_Pid(
     i_sim,
     runN = sim_size[["runsN_main"]],
-    sc = seq_len(sim_scens[["N"]]),
-    scN = sim_scens[["N"]]
+    sc = seq_len(N_sim_scens),
+    scN = N_sim_scens
   )
 
   # Determine sequence of scenarios
@@ -268,7 +270,7 @@ do_OneSite <- function(
     1L
   }
 
-  sim_seq_scens <- sc1:sim_scens[["N"]]
+  sim_seq_scens <- sc1:N_sim_scens
 
 
   #- Check which output needs to be generated
@@ -288,7 +290,7 @@ do_OneSite <- function(
     do_out <- list(
       agg = matrix(
         data = NA,
-        nrow = sim_scens[["N"]],
+        nrow = N_sim_scens,
         ncol = length(tmp0),
         dimnames = list(NULL, tmp0)
       )
@@ -301,7 +303,7 @@ do_OneSite <- function(
       do_out[["agg"]][, tmp0[k]] <- if (length(dim(do_out[[tmp0[k]]])) == 2L) {
         apply(do_out[[tmp0[k]]], 1L, any)
       } else {
-        rep(FALSE, sim_scens[["N"]])
+        rep(FALSE, N_sim_scens)
       }
     }
 
@@ -320,7 +322,7 @@ do_OneSite <- function(
       FUN = function(x) {
         matrix(
           data = TRUE,
-          nrow = sim_scens[["N"]],
+          nrow = N_sim_scens,
           ncol = length(x),
           dimnames = list(NULL, x)
         )
@@ -339,7 +341,7 @@ do_OneSite <- function(
   #   overallAggs is done, then time-series output was also completed
   tasks <- matrix(
     data = -1L,
-    nrow = sim_scens[["N"]],
+    nrow = N_sim_scens,
     ncol = 3,
     dimnames = list(NULL, c("create", "execute", "aggregate"))
   )
@@ -376,7 +378,7 @@ do_OneSite <- function(
   f_sw_input <- file.path(tmp, "sw_input.RData")
   f_sw_output <- file.path(
     tmp,
-    paste0("sw_output_sc", seq_len(sim_scens[["N"]]), ".RData")
+    paste0("sw_output_sc", seq_len(N_sim_scens), ".RData")
   )
 
   if (
@@ -567,10 +569,10 @@ do_OneSite <- function(
     #--- Data objects used also during aggregation
     # Init vector with relative composition of C3, C4, and annual grasses
     temp <- c(Grasses_C3 = NA, Grasses_C4 = NA, Grasses_Annuals = NA)
-    grasses.c3c4ann.fractions <- rep(list(temp), sim_scens[["N"]])
+    grasses.c3c4ann.fractions <- rep(list(temp), N_sim_scens)
 
     ClimatePerturbationsVals <- matrix(c(rep(1, 12), rep(0, 24)),
-      nrow = sim_scens[["N"]], ncol = 12 * 3, byrow = TRUE) #, dimnames = list(NULL, paste0(rep(paste0("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m")), each = 12), SFSW2_glovars[["st_mo"]], rep(c("_none", "_C", "_C"), each = 12), "_const"))
+      nrow = N_sim_scens, ncol = 12 * 3, byrow = TRUE) #, dimnames = list(NULL, paste0(rep(paste0("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m")), each = 12), SFSW2_glovars[["st_mo"]], rep(c("_none", "_C", "_C"), each = 12), "_const"))
 
     #------1. Step: Information for this SOILWAT2-run from default rSOILWAT2-input object
     #Make a local copy of the swInput object do not want to destroy orignal
@@ -1212,14 +1214,28 @@ do_OneSite <- function(
             coords_WGS84 = c(X_WGS84, Y_WGS84),
             start_year = isim_time[[1]][["simstartyr"]], end_year = isim_time[[1]][["endyr"]]))
 
-      } else if (i_SWRunInformation$dailyweather_source == "LookupWeatherFolder") {
+      } else if (
+        i_SWRunInformation$dailyweather_source == "LookupWeatherFolder"
+      ) {
         # Read weather data from folder
-        i_sw_weatherList[[1]] <- try(rSOILWAT2::getWeatherData_folders(
-          LookupWeatherFolder = file.path(project_paths[["dir_in_treat"]], "LookupWeatherFolder"),
-          weatherDirName = local_weatherDirName(i_sim, sim_size[["runsN_main"]], sim_scens[["N"]],
-            fnames_out[["dbOutput"]]), filebasename = opt_sim[["tag_WeatherFolder"]],
-          startYear = isim_time[[1]][["simstartyr"]], endYear = isim_time[[1]][["endyr"]]),
-          silent = !opt_verbosity[["verbose"]])
+        i_sw_weatherList[[1]] <- try(
+            rSOILWAT2::getWeatherData_folders(
+              LookupWeatherFolder = file.path(
+                project_paths[["dir_in_treat"]],
+                "LookupWeatherFolder"
+              ),
+            weatherDirName = local_weatherDirName(
+              i_sim,
+              sim_size[["runsN_main"]],
+              N_sim_scens,
+              fnames_out[["dbOutput"]]
+            ),
+            filebasename = opt_sim[["tag_WeatherFolder"]],
+            startYear = isim_time[[1]][["simstartyr"]],
+            endYear = isim_time[[1]][["endyr"]]
+          ),
+          silent = !opt_verbosity[["verbose"]]
+        )
       }
 
     } else {
@@ -1230,7 +1246,7 @@ do_OneSite <- function(
         local_weatherDirName(
           i_sim = i_sim,
           runN = sim_size[["runsN_main"]],
-          scN = sim_scens[["N"]],
+          scN = N_sim_scens,
           dbOutput = fnames_out[["dbOutput"]]
         ),
         silent = !opt_verbosity[["verbose"]]
@@ -1250,16 +1266,19 @@ do_OneSite <- function(
         i_sw_weatherList <- try(
           lapply(
             X = if (opt_sim[["use_dbW_future"]]) {
-              seq_len(sim_scens[["N"]])
+              seq_len(N_sim_scens)
             } else {
               1L
             },
-            function(sc) rSOILWAT2::dbW_getWeatherData(
-              Label = weather_label_cur,
-              startYear = isim_time[[sim_scens[["df"]][sc, "itime"]]][["simstartyr"]],
-              endYear = isim_time[[sim_scens[["df"]][sc, "itime"]]][["endyr"]],
-              Scenario = sim_scens[["id"]][sc]
-            )
+            function(sc) {
+              tmp <- isim_time[[sim_scens[["df"]][sc, "itime"]]]
+              rSOILWAT2::dbW_getWeatherData(
+                Label = weather_label_cur,
+                startYear = tmp[["simstartyr"]],
+                endYear = tmp[["endyr"]],
+                Scenario = sim_scens[["df"]][sc, "id_to_dbW"]
+              )
+            }
           ),
           silent = !opt_verbosity[["verbose"]]
         )
@@ -1275,7 +1294,7 @@ do_OneSite <- function(
     }
 
     # Copy and make climate scenarios from datafiles
-    if (any(tasks[, "create"] > 0L)) for (sc in seq_len(sim_scens[["N"]])) {
+    if (any(tasks[, "create"] > 0L)) for (sc in seq_len(N_sim_scens)) {
       tag_simpidfid <- paste0(
         "[run", i_sim, "/PID", all_Pids[sc], "/sc", sc, "/work", fid, "]"
       )
@@ -2043,8 +2062,8 @@ do_OneSite <- function(
 
     # Check that input data are prepared for each requested scenario
     n_sc_good <- length(swRunScenariosData)
-    if (n_sc_good < sim_scens[["N"]]) {
-      has_failed <- n_sc_good:sim_scens[["N"]]
+    if (n_sc_good < N_sim_scens) {
+      has_failed <- n_sc_good:N_sim_scens
       tasks[has_failed, "create"] <- 0L
     }
 
@@ -2184,7 +2203,7 @@ do_OneSite <- function(
 #  #'  \code{DeltaX[2]}: -1 == failed; 0 == no run yet;
 #  #'    1 == deltaX_Param successfully approved; 2 == deltaX_Param successfully modified
   DeltaX <- c(NA, 0L)
-  is_SOILTEMP_INSTABLE <- rep(NA, sim_scens[["N"]])
+  is_SOILTEMP_INSTABLE <- rep(NA, N_sim_scens)
 
   # --- Loop over scenarios ------
   for (sc in sim_seq_scens) {
@@ -5010,7 +5029,7 @@ do_OneSite <- function(
               filename_tag = paste0(
                 "Scenario",
                 formatC(sc - 1, width = 2, format = "d", flag = "0"), "_",
-                sim_scens[["id"]][sc], "_",
+                sim_scens[["df"]][sc, "id_sim"], "_",
                 i_label, "_",
                 colnames(opt_agg[["GISSM_params"]])[sp],
                 "_Regeneration"

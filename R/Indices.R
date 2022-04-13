@@ -5,7 +5,7 @@
 #'   loop2b
 #' @param sc An integer value. The index along loop3 \code{1...scN}.
 #' @param scN An integer value. The number of (climate) scenarios used in the
-#'   project, i.e., \eqn{scN == sim_scens[["N"]]}.
+#'   project, i.e., \eqn{scN == nrow(sim_scens[["df"]])}.
 #' @param runN An integer value. The number of runs/sites set up in the main
 #'   input file, i.e., \eqn{runN == runsN_main}.
 #' @param iexp An integer value. The index value along loop1 \code{1...expN}.
@@ -183,7 +183,7 @@ determine_simulation_size <- function(SWRunInformation, include_YN,
   runIDs_total <- seq_len(runsN_total)
   digitsN_total <- 1 + ceiling(log10(runsN_total))  # max index digits
   runsN_job <- runsN_sites * max(expN, 1L)
-  runsN_Pid <- runsN_total * sim_scens[["N"]]
+  runsN_Pid <- runsN_total * nrow(sim_scens[["df"]])
 
   list(expN = expN, runsN_main = runsN_main, runIDs_sites = runIDs_sites,
     runsN_sites = runsN_sites, runsN_total = runsN_total,

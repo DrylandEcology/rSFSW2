@@ -73,23 +73,45 @@ get_simulation_time <- function(st, SFSW2_prj_inputs) {
 #' @param A named list, i.e., the updated version of \code{sim_time}.
 #'
 #' @seealso \code{\link[rSW2data]{setup_time_simulation_run}}
-setup_time_simulation_project <- function(sim_time, is_idem = FALSE,
-  add_st2 = FALSE, adjust_NS = FALSE,
-  use_doy_range = FALSE, doy_ranges = list()) {
+setup_time_simulation_project <- function(
+  sim_time,
+  is_idem = FALSE,
+  add_st2 = FALSE,
+  adjust_NS = FALSE,
+  use_doy_range = FALSE,
+  doy_ranges = list()
+) {
 
   sim_time <- rSW2data::setup_time_simulation_run(sim_time = sim_time)
 
+  ctemp <- c("delta", "DSfut_startyr", "DSfut_endyr")
+  n_ctemp <- length(ctemp)
+
   if (is.matrix(sim_time[["future_yrs"]])) {
-    stopifnot(dim(sim_time[["future_yrs"]])[2] == 3)
+    stopifnot(dim(sim_time[["future_yrs"]])[2] == n_ctemp)
 
-  } else if (is.list(sim_time[["future_yrs"]]) &&
-    all(lengths(sim_time[["future_yrs"]]) == 3)) {
+  } else if (
+    is.list(sim_time[["future_yrs"]]) &&
+    all(lengths(sim_time[["future_yrs"]]) == n_ctemp)
+  ) {
 
-    ctemp <- c("delta", "DSfut_startyr", "DSfut_endyr")
-    temp <- matrix(unlist(sim_time[["future_yrs"]]), ncol = length(ctemp),
-      byrow = TRUE, dimnames = list(NULL, ctemp))
-    rownames(temp) <- make.names(paste0("d", temp[, "delta"], "yrs"),
-      unique = TRUE)
+    temp <- matrix(
+      unlist(sim_time[["future_yrs"]]),
+      ncol = n_ctemp,
+      byrow = TRUE,
+      dimnames = list(NULL, ctemp)
+    )
+
+    tmpns <- names(sim_time[["future_yrs"]])
+
+    rns <- if (!anyNA(temp[, "delta"]) || is.null(tmpns)) {
+      paste0("d", temp[, "delta"], "yrs")
+    } else {
+      paste0(tmpns, "_", temp[, "DSfut_startyr"], "to", temp[, "DSfut_endyr"])
+    }
+
+    rownames(temp) <- make.names(rns, unique = TRUE)
+
     sim_time[["future_yrs"]] <- temp
 
   } else {
@@ -98,17 +120,22 @@ setup_time_simulation_project <- function(sim_time, is_idem = FALSE,
 
 
   # Add "dall" to `future_yrs` data.frame
+  # Used as marker to extract all years of "idem" climate projections
+  # Note that `future_yrs` is note utilized during simulations but instead
+  #   `sim_scens` which contains information derived from `future_yrs`
   if (is_idem) {
     tmp <- sim_time[["future_yrs"]]
-    tmp0 <- as.data.frame(matrix(NA, nrow = 1, ncol = ncol(tmp),
-      dimnames = list("dall", colnames(tmp))
-    ))
+    tmp0 <- as.data.frame(
+      matrix(
+        nrow = 1,
+        ncol = ncol(tmp),
+        dimnames = list("dall", colnames(tmp))
+      )
+    )
 
     sim_time[["future_yrs"]] <- rbind(tmp0, tmp)
   }
 
-
-  sim_time[["future_N"]] <- dim(sim_time[["future_yrs"]])[1]
 
   if (add_st2) {
     sim_time[["sim_time2_North"]] <- rSW2data::simTiming_ForEachUsedTimeUnit(

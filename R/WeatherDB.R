@@ -132,7 +132,9 @@ make_dbW <- function(
       #-- Check if requested climate scenarios are listed in table;
       # if not add to database
       stopifnot(
-        rSOILWAT2::dbW_addScenarios(SFSW2_prj_meta[["sim_scens"]][["id"]])
+        rSOILWAT2::dbW_addScenarios(
+          unique(SFSW2_prj_meta[["sim_scens"]][["df"]][, "id_to_dbW"])
+        )
       )
 
       #-- Check if requested sites are complete
@@ -181,7 +183,9 @@ make_dbW <- function(
       rSOILWAT2::dbW_createDatabase(
         dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
         site_data = tmp_by_dbW[, tmp_var, drop = FALSE],
-        Scenarios = SFSW2_prj_meta[["sim_scens"]][["id"]],
+        Scenarios = unique(
+          SFSW2_prj_meta[["sim_scens"]][["df"]][, "id_to_dbW"]
+        ),
         compression_type =
           SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]]
       )

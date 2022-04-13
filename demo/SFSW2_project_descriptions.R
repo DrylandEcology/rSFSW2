@@ -39,10 +39,10 @@ project_paths <- list(
 
   # Path to where large outputs are saved to disk
   dir_big = dir_big <- if (identical(opt_platform[["host"]], "local")) {
-      dir_prj
-    } else if (identical(opt_platform[["host"]], "hpc")) {
-      dir_prj
-    },
+    dir_prj
+  } else if (identical(opt_platform[["host"]], "hpc")) {
+    dir_prj
+  },
   # Path to where rSOILWAT2 objects are saved to disk
   #   if saveRsoilwatInput and/or saveRsoilwatOutput
   dir_out_sw = file.path(dir_big, "3_Runs"),
@@ -57,10 +57,10 @@ project_paths <- list(
 
   # Path from where external data are extraced
   dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
-      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
-    } else if (identical(opt_platform[["host"]], "hpc")) {
-      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
-    },
+    file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
+  } else if (identical(opt_platform[["host"]], "hpc")) {
+    file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
+  },
   # Path to historic weather and climate data including
   #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
   dir_ex_weather = file.path(dir_ex, "Weather_Past"),
@@ -417,9 +417,13 @@ sim_time <- list(
   #   \code{c(delta, DSfut_startyr, DSfut_endyr)}
   #
   # Daily scenario data "idem" (pass through):
-  #   - Each list element ("row") of 'future_yrs' must match exactly one
+  #   - Each list element ("row") of 'future_yrs' must match to one
   #     of the scenario experiments of 'req_scens[["models"]]`
-  #     (e.g., "historical", "RCP45", "RCP85") -- in the correct order
+  #     (e.g., "historical", "RCP45", "RCP85"):
+  #     matching is by name if names available
+  #     (multiple rows per scenario possible),
+  #     otherwise by position (limited to one row per scenario)
+  #
   #   - Value of 'delta' is ignored
   #
   # Monthly scenario data:
