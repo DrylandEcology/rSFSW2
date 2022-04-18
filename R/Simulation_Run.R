@@ -389,14 +389,21 @@ do_OneSite <- function(
   }
 
   # --- Load rSOILWAT2 input objects ------
+  saveRsoilwatInputWithWeather <-
+    isTRUE(opt_out_run[["saveRsoilwatInputWithWeather"]]) ||
+    is.null(opt_out_run[["saveRsoilwatInputWithWeather"]])
+
   objnames_saveRsoilwatInput <- c(
     "swRunScenariosData",
-    "i_sw_weatherList",
+    if (saveRsoilwatInputWithWeather) "i_sw_weatherList",
     "grasses.c3c4ann.fractions",
     "ClimatePerturbationsVals",
-    "isim_time",
-    "simTime2"
+    if (saveRsoilwatInputWithWeather) "isim_time",
+    if (saveRsoilwatInputWithWeather) "simTime2"
   )
+
+  #TODO: if `saveRsoilwatInputWithWeather` and inputs ok, then
+  # just re-create missing objects, i.e., i_sw_weatherList, isim_time, simTime2
 
   if (
     file.exists(f_sw_input) &&
