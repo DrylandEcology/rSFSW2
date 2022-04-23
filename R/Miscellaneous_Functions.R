@@ -839,7 +839,7 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
       # add (multiple) downscaling.method
       tmp_dbW <- tmp_sim <- paste0(
         sim_scens[["method_DS"]], ".",
-        rep(tmp_simnames, each = length(sim_scens[["method_DS"]]))
+        rep(tmp, each = length(sim_scens[["method_DS"]]))
       )
     }
 
