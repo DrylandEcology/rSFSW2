@@ -5,15 +5,17 @@
 \title{Create and populate a \pkg{rSOILWAT2} daily weather \var{SQLite} database}
 \usage{
 make_dbW(
-  SFSW2_prj_meta,
+  fdbWeather,
   SWRunInformation,
-  opt_parallel,
-  opt_chunks,
-  resume = TRUE,
-  deleteTmpSQLFiles = TRUE,
-  verbose = FALSE,
-  print.debug = FALSE
+  runIDs_sites,
+  runIDs_sites_by_dbW = NULL,
+  ambient_scenario = "Current",
+  dbW_compression_type = "gzip",
+  verbose = FALSE
 )
+}
+\arguments{
+\item{fdbWeather}{A character string. The path to the weather database.}
 }
 \description{
 Create and populate a \pkg{rSOILWAT2} daily weather \var{SQLite} database

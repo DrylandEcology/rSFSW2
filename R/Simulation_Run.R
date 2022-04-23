@@ -70,7 +70,8 @@ do_OneSite <- function(
   i_sw_input_weather,
   i_sw_input_climscen,
   i_sw_input_climscen_values,
-  SimParams
+  SimParams,
+  fdbWeather_by_scen
 ) {
 
   # i_sim =   a value of runIDs_total, i.e., index for each simulation run
@@ -564,6 +565,127 @@ do_OneSite <- function(
     }
   }
 
+
+  #------ Get Weather Data ------
+  # used for creating and simulating (but not aggregating)
+  if (
+    any(tasks[, "create"] == 1L, tasks[, "execute"] == 1L) &&
+    !exists("i_sw_weatherList", inherits = FALSE)
+  ) {
+    print_debug(opt_verbosity, tag_simfid, "creating", "daily weather")
+    i_sw_weatherList <- list()
+
+    if (!opt_sim[["use_dbW_current"]]) {
+      if (i_SWRunInformation$dailyweather_source == "Maurer2002_NorthAmerica") {
+        i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
+          dir_data = project_paths[["dir_maurer2002"]],
+          cellname = with(
+            i_SWRunInformation,
+            create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84)
+          ),
+          start_year = isim_time[[1]][["simstartyr"]],
+          end_year = isim_time[[1]][["endyr"]],
+          verbose = opt_verbosity[["verbose"]]
+        )
+
+      } else if (i_SWRunInformation$dailyweather_source == "DayMet_NorthAmerica") {
+        i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather(
+          dir_data = project_paths[["dir_daymet"]],
+          site_ids = NULL,
+          coords_WGS84 = i_SWRunInformation[c("X_WGS84", "Y_WGS84")],
+          start_year = isim_time[[1]][["simstartyr"]],
+          end_year = isim_time[[1]][["endyr"]]
+        )
+
+      } else if (
+        i_SWRunInformation$dailyweather_source == "LookupWeatherFolder"
+      ) {
+        # Read weather data from folder
+        i_sw_weatherList[[1]] <- try(
+          rSOILWAT2::getWeatherData_folders(
+            LookupWeatherFolder = file.path(
+              project_paths[["dir_in_treat"]],
+              "LookupWeatherFolder"
+            ),
+            weatherDirName = local_weatherDirName(
+              i_sim,
+              sim_size[["runsN_main"]],
+              N_sim_scens,
+              fnames_out[["dbOutput"]]
+            ),
+            filebasename = opt_sim[["tag_WeatherFolder"]],
+            startYear = isim_time[[1]][["simstartyr"]],
+            endYear = isim_time[[1]][["endyr"]]
+          ),
+          silent = !opt_verbosity[["verbose"]]
+        )
+      }
+
+    } else {
+      #---Extract weather data
+      print_debug(opt_verbosity, tag_simfid, "creating", "access dbOut for weatherDirName")
+
+      weather_label_cur <- try(
+        local_weatherDirName(
+          i_sim = i_sim,
+          runN = sim_size[["runsN_main"]],
+          scN = N_sim_scens,
+          dbOutput = fnames_out[["dbOutput"]]
+        ),
+        silent = !opt_verbosity[["verbose"]]
+      )
+
+      if (is.na(weather_label_cur))
+        weather_label_cur <- try(
+          stop(
+            tag_simfid, ": Output DB ",
+            basename(fnames_out[["dbOutput"]]),
+            " has no information about weather data"
+          ),
+          silent = !opt_verbosity[["verbose"]]
+        )
+
+      if (inherits(weather_label_cur, "try-error")) {
+        i_sw_weatherList <- weather_label_cur
+
+      } else {
+        print_debug(opt_verbosity, tag_simfid, "creating", "access dbW for daily weather")
+        i_sw_weatherList <- try(
+          mapply(
+            FUN = function(fdbWeather, scenario_label, itime) {
+              if (!is.na(fdbWeather)) {
+                # Set for ambient and first projected scenario if different
+                rSOILWAT2::.dbW_setConnection(fdbWeather)
+              }
+
+              rSOILWAT2::dbW_getWeatherData(
+                Label = weather_label_cur,
+                startYear = isim_time[[itime]][["simstartyr"]],
+                endYear = isim_time[[itime]][["endyr"]],
+                Scenario = scenario_label
+              )
+            },
+            fdbWeather = fdbWeather_by_scen,
+            scenario_label = sim_scens[["df"]][, "id_to_dbW"],
+            itime = sim_scens[["df"]][, "itime"],
+            SIMPLIFY = FALSE
+          ),
+          silent = !opt_verbosity[["verbose"]]
+        )
+      }
+    }
+
+    print_debug(opt_verbosity, tag_simfid, "creating", "daily weather done")
+
+    # Check that extraction of weather data was successful
+    if (
+      inherits(i_sw_weatherList, "try-error") ||
+        length(i_sw_weatherList) != N_sim_scens
+    ) {
+      tasks[, "create"] <- 0L
+      print(paste0(tag_simfid, ": i_sw_weatherList ERROR: ", i_sw_weatherList))
+    }
+  }
 
 
   # --- CREATE RUNS ------
@@ -1199,106 +1321,6 @@ do_OneSite <- function(
       c(daily = 0, monthly = 2, yearly = 3)
 
 
-    #############Get Weather Data################
-    print_debug(opt_verbosity, tag_simfid, "creating", "daily weather")
-    i_sw_weatherList <- list()
-
-    if (!opt_sim[["use_dbW_current"]]) {
-      if (i_SWRunInformation$dailyweather_source == "Maurer2002_NorthAmerica") {
-        i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromMaurer2002_NorthAmerica(
-                  dir_data = project_paths[["dir_maurer2002"]],
-                  cellname = with(i_SWRunInformation,
-                    create_filename_for_Maurer2002_NorthAmerica(X_WGS84, Y_WGS84)),
-                  start_year = isim_time[[1]][["simstartyr"]],
-                  end_year = isim_time[[1]][["endyr"]],
-                  verbose = opt_verbosity[["verbose"]])
-
-      } else if (i_SWRunInformation$dailyweather_source == "DayMet_NorthAmerica") {
-        i_sw_weatherList[[1]] <- with(i_SWRunInformation,
-          ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather(
-            dir_data = dir_daymet,
-            site_ids = NULL,
-            coords_WGS84 = c(X_WGS84, Y_WGS84),
-            start_year = isim_time[[1]][["simstartyr"]], end_year = isim_time[[1]][["endyr"]]))
-
-      } else if (
-        i_SWRunInformation$dailyweather_source == "LookupWeatherFolder"
-      ) {
-        # Read weather data from folder
-        i_sw_weatherList[[1]] <- try(
-            rSOILWAT2::getWeatherData_folders(
-              LookupWeatherFolder = file.path(
-                project_paths[["dir_in_treat"]],
-                "LookupWeatherFolder"
-              ),
-            weatherDirName = local_weatherDirName(
-              i_sim,
-              sim_size[["runsN_main"]],
-              N_sim_scens,
-              fnames_out[["dbOutput"]]
-            ),
-            filebasename = opt_sim[["tag_WeatherFolder"]],
-            startYear = isim_time[[1]][["simstartyr"]],
-            endYear = isim_time[[1]][["endyr"]]
-          ),
-          silent = !opt_verbosity[["verbose"]]
-        )
-      }
-
-    } else {
-      #---Extract weather data
-      print_debug(opt_verbosity, tag_simfid, "creating", "access dbOut for weatherDirName")
-
-      weather_label_cur <- try(
-        local_weatherDirName(
-          i_sim = i_sim,
-          runN = sim_size[["runsN_main"]],
-          scN = N_sim_scens,
-          dbOutput = fnames_out[["dbOutput"]]
-        ),
-        silent = !opt_verbosity[["verbose"]]
-      )
-
-      if (is.na(weather_label_cur))
-        weather_label_cur <- try({function() stop(tag_simfid, ": Output DB ",
-          basename(fnames_out[["dbOutput"]]), " has no information about weather data")}(),
-          silent = !opt_verbosity[["verbose"]])
-
-      if (inherits(weather_label_cur, "try-error")) {
-        i_sw_weatherList <- weather_label_cur
-
-      } else {
-        print_debug(opt_verbosity, tag_simfid, "creating", "access dbW for daily weather")
-
-        i_sw_weatherList <- try(
-          lapply(
-            X = if (opt_sim[["use_dbW_future"]]) {
-              seq_len(N_sim_scens)
-            } else {
-              1L
-            },
-            function(sc) {
-              tmp <- isim_time[[sim_scens[["df"]][sc, "itime"]]]
-              rSOILWAT2::dbW_getWeatherData(
-                Label = weather_label_cur,
-                startYear = tmp[["simstartyr"]],
-                endYear = tmp[["endyr"]],
-                Scenario = sim_scens[["df"]][sc, "id_to_dbW"]
-              )
-            }
-          ),
-          silent = !opt_verbosity[["verbose"]]
-        )
-      }
-    }
-
-    print_debug(opt_verbosity, tag_simfid, "creating", "daily weather done")
-
-    # Check that extraction of weather data was successful
-    if (inherits(i_sw_weatherList, "try-error") || length(i_sw_weatherList) == 0) {
-      tasks[, "create"] <- 0L
-      print(paste0(tag_simfid, ": i_sw_weatherList ERROR: ", i_sw_weatherList))
-    }
 
     # Copy and make climate scenarios from datafiles
     if (any(tasks[, "create"] > 0L)) for (sc in seq_len(N_sim_scens)) {
@@ -5604,6 +5626,24 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
   }
 
 
+  #--- deal with separate weather databases
+  # is.na(fdbWeather_by_scen[1]) means: all scenarios use same fdbWeather
+  #   which we activate once globally
+  # is.na(fdbWeather_by_scen[i]) means: previously activated fdbWeather is ok
+  #   which we have to activate inside `do_OneSite()`
+  fdbWeather_by_scen <- rep(NA, nrow(MoreArgs[["sim_scens"]][["df"]]))
+
+  use_separate_dbWs <- !identical(
+    MoreArgs[["fnames_in"]][["fdbWeather"]],
+    MoreArgs[["fnames_in"]][["fdbWeather2"]]
+  )
+
+  if (use_separate_dbWs && length(fdbWeather_by_scen) > 1) {
+    fdbWeather_by_scen[1] <- MoreArgs[["fnames_in"]][["fdbWeather"]]
+    fdbWeather_by_scen[2] <- MoreArgs[["fnames_in"]][["fdbWeather2"]]
+  }
+
+
   #--- call the simulations depending on parallel backend
   if (SFSW2_glovars[["p_has"]]) {
     unlink(SFSW2_glovars[["lockfile"]], recursive = TRUE)
@@ -5611,12 +5651,21 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
     if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
 
-      Rmpi::mpi.remote.exec(cmd = dbW_setConnection_local,
-        dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]])
-      on.exit(Rmpi::mpi.bcast.cmd(cmd = dbW_disconnectConnection_local), add = TRUE)
+      if (is.na(fdbWeather_by_scen[1])) {
+        Rmpi::mpi.remote.exec(
+          cmd = dbW_setConnection_local,
+          dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]]
+        )
+        on.exit(
+          Rmpi::mpi.bcast.cmd(cmd = dbW_disconnectConnection_local),
+          add = TRUE
+        )
+      }
 
-      Rmpi::mpi.bcast.cmd(cmd = mpi_work,
-        verbose = MoreArgs[["opt_verbosity"]][["print.debug"]])
+      Rmpi::mpi.bcast.cmd(
+        cmd = mpi_work,
+        verbose = MoreArgs[["opt_verbosity"]][["print.debug"]]
+      )
 
       junk <- 0L
       closed_workers <- 0L
@@ -5672,7 +5721,9 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
               i_sw_input_weather = SFSW2_prj_inputs[["sw_input_weather"]][i_site, ],
               i_sw_input_climscen = SFSW2_prj_inputs[["sw_input_climscen"]][i_site, ],
               i_sw_input_climscen_values = SFSW2_prj_inputs[["sw_input_climscen_values"]][i_site, ],
-              SimParams = MoreArgs)
+              SimParams = MoreArgs,
+              fdbWeather_by_scen = fdbWeather_by_scen
+            )
 
             if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
               print(paste(Sys.time(), ": MPI-main is sending worker", worker_id, "task",
@@ -5748,19 +5799,21 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
     if (identical(SFSW2_glovars[["p_type"]], "socket")) {
 
-      parallel::clusterCall(
-        SFSW2_glovars[["p_cl"]],
-        fun = rSOILWAT2::dbW_setConnection,
-        dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]]
-      )
-
-      on.exit(
-        parallel::clusterEvalQ(
+      if (is.na(fdbWeather_by_scen[1])) {
+        parallel::clusterCall(
           SFSW2_glovars[["p_cl"]],
-          rSOILWAT2::dbW_disconnectConnection()
-        ),
-        add = TRUE
-      )
+          fun = rSOILWAT2::dbW_setConnection,
+          dbFilePath = MoreArgs[["fnames_in"]][["fdbWeather"]]
+        )
+
+        on.exit(
+          parallel::clusterEvalQ(
+            SFSW2_glovars[["p_cl"]],
+            rSOILWAT2::dbW_disconnectConnection()
+          ),
+          add = TRUE
+        )
+      }
 
       #TODO: It seems like a bad hack to make this work without exporting the
       #full data.frames (e.g., SFSW2_prj_inputs[["SWRunInformation"]],
@@ -5832,7 +5885,10 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
           SFSW2_prj_inputs[["sw_input_climscen_values"]][temp_ids[, "i_site"], ],
           temp_seqs
         ),
-        MoreArgs = list(SimParams = MoreArgs),
+        MoreArgs = list(
+          SimParams = MoreArgs,
+          fdbWeather_by_scen = fdbWeather_by_scen
+        ),
         RECYCLE = FALSE,
         SIMPLIFY = FALSE,
         USE.NAMES = FALSE,
@@ -5847,8 +5903,10 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
 
   } else { #call the simulations in serial
 
-    rSOILWAT2::dbW_setConnection(MoreArgs[["fnames_in"]][["fdbWeather"]])
-    on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
+    if (is.na(fdbWeather_by_scen[1])) {
+      rSOILWAT2::dbW_setConnection(MoreArgs[["fnames_in"]][["fdbWeather"]])
+      on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
+    }
 
     runs.completed <- lapply(
       X = seq_along(MoreArgs[["sim_size"]][["runIDs_todo"]]),
@@ -5866,7 +5924,8 @@ run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
           i_sw_input_weather = SFSW2_prj_inputs[["sw_input_weather"]][i_site, ],
           i_sw_input_climscen = SFSW2_prj_inputs[["sw_input_climscen"]][i_site, ],
           i_sw_input_climscen_values = SFSW2_prj_inputs[["sw_input_climscen_values"]][i_site, ],
-          SimParams = MoreArgs
+          SimParams = MoreArgs,
+          fdbWeather_by_scen = fdbWeather_by_scen
         )
       }
     )

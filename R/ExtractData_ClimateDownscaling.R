@@ -6135,7 +6135,7 @@ get_climatechange_data <- function(
       assocYears = assocYears,
       project_paths = SFSW2_prj_meta[["project_paths"]],
       dir_failed = dir_failed,
-      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]],
       climate.ambient = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
       dbW_compression_type = dbW_compression_type,
       dbW_digits = dbW_digits,
@@ -6152,7 +6152,7 @@ get_climatechange_data <- function(
 
   #--- Process any temporary datafile from a current run
   copy_tempdata_to_dbW(
-    fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+    fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]],
     clim_source = clim_source,
     dir_out_tmp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
     verbose = verbose
@@ -6265,7 +6265,7 @@ ExtractClimateChangeScenarios <- function(
   )
 
   rSOILWAT2::dbW_setConnection(
-    dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]]
+    dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]]
   )
   on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
@@ -6312,7 +6312,8 @@ ExtractClimateChangeScenarios <- function(
       stopifnot(identical(iDS_runIDs_sites, locations[, "site_id"]))
 
       tmp <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]] %in% iDS_runIDs_sites
-      locations[, "Site_id_by_dbW"] <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][tmp]
+      locations[, "Site_id_by_dbW"] <-
+        SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]][tmp]
 
       if (anyNA(locations[, "Site_id_by_dbW"])) {
         stop("Not all sites (labels) available in weather database.")
@@ -6343,9 +6344,9 @@ ExtractClimateChangeScenarios <- function(
     site_labels =
       SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
     site_ids =
-      SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]],
+      SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]],
     scen_labels = unique(
-      SFSW2_prj_meta[["sim_scens"]][["df"]][, "id_to_dbW"]
+      SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
     ),
     verbose = verbose
   )
@@ -6679,6 +6680,21 @@ PrepareClimateScenarios <- function(
   )
 
 
+  #-- Check if requested climate scenarios are listed in table;
+  # if not add to database
+  rSOILWAT2::dbW_setConnection(
+    dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]]
+  )
+
+  stopifnot(
+    rSOILWAT2::dbW_addScenarios(
+      unique(
+        SFSW2_prj_meta[["sim_scens"]][["df"]][, "id_to_dbW"]
+      )
+    )
+  )
+
+
   #--- Process any temporary datafile from a potential previous run
   clim_sources <- unique(
     SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"]
@@ -6690,7 +6706,7 @@ PrepareClimateScenarios <- function(
 
   for (k in seq_along(clim_sources)) {
     copy_tempdata_to_dbW(
-      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]],
       clim_source = clim_sources[k],
       dir_out_tmp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
       verbose = opt_verbosity[["verbose"]]
@@ -6722,7 +6738,7 @@ PrepareClimateScenarios <- function(
     # Check sites
     if (length(tmp_ids) > 0) {
       rSOILWAT2::dbW_setConnection(
-        dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]]
+        dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]]
       )
       on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
@@ -6732,9 +6748,9 @@ PrepareClimateScenarios <- function(
         site_labels =
           SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
         site_ids =
-          SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][tmp_ids2],
+          SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]][tmp_ids2],
         scen_labels = unique(
-          SFSW2_prj_meta[["sim_scens"]][["df"]][, "id_to_dbW"]
+          SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
         ),
         verbose = opt_verbosity[["verbose"]]
       )

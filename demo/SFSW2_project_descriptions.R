@@ -139,12 +139,16 @@ fnames_in <- list(
   #   from (slower) csv files
   fpreprocin = "SWRuns_InputAll_PreProcessed.rds",
 
-  # Database with daily weather data
+  # Database with daily ambient weather data
   fdbWeather = if (identical(opt_platform[["host"]], "local")) {
     file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3")
   } else if (identical(opt_platform[["host"]], "hpc")) {
     file.path(project_paths[["dir_prj"]], "..", "dbWeatherData.sqlite3")
   },
+
+  # Database with projected daily weather data
+  # (set to `fdbWeather` or NA if data are combined in `fdbWeather`)
+  fdbWeather2 = NA,
 
   # Raster describing spatial interpretation of simulation experiment
   # if scorp == "cell"
