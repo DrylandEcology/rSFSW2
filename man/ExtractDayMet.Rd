@@ -23,6 +23,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
   coords_WGS84,
   start_year,
   end_year,
+  id_ambient_scenario = 1,
   dir_temp = tempdir(),
   dbW_compression_type = "gzip",
   dbW_digits = 4L,

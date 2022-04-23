@@ -1155,7 +1155,12 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(
 #' @export
 ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(
   dir_data,
-  site_ids, site_ids_by_dbW, coords_WGS84, start_year, end_year,
+  site_ids,
+  site_ids_by_dbW,
+  coords_WGS84,
+  start_year,
+  end_year,
+  id_ambient_scenario = 1,
   dir_temp = tempdir(),
   dbW_compression_type = "gzip",
   dbW_digits = 4L,
@@ -1234,7 +1239,7 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(
 
         rSOILWAT2:::dbW_addWeatherDataNoCheck(
           Site_id = site_ids_by_dbW_todo[idm],
-          Scenario_id = 1,
+          Scenario_id = id_ambient_scenario,
           StartYear = year_range[["start_year"]],
           EndYear = year_range[["end_year"]],
           weather_blob = data_blob
@@ -1284,9 +1289,19 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(
 #'   list is copied to the weather database. Units are [degree Celsius] for
 #'   temperature and [cm / day] and for precipitation.
 #' @export
-ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
-  site_ids_by_dbW, coords_WGS84, start_year, end_year, dir_temp = tempdir(),
-  dbW_compression_type = "gzip", dbW_digits, verbose = FALSE) {
+ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(
+  dir_data,
+  site_ids,
+  site_ids_by_dbW,
+  coords_WGS84,
+  start_year,
+  end_year,
+  id_ambient_scenario = 1,
+  dir_temp = tempdir(),
+  dbW_compression_type = "gzip",
+  dbW_digits = 4L,
+  verbose = FALSE
+) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -1402,13 +1417,17 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(dir_data, site_ids,
       !inherits(weatherData, "try-error")) {
 
       # Store site weather data in weather database
-      data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData,
-        type = dbW_compression_type)
-      rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = site_ids_by_dbW[i],
-        Scenario_id = 1,
+      data_blob <- rSOILWAT2::dbW_weatherData_to_blob(
+        weatherData,
+        type = dbW_compression_type
+      )
+      rSOILWAT2:::dbW_addWeatherDataNoCheck(
+        Site_id = site_ids_by_dbW[i],
+        Scenario_id = id_ambient_scenario,
         StartYear = year_range[["start_year"]],
         EndYear = year_range[["end_year"]],
-        weather_blob = data_blob)
+        weather_blob = data_blob
+      )
 
     } else {
       print(paste(Sys.time(), "NRC weather data extraction NOT successful",
@@ -1791,11 +1810,24 @@ get_NCEPCFSR_data <- function(
 #'   Computational and Information Systems Laboratory.
 #'   \doi{10.5065/D6513W89}.
 #' @export
-GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW,
-  dat_sites, tag_WeatherFolder, start_year, end_year, meta_cfsr,
-  n_site_per_core = 100, rm_temp = TRUE, resume = FALSE, dir_temp = tempdir(),
-  dbW_compression_type = "gzip", dbW_digits, verbose = FALSE,
-  print.debug = FALSE) {
+GriddedDailyWeatherFromNCEPCFSR_Global <- function(
+  site_ids,
+  site_ids_by_dbW,
+  dat_sites,
+  tag_WeatherFolder,
+  start_year,
+  end_year,
+  id_ambient_scenario = 1,
+  meta_cfsr,
+  n_site_per_core = 100,
+  rm_temp = TRUE,
+  resume = FALSE,
+  dir_temp = tempdir(),
+  dbW_compression_type = "gzip",
+  dbW_digits = 4L,
+  verbose = FALSE,
+  print.debug = FALSE
+) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -1811,20 +1843,30 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW,
   }
 
   # Check requested years
-  year_range <- rSW2data::update_requested_years(start_year, end_year,
-    has_start_year = 1979, has_end_year = 2010, temp_call = temp_call,
-    verbose = verbose)
+  year_range <- rSW2data::update_requested_years(
+    start_year,
+    end_year,
+    has_start_year = 1979,
+    has_end_year = 2010,
+    temp_call = temp_call,
+    verbose = verbose
+  )
 
   # do the extractions
-  etemp <- get_NCEPCFSR_data(dat_sites = dat_sites,
-    daily = TRUE, monthly =  FALSE, dbW_digits,
-    yearLow = year_range[["start_year"]], yearHigh = year_range[["end_year"]],
+  etemp <- get_NCEPCFSR_data(
+    dat_sites = dat_sites,
+    daily = TRUE,
+    monthly =  FALSE,
+    dbW_digits = dbW_digits,
+    yearLow = year_range[["start_year"]],
+    yearHigh = year_range[["end_year"]],
     dir_ex_cfsr = meta_cfsr$dir_ex_cfsr,
     dir_temp = dir_temp,
     n_site_per_core = n_site_per_core,
     rm_mc_files = TRUE,
     resume = resume,
-    print.debug = print.debug)
+    print.debug = print.debug
+  )
 
   # move the weather data into the database
   for (i in seq_along(site_ids)) {
@@ -1833,19 +1875,24 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW,
       weatherDirName = dat_sites[i, "WeatherFolder"],
       filebasename = tag_WeatherFolder,
       startYear = year_range[["start_year"]],
-      endYear = year_range[["end_year"]])
+      endYear = year_range[["end_year"]]
+    )
 
     if (!is.null(weatherData) && length(weatherData) > 0 &&
       !inherits(weatherData, "try-error")) {
 
       # Store site weather data in weather database
-      data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weatherData,
-        type = dbW_compression_type)
-      rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = site_ids_by_dbW[i],
-        Scenario_id = 1,
+      data_blob <- rSOILWAT2::dbW_weatherData_to_blob(
+        weatherData,
+        type = dbW_compression_type
+      )
+      rSOILWAT2:::dbW_addWeatherDataNoCheck(
+        Site_id = site_ids_by_dbW[i],
+        Scenario_id = id_ambient_scenario,
         StartYear = year_range[["start_year"]],
         EndYear = year_range[["end_year"]],
-        weather_blob = data_blob)
+        weather_blob = data_blob
+      )
 
     } else {
       print(paste(Sys.time(), "NCEPCFSR weather data extraction NOT successful",
@@ -1898,10 +1945,21 @@ GriddedDailyWeatherFromNCEPCFSR_Global <- function(site_ids, site_ids_by_dbW,
 #'
 #' @author   Charles Duso    \email{cd622@@nau.edu}
 #' @export
-extract_daily_weather_from_livneh <- function(dir_data, dir_temp, site_ids,
-  site_ids_by_dbW, coords_WGS84, start_year, end_year,
-  f_check = TRUE, backup = TRUE,
-  comp_type = "gzip", dbW_digits = 4, verbose = FALSE) {
+extract_daily_weather_from_livneh <- function(
+  dir_data,
+  dir_temp,
+  site_ids,
+  site_ids_by_dbW,
+  coords_WGS84,
+  start_year,
+  end_year,
+  id_ambient_scenario = 1,
+  f_check = TRUE,
+  backup = TRUE,
+  comp_type = "gzip",
+  dbW_digits = 4L,
+  verbose = FALSE
+) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -2079,23 +2137,28 @@ if (!interactive()) {
         }
         out  <- cbind(doys, data_sw[i, doys, , k])
         colnames(out) <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
-        weather_data[[k]] <-
-                    new("swWeatherData",
-                         year = seq_years[k],
-                         data = data.matrix(out, rownames.force = FALSE))
+        weather_data[[k]] <- new(
+          "swWeatherData",
+          year = seq_years[k],
+          data = data.matrix(out, rownames.force = FALSE)
+        )
       }
       names(weather_data) <- as.character(seq_years)
 
       # Write out to data blob so that data is appropriate for database
-      data_blob <- rSOILWAT2::dbW_weatherData_to_blob(weather_data,
-        type = comp_type)
+      data_blob <- rSOILWAT2::dbW_weatherData_to_blob(
+        weather_data,
+        type = comp_type
+      )
 
       # Store site weather data in weather database
-      rSOILWAT2:::dbW_addWeatherDataNoCheck(Site_id = site_ids_by_dbW[i],
-        Scenario_id  = 1,
+      rSOILWAT2:::dbW_addWeatherDataNoCheck(
+        Site_id = site_ids_by_dbW[i],
+        Scenario_id  = id_ambient_scenario,
         StartYear    = year_range[["start_year"]],
         EndYear      = year_range[["end_year"]],
-        weather_blob = data_blob)
+        weather_blob = data_blob
+      )
     }
 
 
@@ -2316,8 +2379,9 @@ extract_daily_weather_from_gridMET <- function(
   coords_WGS84,
   start_year,
   end_year,
+  id_ambient_scenario = 1,
   comp_type = "gzip",
-  dbW_digits = 4,
+  dbW_digits = 4L,
   chunksize = 10000,
   verbose = FALSE
 ) {
@@ -2342,7 +2406,9 @@ extract_daily_weather_from_gridMET <- function(
   desc <- gridMET_metadata()
 
   # Check requested years
-  year_range <- rSW2data::update_requested_years(start_year, end_year,
+  year_range <- rSW2data::update_requested_years(
+    start_year,
+    end_year,
     has_start_year = desc[["start_year"]],
     has_end_year = desc[["end_year"]],
     temp_call = temp_call,
@@ -2463,7 +2529,7 @@ extract_daily_weather_from_gridMET <- function(
       # Store site weather data in weather database
       rSOILWAT2:::dbW_addWeatherDataNoCheck(
         Site_id = site_ids_by_dbW[do_chunks[[kc]]][ks],
-        Scenario_id = 1,
+        Scenario_id = id_ambient_scenario,
         StartYear = year_range[["start_year"]],
         EndYear = year_range[["end_year"]],
         weather_blob = rSOILWAT2::dbW_weatherData_to_blob(
