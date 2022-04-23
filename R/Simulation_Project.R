@@ -1786,24 +1786,39 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta,
 
 #' Carry out a \pkg{rSFSW2} simulation experiment
 #' @export
-simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
-  opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity) {
+simulate_SOILWAT2_experiment <- function(
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs,
+  opt_behave,
+  opt_parallel,
+  opt_chunks,
+  opt_out_run,
+  opt_verbosity
+) {
 
   t1 <- Sys.time()
   si <- utils::sessionInfo()
 
   if (opt_verbosity[["verbose"]]) {
     tmp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", tmp_call, ": started at ", t1,
-      " for project ",
-      sQuote(basename(SFSW2_prj_meta[["project_paths"]][["dir_prj"]]))))
+    print(
+      paste0(
+        "rSFSW2's ", tmp_call, ": started at ", t1,
+        " for project ",
+        sQuote(basename(SFSW2_prj_meta[["project_paths"]][["dir_prj"]]))
+      )
+    )
 
     print(si) # print system information
 
-    on.exit({
-      print(paste0("rSFSW2's ", tmp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-      cat("\n")}, add = TRUE)
+    on.exit(
+      { # nolint
+        print(paste0("rSFSW2's ", tmp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+        cat("\n")
+      }, # nolint
+      add = TRUE
+    )
   }
 
   if (opt_behave[["check_blas"]]) {
@@ -1821,8 +1836,10 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   # (i) it is not being kept updated and
   tmp1 <- !opt_behave[["keep_dbWork_updated"]]
   # (ii) status suggest being out of sync, or
-  tmp2 <- dbWork_check_status(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-    SFSW2_prj_meta)
+  tmp2 <- dbWork_check_status(
+    SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+    SFSW2_prj_meta
+  )
   # (iii) design structure is bad, or
   tmp3 <- !dbWork_check_design(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
   # (iv) move_dbTempOut_to_dbOut() is called and processed at least one
@@ -1834,10 +1851,17 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     dir_out_tmp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
 
     if (length(get_fnames_dbTempOut(dir_out_tmp)) > 0L) {
-      tmp <- move_dbTempOut_to_dbOut(SFSW2_prj_meta,
-        t_job_start = t1, opt_parallel, opt_behave, opt_out_run, opt_verbosity,
-        chunk_size = -1L, dir_out_temp = dir_out_tmp,
-        check_if_Pid_present = FALSE)
+      tmp <- move_dbTempOut_to_dbOut(
+        SFSW2_prj_meta,
+        t_job_start = t1,
+        opt_parallel,
+        opt_behave,
+        opt_out_run,
+        opt_verbosity,
+        chunk_size = -1L,
+        dir_out_temp = dir_out_tmp,
+        check_if_Pid_present = FALSE
+      )
 
       do_dbWork <- do_dbWork || tmp > 0
     }
@@ -1847,8 +1871,10 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
 
   if (do_dbWork) {
-    recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta,
-      verbose = opt_verbosity[["verbose"]])
+    recreate_dbWork(
+      SFSW2_prj_meta = SFSW2_prj_meta,
+      verbose = opt_verbosity[["verbose"]]
+    )
   }
 
 
@@ -1866,30 +1892,45 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   # used in:
   #   - loop calling do_OneSite
   #   - ensembles
-  setup_SFSW2_cluster(opt_parallel,
+  setup_SFSW2_cluster(
+    opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_log"]],
     verbose = opt_verbosity[["verbose"]],
-    print.debug = opt_verbosity[["print.debug"]])
-  on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
-    add = TRUE)
-  on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
-    kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
-    normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]),
-    add = TRUE)
+    print.debug = opt_verbosity[["print.debug"]]
+  )
+  on.exit(
+    exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
+    add = TRUE
+  )
+  on.exit(
+    set_full_RNG(
+      SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
+      kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
+      normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]
+    ),
+    add = TRUE
+  )
 
-  ow_prev <- set_options_warn_error(opt_verbosity[["debug.warn.level"]],
-    opt_verbosity[["debug.dump.objects"]], project_paths[["dir_prj"]],
-    verbose = opt_verbosity[["verbose"]])
+  ow_prev <- set_options_warn_error(
+    opt_verbosity[["debug.warn.level"]],
+    opt_verbosity[["debug.dump.objects"]],
+    project_paths[["dir_prj"]],
+    verbose = opt_verbosity[["verbose"]]
+  )
   on.exit(options(ow_prev), add = TRUE)
 
 
   #----------------------------------------------------------------------------#
   #------------------------RUN RSOILWAT
-  if (SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]] &&
-    SFSW2_prj_meta[["sim_size"]][["runsN_todo"]] > 0) {
+  if (
+    SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]] &&
+    SFSW2_prj_meta[["sim_size"]][["runsN_todo"]] > 0
+  ) {
 
-    on.exit(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]),
-      add = TRUE)
+    on.exit(
+      dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]),
+      add = TRUE
+    )
 
     swof <- rSOILWAT2::sw_out_flags()
     swDefaultInputs <- read_SOILWAT2_DefaultInputs()
