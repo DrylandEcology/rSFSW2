@@ -403,8 +403,6 @@ do_OneSite <- function(
     if (saveRsoilwatInputWithWeather) "simTime2"
   )
 
-  #TODO: if `saveRsoilwatInputWithWeather` and inputs ok, then
-  # just re-create missing objects, i.e., i_sw_weatherList, isim_time, simTime2
 
   if (
     file.exists(f_sw_input) &&
@@ -416,6 +414,8 @@ do_OneSite <- function(
       )
     )
   ) {
+
+    suppressWarnings(rm(list = objnames_saveRsoilwatInput))
 
     # load objects: objnames_saveRsoilwatInput
     tmp <- try(
@@ -438,8 +438,8 @@ do_OneSite <- function(
 
 
   # --- Further preparations ------
+  #------Learn about soil layer structure
   if (any(tasks == 1L)) {
-    #------Learn about soil layer structure
     soil_source <- NULL
 
     # determine number of soil layers = soilLayers_N and soildepth
@@ -521,9 +521,14 @@ do_OneSite <- function(
     )
     topL <- setTopLayer(soilLayers_N, DeepestTopLayer)
     bottomL <- setBottomLayer(soilLayers_N, DeepestTopLayer)
+  }
 
 
-    #------Learn about simulation time (for each scenario)
+  #------Learn about simulation time
+  if (
+    any(tasks == 1L) &&
+    !all(sapply(c("isim_time", "simTime2"), exists, inherits = FALSE))
+  ) {
     isim_time <- simTime2 <- vector("list", nrow(sim_scens[["itime"]]))
 
     for (itime in seq_len(nrow(sim_scens[["itime"]]))) {
