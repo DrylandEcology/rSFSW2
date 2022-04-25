@@ -11,7 +11,8 @@ simulate_SOILWAT2_experiment(
   opt_parallel,
   opt_chunks,
   opt_out_run,
-  opt_verbosity
+  opt_verbosity,
+  check_dbWork = TRUE
 )
 }
 \description{

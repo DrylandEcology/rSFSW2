@@ -31,12 +31,19 @@ t_job_start <- Sys.time()
 
 
 #------ Grab command line arguments (if any)
-# e.g., `Rscript SFSW2_project_code.R -nparallel=10`
+# e.g., `Rscript SFSW2_project_code.R -nparallel=10 -chunksims=1,5`
 
 args <- commandArgs(trailingOnly = TRUE)
 
 nparallel <- if (any(ids <- grepl("-nparallel", args))) {
   as.integer(sub("-nparallel=", "", args[ids]))
+}
+
+chunksims <- if (any(ids <- grepl("-chunksims", args))) {
+  tmp <- as.integer(
+    strsplit(sub("-chunksims=", "", args[ids]), split = ",", fixed = TRUE)[[1]]
+  )
+  if (length(tmp) == 2) tmp else NA
 }
 
 
@@ -118,6 +125,12 @@ SFSW2_prj_meta <- update_actions(
 if (isTRUE(is.finite(nparallel))) {
   opt_parallel[["num_cores"]] <- max(0, nparallel - 1)
 }
+
+
+if (isTRUE(!is.null(chunksims))) {
+  opt_behave[["chunk_sims"]] <- if (anyNA(chunksims)) NULL else chunksims
+}
+
 
 
 ################################################################################
