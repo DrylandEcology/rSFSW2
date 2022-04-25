@@ -29,6 +29,24 @@ library("rSFSW2")
 
 t_job_start <- Sys.time()
 
+
+#------ Grab command line arguments (if any)
+# e.g., `Rscript SFSW2_project_code.R -nparallel=10 -chunksims=1,5`
+
+args <- commandArgs(trailingOnly = TRUE)
+
+nparallel <- if (any(ids <- grepl("-nparallel", args))) {
+  as.integer(sub("-nparallel=", "", args[ids]))
+}
+
+chunksims <- if (any(ids <- grepl("-chunksims", args))) {
+  tmp <- as.integer(
+    strsplit(sub("-chunksims=", "", args[ids]), split = ",", fixed = TRUE)[[1]]
+  )
+  if (length(tmp) == 2) tmp else NA
+}
+
+
 #------ Turn on/off actions to be carried out by simulation framework
 actions <- list(
   # Input checking
@@ -102,6 +120,17 @@ SFSW2_prj_meta <- update_actions(
   actions,
   wipe_dbOutput = opt_out_run[["wipe_dbOutput"]]
 )
+
+
+if (isTRUE(is.finite(nparallel))) {
+  opt_parallel[["num_cores"]] <- max(0, nparallel - 1)
+}
+
+
+if (isTRUE(!is.null(chunksims))) {
+  opt_behave[["chunk_sims"]] <- if (anyNA(chunksims)) NULL else chunksims
+}
+
 
 
 ################################################################################
@@ -178,7 +207,8 @@ if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate")]))) {
     opt_parallel,
     opt_chunks,
     opt_out_run,
-    opt_verbosity
+    opt_verbosity,
+    check_dbWork = isTRUE(actions[["check_dbOut"]])
   )
 }
 

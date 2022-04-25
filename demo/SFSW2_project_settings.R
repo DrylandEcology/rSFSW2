@@ -27,19 +27,29 @@ opt_behave <- list(
   #    'LookupTranspRegions', and 'LookupSnowDensity'
   #  - It doesn't repeat calls to 'do_OneSite' that are listed in 'runIDs_done'
   resume = TRUE,
+
+  # Process all or a subset of simulation runs
+  #   - if `NULL` or `c(0, y)`, then process all runs
+  #   - if `c(x, y)`, then process the `x-th` chunk of `y` equally sized chunks
+  #     among all runs
+  chunk_sims = NULL,
+
   # Determines how completion of climate scenario data is determined at
   # the site level:
   #  - "dbW" - scan the weather database (accurate but slow)
   #  - "fmain" - use the "ClimateScenarioSources_Completed" of fmain (quick)
   climscen_todo_method = "dbW",
   # Use preprocessed input data if available
+
   use_preprocin = TRUE,
   # Update dbWork for each output element if TRUE (can cause traffic jams in
   # highly parallel runs); if FALSE, dbWork is not updated continuously
   keep_dbWork_updated = TRUE,
+
   # If action == "check_dbOut" detects missing Pids, then workDB is updated
   # (so that a new run of the script can be started to add missing runs)
   check_updates_dbWork = TRUE,
+
   # Check linked BLAS library before simulation runs
   check_blas = FALSE
 )

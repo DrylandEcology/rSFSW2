@@ -1793,7 +1793,8 @@ simulate_SOILWAT2_experiment <- function(
   opt_parallel,
   opt_chunks,
   opt_out_run,
-  opt_verbosity
+  opt_verbosity,
+  check_dbWork = TRUE
 ) {
 
   t1 <- Sys.time()
@@ -1831,22 +1832,10 @@ simulate_SOILWAT2_experiment <- function(
   #---------------------------------------------------------------------------#
   #----------------CHECK ON DATABASES FOR SIMULATION OUTPUT (FROM PREVIOUS RUN)
 
-  #--- Check whether dbWork is up-to-date:
-  # recreate if
-  # (i) it is not being kept updated and
-  tmp1 <- !opt_behave[["keep_dbWork_updated"]]
-  # (ii) status suggest being out of sync, or
-  tmp2 <- dbWork_check_status(
-    SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-    SFSW2_prj_meta
-  )
-  # (iii) design structure is bad, or
-  tmp3 <- !dbWork_check_design(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
-  # (iv) move_dbTempOut_to_dbOut() is called and processed at least one
-  # dbTempOut
-  do_dbWork <- (tmp1 && tmp2) || tmp3
 
   #--- Consolidate (partial) output data
+  has_moved_dbTempOut <- FALSE
+
   if (!opt_out_run[["wipe_dbOutput"]]) {
     dir_out_tmp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
 
@@ -1863,24 +1852,60 @@ simulate_SOILWAT2_experiment <- function(
         check_if_Pid_present = FALSE
       )
 
-      do_dbWork <- do_dbWork || tmp > 0
+      has_moved_dbTempOut <- tmp > 0
     }
   }
 
-  #--- Make sure that dbWork is up-to-date
-  stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
 
-  if (do_dbWork) {
-    recreate_dbWork(
-      SFSW2_prj_meta = SFSW2_prj_meta,
-      verbose = opt_verbosity[["verbose"]]
+  #--- Make sure that dbWork is up-to-date
+  if (check_dbWork) {
+    #--- Check whether dbWork is up-to-date:
+    # recreate if
+    # (i) it is not being kept updated and
+    tmp1 <- !opt_behave[["keep_dbWork_updated"]]
+    # (ii) status suggest being out of sync, or
+    tmp2 <- dbWork_check_status(
+      SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+      SFSW2_prj_meta
     )
+    # (iii) design structure is bad, or
+    tmp3 <- !dbWork_check_design(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
+    # (iv) move_dbTempOut_to_dbOut() is called and processed at least one
+    # dbTempOut
+    do_dbWork <- has_moved_dbTempOut || (tmp1 && tmp2) || tmp3
+
+
+    stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+
+    if (do_dbWork) {
+      recreate_dbWork(
+        SFSW2_prj_meta = SFSW2_prj_meta,
+        verbose = opt_verbosity[["verbose"]]
+      )
+    }
   }
 
 
   #--- Determine which runs (still) need to be done for this round
+
+  # Check and update chunks/subsets of simulation runs if requested
+  SFSW2_prj_meta[["sim_size"]][["runIDs_total_chunkIDs"]] <- update_sim_chunks(
+    runsN_total = SFSW2_prj_meta[["sim_size"]][["runsN_total"]],
+    chunkIDs = SFSW2_prj_meta[["sim_size"]][["runIDs_total_chunkIDs"]],
+    chunk_sims = opt_behave[["chunk_sims"]]
+  )
+
+  # Determine from `dbWork` which runs still need to be simulated
   SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]] <-
     dbWork_todos(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
+
+  # Subset to requested chunk (if any)
+  SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]] <- select_sim_chunk(
+    runIDs_todo = SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]],
+    chunkIDs = SFSW2_prj_meta[["sim_size"]][["runIDs_total_chunkIDs"]],
+    chunk_sims = opt_behave[["chunk_sims"]]
+  )
+
   SFSW2_prj_meta[["sim_size"]][["runsN_todo"]] <-
     length(SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]])
 

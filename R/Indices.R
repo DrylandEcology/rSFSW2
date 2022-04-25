@@ -191,3 +191,46 @@ determine_simulation_size <- function(SWRunInformation, include_YN,
     runIDs_todo = NULL, runsN_todo = 0, digitsN_total = digitsN_total
   )
 }
+
+# Determine chunks of `runIDs_total`
+update_sim_chunks <- function(
+  runsN_total,
+  chunkIDs = NULL,
+  chunk_sims = NULL
+) {
+
+  #--- Are chunks requested?
+  if (length(chunk_sims) == 2 && isTRUE(chunk_sims[2] > 1)) {
+    # Do we have existing chunk information? If so, is it suitable?
+    ok <-
+      length(chunkIDs) > 0 &&
+      length(chunkIDs) == runsN_total &&
+      chunkIDs[runsN_total] == chunk_sims[2]
+
+    if (ok) {
+      chunkIDs
+    } else {
+      # Calculate chunk IDs for each `runIDs_total`
+      tmp <- rSW2utils::make_chunks(
+        nx = runsN_total,
+        n_chunks = chunk_sims[2]
+      )
+
+      rep(
+        seq_len(chunk_sims[2]),
+        times = lengths(tmp)
+      )
+    }
+  }
+}
+
+
+# Select a chunk/subset of sites that still need to be simulated
+select_sim_chunk <- function(runIDs_todo, chunkIDs, chunk_sims) {
+  if (length(chunk_sims) == 2 && isTRUE(chunk_sims[2] > 1)) {
+    ids <- chunkIDs[runIDs_todo] == chunk_sims[1]
+    runIDs_todo[ids]
+  } else {
+    runIDs_todo
+  }
+}
