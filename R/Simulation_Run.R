@@ -577,7 +577,7 @@ do_OneSite <- function(
     any(tasks[, "create"] == 1L, tasks[, "execute"] == 1L) &&
     !exists("i_sw_weatherList", inherits = FALSE)
   ) {
-    print_debug(opt_verbosity, tag_simfid, "creating", "daily weather")
+    print_debug(opt_verbosity, tag_simfid, "section", "daily weather forcing")
     i_sw_weatherList <- list()
 
     if (!opt_sim[["use_dbW_current"]]) {
@@ -628,7 +628,7 @@ do_OneSite <- function(
 
     } else {
       #---Extract weather data
-      print_debug(opt_verbosity, tag_simfid, "creating", "access dbOut for weatherDirName")
+      print_debug(opt_verbosity, tag_simfid, "forcing", "access dbOut for weatherDirName")
 
       weather_label_cur <- try(
         local_weatherDirName(
@@ -654,7 +654,7 @@ do_OneSite <- function(
         i_sw_weatherList <- weather_label_cur
 
       } else {
-        print_debug(opt_verbosity, tag_simfid, "creating", "access dbW for daily weather")
+        print_debug(opt_verbosity, tag_simfid, "forcing", "access dbW for daily weather")
         i_sw_weatherList <- try(
           mapply(
             FUN = function(fdbWeather, scenario_label, itime) {
@@ -673,14 +673,15 @@ do_OneSite <- function(
             fdbWeather = fdbWeather_by_scen,
             scenario_label = sim_scens[["df"]][, "id_to_dbW"],
             itime = sim_scens[["df"]][, "itime"],
-            SIMPLIFY = FALSE
+            SIMPLIFY = FALSE,
+            USE.NAMES = FALSE
           ),
           silent = !opt_verbosity[["verbose"]]
         )
       }
     }
 
-    print_debug(opt_verbosity, tag_simfid, "creating", "daily weather done")
+    print_debug(opt_verbosity, tag_simfid, "forcing", "daily weather done")
 
     # Check that extraction of weather data was successful
     if (
