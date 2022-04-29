@@ -5615,6 +5615,11 @@ run_simulation_experiment <- function(SFSW2_prj_inputs, MoreArgs) {
   )
 
 
+  # Checks
+  if (is.null(MoreArgs[["sim_size"]][["ncol_dbOut_overall"]])) {
+    stop("`ncol_dbOut_overall` is NULL: it must be a positive integer.")
+  }
+
   #--- prepare the temporary output databases
   make_dbTempOut(
     dbOutput = MoreArgs[["fnames_out"]][["dbOutput"]],
