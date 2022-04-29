@@ -1824,7 +1824,10 @@ do_OneSite <- function(
             }
         )
 
-        if (all(names(tmp) %in% c("grass", "shrub"))) {
+        if (
+          opt_verbosity[["print.debug"]] &&
+          all(names(tmp) %in% c("grass", "shrub"))
+        ) {
           warning(
             "Function `rSOILWAT2::estimate_PotNatVeg_biomass()` estimated ",
             "biomass for grasses and shrubs, but not for forbs and trees; ",
