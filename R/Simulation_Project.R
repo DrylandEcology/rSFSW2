@@ -1962,7 +1962,6 @@ simulate_SOILWAT2_experiment <- function(
     args_do_OneSite <- gather_args_do_OneSite(SFSW2_prj_meta, SFSW2_prj_inputs)
 
     runs.completed <- run_simulation_experiment(
-      sim_size = SFSW2_prj_meta[["sim_size"]],
       SFSW2_prj_inputs = SFSW2_prj_inputs,
       MoreArgs = args_do_OneSite
     )

@@ -5586,7 +5586,7 @@ do_OneSite <- function(
 
 #' Run a \pkg{rSFSW2} simulation experiment
 #' @export
-run_simulation_experiment <- function(sim_size, SFSW2_prj_inputs, MoreArgs) {
+run_simulation_experiment <- function(SFSW2_prj_inputs, MoreArgs) {
 
   runs.completed <- 0
 
