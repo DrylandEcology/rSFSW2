@@ -927,10 +927,8 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
 
       } else {
         # named `future_yrs` and multiple time periods per projection
-        climScen[-1, "itime"] <- rep(
-          x = ids_itime,
-          times = table(climScen[-1, "DeltaStr_yrs"])
-        )
+        ids <- match(climScen[-1, "DeltaStr_yrs"], rownames(tmp_itime))
+        climScen[-1, "itime"] <- ids_itime[ids]
 
         # `tmp_sim` and `tmp_dbW` are not identical -> correctly set `id_to_dbW`
         ids <- match(
