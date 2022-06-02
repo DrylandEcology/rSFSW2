@@ -44,7 +44,7 @@ combined, i.e., a unique consecutive identification number across all
 simulation runs.}
 
 \item{scN}{An integer value. The number of (climate) scenarios used in the
-project, i.e., \eqn{scN == sim_scens[["N"]]}.}
+project, i.e., \eqn{scN == nrow(sim_scens[["df"]])}.}
 
 \item{sc}{An integer value. The index along loop3 \code{1...scN}.}
 

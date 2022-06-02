@@ -237,6 +237,7 @@ get_BareSoilEvapCoefs <- function(
   SFSW2_prj_meta,
   SFSW2_prj_inputs,
   runIDs_adjust,
+  method_bad_soils = c("pass", "stop"),
   resume = TRUE,
   verbose = FALSE
 ) {
@@ -285,6 +286,8 @@ get_BareSoilEvapCoefs <- function(
         drop = FALSE]
     layers_depth <- as.matrix(tmp)
 
+    ids_hassoil <- which(!is.na(layers_depth[, 1]))
+
     sand <-
       SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icol_sand,
         drop = FALSE]
@@ -292,23 +295,28 @@ get_BareSoilEvapCoefs <- function(
       SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icol_clay,
         drop = FALSE]
 
+    method_bad_soils <- match.arg(method_bad_soils)
+
     coeff_bs_evap <- rSW2data::calc_BareSoilEvapCoefs(
-      layers_depth,
-      sand,
-      clay,
+      layers_depth[ids_hassoil, , drop = FALSE],
+      sand[ids_hassoil, , drop = FALSE],
+      clay[ids_hassoil, , drop = FALSE],
       depth_max_bs_evap_cm =
         SFSW2_prj_meta[["opt_sim"]][["depth_max_bs_evap_cm"]],
-      method_bad_soils = "pass"
+      method_bad_soils = method_bad_soils
     )
 
     # warn if any used runs returned with NA
-    has_bad_evco <- anyNA(
-      coeff_bs_evap[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], 1]
-    )
-    if (has_bad_evco) {
-      stop(
+    if (anyNA(coeff_bs_evap[, 1])) {
+      msg <- message(
         "Not able to estimate bare-soil evaporation coefficients ",
         "for some active sites because of poor soil inputs."
+      )
+
+      switch(
+        EXPR = method_bad_soils,
+        pass = warning(msg),
+        stop(msg)
       )
     }
 
@@ -324,12 +332,13 @@ get_BareSoilEvapCoefs <- function(
     icols_bsE_used <- icol_bsE[icol]
     icols_bse_notused <- icol_bsE[-icol]
 
+    runIDs_adjust2 <- runIDs_adjust[ids_hassoil]
     SFSW2_prj_inputs[["sw_input_soils_use"]][icols_bsE_used] <- TRUE
-    SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icols_bsE_used] <-
+    SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust2, icols_bsE_used] <-
       round(coeff_bs_evap[, icol], 4)
 
     SFSW2_prj_inputs[["sw_input_soils_use"]][icols_bse_notused] <- FALSE
-    SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icols_bse_notused] <- 0
+    SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust2, icols_bse_notused] <- 0
 
     #write data to disk
     utils::write.csv(

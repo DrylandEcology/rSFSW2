@@ -168,12 +168,20 @@ getSiteIds <- function(con, folderNames) {
 #' Get name of weather file from database \var{\sQuote{dbOutput}}
 #' @export
 local_weatherDirName <- function(i_sim, runN, scN, dbOutput) {
-  con <- dbConnect(SQLite(), dbname = dbOutput,
-    flags = SQLITE_RO)
+  con <- dbConnect(
+    SQLite(),
+    dbname = dbOutput,
+    flags = SQLITE_RO
+  )
   on.exit(dbDisconnect(con), add = TRUE)
 
-  dbGetQuery(con, paste("SELECT WeatherFolder FROM header WHERE P_id=",
-    it_Pid(i_sim, runN, 1, scN)))[1, 1]
+  dbGetQuery(
+    con,
+    paste(
+      "SELECT WeatherFolder FROM header WHERE P_id=",
+      it_Pid(i_sim, runN, 1, scN)
+    )
+  )[1, 1]
 }
 
 
@@ -2657,7 +2665,10 @@ dbOutput_create_Design <- function(
 
   sql <- "INSERT INTO scenario_labels VALUES(NULL, :label)"
   rs <- dbSendStatement(con_dbOut, sql)
-  dbBind(rs, params = list(label = SFSW2_prj_meta[["sim_scens"]][["id"]]))
+  dbBind(
+    rs,
+    params = list(label = SFSW2_prj_meta[["sim_scens"]][["df"]][, "id_sim"])
+  )
   dbClearResult(rs)
 
 
@@ -2733,17 +2744,17 @@ dbOutput_create_Design <- function(
   db_runs$P_id <- seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_Pid"]])
   db_runs$label_id <- rep(
     seq_len(SFSW2_prj_meta[["sim_size"]][["runsN_total"]]),
-    each = SFSW2_prj_meta[["sim_scens"]][["N"]]
+    each = nrow(SFSW2_prj_meta[["sim_scens"]][["df"]])
   )
   db_runs$site_id <- rep(
     rep(
       SFSW2_prj_inputs[["SWRunInformation"]]$site_id,
       times = max(SFSW2_prj_meta[["sim_size"]][["expN"]], 1L)
     ),
-    each = SFSW2_prj_meta[["sim_scens"]][["N"]]
+    each = nrow(SFSW2_prj_meta[["sim_scens"]][["df"]])
   )
   db_runs$scenario_id <- rep(
-    seq_len(SFSW2_prj_meta[["sim_scens"]][["N"]]),
+    seq_len(nrow(SFSW2_prj_meta[["sim_scens"]][["df"]])),
     times = SFSW2_prj_meta[["sim_size"]][["runsN_total"]]
   )
 
@@ -2760,14 +2771,17 @@ dbOutput_create_Design <- function(
     if (useExperimentals) {
       rep(
         temp + treatments_unique_map - 1,
-        each = SFSW2_prj_meta[["sim_scens"]][["N"]]
+        each = nrow(SFSW2_prj_meta[["sim_scens"]][["df"]])
       )
     } else {
-      rep(treatments_unique_map, each = SFSW2_prj_meta[["sim_scens"]][["N"]])
+      rep(
+        treatments_unique_map,
+        each = nrow(SFSW2_prj_meta[["sim_scens"]][["df"]])
+      )
     }
   } else {
     if (useExperimentals) {
-      rep(temp, each = SFSW2_prj_meta[["sim_scens"]][["N"]])
+      rep(temp, each = nrow(SFSW2_prj_meta[["sim_scens"]][["df"]]))
     } else 1
   }
 

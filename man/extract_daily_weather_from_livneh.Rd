@@ -12,10 +12,11 @@ extract_daily_weather_from_livneh(
   coords_WGS84,
   start_year,
   end_year,
+  id_ambient_scenario = 1,
   f_check = TRUE,
   backup = TRUE,
   comp_type = "gzip",
-  dbW_digits = 4,
+  dbW_digits = 4L,
   verbose = FALSE
 )
 }

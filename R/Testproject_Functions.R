@@ -383,7 +383,9 @@ delete_test_output <- function(dir_test, delete_filepaths = NULL) {
 
   dirs_to_delete <- c(
     file.path(dir_test, "3_Runs"),
-    file.path(dir_test, "4_Simulation"))
+    file.path(dir_test, "4_Simulation"),
+    file.path(dir_test, "logs")
+  )
 
   try(unlink(unlist(files_to_delete)), silent = TRUE)
   try(unlink(unlist(dirs_to_delete), recursive = TRUE), silent = TRUE)

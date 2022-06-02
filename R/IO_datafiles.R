@@ -407,12 +407,13 @@ complete_with_defaultpaths <- function(project_paths, fnames_in) {
   # full names of files located in 'dir_in'
   ftmp <- c(
     "fmain", "fslayers", "ftreatDesign", "fexpDesign", "fpreprocin",
-    "fdbWeather", "fsimraster"
+    "fdbWeather", "fdbWeather2", "fsimraster"
   )
 
   for (f in ftmp) {
     if (
       f %in% names(fnames_in) &&
+      is.character(fnames_in[[f]]) &&
       identical(basename(fnames_in[[f]]), fnames_in[[f]])
     ) {
 

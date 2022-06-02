@@ -31,12 +31,19 @@ t_job_start <- Sys.time()
 
 
 #------ Grab command line arguments (if any)
-# e.g., `Rscript SFSW2_project_code.R -nparallel=10`
+# e.g., `Rscript SFSW2_project_code.R -nparallel=10 -chunksims=1,5`
 
 args <- commandArgs(trailingOnly = TRUE)
 
 nparallel <- if (any(ids <- grepl("-nparallel", args))) {
   as.integer(sub("-nparallel=", "", args[ids]))
+}
+
+chunksims <- if (any(ids <- grepl("-chunksims", args))) {
+  tmp <- as.integer(
+    strsplit(sub("-chunksims=", "", args[ids]), split = ",", fixed = TRUE)[[1]]
+  )
+  if (length(tmp) == 2) tmp else NA
 }
 
 
@@ -120,6 +127,12 @@ if (isTRUE(is.finite(nparallel))) {
 }
 
 
+if (isTRUE(!is.null(chunksims))) {
+  opt_behave[["chunk_sims"]] <- if (anyNA(chunksims)) NULL else chunksims
+}
+
+
+
 ################################################################################
 #------ 3) POPULATE PROJECT WITH INPUT DATA (REPEAT UNTIL COMPLETE) ------------
 
@@ -194,7 +207,8 @@ if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate")]))) {
     opt_parallel,
     opt_chunks,
     opt_out_run,
-    opt_verbosity
+    opt_verbosity,
+    check_dbWork = isTRUE(actions[["check_dbOut"]])
   )
 }
 

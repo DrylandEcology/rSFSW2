@@ -11,8 +11,9 @@ extract_daily_weather_from_gridMET(
   coords_WGS84,
   start_year,
   end_year,
+  id_ambient_scenario = 1,
   comp_type = "gzip",
-  dbW_digits = 4,
+  dbW_digits = 4L,
   chunksize = 10000,
   verbose = FALSE
 )

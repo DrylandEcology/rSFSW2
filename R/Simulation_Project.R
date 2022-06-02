@@ -516,6 +516,45 @@ is_project_description_outdated <- function(meta) {
     meta[["project_paths"]][["dir_log"]] <- meta[["project_paths"]][["dir_prj"]]
   }
 
+
+  has <- c("id_sim", "id_to_dbW") %in% colnames(meta[["sim_scens"]][["df"]])
+  if (any(!has)) {
+    warning(
+      "Outdated project description: ",
+      "The columns `id_sim` and/or `id_to_dbW` of `sim_scens[['df']]` ",
+      "were not calculated; ",
+      "it was added after v4.3.0; ",
+      "assuming previous behavior, ",
+      "i.e., setting `id_sim` and `id_to_dbW` equal to the previous `id`."
+    )
+
+    meta[["sim_scens"]][["df"]][, "id_to_dbW"] <- meta[["sim_scens"]][["id"]]
+    meta[["sim_scens"]][["df"]][, "id_sim"] <- meta[["sim_scens"]][["id"]]
+  }
+
+
+  has <- "fdbWeather2" %in% names(meta[["fnames_in"]])
+  if (!has) {
+    warning(
+      "Outdated project description: ",
+      "The element `fdbWeather2` of list 'fnames_in'",
+      "it was added after v4.3.0; ",
+      "assuming previous behavior, ",
+      "i.e., setting as if only one weather database; ",
+      "please update description."
+    )
+
+    meta[["fnames_in"]][["fdbWeather2"]] <- meta[["fnames_in"]][["fdbWeather"]]
+
+    if (
+      "runIDs_sites_by_dbW" %in% names(meta[["sim_size"]]) &&
+      !("runIDs_sites_by_dbW2" %in% names(meta[["sim_size"]]))
+    ) {
+      meta[["sim_size"]][["runIDs_sites_by_dbW2"]] <-
+        meta[["sim_size"]][["runIDs_sites_by_dbW"]]
+    }
+  }
+
   meta
 }
 
@@ -924,29 +963,100 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
 
     if (SFSW2_prj_meta[["opt_sim"]][["use_dbW_future"]]) {
       SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]] <- TRUE
+
+      if (is.na(SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]])) {
+        # ambient and projected data will be contained in the same dbW
+        SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]] <-
+          SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]]
+      }
     }
+
+    use_separate_dbWs <- !identical(
+      SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+      SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]]
+    )
 
     if (SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]]) {
       # Call to `update_runIDs_sites_by_dbW` does nothing if `dbWeather` does
       # not exist (first run) and updates information if called repeatedly
-      SFSW2_prj_meta[["sim_size"]] <- update_runIDs_sites_by_dbW(
-        sim_size = SFSW2_prj_meta[["sim_size"]],
-        label_WeatherData =
-          SFSW2_prj_inputs[["SWRunInformation"]][, "WeatherFolder"],
+      SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]] <-
+      update_runIDs_sites_by_dbW(
         fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+        label_WeatherData_runIDs_sites =
+          SFSW2_prj_inputs[["SWRunInformation"]][
+            SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],
+            "WeatherFolder"
+          ],
+        runIDs_sites_by_dbW =
+          SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]]
+      )
+
+      # Create `dbWeather`
+      tasks_by_dbW <- make_dbW(
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+        SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
+        runIDs_sites = SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],
+        runIDs_sites_by_dbW =
+          SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]],
+        ambient_scenario = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
+        dbW_compression_type =
+          SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
         verbose = opt_verbosity[["verbose"]]
       )
 
-      make_dbW(
-        SFSW2_prj_meta,
+      # Populate `dbWeather` with ambient data if needed
+      populate_dbW(
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+        tasks_by_dbW = tasks_by_dbW,
         SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
-        opt_parallel,
-        opt_chunks,
+        sim_time = SFSW2_prj_meta[["sim_time"]],
+        project_paths = SFSW2_prj_meta[["project_paths"]],
+        ambient_scenario = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
+        dbW_digits = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+        dbW_compression_type =
+          SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+        opt_parallel = opt_parallel,
+        opt_chunks = opt_chunks,
         resume = opt_behave[["resume"]],
+        prepd_CFSR = SFSW2_prj_meta[["prepd_CFSR"]],
+        tag_WeatherFolder = SFSW2_prj_meta[["opt_sim"]][["tag_WeatherFolder"]],
+        rng_specs = SFSW2_prj_meta[["rng_specs"]],
         deleteTmpSQLFiles = opt_out_run[["deleteTmpSQLFiles"]],
         verbose = opt_verbosity[["verbose"]],
         print.debug = opt_verbosity[["print.debug"]]
       )
+
+      if (use_separate_dbWs) {
+        SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]] <-
+        update_runIDs_sites_by_dbW(
+          fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]],
+          label_WeatherData_runIDs_sites =
+            SFSW2_prj_inputs[["SWRunInformation"]][
+              SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],
+              "WeatherFolder"
+            ],
+          runIDs_sites_by_dbW =
+            SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]]
+        )
+
+        # create dbW for projected data (but don't populate with ambient data)
+        make_dbW(
+          fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]],
+          SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],
+          runIDs_sites = SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],
+          runIDs_sites_by_dbW =
+            SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]],
+          ambient_scenario = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
+          dbW_compression_type =
+            SFSW2_prj_meta[["opt_input"]][["set_dbW_compresstype"]],
+          verbose = opt_verbosity[["verbose"]]
+        )
+
+      } else {
+        SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]] <-
+          SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW1"]]
+      }
+
 
       SFSW2_prj_meta[["input_status"]] <- update_intracker(
         SFSW2_prj_meta[["input_status"]],
@@ -1096,12 +1206,16 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
   if (SFSW2_prj_meta[["exinfo"]][["ExtractClimateChangeScenarios"]]) {
 
     if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "prepared")) {
-      SFSW2_prj_meta[["sim_size"]] <- update_runIDs_sites_by_dbW(
-        sim_size = SFSW2_prj_meta[["sim_size"]],
-        label_WeatherData =
-          SFSW2_prj_inputs[["SWRunInformation"]][, "WeatherFolder"],
-        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-        verbose = opt_verbosity[["verbose"]]
+      SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]] <-
+      update_runIDs_sites_by_dbW(
+        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]],
+        label_WeatherData_runIDs_sites =
+          SFSW2_prj_inputs[["SWRunInformation"]][
+            SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],
+            "WeatherFolder"
+          ],
+        runIDs_sites_by_dbW =
+          SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]]
       )
 
       tmp <- PrepareClimateScenarios(
@@ -1378,13 +1492,20 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   #--- Check daily weather
   if (todo_intracker(SFSW2_prj_meta, "dbW_current", "checked")) {
 
-    if (SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]] ||
-      SFSW2_prj_meta[["opt_sim"]][["use_dbW_future"]]) {
+    if (
+      SFSW2_prj_meta[["opt_sim"]][["use_dbW_current"]] ||
+      SFSW2_prj_meta[["opt_sim"]][["use_dbW_future"]]
+    ) {
 
-      icheck1 <- file.exists(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
-      icheck2 <- check_dbWeather_version(
-        SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]])
-      icheck <- icheck1 && icheck2
+      icheck <-
+        file.exists(SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]]) &&
+        file.exists(SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]]) &&
+        check_dbWeather_version(
+          SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]]
+        ) &&
+        check_dbWeather_version(
+          SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]]
+        )
 
     } else {
       # nolint start
@@ -1409,7 +1530,7 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   #--- Check scenario weather
   if (todo_intracker(SFSW2_prj_meta, "dbW_scenarios", "checked")) {
     rSOILWAT2::dbW_setConnection(
-      dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]]
+      dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]]
     )
     on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
@@ -1419,8 +1540,10 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
       site_labels =
         SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
       site_ids =
-        SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]],
-      scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
+        SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]],
+      scen_labels = unique(
+        SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
+      ),
       verbose = opt_verbosity[["verbose"]]
     )
 
@@ -1663,24 +1786,40 @@ quickprepare_dbOutput_dbWork <- function(actions, path, SFSW2_prj_meta,
 
 #' Carry out a \pkg{rSFSW2} simulation experiment
 #' @export
-simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
-  opt_behave, opt_parallel, opt_chunks, opt_out_run, opt_verbosity) {
+simulate_SOILWAT2_experiment <- function(
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs,
+  opt_behave,
+  opt_parallel,
+  opt_chunks,
+  opt_out_run,
+  opt_verbosity,
+  check_dbWork = TRUE
+) {
 
   t1 <- Sys.time()
   si <- utils::sessionInfo()
 
   if (opt_verbosity[["verbose"]]) {
     tmp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", tmp_call, ": started at ", t1,
-      " for project ",
-      sQuote(basename(SFSW2_prj_meta[["project_paths"]][["dir_prj"]]))))
+    print(
+      paste0(
+        "rSFSW2's ", tmp_call, ": started at ", t1,
+        " for project ",
+        sQuote(basename(SFSW2_prj_meta[["project_paths"]][["dir_prj"]]))
+      )
+    )
 
     print(si) # print system information
 
-    on.exit({
-      print(paste0("rSFSW2's ", tmp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-      cat("\n")}, add = TRUE)
+    on.exit(
+      { # nolint
+        print(paste0("rSFSW2's ", tmp_call, ": ended after ",
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+        cat("\n")
+      }, # nolint
+      add = TRUE
+    )
   }
 
   if (opt_behave[["check_blas"]]) {
@@ -1693,45 +1832,80 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   #---------------------------------------------------------------------------#
   #----------------CHECK ON DATABASES FOR SIMULATION OUTPUT (FROM PREVIOUS RUN)
 
-  #--- Check whether dbWork is up-to-date:
-  # recreate if
-  # (i) it is not being kept updated and
-  tmp1 <- !opt_behave[["keep_dbWork_updated"]]
-  # (ii) status suggest being out of sync, or
-  tmp2 <- dbWork_check_status(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-    SFSW2_prj_meta)
-  # (iii) design structure is bad, or
-  tmp3 <- !dbWork_check_design(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
-  # (iv) move_dbTempOut_to_dbOut() is called and processed at least one
-  # dbTempOut
-  do_dbWork <- (tmp1 && tmp2) || tmp3
 
   #--- Consolidate (partial) output data
+  has_moved_dbTempOut <- FALSE
+
   if (!opt_out_run[["wipe_dbOutput"]]) {
     dir_out_tmp <- SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]]
 
     if (length(get_fnames_dbTempOut(dir_out_tmp)) > 0L) {
-      tmp <- move_dbTempOut_to_dbOut(SFSW2_prj_meta,
-        t_job_start = t1, opt_parallel, opt_behave, opt_out_run, opt_verbosity,
-        chunk_size = -1L, dir_out_temp = dir_out_tmp,
-        check_if_Pid_present = FALSE)
+      tmp <- move_dbTempOut_to_dbOut(
+        SFSW2_prj_meta,
+        t_job_start = t1,
+        opt_parallel,
+        opt_behave,
+        opt_out_run,
+        opt_verbosity,
+        chunk_size = -1L,
+        dir_out_temp = dir_out_tmp,
+        check_if_Pid_present = FALSE
+      )
 
-      do_dbWork <- do_dbWork || tmp > 0
+      has_moved_dbTempOut <- tmp > 0
     }
   }
 
-  #--- Make sure that dbWork is up-to-date
-  stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
 
-  if (do_dbWork) {
-    recreate_dbWork(SFSW2_prj_meta = SFSW2_prj_meta,
-      verbose = opt_verbosity[["verbose"]])
+  #--- Make sure that dbWork is up-to-date
+  if (check_dbWork) {
+    #--- Check whether dbWork is up-to-date:
+    # recreate if
+    # (i) it is not being kept updated and
+    tmp1 <- !opt_behave[["keep_dbWork_updated"]]
+    # (ii) status suggest being out of sync, or
+    tmp2 <- dbWork_check_status(
+      SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+      SFSW2_prj_meta
+    )
+    # (iii) design structure is bad, or
+    tmp3 <- !dbWork_check_design(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
+    # (iv) move_dbTempOut_to_dbOut() is called and processed at least one
+    # dbTempOut
+    do_dbWork <- has_moved_dbTempOut || (tmp1 && tmp2) || tmp3
+
+
+    stopifnot(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]))
+
+    if (do_dbWork) {
+      recreate_dbWork(
+        SFSW2_prj_meta = SFSW2_prj_meta,
+        verbose = opt_verbosity[["verbose"]]
+      )
+    }
   }
 
 
   #--- Determine which runs (still) need to be done for this round
+
+  # Check and update chunks/subsets of simulation runs if requested
+  SFSW2_prj_meta[["sim_size"]][["runIDs_total_chunkIDs"]] <- update_sim_chunks(
+    runsN_total = SFSW2_prj_meta[["sim_size"]][["runsN_total"]],
+    chunkIDs = SFSW2_prj_meta[["sim_size"]][["runIDs_total_chunkIDs"]],
+    chunk_sims = opt_behave[["chunk_sims"]]
+  )
+
+  # Determine from `dbWork` which runs still need to be simulated
   SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]] <-
     dbWork_todos(SFSW2_prj_meta[["project_paths"]][["dir_out"]])
+
+  # Subset to requested chunk (if any)
+  SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]] <- select_sim_chunk(
+    runIDs_todo = SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]],
+    chunkIDs = SFSW2_prj_meta[["sim_size"]][["runIDs_total_chunkIDs"]],
+    chunk_sims = opt_behave[["chunk_sims"]]
+  )
+
   SFSW2_prj_meta[["sim_size"]][["runsN_todo"]] <-
     length(SFSW2_prj_meta[["sim_size"]][["runIDs_todo"]])
 
@@ -1743,37 +1917,51 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   # used in:
   #   - loop calling do_OneSite
   #   - ensembles
-  setup_SFSW2_cluster(opt_parallel,
+  setup_SFSW2_cluster(
+    opt_parallel,
     dir_out = SFSW2_prj_meta[["project_paths"]][["dir_log"]],
     verbose = opt_verbosity[["verbose"]],
-    print.debug = opt_verbosity[["print.debug"]])
-  on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
-    add = TRUE)
-  on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
-    kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
-    normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]),
-    add = TRUE)
+    print.debug = opt_verbosity[["print.debug"]]
+  )
+  on.exit(
+    exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
+    add = TRUE
+  )
+  on.exit(
+    set_full_RNG(
+      SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
+      kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
+      normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]
+    ),
+    add = TRUE
+  )
 
-  ow_prev <- set_options_warn_error(opt_verbosity[["debug.warn.level"]],
-    opt_verbosity[["debug.dump.objects"]], project_paths[["dir_prj"]],
-    verbose = opt_verbosity[["verbose"]])
+  ow_prev <- set_options_warn_error(
+    opt_verbosity[["debug.warn.level"]],
+    opt_verbosity[["debug.dump.objects"]],
+    project_paths[["dir_prj"]],
+    verbose = opt_verbosity[["verbose"]]
+  )
   on.exit(options(ow_prev), add = TRUE)
 
 
   #----------------------------------------------------------------------------#
   #------------------------RUN RSOILWAT
-  if (SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]] &&
-    SFSW2_prj_meta[["sim_size"]][["runsN_todo"]] > 0) {
+  if (
+    SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]] &&
+    SFSW2_prj_meta[["sim_size"]][["runsN_todo"]] > 0
+  ) {
 
-    on.exit(dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]),
-      add = TRUE)
+    on.exit(
+      dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]),
+      add = TRUE
+    )
 
     swof <- rSOILWAT2::sw_out_flags()
     swDefaultInputs <- read_SOILWAT2_DefaultInputs()
     args_do_OneSite <- gather_args_do_OneSite(SFSW2_prj_meta, SFSW2_prj_inputs)
 
     runs.completed <- run_simulation_experiment(
-      sim_size = SFSW2_prj_meta[["sim_size"]],
       SFSW2_prj_inputs = SFSW2_prj_inputs,
       MoreArgs = args_do_OneSite
     )
@@ -1792,10 +1980,18 @@ simulate_SOILWAT2_experiment <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
   #------------------------OVERALL TIMING
   delta.overall <- difftime(Sys.time(), t1, units = "secs")
 
-  compile_overall_timer(SFSW2_prj_meta[["fnames_out"]][["timerfile"]],
+  compile_overall_timer(
+    SFSW2_prj_meta[["fnames_out"]][["timerfile"]],
     SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-    SFSW2_glovars[["p_workersN"]], runs.completed,
-    SFSW2_prj_meta[["sim_scens"]][["N"]], 0, delta.overall, NA, 0, 0)
+    SFSW2_glovars[["p_workersN"]],
+    runs.completed,
+    nrow(SFSW2_prj_meta[["sim_scens"]][["df"]]),
+    0,
+    delta.overall,
+    NA,
+    0,
+    0
+  )
 
   if (opt_verbosity[["verbose"]]) {
     print(utils::sessionInfo())

@@ -788,37 +788,67 @@ convert_to_todo_list <- function(x) {
 setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
   #--- Create complete scenario names
   # make sure 'ambient' is not among models
-  temp <- grep(sim_scens[["ambient"]],
+  tmp_simnames <- grep(
+    sim_scens[["ambient"]],
     sim_scens[["models"]],
     invert = TRUE,
     value = TRUE
   )
 
-  if (length(temp) > 0) {
+  if (length(tmp_simnames) > 0) {
     if (is_idem) {
-      # Use all years
-      temp <- paste0("idem.dall.", temp)
+      # Use all years (default)
+      tmp_dbW <- tmp_sim <- paste0("idem.dall.", tmp_simnames)
+
+      # Use multiple time periods
+      # (if `future_yrs` has adequate rownames, i.e., "scenario_YYYYtoYYYY")
+      rns <- rownames(sim_time[["future_yrs"]])
+      tmp_rns <- strsplit(rns, split = "_", fixed = TRUE)
+
+      if (isTRUE(tmp_rns[[1]] == "dall") && all(lengths(tmp_rns[-1]) == 2)) {
+        # match rows of `future_yrs` to requested `scenario.GCM`
+        tmp_fut_sc <- sapply(tmp_rns[-1], `[`, j = 1)
+        tmp_mn_sc <- sapply(
+          strsplit(tmp_simnames, split = ".", fixed = TRUE),
+          `[`,
+          j = 1
+        )
+        stopifnot(setequal(tmp_fut_sc, tmp_mn_sc))
+        tmp0 <- lapply(
+          tmp_mn_sc,
+          function(x) {
+            rns[-1][match(tmp_fut_sc, x, nomatch = 0) > 0]
+          }
+        )
+
+        tmp_sim <- paste0(
+          "idem.",
+          unlist(tmp0), ".",
+          rep(tmp_simnames, times = lengths(tmp0))
+        )
+      }
+
 
     } else {
       # add (multiple) future_yrs, but only if not using full future daily vals
-      temp <- paste0(
+      tmp <- paste0(
         rownames(sim_time[["future_yrs"]]), ".",
-        rep(temp, each = nrow(sim_time[["future_yrs"]]))
+        rep(tmp_simnames, each = nrow(sim_time[["future_yrs"]]))
       )
 
       # add (multiple) downscaling.method
-      temp <- paste0(
+      tmp_dbW <- tmp_sim <- paste0(
         sim_scens[["method_DS"]], ".",
-        rep(temp, each = length(sim_scens[["method_DS"]]))
+        rep(tmp, each = length(sim_scens[["method_DS"]]))
       )
     }
+
+  } else {
+    tmp_dbW <- tmp_sim <- NULL
   }
 
 
-  # make sure 'ambient' is first entry
-  id <- c(sim_scens[["ambient"]], temp)
-  N <- length(id)
-
+  # start to set time periods
   itime <- data.frame(
     simstartyr = sim_time[["simstartyr"]],
     endyr = sim_time[["endyr"]]
@@ -827,12 +857,12 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
   #--- Create table with scenario name parts for each scenario
   # ConcScen = concentration scenarios, e.g., SRESs, RCPs
   ctmp <- c(
-    "Downscaling", "DeltaStr_yrs", "ConcScen", "Model", "Delta_yrs", "itime"
+    "Downscaling", "DeltaStr_yrs", "ConcScen", "Model",
+    "Delta_yrs", "itime", "id_sim", "id_to_dbW"
   )
 
   climScen <- data.frame(matrix(
-    NA,
-    nrow = N,
+    nrow = 1 + length(tmp_sim),
     ncol = length(ctmp),
     dimnames = list(NULL, ctmp)
   ))
@@ -844,6 +874,8 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
 
   # Fill in information for ambient scenario
   climScen[1, "Model"] <- sim_scens[["ambient"]]
+  climScen[1, "id_sim"] <- sim_scens[["ambient"]]
+  climScen[1, "id_to_dbW"] <- sim_scens[["ambient"]]
   climScen[1, "ConcScen"] <- if ("tag_aCO2_ambient" %in% names(sim_scens)) {
     paste0(sim_scens[["tag_aCO2_ambient"]], collapse = "|")
   } else {
@@ -851,17 +883,20 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
   }
 
 
-  if (N > 1) {
+  if (length(tmp_sim) > 0) {
     # Fill in information about model-scenario combinations
-    temp <- strsplit(id[-1], split = ".", fixed = TRUE)
-    if (!all(lengths(temp) == 4L)) {
+    climScen[-1, "id_sim"] <- tmp_sim
+    climScen[-1, "id_to_dbW"] <- tmp_sim
+
+    tmp <- strsplit(tmp_sim, split = ".", fixed = TRUE)
+    if (!all(lengths(tmp) == 4L)) {
       stop(
         "'climate.conditions' are mal-formed: they must contain ",
         "4 elements that are concatenated by '.'"
       )
     }
 
-    climScen[-1, ctmp[1:4]] <- do.call(rbind, temp)
+    climScen[-1, ctmp[1:4]] <- do.call(rbind, tmp)
 
 
     # set simulation time periods
@@ -873,7 +908,7 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
       tmp_itime <- sim_time[["future_yrs"]][-1, tmp]
       colnames(tmp_itime) <- colnames(itime)
 
-      stopifnot(length(unique(climScen[-1, "ConcScen"])) == NROW(tmp_itime))
+      # stopifnot(length(unique(climScen[-1, "ConcScen"])) == NROW(tmp_itime))
 
       itime <- rbind(itime, unique(tmp_itime))
       rownames(itime) <- NULL
@@ -884,10 +919,28 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
         apply(itime, 1, paste, collapse = "_")
       )
 
-      climScen[-1, "itime"] <- rep(
-        x = ids_itime,
-        times = table(climScen[-1, "ConcScen"])
-      )
+      if (all(climScen[, "DeltaStr_yrs"] == "dall")) {
+        climScen[-1, "itime"] <- rep(
+          x = ids_itime,
+          times = table(climScen[-1, "ConcScen"])
+        )
+
+      } else {
+        # named `future_yrs` and multiple time periods per projection
+        ids <- match(climScen[-1, "DeltaStr_yrs"], rownames(tmp_itime))
+        climScen[-1, "itime"] <- ids_itime[ids]
+
+        # `tmp_sim` and `tmp_dbW` are not identical -> correctly set `id_to_dbW`
+        ids <- match(
+          paste0(climScen[-1, "ConcScen"], ".", climScen[-1, "Model"]),
+          sapply(
+            strsplit(tmp_dbW, split = ".", fixed = TRUE),
+            function(x) paste0(x[-(1:2)], collapse = ".")
+          ),
+          nomatch = 0
+        )
+        climScen[-1, "id_to_dbW"] <- tmp_dbW[ids]
+      }
 
     } else {
       #--- Use current/ambient years and a delta for future runs
@@ -902,11 +955,13 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
     #--- List unique sets of requested scenario name parts
     reqMs <- unique(climScen[-1, "Model"])
     reqCSs <- unique(climScen[-1, "ConcScen"])
-    reqCSsPerM <- lapply(reqMs, function(x)
-      unique(climScen[x == climScen[, "Model"], "ConcScen"])
+    reqCSsPerM <- lapply(
+      reqMs,
+      function(x) unique(climScen[x == climScen[, "Model"], "ConcScen"])
     )
-    reqDSsPerM <- lapply(reqMs, function(x)
-      unique(climScen[x == climScen[, "Model"], "Downscaling"])
+    reqDSsPerM <- lapply(
+      reqMs,
+      function(x) unique(climScen[x == climScen[, "Model"], "Downscaling"])
     )
 
   } else {
@@ -914,10 +969,9 @@ setup_scenarios <- function(sim_scens, sim_time, is_idem = FALSE) {
     reqMs <- reqCSs <- reqCSsPerM <- reqDSsPerM <- NULL
   }
 
-  c(sim_scens,
+  c(
+    sim_scens,
     list(
-      id = id,
-      N = N,
       df = climScen,
       itime = itime,
       is_idem = is_idem,

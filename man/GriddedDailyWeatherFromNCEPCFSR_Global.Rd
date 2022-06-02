@@ -11,13 +11,14 @@ GriddedDailyWeatherFromNCEPCFSR_Global(
   tag_WeatherFolder,
   start_year,
   end_year,
+  id_ambient_scenario = 1,
   meta_cfsr,
   n_site_per_core = 100,
   rm_temp = TRUE,
   resume = FALSE,
   dir_temp = tempdir(),
   dbW_compression_type = "gzip",
-  dbW_digits,
+  dbW_digits = 4L,
   verbose = FALSE,
   print.debug = FALSE
 )
