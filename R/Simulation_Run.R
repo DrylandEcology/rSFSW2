@@ -5040,6 +5040,19 @@ do_OneSite <- function(
           tmp_airtemp <- slot(slot(runDataSC, swof["sw_temp"]), "Day")
           tmp_soiltemp <- slot(slot(runDataSC, swof["sw_soiltemp"]), "Day")
 
+          has_sl_minmeanmax <- grepl(
+            "Lyr_1_avg_C",
+            colnames(tmp_soiltemp),
+            fixed = TRUE
+          )
+          cns_sl <- if (any(has_sl_minmeanmax)) {
+            # rSOILWAT2 since v5.3.0
+            paste0("Lyr_1_", c("min", "avg", "max"), "_C")
+          } else {
+            # rSOILWAT2 before v5.3.0
+            rep("Lyr_1", 3)
+          }
+
           sim_vals_daily <- list(
             SWP_MPa = swpmatric.dy.all[["val"]][, 2 + ld, drop = FALSE],
             Snowpack_SWE_mm = 10 * slot(
@@ -5049,10 +5062,9 @@ do_OneSite <- function(
             air_Tmin_C = tmp_airtemp[, "min_C"],
             air_Tmean_C = tmp_airtemp[, "avg_C"],
             air_Tmax_C = tmp_airtemp[, "max_C"],
-            # TODO: replace with daily min/max soil temperature once available
-            shallowsoil_Tmin_C = tmp_soiltemp[, "Lyr_1"],
-            shallowsoil_Tmean_C = tmp_soiltemp[, "Lyr_1"],
-            shallowsoil_Tmax_C = tmp_soiltemp[, "Lyr_1"]
+            shallowsoil_Tmin_C = tmp_soiltemp[, cns_sl[1]],
+            shallowsoil_Tmean_C = tmp_soiltemp[, cns_sl[2]],
+            shallowsoil_Tmax_C = tmp_soiltemp[, cns_sl[3]]
           )
 
           request_otrace_GISSM <-
