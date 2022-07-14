@@ -1320,20 +1320,36 @@ do_OneSite <- function(
     }
 
 
-    # add SWRCp (PDF = "NoPDF")
-    if (uses_NoPDF) {
-      # convert from wide to semi-long format
-      req_vars <- paste0("Params", seq_len(6))
+    # add SWRCp (requested as input or PDF = "NoPDF")
+    if (uses_NoPDF || isTRUE(opt_out_run[["saveRsoilwatInputWithSWRCp"]])) {
+      swrcp <- NULL
+      soil_swdat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]])
 
-      swrcp <- reshape(
-        i_sw_input_swrcp,
-        direction = "long",
-        idvar = "Label",
-        timevar = "Layer",
-        varying = grep("Params", colnames(i_sw_input_swrcp), value = TRUE),
-        v.names = req_vars,
-        sep = "_L"
-      )
+      if (uses_NoPDF) {
+        # convert from wide to semi-long format
+        vars_swrcp <- paste0("Params", seq_len(6))
+
+        swrcp <- rSW2data::reshape_soilproperties_to_long(
+          i_sw_input_swrcp,
+          type_to = "long_by_properties",
+          id_site = "Label",
+          id_soillayer = "Layer",
+          soilproperties = vars_swrcp
+        )
+        swrcp <- swrcp[, vars_swrcp, drop = FALSE]
+
+      } else if (isTRUE(opt_out_run[["saveRsoilwatInputWithSWRCp"]])) {
+
+        tmp_name <- rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])
+        swrcp <- rSOILWAT2::pdf_estimate(
+          sand = soil_swdat[, "sand_frac"],
+          clay = soil_swdat[, "clay_frac"],
+          fcoarse = soil_swdat[, "gravel_content"],
+          bdensity = soil_swdat[, "bulkDensity_g/cm^3"],
+          swrc_name = tmp_name[1],
+          pdf_name = tmp_name[2]
+        )
+      }
 
       if (nrow(swrcp) != nrow(soil_swdat)) {
         stop(
@@ -1342,11 +1358,11 @@ do_OneSite <- function(
         )
       }
 
-      rSOILWAT2::swSoils_SWRCp(swRunScenariosData[[1]]) <-
-        swrcp[, req_vars, drop = FALSE]
+      rSOILWAT2::swSoils_SWRCp(swRunScenariosData[[1]]) <- swrcp
 
       rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])[2] <- "NoPDF"
     }
+
 
     #add weather setup information to weatherin
     if (sw_input_weather_use["SnowFlag"])

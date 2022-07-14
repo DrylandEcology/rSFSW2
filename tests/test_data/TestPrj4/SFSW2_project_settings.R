@@ -124,6 +124,7 @@ opt_out_run <- list(
   # Write rSOILWAT2 input and output to disk for each SOILWAT2 simulation
   saveRsoilwatInput = TRUE,
   saveRsoilwatInputWithWeather = TRUE,
+  saveRsoilwatInputWithSWRCp = TRUE,
   saveRsoilwatOutput = TRUE,
 
   # Enforce that rSOILWAT2 objects meet the current version requirement
