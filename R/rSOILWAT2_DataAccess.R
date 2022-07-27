@@ -112,8 +112,15 @@ get_Response_aggL <- function(response,
       # divide by 5, because each soil layer (cm) has five entries for:
       # total, trees, shrubs, forbs, grasses
       5L
+    } else if (
+      response %in% "SOILTEMP" &&
+        getNamespaceVersion("rSOILWAT2") >= as.numeric_version("3.5.0")
+    ) {
+      # since rSOILWAT2 v5.3.0:
+      #   each layer has three soil temperatures max/avg/min
+      3L # TODO: this is a hack => extract columns more reliably
     } else {
-      # this case if for: sw_vwc, sw_evsoil, sw_soiltemp, sw_swc, sw_swa
+      # this case if for: sw_vwc, sw_evsoil, sw_soiltemp (< 3.5), sw_swc, sw_swa
       1L
     }
 

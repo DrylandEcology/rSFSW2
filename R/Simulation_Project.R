@@ -2125,3 +2125,18 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
 
   invisible(TRUE)
 }
+
+
+#' Write scenario description table to file on disk
+#'
+#' @export
+write_scen_description <- function(SFSW2_prj_meta) {
+  write.csv(
+    SFSW2_prj_meta[["sim_scens"]][["df"]],
+    file = file.path(
+      SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+      "Table_ScenarioDescription.csv"
+    ),
+    row.names = FALSE
+  )
+}
