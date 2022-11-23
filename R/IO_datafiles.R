@@ -758,16 +758,79 @@ process_inputs <- function(
         fnames_in[["LookupEvapCoefs"]], row.names = 1)
     }
 
-    if (any(grepl("LookupTranspCoefs_", create_treatments),
-        create_treatments == "AdjRootProfile")) {
-      tr_input_TranspCoeff_Code <- tryCatch(utils::read.csv(
-        fnames_in[["LookupTranspCoefs"]], nrows = 2,
-        stringsAsFactors = FALSE), error = print)
-      tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2, ]
-      tr_input_TranspCoeff <- utils::read.csv(
-        fnames_in[["LookupTranspCoefs"]], skip = 2,
-        stringsAsFactors = FALSE)
-      colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)
+    if (
+      any(
+        grepl("LookupTranspCoefs_", create_treatments),
+        create_treatments == "AdjRootProfile"
+      )
+    ) {
+
+      if (file.exists(fnames_in[["LookupTranspCoefs"]])) {
+        tr_input_TranspCoeff_Code <- tryCatch(
+          utils::read.csv(
+            fnames_in[["LookupTranspCoefs"]],
+            nrows = 2,
+            stringsAsFactors = FALSE
+          ),
+          error = print
+        )
+        tr_input_TranspCoeff_Code <-
+          tr_input_TranspCoeff_Code[-2, , drop = FALSE]
+
+        tr_input_TranspCoeff <- utils::read.csv(
+          fnames_in[["LookupTranspCoefs"]],
+          skip = 2,
+          stringsAsFactors = FALSE
+        )
+        colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)
+
+        #--- Merge additional information from `rSOILWAT2::sw2_trco_table`
+        if (getNamespaceVersion("rSOILWAT2") >= as.numeric_version("5.0.0")) {
+          cns_to_add <- setdiff(
+            colnames(rSOILWAT2::sw2_trco_table[["data"]]),
+            colnames(tr_input_TranspCoeff)
+          )
+
+          if (length(cns_to_add) > 0) {
+            # Add additional columns to "description"
+            tr_input_TranspCoeff_Code <- cbind(
+              tr_input_TranspCoeff_Code,
+              rSOILWAT2::sw2_trco_table[["desc"]][, cns_to_add, drop = FALSE]
+            )
+
+            # Check if we need to add rows to `tr_input_TranspCoeff`
+            nrows2 <- nrow(rSOILWAT2::sw2_trco_table[["data"]])
+            nrows_to_add <- nrows2 - nrow(tr_input_TranspCoeff)
+
+            if (nrows_to_add > 0) {
+              tr_input_TranspCoeff <- rbind(
+                tr_input_TranspCoeff,
+                array(
+                  dim = c(nrows_to_add, ncol(tr_input_TranspCoeff)),
+                  dimnames = list(NULL, colnames(tr_input_TranspCoeff))
+                )
+              )
+            }
+
+            # Add additional columns to "data"
+            ids <- seq_len(nrows2)
+            tr_input_TranspCoeff[ids, cns_to_add] <-
+              rSOILWAT2::sw2_trco_table[["data"]][ids, cns_to_add, drop = FALSE]
+          }
+        }
+
+      } else {
+        if (getNamespaceVersion("rSOILWAT2") >= as.numeric_version("5.0.0")) {
+          # No input for "LookupTranspCoefs": use `rSOILWAT2::sw2_trco_table`
+          tr_input_TranspCoeff_Code <- rSOILWAT2::sw2_trco_table[["desc"]]
+          tr_input_TranspCoeff <- rSOILWAT2::sw2_trco_table[["data"]]
+        } else {
+          stop(
+            "Provide input file `fnames_in[['LookupTranspCoefs']]` and/or ",
+            "upgrade to rSOILWAT2 >= v5.0.0."
+          )
+        }
+      }
     }
 
     if (any(create_treatments == "LookupTranspRegions"))
