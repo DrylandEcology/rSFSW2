@@ -1895,7 +1895,7 @@ do_OneSite <- function(
 
         tro_type_tree <- if (
           any(create_treatments == "LookupTranspCoefs_Tree") &&
-          is.finite(i_sw_input_treatments$LookupTranspCoefs_Tree) &&
+          "LookupTranspCoefs_Tree" %in% names(i_sw_input_treatments) &&
           any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoefs_Tree)
         ) {
           i_sw_input_treatments$LookupTranspCoefs_Tree
