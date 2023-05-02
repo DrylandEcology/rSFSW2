@@ -1369,8 +1369,10 @@ do_OneSite <- function(
         as.integer(isim_time[[itime]][["endyr"]])
       rSOILWAT2::swYears_StartYear(swRunScenariosData[[sc]]) <-
         as.integer(isim_time[[itime]][["simstartyr"]])
-      rSOILWAT2::swWeather_FirstYearHistorical(swRunScenariosData[[sc]]) <-
-        as.integer(isim_time[[itime]][["simstartyr"]])
+      if (getNamespaceVersion("rSOILWAT2") < as.numeric_version("6.0.0")) {
+        rSOILWAT2::swWeather_FirstYearHistorical(swRunScenariosData[[sc]]) <-
+          as.integer(isim_time[[itime]][["simstartyr"]])
+      }
 
 
       #----- Begin CO2 effects
