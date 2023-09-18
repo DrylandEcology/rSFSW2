@@ -1434,8 +1434,10 @@ do_OneSite <- function(
         as.integer(isim_time[[itime]][["endyr"]])
       rSOILWAT2::swYears_StartYear(swRunScenariosData[[sc]]) <-
         as.integer(isim_time[[itime]][["simstartyr"]])
-      rSOILWAT2::swWeather_FirstYearHistorical(swRunScenariosData[[sc]]) <-
-        as.integer(isim_time[[itime]][["simstartyr"]])
+      if (getNamespaceVersion("rSOILWAT2") < as.numeric_version("6.0.0")) {
+        rSOILWAT2::swWeather_FirstYearHistorical(swRunScenariosData[[sc]]) <-
+          as.integer(isim_time[[itime]][["simstartyr"]])
+      }
 
 
       #----- Begin CO2 effects
@@ -1960,7 +1962,7 @@ do_OneSite <- function(
 
         tro_type_tree <- if (
           any(create_treatments == "LookupTranspCoefs_Tree") &&
-          is.finite(i_sw_input_treatments$LookupTranspCoefs_Tree) &&
+          "LookupTranspCoefs_Tree" %in% names(i_sw_input_treatments) &&
           any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoefs_Tree)
         ) {
           i_sw_input_treatments$LookupTranspCoefs_Tree
