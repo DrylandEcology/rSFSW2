@@ -1341,7 +1341,7 @@ do_OneSite <- function(
       } else if (isTRUE(opt_out_run[["saveRsoilwatInputWithSWRCp"]])) {
 
         tmp_name <- rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])
-        swrcp <- rSOILWAT2::pdf_estimate(
+        swrcp <- rSOILWAT2::ptf_estimate(
           sand = soil_swdat[, "sand_frac"],
           clay = soil_swdat[, "clay_frac"],
           fcoarse = soil_swdat[, "gravel_content"],
@@ -1359,8 +1359,6 @@ do_OneSite <- function(
       }
 
       rSOILWAT2::swSoils_SWRCp(swRunScenariosData[[1]]) <- swrcp
-
-      rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])[2] <- "NoPDF"
     }
 
 
