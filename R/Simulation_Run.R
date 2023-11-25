@@ -1743,6 +1743,30 @@ do_OneSite <- function(
         }
       }
 
+
+      #--- * Update daily/monthly weather data use flags ------
+      # Specify available daily input variables
+      dif <- rSOILWAT2::calc_dailyInputFlags(i_sw_weatherList[[sc]])
+      swRunScenariosData[[sc]]@weather@dailyInputFlags <- dif
+
+      # Set type of radiation (TODO: user input?)
+      if (isTRUE(dif[["shortWR"]])) {
+        swRunScenariosData[[sc]]@weather@desc_rsds <- 1L # 1: flux density over 24-hour period
+      }
+
+      # Specify monthly use flags
+      swRunScenariosData[[sc]]@weather@use_cloudCoverMonthly <- !any(
+        dif[grep("(cloudCov)|(shortWR)", names(dif))]
+      )
+      swRunScenariosData[[sc]]@weather@use_humidityMonthly <- !any(
+        dif[grep("(^rH)|(specHavg)|(Tdewpoint)|(actVP)", names(dif))]
+      )
+      swRunScenariosData[[sc]]@weather@use_windSpeedMonthly <- !any(
+        dif[grep("windSpeed", names(dif))]
+      )
+
+
+
       #anything that depends on weather
       #------3. Step: Lookup or extract external information that needs to be executed for each run
 

@@ -1043,57 +1043,68 @@ get_DayMet_NorthAmerica <- function(
         DOY = yday,
         Tmax_C = tmax..deg.c.,
         Tmin_C = tmin..deg.c.,
-        PPT_cm = prcp..mm.day. / 10
+        PPT_cm = prcp..mm.day. / 10,
+        actVP_kPa = 1e-3 * vp..Pa., # Pa -> kPa
+        shortWR = srad..W.m.2. * dayl..s. * 1e-6 # desc_rsds = 1
       )
     )
 
-    req_cols <- c("DOY", "Tmax_C", "Tmin_C", "PPT_cm")
-    template_sw <- data.frame(
-      matrix(
-        data = NA,
-        nrow = 366,
-        ncol = 4,
-        dimnames = list(NULL, req_cols)
-      )
+    data_sw0 <- rSOILWAT2::dbW_convert_to_GregorianYears(
+      rSOILWAT2::dbW_dataframe_to_weatherData(weatherDF = data_all, round = 6L),
     )
 
-    weathDataList <- list()
-    doys365 <- seq_len(365)
-    doys366 <- seq_len(366)
+    dif <- c(rep(TRUE, 3L), rep(FALSE, 11L)) # Tmax, Tmin, PPT
+    dif[13L] <- TRUE # ACTUAL_VP
+    dif[14L] <- TRUE # SHORT_WR, desc_rsds = 1
 
-    for (y in seq_along(years)) {
-      data_sw <- template_sw
+    # Impute values for added leap days
+    # Use weather generator for available variables, use LOCF otherwise
+    vars_wgen <- rSOILWAT2::weatherGenerator_dataColumns()
+    needs_wgen <- which(
+      !is.finite(as.matrix(data_sw0[, vars_wgen, drop = FALSE])),
+      arr.ind = TRUE
+    )
+    if (NROW(needs_wgen) > 0) {
+      tmp2 <- try(
+        rSOILWAT2::dbW_weatherData_to_dataframe(
+          rSOILWAT2::dbW_generateWeather(
+            weatherData = data_sw0,
+            seed = 123
+          )
+        )
+      )
 
-      # All Daymet years, including leap years, have 1 - 365 days. For
-      # leap years, the Daymet database includes leap day. Values for
-      # December 31 are discarded from leap years to maintain a 365-day year.
-      irow <- data_all["Year"] == years[y]
-      data_sw[doys365, req_cols] <- data_all[irow, req_cols]
-
-      if (rSW2utils::isLeapYear(years[y])) {
-        doys <- doys366
-        data_sw[366, ] <- c(366, data_sw[365, -1])
-      } else {
-        doys <- doys365
+      if (inherits(tmp2, "try-error")) {
+        stop("Imputation failed for leap days.")
       }
-
-      data_sw[, -1] <- round(data_sw[, -1], dbW_digits)
-      weathDataList[[y]] <- methods::new(
-        "swWeatherData",
-        year = years[y],
-         #strip row.names, otherwise they consume about 60% of file size
-        data = data.matrix(data_sw[doys, ], rownames.force = FALSE)
-      )
+      data_sw0[, vars_wgen][needs_wgen] <- tmp2[, vars_wgen][needs_wgen]
     }
 
-    names(weathDataList) <- as.character(years)
+    ids_dif <- 2L + which(dif)
+    needs_locf <- which(
+      !is.finite(as.matrix(data_sw0[, ids_dif, drop = FALSE])),
+      arr.ind = TRUE
+    )
+    if (NROW(needs_locf) > 0) {
+      tmp1 <- rSW2utils::impute_df(
+        data_sw0[, ids_dif, drop = FALSE],
+        imputation_type = "locf"
+      )
+
+      data_sw0[, ids_dif][needs_locf] <- tmp1[needs_locf]
+    }
+
+    data_sw <- rSOILWAT2::dbW_dataframe_to_weatherData(data_sw0, round = 4L)
+
+    # Check that weather data is well-formed
+    stopifnot(rSOILWAT2::dbW_check_weatherData(data_sw, check_all = TRUE))
 
   } else {
     # Return error object
-    weathDataList <- dm_tmp
+    data_sw <- dm_tmp
   }
 
-  weathDataList
+  data_sw
 }
 
 
