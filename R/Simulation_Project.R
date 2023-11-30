@@ -352,20 +352,37 @@ init_rSFSW2_project <- function(
   } else {
     #--- Create 'SFSW2_prj_meta'
 
-    # 1a) Setup default project infrastructure
-    setup_rSFSW2_project_infrastructure(dirname(fmetar), verbose = verbose,
-      print.debug = print.debug)
-
-    # 1b) In text editor: specify project description/metadata
-    #  ("SFSW2_project_description.R")
-    if (verbose || print.debug) {
-      warning("Check/adjust project description/metadata in file ",
-        shQuote(basename(fmetar)), " before further steps are executed.",
-        call. = FALSE, immediate. = TRUE)
+    if (file.exists(fmetar)) {
+      # Attempt to load and prepare project description (if already exists)
+      SFSW2_prj_meta <- try(
+        load_project_description(fmetar, chdir = chdir),
+        silent = TRUE
+      )
     }
 
-    # 1c) Load and prepare project description
-    SFSW2_prj_meta <- load_project_description(fmetar, chdir = chdir)
+    if (!file.exists(fmetar) || inherits(SFSW2_prj_meta, "try-error")) {
+      # 1a) Setup default project infrastructure
+      setup_rSFSW2_project_infrastructure(
+        dirname(fmetar),
+        verbose = verbose,
+        print.debug = print.debug
+      )
+
+      # 1b) In text editor: specify project description/metadata
+      #  ("SFSW2_project_description.R")
+      if (verbose || print.debug) {
+        warning(
+          "Check/adjust project description/metadata in file ",
+          shQuote(basename(fmetar)), " before further steps are executed.",
+          call. = FALSE,
+          immediate. = TRUE
+        )
+      }
+
+      # 1c) Load and prepare project description
+      SFSW2_prj_meta <- load_project_description(fmetar, chdir = chdir)
+    }
+
 
     #--- Update project paths and file names
     dir_safe_create(SFSW2_prj_meta[["project_paths"]],
