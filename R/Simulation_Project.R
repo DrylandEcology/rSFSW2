@@ -1978,9 +1978,12 @@ simulate_SOILWAT2_experiment <- function(
     swDefaultInputs <- read_SOILWAT2_DefaultInputs()
     args_do_OneSite <- gather_args_do_OneSite(SFSW2_prj_meta, SFSW2_prj_inputs)
 
+    op <- .Options
+
     runs.completed <- run_simulation_experiment(
       SFSW2_prj_inputs = SFSW2_prj_inputs,
-      MoreArgs = args_do_OneSite
+      MoreArgs = args_do_OneSite,
+      rSW2_options = op[grep("^RSW2", names(op))]
     )
 
   } else {

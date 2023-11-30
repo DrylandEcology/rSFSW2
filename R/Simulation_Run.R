@@ -5706,7 +5706,7 @@ do_OneSite <- function(
 
 #' Run a \pkg{rSFSW2} simulation experiment
 #' @export
-run_simulation_experiment <- function(SFSW2_prj_inputs, MoreArgs) {
+run_simulation_experiment <- function(SFSW2_prj_inputs, MoreArgs, rSW2_options) {
 
   runs.completed <- 0
 
@@ -5794,6 +5794,11 @@ run_simulation_experiment <- function(SFSW2_prj_inputs, MoreArgs) {
           Rmpi::mpi.bcast.cmd(cmd = dbW_disconnectConnection_local),
           add = TRUE
         )
+      }
+
+      if (length(rSW2_options) > 0L) {
+        # Set rSW2 options on workers
+        Rmpi::mpi.remote.exec(cmd = options, rSW2_options)
       }
 
       Rmpi::mpi.bcast.cmd(
@@ -5949,6 +5954,16 @@ run_simulation_experiment <- function(SFSW2_prj_inputs, MoreArgs) {
           add = TRUE
         )
       }
+
+      if (length(rSW2_options) > 0L) {
+        # Set rSW2 options on workers
+        parallel::clusterCall(
+          SFSW2_glovars[["p_cl"]],
+          fun = options,
+          rSW2_options
+        )
+      }
+
 
       #TODO: It seems like a bad hack to make this work without exporting the
       #full data.frames (e.g., SFSW2_prj_inputs[["SWRunInformation"]],
