@@ -1014,7 +1014,7 @@ do_OneSite <- function(
     #add site information to siteparamin
     print_debug(opt_verbosity, tag_simfid, "creating", "site parameters")
 
-    uses_NoPDF <- FALSE
+    uses_NoPTF <- FALSE
 
     if (any(sw_input_site_use)) {
       flags <- c("SWC_min", "SWC_init", "SWC_wet")
@@ -1057,19 +1057,29 @@ do_OneSite <- function(
         rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[1]])[flagsSW][site_use] <-
           as.numeric(i_sw_input_site[flagsIn][site_use])
 
-      flags <- c("SWRC_name", "PDF_name")
+
+      #--- ** Requested SWRC and PTF ------
+      flags <- c("SWRC_name", "PTF_name")
+
+      # some intermediate versions used "PDF_name" instead of "PTF_name"
+      tmpn <- names(sw_input_site_use)
+      if (!("PTF_name" %in% tmpn) && "PDF_name" %in% tmpn) {
+        flags[[2L]] <- "PDF_name"
+      }
+
       site_use <- sw_input_site_use[flags]
+
       if (any(site_use)) {
         tmp <- rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])
         rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])[site_use] <-
           i_sw_input_site[flags][site_use]
 
-        # Handle "NoPDF" and refer to input of "SWRCp"
-        uses_NoPDF <-
-          rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])[2] == "NoPDF"
+        # Handle "NoPTF" and refer to input of "SWRCp"
+        uses_NoPTF <-
+          rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])[2] %in% c("NoPTF", "NoPDF")
 
-        if (uses_NoPDF) {
-          # set PDF temporary to a value so that setting soil properties
+        if (uses_NoPTF) {
+          # set PTF temporary to a value so that setting soil properties
           # will not trigger an error about mis-match in numbers of layers
           rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])[2] <- tmp[2]
         }
@@ -1320,12 +1330,12 @@ do_OneSite <- function(
     }
 
 
-    # add SWRCp (requested as input or PDF = "NoPDF")
-    if (uses_NoPDF || isTRUE(opt_out_run[["saveRsoilwatInputWithSWRCp"]])) {
+    # add SWRCp (requested as input or PTF = "NoPTF")
+    if (uses_NoPTF || isTRUE(opt_out_run[["saveRsoilwatInputWithSWRCp"]])) {
       swrcp <- NULL
       soil_swdat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]])
 
-      if (uses_NoPDF) {
+      if (uses_NoPTF) {
         # convert from wide to semi-long format
         vars_swrcp <- paste0("Params", seq_len(6))
 
@@ -1347,7 +1357,7 @@ do_OneSite <- function(
           fcoarse = soil_swdat[, "gravel_content"],
           bdensity = soil_swdat[, "bulkDensity_g/cm^3"],
           swrc_name = tmp_name[1],
-          pdf_name = tmp_name[2]
+          ptf_name = tmp_name[2]
         )
       }
 
