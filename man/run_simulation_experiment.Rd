@@ -4,7 +4,7 @@
 \alias{run_simulation_experiment}
 \title{Run a \pkg{rSFSW2} simulation experiment}
 \usage{
-run_simulation_experiment(SFSW2_prj_inputs, MoreArgs)
+run_simulation_experiment(SFSW2_prj_inputs, MoreArgs, rSW2_options)
 }
 \description{
 Run a \pkg{rSFSW2} simulation experiment
