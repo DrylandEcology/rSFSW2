@@ -2,8 +2,8 @@
 % Please edit documentation in R/rSFSW2-package.R
 \docType{package}
 \name{rSFSW2}
-\alias{rSFSW2}
 \alias{rSFSW2-package}
+\alias{rSFSW2}
 \title{\pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation
  runs, executing simulations, and aggregating outputs}
 \description{
