@@ -596,8 +596,6 @@ do_OneSite <- function(
 
       } else if (i_SWRunInformation$dailyweather_source == "DayMet_NorthAmerica") {
         i_sw_weatherList[[1]] <- ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather(
-          dir_data = project_paths[["dir_daymet"]],
-          site_ids = NULL,
           coords_WGS84 = i_SWRunInformation[c("X_WGS84", "Y_WGS84")],
           start_year = isim_time[[1]][["simstartyr"]],
           end_year = isim_time[[1]][["endyr"]]

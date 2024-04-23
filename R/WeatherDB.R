@@ -350,7 +350,6 @@ populate_dbW <- function(
       i_by_rSFSW2 <- adds[ids_DayMet_extraction, "ID_by_rSFSW2"]
 
       ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW(
-        dir_data = project_paths[["dir_daymet"]],
         site_ids = i_by_rSFSW2,
         site_ids_by_dbW = adds[ids_DayMet_extraction, "ID_by_dbW"],
         coords_WGS84 = SWRunInformation[
@@ -363,7 +362,6 @@ populate_dbW <- function(
         id_ambient_scenario = id_ambient_scenario,
         dir_temp = project_paths[["dir_out_temp"]],
         dbW_compression_type = dbW_compression_type,
-        dbW_digits,
         verbose = verbose
       )
     }
@@ -906,203 +904,23 @@ get_DayMet_cellID <- function(x, crs = 4326) {
 }
 
 get_DayMet_NorthAmerica <- function(
-  dir_data, cellID, Xdm_WGS84, Ydm_WGS84,
-  start_year, end_year, dbW_digits
+  Xdm_WGS84, Ydm_WGS84,
+  start_year, end_year
 ) {
+  stopifnot(getNamespaceVersion("rSOILWAT2") >= "6.0.4")
 
-  # Filename for data of this 1-km cell
-  ftmp <- file.path(
-    dir_data,
-    paste0(cellID, "_", start_year, "_", end_year, ".csv")
+  mm_dm <- rSOILWAT2::sw_meteo_obtain_DayMet(
+    x = c(longitude = unname(Xdm_WGS84), latitude = unname(Ydm_WGS84)),
+    start_year = start_year,
+    end_year = end_year
   )
 
-  # Get data
-  if (file.exists(ftmp)) {
-    dm_tmp <- try(
-      utils::read.table(ftmp, sep = ",", skip = 6, header = TRUE),
-      silent = TRUE
-    )
+  # Fill in missing values arising from DayMet's 365-day calendar
+  data_sw <- rSOILWAT2::dbW_fixWeather(mm_dm[["weatherDF"]])[["weatherData"]]
 
-    get_from_ornl <- inherits(dm_tmp, "try-error")
-  } else {
-    get_from_ornl <- TRUE
-  }
 
-  if (get_from_ornl) {
-    stopifnot(requireNamespace("daymetr"))
-
-    if (getNamespaceVersion("daymetr") < as.numeric_version("1.1")) {
-      # 'daymetr::download_daymet' saves downloaded file on disk in current
-      # working directory
-      wd_prev <- getwd()
-      setwd(dir_data)
-      on.exit(setwd(wd_prev), add = TRUE)
-      on.exit(
-        if (exists(cellID, envir = globalenv())) {
-          rm(list = cellID, envir = globalenv())
-        },
-        add = TRUE
-      )
-
-      dm_tmp <- try(
-        daymetr::download_daymet(
-          site = cellID,
-          lat = Ydm_WGS84,
-          lon = Xdm_WGS84,
-          start = start_year,
-          end = end_year,
-          internal = TRUE,
-          silent = TRUE
-        ),
-        silent = TRUE
-      )
-
-    } else {
-      # 'daymetr::download_daymet' saves downloaded file on disk at `path`
-      # daymetr returns either list with data.frame OR saves data on
-      # specifiable path, but not both --> we choose to save on disk because
-      # we want to store data for re-use by other projects
-      dm_tmp <- try(
-        daymetr::download_daymet(
-          site = cellID,
-          lat = Ydm_WGS84,
-          lon = Xdm_WGS84,
-          start = start_year,
-          end = end_year,
-          force = TRUE,
-          path = dir_data,
-          internal = FALSE,
-          silent = TRUE
-        ),
-        silent = TRUE
-      )
-    }
-
-    if (inherits(dm_tmp, "try-error")) {
-      unlink(ftmp)
-    }
-  }
-
-  # Convert to rSOILWAT2 format
-  if (!inherits(dm_tmp, "try-error")) {
-    dtmp <- if (
-      inherits(dm_tmp, "list") &&
-      inherits(dm_tmp[["data"]], "data.frame")
-    ) {
-      # 'daymetr' >= v1.2 returns a list with a named element 'data'
-      # unless internal = FALSE
-      dm_tmp[["data"]]
-
-    } else if (exists(cellID, envir = globalenv())) {
-      # 'daymetr' < v1.2 created a variable 'cellID' in the global environment
-      get(cellID, envir = globalenv())$data
-
-    } else if (!get_from_ornl && inherits(dm_tmp, "data.frame")) {
-      # already read from file
-      dm_tmp
-
-    } else {
-      # not yet read from file
-      tmp <- try(
-        utils::read.table(
-          file = ftmp,
-          sep = ",",
-          skip = 6,
-          header = TRUE
-        ),
-        silent = TRUE
-      )
-
-      if (inherits(tmp, "try-error") || !inherits(tmp, "data.frame")) {
-        stop(paste("Daymet data not successful", shQuote(cellID)))
-      }
-
-      tmp
-    }
-
-    stopifnot(
-      !anyNA(dtmp),
-      sum(dtmp == -9999L) == 0
-    )
-
-    years <- start_year:end_year
-
-    if (any(tmp <- !(years %in% dtmp[, "year"]))) {
-      unlink(ftmp)
-      stop(
-        "Daymet: requested year(s) ",
-        paste0(years[tmp], collapse = ", "),
-        " not available."
-      )
-    }
-
-    data_all <- with(
-      dtmp,
-      data.frame(
-        Year = year,
-        DOY = yday,
-        Tmax_C = tmax..deg.c.,
-        Tmin_C = tmin..deg.c.,
-        PPT_cm = prcp..mm.day. / 10,
-        actVP_kPa = 1e-3 * vp..Pa., # Pa -> kPa
-        shortWR = srad..W.m.2. * dayl..s. * 1e-6 # desc_rsds = 1
-      )
-    )
-
-    data_sw0 <- rSOILWAT2::dbW_convert_to_GregorianYears(
-      rSOILWAT2::dbW_dataframe_to_weatherData(weatherDF = data_all, round = 6L),
-    )
-
-    dif <- c(rep(TRUE, 3L), rep(FALSE, 11L)) # Tmax, Tmin, PPT
-    dif[13L] <- TRUE # ACTUAL_VP
-    dif[14L] <- TRUE # SHORT_WR, desc_rsds = 1
-
-    # Impute values for added leap days
-    # Use weather generator for available variables, use LOCF otherwise
-    vars_wgen <- rSOILWAT2::weatherGenerator_dataColumns()
-    needs_wgen <- which(
-      !is.finite(as.matrix(data_sw0[, vars_wgen, drop = FALSE])),
-      arr.ind = TRUE
-    )
-    if (NROW(needs_wgen) > 0) {
-      tmp2 <- try(
-        rSOILWAT2::dbW_weatherData_to_dataframe(
-          rSOILWAT2::dbW_generateWeather(
-            weatherData = data_sw0,
-            seed = 123
-          )
-        )
-      )
-
-      if (inherits(tmp2, "try-error")) {
-        stop("Imputation failed for leap days.")
-      }
-      data_sw0[, vars_wgen][needs_wgen] <- tmp2[, vars_wgen][needs_wgen]
-    }
-
-    ids_dif <- 2L + which(dif)
-    needs_locf <- which(
-      !is.finite(as.matrix(data_sw0[, ids_dif, drop = FALSE])),
-      arr.ind = TRUE
-    )
-    if (NROW(needs_locf) > 0) {
-      tmp1 <- rSW2utils::impute_df(
-        data_sw0[, ids_dif, drop = FALSE],
-        imputation_type = "locf"
-      )
-
-      data_sw0[, ids_dif][needs_locf] <- tmp1[needs_locf]
-    }
-
-    data_sw <- rSOILWAT2::dbW_dataframe_to_weatherData(data_sw0, round = 4L)
-
-    # Check that weather data is well-formed
-    stopifnot(rSOILWAT2::dbW_check_weatherData(data_sw, check_all = TRUE))
-
-  } else {
-    # Return error object
-    data_sw <- dm_tmp
-  }
+  # Check that weather data is well-formed
+  stopifnot(rSOILWAT2::dbW_check_weatherData(data_sw, check_all = TRUE))
 
   data_sw
 }
@@ -1114,21 +932,28 @@ get_DayMet_NorthAmerica <- function(
 #' @rdname ExtractDayMet
 #' @export
 ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(
-  dir_data, site_ids, coords_WGS84, start_year, end_year, dbW_digits) {
+  coords_WGS84, start_year, end_year
+) {
 
   # Check requested years
-  avail_end_year <- as.integer(1900 + as.POSIXlt(Sys.Date())$year - 1)
-  year_range <- rSW2data::update_requested_years(start_year, end_year,
-    has_start_year = 1980, has_end_year = avail_end_year, temp_call = NULL,
-    verbose = FALSE)
+  year_range <- rSW2data::update_requested_years(
+    start_year,
+    end_year,
+    has_start_year = 1980,
+    has_end_year = as.integer(1900 + as.POSIXlt(Sys.Date())$year - 1),
+    temp_call = NULL,
+    verbose = FALSE
+  )
 
   xy_WGS84 <- matrix(unlist(coords_WGS84), ncol = 2)[1, , drop = FALSE]
   dm <- get_DayMet_cellID(xy_WGS84)
 
-  get_DayMet_NorthAmerica(dir_data = dir_data, cellID = dm$cellID[1],
-    Xdm_WGS84 = dm$dm_WGS84[1, 1], Ydm_WGS84 = dm$dm_WGS84[1, 2],
+  get_DayMet_NorthAmerica(
+    Xdm_WGS84 = dm$dm_WGS84[1, 1],
+    Ydm_WGS84 = dm$dm_WGS84[1, 2],
     start_year = year_range[["start_year"]],
-    end_year = year_range[["end_year"]], dbW_digits)
+    end_year = year_range[["end_year"]]
+  )
 }
 
 #' Extract gridded daily weather from \var{\dQuote{DayMet}} for North American
@@ -1165,7 +990,6 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_swWeather <- function(
 #' @name ExtractDayMet
 #' @export
 ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(
-  dir_data,
   site_ids,
   site_ids_by_dbW,
   coords_WGS84,
@@ -1174,8 +998,8 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(
   id_ambient_scenario = 1,
   dir_temp = tempdir(),
   dbW_compression_type = "gzip",
-  dbW_digits = 4L,
-  verbose = FALSE
+  verbose = FALSE,
+  ...
 ) {
 
   if (verbose) {
@@ -1192,12 +1016,11 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(
   }
 
   # Check requested years
-  avail_end_year <- as.integer(1900 + as.POSIXlt(Sys.Date())$year - 1)
   year_range <- rSW2data::update_requested_years(
     start_year = start_year,
     end_year = end_year,
     has_start_year = 1980,
-    has_end_year = avail_end_year,
+    has_end_year = as.integer(1900 + as.POSIXlt(Sys.Date())$year - 1),
     temp_call = temp_call,
     verbose = verbose
   )
@@ -1227,13 +1050,10 @@ ExtractGriddedDailyWeatherFromDayMet_NorthAmerica_dbW <- function(
       )
 
       weatherData <- get_DayMet_NorthAmerica(
-        dir_data = dir_data,
-        cellID = dm$cellID[idm],
         Xdm_WGS84 = dm$dm_WGS84[idm, 1],
         Ydm_WGS84 = dm$dm_WGS84[idm, 2],
         start_year = year_range[["start_year"]],
-        end_year = year_range[["end_year"]],
-        dbW_digits = dbW_digits
+        end_year = year_range[["end_year"]]
       )
 
       if (
