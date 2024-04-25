@@ -2029,13 +2029,16 @@ if (!interactive()) {
 gridMET_metadata <- function() {
   list(
     # order of variables expected by SOILWAT2
-    vars = c("tmmx", "tmmn", "pr"),
+    vars = c("tmmx", "tmmn", "pr", "vs", "rmax", "rmin", "srad"),
     # convert to units expected by SOILWAT2:
-    #   K -> C, K -> C, mm / day -> cm / day
     funits = list(
-      function(x) x - 273.15,
-      function(x) x - 273.15,
-      function(x) x / 10
+      function(x) x - 273.15, # tmmx: K -> C
+      function(x) x - 273.15, # tmmn: K -> C
+      function(x) x / 10, # pr: mm/day -> cm/day
+      NULL, # vs: m/s
+      NULL, # rmax: [0-100]%
+      NULL, # rmin: [0-100]%
+      NULL # srad: W*m-2
     ),
     start_year = 1979,
     end_year = 1900 + as.POSIXlt(Sys.time(), tz = "UTC")$year - 1
@@ -2089,8 +2092,10 @@ gridMET_download_and_check <- function(dir_data, desc = gridMET_metadata()) {
   years <- seq(desc[["start_year"]], desc[["end_year"]])
 
   #--- Check which files are missing
-  fnames_gridMET <- sapply(desc[["vars"]],
-    function(var) paste0(var, "_", years, ".nc")
+  fnames_gridMET <- vapply(
+    desc[["vars"]],
+    function(var) paste0(var, "_", years, ".nc"),
+    FUN.VALUE = rep(NA_character_, times = length(years))
   )
 
   is_missing <- matrix(
@@ -2101,33 +2106,42 @@ gridMET_download_and_check <- function(dir_data, desc = gridMET_metadata()) {
 
 
   #--- Create script to download files if any are missing
+  fname_bash <- NA
+
   if (any(is_missing)) {
     metdata_bash <- "#!/bin/bash"
 
-    for (iv in seq_along(desc[["vars"]])) if (any(is_missing[, iv])) {
-      metdata_bash <- c(metdata_bash,
-        paste0(
-          "wget -nc -c -nd ",
-          "http://www.northwestknowledge.net/metdata/data/",
-         fnames_gridMET[is_missing[, iv], iv]
+    for (iv in seq_along(desc[["vars"]])) {
+      if (any(is_missing[, iv])) {
+        metdata_bash <- c(
+          metdata_bash,
+          paste0(
+            "wget -nc -c -nd ",
+            "http://www.northwestknowledge.net/metdata/data/",
+            fnames_gridMET[is_missing[, iv], iv]
+          )
         )
-      )
+      }
     }
 
-    fname_bash <- file.path(dir_data,
+    fname_bash <- file.path(
+      dir_data,
       paste0("metdata_wget_", format(Sys.time(), "%Y%m%d%H%M%S"), ".sh")
     )
 
     writeLines(metdata_bash, con = fname_bash)
 
-    stop("Please execute script ",
+    warning(
+      "Please execute script ",
       shQuote(basename(fname_bash)),
       " to download missing gridMET data."
     )
 
   } else {
-    print("All gridMET files are available.")
+    message("All gridMET files are available.")
   }
+
+  fname_bash
 }
 
 
@@ -2212,7 +2226,7 @@ extract_daily_weather_from_gridMET <- function(
   end_year,
   id_ambient_scenario = 1,
   comp_type = "gzip",
-  dbW_digits = 4L,
+  dbW_digits = NA,
   chunksize = 10000,
   verbose = FALSE
 ) {
@@ -2233,6 +2247,8 @@ extract_daily_weather_from_gridMET <- function(
   n_sites <- nrow(coords_WGS84)
   stopifnot(n_sites == length(site_ids), n_sites == length(site_ids_by_dbW))
 
+  locs <- rSW2st::as_points(coords_WGS84, crs = 4326L, to_class = "sf")
+
   # gridMET metadata
   desc <- gridMET_metadata()
 
@@ -2249,24 +2265,24 @@ extract_daily_weather_from_gridMET <- function(
   # List gridMET data files
   fnames_gridMET <- find_gridMET_files(dir_data, desc[["vars"]])
 
-  # Create coordinates as spatial points for extraction with raster layers
-  prj_geographicWGS84 <- as(sf::st_crs(4326), "CRS")
-
-  sp_locs  <- sp::SpatialPoints(
-    coords = coords_WGS84,
-    proj4string = prj_geographicWGS84
-  )
-
   # Create variables and containers for extraction
   seq_years <- seq(year_range[["start_year"]], year_range[["end_year"]])
   seq_leaps <- rSW2utils::isLeapYear(seq_years)
-  seq365 <- seq_len(365)
-  seq366 <- seq_len(366)
+  seq365 <- seq_len(365L)
+  seq366 <- seq_len(366L)
 
   # Too much memory used if too many sites and/or years are requested
   # --> group sites into chunks and loop over chunks
   do_chunks <- rSW2utils::make_chunks(nx = n_sites, chunk_size = chunksize)
   n_chunks <- length(do_chunks)
+
+  if (verbose) {
+    pb <- utils::txtProgressBar(
+      max = length(seq_years) * n_chunks + n_sites,
+      style = 3L
+    )
+    kpb <- 1L
+  }
 
   for (kc in seq_len(n_chunks)) {
     res <- array(
@@ -2280,44 +2296,44 @@ extract_daily_weather_from_gridMET <- function(
 
     #--- Extract data for each year and each variable
     if (verbose) {
-      print(paste0(
-        Sys.time(),
-        ": extracting gridMET data for chunk ", kc, " out of ", n_chunks
-      ))
-      pb <- utils::txtProgressBar(max = length(seq_years), style = 3)
+      cat(
+        "\n",
+        format(Sys.time()),
+        ": extracting gridMET data for chunk ", kc, " out of ", n_chunks,
+        "\n"
+      )
     }
 
     for (iy in seq_along(seq_years)) {
       # Data file names for respective year
-      dfiles <- sapply(
+      dfiles <- vapply(
         fnames_gridMET,
-        function(files) grep(seq_years[iy], files, value = TRUE)
+        function(files) grep(seq_years[[iy]], files, value = TRUE),
+        FUN.VALUE = NA_character_
       )
 
-      days <- if (seq_leaps[iy]) seq366 else seq365
+      days <- if (seq_leaps[[iy]]) seq366 else seq365
 
       for (iv in seq_along(desc[["vars"]])) {
-        dbrick <- raster::brick(dfiles[iv])
-
-        res[, days, iv, iy] <- raster::extract(
-          x = dbrick,
-          y = sp_locs[do_chunks[[kc]], , drop = FALSE],
-          method = "simple"
+        res[, days, iv, iy] <- terra::extract(
+          x = terra::rast(dfiles[[iv]]),
+          y = locs[do_chunks[[kc]], ],
+          method = "simple",
+          ID = FALSE,
+          raw = TRUE
         )
       }
 
       if (verbose) {
-        utils::setTxtProgressBar(pb, iy)
+        utils::setTxtProgressBar(pb, value = kpb)
+        kpb <- kpb + 1L
       }
     }
 
-    if (verbose) {
-      close(pb)
-    }
 
     # Convert units
     for (iv in seq_along(desc[["funits"]])) {
-      if (!is.null(desc[["funits"]][iv])) {
+      if (!is.null(desc[["funits"]][[iv]])) {
         f <- match.fun(desc[["funits"]][[iv]])
 
         res[, , iv, ] <- f(res[, , iv, ])
@@ -2327,60 +2343,61 @@ extract_daily_weather_from_gridMET <- function(
 
     # Format data and add it to the weather database
     if (verbose) {
-      print(paste0(
-        Sys.time(),
-        ": inserting gridMET data for chunk ", kc, " out of ", n_chunks
-      ))
-      pb <- utils::txtProgressBar(max = length(do_chunks[[kc]]), style = 3)
+      cat(
+        "\n",
+        format(Sys.time()),
+        ": inserting gridMET data for chunk ", kc, " out of ", n_chunks,
+        "\n"
+      )
     }
 
-    wd_template <- matrix(
-      nrow = 366,
-      ncol = 4,
-      dimnames = list(NULL, c("DOY", "Tmax_C", "Tmin_C", "PPT_cm"))
-    )
-    wd_template[, "DOY"] <- seq366
-
     for (ks in seq_along(do_chunks[[kc]])) {
-      weather_data <- vector("list", length = length(seq_years))
-      names(weather_data) <- seq_years
 
-      for (iy in seq_along(seq_years)) {
-        days <- if (seq_leaps[iy]) seq366 else seq365
-        out <- wd_template[days, ]
-        out[, -1] <- round(res[ks, days, , iy], dbW_digits)
+      tmp <- lapply(
+        seq_along(seq_years),
+        function(iy) {
+          days <- if (seq_leaps[[iy]]) seq366 else seq365
+          cbind(seq_years[[iy]], days, res[ks, days, , iy])
+        }
+      )
 
-        weather_data[[iy]] <- new(
-          "swWeatherData",
-          year = seq_years[iy],
-          data = out
-        )
-      }
+      wd <- do.call(rbind, args = tmp)
+      colnames(wd) <- c(
+        "Year", "DOY",
+        "Tmax_C", "Tmin_C",
+        "PPT_cm",
+        "windSpeed_mPERs",
+        "rHmax_pct", "rHmin_pct",
+        "shortWR"
+      )
+
+      wdb <- rSOILWAT2::dbW_weatherData_to_blob(
+        rSOILWAT2::dbW_dataframe_to_weatherData(wd, round = dbW_digits),
+        type = comp_type
+      )
 
       # Store site weather data in weather database
       rSOILWAT2:::dbW_addWeatherDataNoCheck(
-        Site_id = site_ids_by_dbW[do_chunks[[kc]]][ks],
+        Site_id = site_ids_by_dbW[do_chunks[[kc]]][[ks]],
         Scenario_id = id_ambient_scenario,
         StartYear = year_range[["start_year"]],
         EndYear = year_range[["end_year"]],
-        weather_blob = rSOILWAT2::dbW_weatherData_to_blob(
-          weatherData = weather_data,
-          type = comp_type
-        )
+        weather_blob = wdb
       )
 
       if (verbose) {
-        utils::setTxtProgressBar(pb, ks)
+        utils::setTxtProgressBar(pb, value = kpb)
+        kpb <- kpb + 1L
       }
-    }
-
-    if (verbose) {
-      close(pb)
     }
 
     # Remove files & clean garbage to free-up RAM
     rm(res)
     gc()
+  }
+
+  if (verbose) {
+    close(pb)
   }
 
   invisible(0)

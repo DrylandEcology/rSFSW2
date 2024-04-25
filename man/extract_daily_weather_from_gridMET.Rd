@@ -13,7 +13,7 @@ extract_daily_weather_from_gridMET(
   end_year,
   id_ambient_scenario = 1,
   comp_type = "gzip",
-  dbW_digits = 4L,
+  dbW_digits = NA,
   chunksize = 10000,
   verbose = FALSE
 )
