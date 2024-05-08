@@ -1369,6 +1369,30 @@ do_OneSite <- function(
       rSOILWAT2::swSoils_SWRCp(swRunScenariosData[[1]]) <- swrcp
     }
 
+    #--- * Spinup (requires rSOILWAT2 >= v6.1.0) ------
+    if (sw_input_site_use[["Spinup_Active"]]) {
+      if (getNamespaceVersion("rSOILWAT2") < as.numeric_version("6.1.0")) {
+        stop("Spinup requested but rSOILWAT2 < v6.1.0")
+      }
+
+      rSOILWAT2::swSpinup_SpinupActive(swRunScenariosData[[1L]]) <- TRUE
+
+      if (sw_input_site_use[["Spinup_Mode"]]) {
+        rSOILWAT2::swSpinup_SpinupActive(swRunScenariosData[[1L]]) <-
+          i_sw_input_site[["Spinup_Mode"]]
+      }
+
+      if (sw_input_site_use[["Spinup_Scope"]]) {
+        rSOILWAT2::swSpinup_SpinupScope(swRunScenariosData[[1L]]) <-
+          i_sw_input_site[["Spinup_Scope"]]
+      }
+
+      if (sw_input_site_use[["Spinup_Duration"]]) {
+        rSOILWAT2::swSpinup_SpinupDuration(swRunScenariosData[[1L]]) <-
+          i_sw_input_site[["Spinup_Duration"]]
+      }
+    }
+
 
     #add weather setup information to weatherin
     if (sw_input_weather_use["SnowFlag"])
@@ -1446,7 +1470,7 @@ do_OneSite <- function(
       }
 
 
-      #----- Begin CO2 effects
+      #----- * CO2 fertilizer effects ------
       # CO2 effects rely on the information of the current scenario, so the extraction of its Lookup data
       # doesn't occur until now
       if (sw_input_experimentals_use["LookupCO2data"]) {
@@ -1541,7 +1565,7 @@ do_OneSite <- function(
           rownames.force = TRUE
         )
       }
-      # End CO2 effects -----
+      #--- ** End CO2 effects -----
 
       if (!opt_sim[["use_dbW_future"]]) {
         #get climate change information
