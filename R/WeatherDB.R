@@ -1133,6 +1133,7 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(
   dbW_digits = 4L,
   verbose = FALSE
 ) {
+  stopifnot(requireNamespace("raster"))
 
   if (verbose) {
     t1 <- Sys.time()
@@ -1160,14 +1161,15 @@ ExtractGriddedDailyWeatherFromNRCan_10km_Canada <- function(
 
   vars <- c("max", "min", "pcp") # units = C, C, mm/day
 
-  prj_geographicWGS84 <- as(sf::st_crs(4326), "CRS")
-  prj_geographicNAD83 <- as(sf::st_crs(4269), "CRS")
+  prj_geographicWGS84 <- sf::st_crs(4326)
+  prj_geographicNAD83 <- sf::st_crs(4269)
 
-  sp_locs <- sp::SpatialPoints(
-    coords = coords_WGS84,
-    proj4string = prj_geographicWGS84
+  sp_locs <- sf::st_as_sf(
+    coords_WGS84,
+    coords = colnames(coords_WGS84),
+    crs = prj_geographicWGS84
   )
-  sp_locs <- sp::spTransform(sp_locs, CRSobj = prj_geographicNAD83)
+  sp_locs <- sf::st_transform(sp_locs, crs = prj_geographicNAD83)
 
   if (SFSW2_glovars[["p_has"]])
     raster::beginCluster(n = SFSW2_glovars[["p_workersN"]], type = "SOCK")
@@ -1791,6 +1793,7 @@ extract_daily_weather_from_livneh <- function(
   dbW_digits = 4L,
   verbose = FALSE
 ) {
+  stopifnot(requireNamespace("raster"))
 
   if (verbose) {
     t1 <- Sys.time()
@@ -1814,7 +1817,7 @@ extract_daily_weather_from_livneh <- function(
     ########################################
     # Ensure necessary packages are loaded
     ########################################
-    stopifnot(requireNamespace("rgdal"), requireNamespace("ncdf4"))
+    stopifnot(requireNamespace("ncdf4"))
 
     ###################################################################
     # Helper function to convert coordinates to the correct resolution
@@ -1870,11 +1873,10 @@ extract_daily_weather_from_livneh <- function(
     xy_wgs84 <- apply(coords_WGS84, 2, conv_res)
 
     # Create coordinates as spatial points for extraction with raster layers
-    prj_geographicWGS84 <- as(sf::st_crs(4326), "CRS")
-
-    sp_locs <- sp::SpatialPoints(
-      coords = xy_wgs84,
-      proj4string = prj_geographicWGS84
+    sp_locs <- sf::st_as_sf(
+      xy_wgs84,
+      coords = colnames(xy_wgs84),
+      crs = 4326
     )
 
     # Create necessary variables and containers for extraction
@@ -2147,28 +2149,16 @@ gridMET_download_and_check <- function(dir_data, desc = gridMET_metadata()) {
 
 
 get_gridMET_cellID <- function(x, crs = 4326, fname_gridMET) {
-
+  stopifnot(requireNamespace("terra"))
   stopifnot(sf::st_crs(crs) == sf::st_crs(4326))
-  xy_WGS84 <- rSW2st::as_points(x, to_class = "sp", crs = crs)
+  xy_WGS84 <- rSW2st::as_points(x, to_class = "sf", crs = crs)
 
   #--- Determine centroids of 1/24-degree gridMET gridcell
-  r <- raster::raster(fname_gridMET)
+  r <- terra::rast(fname_gridMET, lyrs = 1L)
 
-  # (2020-June-15): raster package does not correctly parse projection
-  # information of gridMET file(s)
-  if (!grepl("+datum=WGS84", raster::crs(r, asText = TRUE))) {
-    raster::crs(r) <- as(sf::st_crs(4326), "CRS")
-  }
-
-  # for some reason raster has swapped x/y axes
-  tmp <- raster::bbox(r)
-  if (all(tmp[1, ] > 0) && all(tmp[2, ] < 0)) {
-    r <- raster::flip(raster::t(r), direction = "x")
-  }
-
-  gm_xy <- raster::xyFromCell(
+  gm_xy <- terra::xyFromCell(
     r,
-    cell = raster::cellFromXY(r, xy_WGS84)
+    cell = terra::cellFromXY(r, sf::st_coordinates(xy_WGS84))
   )
 
   cell_id <- paste0(
@@ -2230,6 +2220,7 @@ extract_daily_weather_from_gridMET <- function(
   chunksize = 10000,
   verbose = FALSE
 ) {
+  stopifnot(requireNamespace("terra"))
 
   if (verbose) {
     t1 <- Sys.time()
@@ -2569,21 +2560,24 @@ dw_NRCan_10km_Canada <- function(dw_source, dw_names, exinfo, site_dat,
     ftemp <- file.path(path, "1950", "max1950_1.asc")
 
     if (any(there) && file.exists(ftemp)) {
-      nrc_test <- raster::raster(ftemp)
+      stopifnot(requireNamespace("terra"))
+
+      nrc_test <- terra::rast(ftemp)
       # see http://spatialreference.org/ref/epsg/4269/
-      raster::crs(nrc_test) <- as(sf::st_crs(4269), "CRS")
+      # raster::crs(nrc_test) <- sf::st_crs(4269)
 
-      sp_locs <- sp::SpatialPoints(
-        coords = site_dat[, c("X_WGS84", "Y_WGS84")],
-        proj4string = as(sf::st_crs(4326), "CRS")
+      sp_locs <- sf::st_transform(
+        site_dat[, c("X_WGS84", "Y_WGS84")],
+        coords = c("X_WGS84", "Y_WGS84"),
+        crs = 4326
       )
 
-      temp <- sp::spTransform(
+      temp <- sf::st_transform(
         sp_locs,
-        CRSobj = as(sf::st_crs(nrc_test), "CRS")
+        crs = sf::st_crs(nrc_test)
       )
 
-      temp <- raster::extract(nrc_test, y = temp)
+      temp <- terra::extract(nrc_test, y = temp, ID = FALSE)[, 1L]
       there <- !is.na(temp)
 
       if (any(there)) {
@@ -2613,12 +2607,15 @@ dw_Livneh2013_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
     ftemp <- file.path(path, "Meteorology_Livneh_CONUSExt_v.1.2_2013.191501.nc")
 
     if (any(there) && file.exists(ftemp)) {
-      livneh_test <- raster::raster(ftemp, varname = "Prec")
-      sp_locs <- sp::SpatialPoints(
-        coords = site_dat[, c("X_WGS84", "Y_WGS84")],
-        proj4string = as(sf::st_crs(4326), "CRS")
+      stopifnot(requireNamespace("terra"))
+
+      livneh_test <- terra::rast(ftemp, varname = "Prec")
+      sp_locs <- sf::st_transform(
+        site_dat[, c("X_WGS84", "Y_WGS84")],
+        coords = c("X_WGS84", "Y_WGS84"),
+        crs = 4326
       )
-      there <- !is.na(raster::extract(livneh_test, y = sp_locs))
+      there <- !is.na(terra::extract(livneh_test, y = sp_locs, ID = FALSE)[, 1L])
 
       if (any(there)) {
         dw_source[there] <- "Livneh2013_NorthAmerica"
@@ -2655,20 +2652,19 @@ dw_gridMET_NorthAmerica <- function(dw_source, dw_names, exinfo, site_dat,
       ftemp <- file.path(path, paste0("pr_", has_years[1], ".nc"))
 
       if (any(there) && file.exists(ftemp)) {
-        sp_locs <- sp::SpatialPoints(
-          coords = site_dat[, c("X_WGS84", "Y_WGS84")],
-          proj4string = as(sf::st_crs(4326), "CRS")
+        stopifnot(requireNamespace("terra"))
+
+        sp_locs <- sf::st_as_sf(
+          site_dat[, c("X_WGS84", "Y_WGS84"), drop = FALSE],
+          coords = c("X_WGS84", "Y_WGS84"),
+          crs = 4326
         )
 
-        ftmp <- raster::raster(ftemp, band = 1)
+        ftmp <- terra::rast(ftemp, lyrs = 1)
 
-        # (2020-June-15): raster package does not correctly parse projection
-        # information of gridMET file(s)
-        if (!grepl("+datum=WGS84", raster::crs(ftmp, asText = TRUE))) {
-          raster::crs(ftmp) <- as(sf::st_crs(4326), "CRS")
-        }
-
-        there <- !is.na(raster::extract(ftmp, y = sp_locs))
+        there <- !is.na(
+          terra::extract(ftmp, y = sp_locs, ID = FALSE)[, 1L, drop = TRUE]
+        )
 
         if (any(there)) {
           dw_source[there] <- "gridMET_NorthAmerica"

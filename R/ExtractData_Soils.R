@@ -171,6 +171,7 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, project_paths,
   }
 
   stopifnot(requireNamespace("rSW2exter"))
+  stopifnot(requireNamespace("terra"))
 
   MMC[["idone"]]["CONUSSOIL1"] <- FALSE
   todos <-
@@ -213,9 +214,8 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, project_paths,
         crs_from = sim_space[["sim_crs"]],
         sp = sim_space[["run_sites"]][todos, ],
         crs_sp = sim_space[["crs_sites"]],
-        crs_to = as(
-          sf::st_crs(raster::brick(file.path("path/to/CONUSSoil", "bd.tif"))),
-          "CRS"
+        crs_to = sf::st_crs(
+          terra::rast(file.path("path/to/CONUSSoil", "bd.tif"))
         )
       )
 
@@ -330,6 +330,9 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, project_paths,
 #'     \code{SUID}.} }
 ISRICWISE_extract_SUIDs <- function(i, res = c(0, 0), grid, sp_sites,
   att = NULL) {
+
+  stopifnot(requireNamespace("raster"))
+  stopifnot(requireNamespace("sp"))
 
   out <- try(reaggregate_raster(x = grid,
         coords = sp::coordinates(sp_sites[i, ]),
@@ -587,6 +590,8 @@ extract_soil_ISRICWISE <- function(MMC, sim_size, sim_space,
   project_paths, fnames_in, dataset = c("ISRICWISEv12", "ISRICWISE30secV1a"),
   resume, verbose) {
 
+  stopifnot(requireNamespace("raster"))
+
   dataset <- match.arg(dataset)
 
   if (verbose) {
@@ -688,7 +693,7 @@ extract_soil_ISRICWISE <- function(MMC, sim_size, sim_space,
         crs_from = sim_space[["sim_crs"]],
         sp = run_sites_wise,
         crs_sp = sim_space[["crs_sites"]],
-        crs_to = as(sf::st_crs(grid_wise), "CRS")
+        crs_to = sf::st_crs(grid_wise)
       )
 
       if (SFSW2_glovars[["p_has"]]) {

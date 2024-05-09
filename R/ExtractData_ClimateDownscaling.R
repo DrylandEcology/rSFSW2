@@ -2369,17 +2369,17 @@ downscale.wgen_package <- function(
   # silence warning: `Undefined global functions or variables`
   DATE <- N <- PRCP <- TMAX <- TMIN <- tmp <- NULL
 
-  climwyear <- dplyr::group_by(
-    day_data,
-    WYEAR = weathergen::wyear(DATE, start_month = start_month)
-  ) %>%
-    dplyr::summarise(
-      N = dplyr::n(),
-      PRCP = sum(PRCP),
-      TMAX = mean(TMAX),
-      TMIN = mean(TMIN),
-      tmp = mean(tmp)
-    )
+  climwyear <- dplyr::summarise(
+    dplyr::group_by(
+      day_data,
+      WYEAR = weathergen::wyear(DATE, start_month = start_month)
+    ),
+    N = dplyr::n(),
+    PRCP = sum(PRCP),
+    TMAX = mean(TMAX),
+    TMIN = mean(TMIN),
+    tmp = mean(tmp)
+  )
   complete_years <- climwyear$WYEAR[which(climwyear$N >= 365)]
 
   wyear_list <- list(day_data$WYEAR)
@@ -6433,9 +6433,10 @@ ExtractClimateWizard <- function(
 
     if (all(id_dbW %in% list.scenarios.external)) {
       # locations of simulation runs
-      locations <- sp::SpatialPoints(
-        coords = SFSW2_prj_inputs[["SWRunInformation"]][todos, c("X_WGS84", "Y_WGS84")],
-        proj4string = as(sf::st_crs(4326), "CRS")
+      locations <- sf::st_as_sf(
+        SFSW2_prj_inputs[["SWRunInformation"]][todos, c("X_WGS84", "Y_WGS84")],
+        coords = c("X_WGS84", "Y_WGS84"),
+        crs = 4326
       )
 
       # keep track of successful/unsuccessful climate scenarios
@@ -6479,12 +6480,13 @@ ExtractClimateWizard <- function(
 
         # extract data
         get.month <- function(path, grid, locations) {
-          g <- raster::raster(file.path(path, grid))
-          locations.CoordG <- sp::spTransform(
+          stopifnot(requireNamespace("terra"))
+          g <- terra::rast(file.path(path, grid))
+          locations.CoordG <- sf::st_transform(
             locations,
-            CRS = as(sf::st_crs(g), "CRS")
+            CRS = sf::st_crs(g)
           )
-          vals <- raster::extract(g, locations.CoordG)
+          vals <- terra::extract(g, locations.CoordG, ID = FALSE)[, 1L]
         }
         sc.tmp <- sapply(
           SFSW2_glovars[["st_mo"]],

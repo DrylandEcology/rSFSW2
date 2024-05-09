@@ -256,21 +256,23 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
 
           # Convert data to spatial object
           if (sim_space[["scorp"]] == "point") {
-            sp_dat <- as(sim_space[["run_sites"]], "SpatialPointsDataFrame")
+            sp_dat <- sim_space[["run_sites"]]
             temp <- as.data.frame(dat)
             colnames(temp) <-  iv_locs[[it1]][it2]
-            slot(sp_dat, "data") <- temp
+            sp_dat <- cbind(sp_dat, temp)
 
             if (
               sf::st_crs(sim_space[["crs_sites"]]) !=
               sf::st_crs(sim_space[["sim_crs"]])
             ) {
-              sp_dat <- sp::spTransform(sp_dat, CRS = sim_space[["sim_crs"]])
+              sp_dat <- sf::st_transform(sp_dat, crs = sim_space[["sim_crs"]])
             }
 
           } else if (sim_space[["scorp"]] == "cell") {
             # if failing, then need a more sophisticated assignment of values
             # than implemented below
+            stopifnot(requireNamespace("raster"))
+            stopifnot(requireNamespace("sp"))
             stopifnot(raster::canProcessInMemory(sim_space[["sim_raster"]]))
 
             if (
@@ -326,13 +328,13 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
 
             if (n_cols == 1L) {
               legend_labs <- as.character(dat[1])
-              sp::plot(sp_dat, col = cols, pch = 15, cex = 1, axes = TRUE,
+              plot(sp_dat, col = cols, pch = 15, cex = 1, axes = TRUE,
                 asp = 1)
 
             } else {
               cdat <- cut(dat, n_cols)
               legend_labs <- levels(cdat)
-              sp::plot(sp_dat, col = cols[as.integer(cdat)], pch = 15,
+              plot(sp_dat, col = cols[as.integer(cdat)], pch = 15,
                 cex = p_size(length(dat)), axes = TRUE, asp = 1)
             }
 
@@ -349,6 +351,7 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
             graphics::par(par1)
 
           } else if (sim_space[["scorp"]] == "cell") {
+            stopifnot(requireNamespace("raster"))
             raster::plot(sp_dat, col = cols, asp = 1)
           }
 

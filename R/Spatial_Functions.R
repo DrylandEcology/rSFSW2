@@ -17,8 +17,8 @@
 #'
 #' @seealso \code{\link[raster]{extract}}
 #'
-#' @importClassesFrom raster Raster
-#' @importClassesFrom sp SpatialPolygons SpatialPoints
+# @importClassesFrom raster Raster
+# @importClassesFrom sp SpatialPolygons SpatialPoints
 #'
 #' @export
 #' @name extract_rSFSW2
@@ -59,6 +59,10 @@ setGeneric("extract_rSFSW2", function(x, y, type, ...)
 #' @export
 extract_SFSW2_cells_from_raster <- function(x, y, ...) {
 
+  .Defunct()
+
+  stopifnot(requireNamespace("raster"))
+  stopifnot(requireNamespace("sp"))
   stopifnot(inherits(x, "Raster"))
 
   dots <- list(...)
@@ -106,7 +110,10 @@ extract_SFSW2_cells_from_raster <- function(x, y, ...) {
 
 
 extract_SFSW2_default <- function(x, y, type, ...) {
+  .Defunct()
+
   if (identical(type, "point")) {
+    stopifnot(requireNamespace("raster"))
     raster::extract(x = x, y = y, ...)
   } else if (identical(type, "cell")) {
     extract_SFSW2_cells_from_raster(x, y, ...)
@@ -127,7 +134,10 @@ setMethod("extract_rSFSW2",
 setMethod("extract_rSFSW2",
   signature(x = "Raster", y = "data.frame", type = "character"),
   function(x, y, type, ...) {
+    .Defunct()
+
     if (identical(type, "point")) {
+      stopifnot(requireNamespace("raster"))
       raster::extract(x = x, y = y, ...)
     } else {
       NULL
@@ -137,7 +147,9 @@ setMethod("extract_rSFSW2",
 setMethod("extract_rSFSW2",
   signature(x = "Raster", y = "SpatialPoints", type = "character"),
   function(x, y, type, ...) {
+    .Defunct()
     if (identical(type, "point")) {
+      stopifnot(requireNamespace("raster"))
       raster::extract(x = x, y = y, ...)
     } else {
       NULL
@@ -147,6 +159,7 @@ setMethod("extract_rSFSW2",
 setMethod("extract_rSFSW2",
   signature(x = "Raster", y = "Raster", type = "character"),
   function(x, y, type, ...) {
+    .Defunct()
     if (identical(type, "cell")) {
       extract_SFSW2_cells_from_raster(x, y, ...)
     } else {
@@ -177,6 +190,8 @@ setMethod("extract_rSFSW2",
 #' @export
 extract_SFSW2_points_from_shp <- function(x, y, fields = NULL,
   code = NULL, ...) {
+  .Defunct()
+  stopifnot(requireNamespace("sp"))
 
   val <- sp::over(x = y, y = x)
   if (!is.null(fields))
@@ -189,6 +204,7 @@ extract_SFSW2_points_from_shp <- function(x, y, fields = NULL,
 setMethod("extract_rSFSW2",
   signature(x = "SpatialPolygons", y = "SpatialPoints", type = "character"),
   function(x, y, type, ...) {
+    .Defunct()
     if (identical(type, "point")) {
       extract_SFSW2_points_from_shp(x, y, ...)
     } else {
@@ -200,16 +216,13 @@ setMethod("extract_rSFSW2",
 setMethod("extract_rSFSW2",
   signature(x = "character", y = "ANY", type = "character"),
   function(x, y, type, ...) {
-    if (!requireNamespace("rgdal", quietly = TRUE))
-      stop("'extract_rSFSW2' requires package 'rgdal' but it is not available")
-
+    .Defunct()
     dots <- list(...)
     if (!("file_shp" %in% names(dots)))
       stop("'extract_rSFSW2' requires argument 'file_shp' if 'x' is a ",
         "character string")
 
-    # TODO: replace `rgdal::readOGR` with `sf::st_read`
-    x <- rgdal::readOGR(dsn = x, layer = dots[["file_shp"]], verbose = FALSE)
+    x <- sf::st_read(dsn = x, layer = dots[["file_shp"]], quiet = TRUE)
     extract_rSFSW2(x = x, y = y, type = type, ...)
   })
 
@@ -257,12 +270,13 @@ setMethod("extract_rSFSW2",
 extract_SFSW2_cells_from_shp <- function(x, y, fields = NULL, code = NULL,
   ...) {
 
+  .Defunct()
   dots <- list(...)
   if (!("probs" %in% names(dots)))
     dots[["probs"]] <- NA
 
   if (sf::st_crs(x) != sf::st_crs(y)) {
-    y <- sp::spTransform(y, CRS = as(sf::st_crs(x), "CRS"))
+    y <- sf::st_transform(y, crs = sf::st_crs(x))
   }
 
   reagg <- reaggregate_shapefile(x = x, by = y, fields = fields, code = code)
@@ -274,6 +288,8 @@ extract_SFSW2_cells_from_shp <- function(x, y, fields = NULL, code = NULL,
 #' \code{\link[sp:SpatialPolygons-class]{sp::SpatialPolygons}}
 res_to_polygons <- function(x, y, ...) {
 
+  .Defunct()
+  stopifnot(requireNamespace("sp"))
   dots <- list(...)
 
   if (!all(c("coords", "crs_data") %in% names(dots)))
@@ -305,6 +321,7 @@ res_to_polygons <- function(x, y, ...) {
 setMethod("extract_rSFSW2",
   signature(x = "SpatialPolygons", y = "SpatialPolygons", type = "character"),
   function(x, y, type, ...) {
+    .Defunct()
     if (identical(type, "cell")) {
       extract_SFSW2_points_from_shp(x, y, ...)
     } else {
@@ -330,6 +347,7 @@ setMethod("extract_rSFSW2",
 setMethod("extract_rSFSW2",
   signature(x = "SpatialPolygons", y = "matrix", type = "character"),
   function(x, y, type, ...) {
+    .Defunct()
     if (identical(type, "cell")) {
       y <- res_to_polygons(x, y, ...)
 
@@ -345,6 +363,7 @@ setMethod("extract_rSFSW2",
 
 add_weights <- function(i, vals, x, cell_blocks, halfres, exts) {
   if (length(cell_blocks[[i]]) > 0) {
+    stopifnot(requireNamespace("raster"))
     xy <- raster::xyFromCell(object = x, cell = cell_blocks[[i]])
     xy <- cbind(xy[, 1] - halfres[1], xy[, 1] + halfres[1],
           xy[, 2] - halfres[2], xy[, 2] + halfres[2])
@@ -380,6 +399,7 @@ add_weights <- function(i, vals, x, cell_blocks, halfres, exts) {
 #'   weights of the rows.
 #' @export
 extract_blocks <- function(x, y, weights = FALSE) {
+  stopifnot(requireNamespace("raster"))
 
   fun_match <- if (requireNamespace("fastmatch")) fastmatch::fmatch else match
   stopifnot(ncol(y) == 4L)
@@ -462,6 +482,8 @@ extract2_Raster_SpatialPolygons <- function(x, ...) {
 reaggregate_raster <- function(x, coords, to_res = c(0, 0), with_weights = NULL,
   method = c("raster", "raster_con", "block"), tol = 1e-2) {
 
+  stopifnot(requireNamespace("raster"))
+  stopifnot(requireNamespace("sp"))
   stopifnot(inherits(x, "Raster"))
 
   if (is.null(dim(coords)) && length(coords) == 2L) {
@@ -493,7 +515,7 @@ reaggregate_raster <- function(x, coords, to_res = c(0, 0), with_weights = NULL,
     ptemp1 <- lapply(ptemp0, sp::Polygon)
     ptemp2 <- lapply(seq_along(ptemp1), function(i)
       sp::Polygons(ptemp1[i], ID = i))
-    ys <- sp::SpatialPolygons(ptemp2, proj4string = as(sf::st_crs(x), "CRS"))
+    ys <- sp::SpatialPolygons(ptemp2, proj4string = sf::st_crs(x))
 
   } else if (method == "block") {
     ys <- cxy
@@ -625,6 +647,7 @@ weighted.agg <- function(reagg, probs = NA) {
 extract_from_external_raster_old <- function(x, data, ...) {
 
   .Deprecated(new = "extract_rSFSW2")
+  stopifnot(requireNamespace("raster"))
 
   dots <- list(...)  # coords, method
   if (!("method" %in% names(dots))) dots[["method"]] <- "bilinear"
@@ -735,8 +758,9 @@ reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
 #'     correspond to \code{coords}.} }
 #' @export
 align_with_target_grid <- function(grid_from, coords, grid_to, crs_to = NULL) {
+  stopifnot(requireNamespace("raster"))
 
-  if (is.null(crs_to)) crs_to <- as(sf::st_crs(grid_to), "CRS")
+  if (is.null(crs_to)) crs_to <- sf::st_crs(grid_to)
 
   # Align with data crs
   if (sf::st_crs(crs_to) == sf::st_crs(grid_from)) {
@@ -786,6 +810,8 @@ align_with_target_res <- function(res_from, crs_from, sp, crs_sp, crs_to) {
     res_from
 
   } else {
+    stopifnot(requireNamespace("sp"))
+
     sp_from <- if (sf::st_crs(crs_sp) == sf::st_crs(crs_from)) {
       sp
     } else {
@@ -846,6 +872,7 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     if (sim_space[["scorp"]] == "cell") {
 
       if (file.exists(SFSW2_prj_meta[["fnames_in"]][["fsimraster"]])) {
+        stopifnot(requireNamespace("raster"))
 
         # Make sure sim_raster agrees with sim_res and sim_crs;
         # sim_raster takes priority
@@ -856,10 +883,7 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
         stopifnot(inherits(sim_space[["sim_raster"]], "Raster"))
 
         sim_space[["sim_res"]] <- raster::res(sim_space[["sim_raster"]])
-        sim_space[["sim_crs"]] <- as(
-          sf::st_crs(sim_space[["sim_raster"]]),
-          "CRS"
-        )
+        sim_space[["sim_crs"]] <- sf::st_crs(sim_space[["sim_raster"]])
 
       } else {
         sim_space[["sim_res"]] <- SFSW2_prj_meta[["in_space"]][["sim_res"]]
@@ -875,10 +899,9 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 
     #--- Make sure that sim_crs is valid
     if (is.na(sim_space[["sim_crs"]])) {
-      sim_space[["sim_crs"]] <- try(as(
-        sf::st_crs(SFSW2_prj_meta[["in_space"]][["sim_crs"]]),
-        "CRS"
-      ))
+      sim_space[["sim_crs"]] <- try(
+        sf::st_crs(SFSW2_prj_meta[["in_space"]][["sim_crs"]])
+      )
 
       if (inherits(sim_space[["sim_crs"]], "try-error")) {
         stop("Invalid coordinate reference system: ", sim_space[["sim_crs"]])
@@ -886,14 +909,15 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     }
 
     #--- SpatialPoints of simulation cell centers/sites in WGS84 (epsg:4326)
-    sim_space[["crs_sites"]] <- as(sf::st_crs(4326), "CRS")
+    sim_space[["crs_sites"]] <- sf::st_crs(4326)
 
-    sim_space[["run_sites"]] <- sp::SpatialPoints(
-      coords = SFSW2_prj_inputs[["SWRunInformation"]][
+    sim_space[["run_sites"]] <- sf::st_as_sf(
+      SFSW2_prj_inputs[["SWRunInformation"]][
         SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],
         c("X_WGS84", "Y_WGS84")
       ],
-      proj4string = sim_space[["crs_sites"]]
+      coords = c("X_WGS84", "Y_WGS84"),
+      crs = sim_space[["crs_sites"]]
     )
 
     #--- Create raster from simulation cells if not existing
@@ -902,11 +926,14 @@ setup_spatial_simulation <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
       sim_space[["scorp"]] == "cell" &&
       !inherits(sim_space[["sim_raster"]], "Raster")
     ) {
+      stopifnot(requireNamespace("sp"))
 
       temp <- sim_space[["run_sites"]]
       ttemp <- try(sp::gridded(temp) <- TRUE)
 
       if (!inherits(ttemp, "try-error") && isTRUE(ttemp)) {
+        stopifnot(requireNamespace("raster"))
+
         sim_space[["sim_raster"]] <- raster::raster(temp)
 
         cells <- raster::cellFromXY(

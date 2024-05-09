@@ -130,6 +130,8 @@ update_elevation_input <- function(MMC, sim_size, digits = 0, fnames_in) {
 do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, project_paths,
   fnames_in, resume, verbose) {
 
+  stopifnot(requireNamespace("terra"))
+
   if (verbose) {
     t1 <- Sys.time()
     temp_call <- shQuote(match.call()[1])
@@ -164,10 +166,10 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, project_paths,
     )
 
     # read raster data
-    g.elev <- raster::raster(
+    g.elev <- terra::rast(
       file.path(dir_ex_ned, "ned_1s_westernUS_GeogrNAD83.tif")
     )
-    crs_data <- as(sf::st_crs(g.elev), "CRS")
+    crs_data <- sf::st_crs(g.elev)
 
     # locations of simulation runs
     sites_ned <- sim_space[["run_sites"]][todos, ]
@@ -175,7 +177,7 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, project_paths,
     # Align with data crs
     if (sf::st_crs(sim_space[["crs_sites"]]) != sf::st_crs(crs_data)) {
       # transform points to grid-coords
-      sites_ned <- sp::spTransform(sites_ned, CRS = crs_data)
+      sites_ned <- sf::st_transform(sites_ned, crs = crs_data)
     }
 
     if (sim_space[["scorp"]] == "point") {
@@ -238,6 +240,8 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, project_paths,
 do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space,
   project_paths, fnames_in, resume, verbose) {
 
+  stopifnot(requireNamespace("terra"))
+
   if (verbose) {
     t1 <- Sys.time()
     temp_call <- shQuote(match.call()[1])
@@ -272,8 +276,8 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space,
     )
 
     # read raster data
-    g.elev <- raster::raster(file.path(dir_ex_hwsd, "GloElev_30as.asc"))
-    crs_data <- as(sf::st_crs(g.elev), "CRS")
+    g.elev <- terra::rast(file.path(dir_ex_hwsd, "GloElev_30as.asc"))
+    crs_data <- sf::st_crs(g.elev)
 
     # locations of simulation runs
     sites_hwsd <- sim_space[["run_sites"]][todos, ]
@@ -281,7 +285,7 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space,
     # Align with data crs
     if (sf::st_crs(sim_space[["crs_sites"]]) != sf::st_crs(crs_data)) {
       # transform points to grid-coords
-      sites_hwsd <- sp::spTransform(sites_hwsd, CRS = crs_data)
+      sites_hwsd <- sf::st_transform(sites_hwsd, crs = crs_data)
     }
 
     if (sim_space[["scorp"]] == "point") {

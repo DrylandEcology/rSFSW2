@@ -429,27 +429,27 @@ summarize_weather <- function(
     iclimate["MAP_mm"] <- round(mean(wy_ppt, na.rm = TRUE))
     iclimate["aPPT_mm_sd"] <- round(stats::sd(wy_ppt, na.rm = TRUE), 2)
     iclimate["aPPT_mm_trend"] <- unname(
-      round(coef(lm(wy_ppt ~ seq_along(wy_ppt)))[2], 6)
+      round(stats::coef(stats::lm(wy_ppt ~ seq_along(wy_ppt)))[2], 6)
     )
 
     wy_tmax <- tapply(wd[, "Tmax_C"], wd[, "Year"], mean, na.rm = TRUE)
     iclimate["Tmax_missing_N"] <- sum(is.na(wd[, "PPT_cm"]))
     iclimate["MATmax_C"] <- round(mean(wy_tmax, na.rm = TRUE), 2)
     iclimate["aTmax_C_trend"] <- unname(
-      round(coef(lm(wy_tmax ~ seq_along(wy_tmax)))[2], 6)
+      round(stats::coef(stats::lm(wy_tmax ~ seq_along(wy_tmax)))[2], 6)
     )
 
     wy_tmin <- tapply(wd[, "Tmin_C"], wd[, "Year"], mean, na.rm = TRUE)
     iclimate["Tmin_missing_N"] <- sum(is.na(wd[, "PPT_cm"]))
     iclimate["MATmin_C"] <- round(mean(wy_tmin, na.rm = TRUE), 2)
     iclimate["aTmin_C_trend"] <- unname(
-      round(coef(lm(wy_tmin ~ seq_along(wy_tmin)))[2], 6)
+      round(stats::coef(stats::lm(wy_tmin ~ seq_along(wy_tmin)))[2], 6)
     )
 
     wy_tmean <- apply(cbind(wy_tmax, wy_tmin), 1, mean, na.rm = TRUE)
     iclimate["MAT_C"] <- round(mean(wy_tmean, na.rm = TRUE), 2)
     iclimate["aTmean_C_trend"] <- unname(
-      round(coef(lm(wy_tmean ~ seq_along(wy_tmean)))[2], 6)
+      round(stats::coef(stats::lm(wy_tmean ~ seq_along(wy_tmean)))[2], 6)
     )
 
     iclimate["startyear"] <- min(wd[, "Year"])

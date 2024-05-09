@@ -158,19 +158,13 @@ extract_climate_NOAAClimAtlas <- function(MMC, sim_size, sim_space,
     sites_noaaca <- sim_space[["run_sites"]][todos, ]
 
     # Align with data crs
-    stopifnot(requireNamespace("rgdal"))
-    # TODO: replace `rgdal::readOGR` with `sf::st_read`
-    noaaca <- rgdal::readOGR(
+    noaaca <- sf::st_read(
       dsn = path.expand(dir_noaaca[["RH"]]),
       layer = files_shp[["RH"]][1],
-      verbose = FALSE
+      quiet = TRUE
     )
 
-    crs_data <- as(sf::st_crs(noaaca), "CRS")
-
-    if (sf::st_crs(sim_space[["crs_sites"]]) != sf::st_crs(crs_data)) {
-      sites_noaaca <- sp::spTransform(sites_noaaca, CRS = crs_data)
-    }
+    crs_data <- sf::st_crs(noaaca)
 
     if (sim_space[["scorp"]] == "point") {
       args_extract <- list(y = sites_noaaca, type = sim_space[["scorp"]])
