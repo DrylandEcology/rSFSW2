@@ -4,11 +4,18 @@
 \alias{gridMET_download_and_check}
 \title{Prepare script to download all or missing files of the \var{gridMET} dataset}
 \usage{
-gridMET_download_and_check(dir_data, desc = gridMET_metadata())
+gridMET_download_and_check(
+  dir_data = "../data-raw/",
+  dir_script = ".",
+  desc = gridMET_metadata()
+)
 }
 \arguments{
 \item{dir_data}{A character string. Path to where the \var{gridMET} dataset
 is/will be stored on disk.}
+
+\item{dir_script}{A character string. Path to where the \var{wget} script
+will be saved to disk.}
 
 \item{desc}{A named list. Describing the \var{gridMET} dataset.}
 }

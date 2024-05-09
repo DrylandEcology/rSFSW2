@@ -2064,6 +2064,8 @@ find_gridMET_files <- function(dir_data, vars = gridMET_metadata()[["vars"]]) {
 #'
 #' @param dir_data A character string. Path to where the \var{gridMET} dataset
 #'   is/will be stored on disk.
+#' @param dir_script A character string. Path to where the \var{wget} script
+#'   will be saved to disk.
 #' @param desc A named list. Describing the \var{gridMET} dataset.
 #'
 #' @return If all files are available, then a message is printed to the
@@ -2088,7 +2090,11 @@ find_gridMET_files <- function(dir_data, vars = gridMET_metadata()[["vars"]]) {
 #' }
 #'
 #' @export
-gridMET_download_and_check <- function(dir_data, desc = gridMET_metadata()) {
+gridMET_download_and_check <- function(
+  dir_data = "../data-raw/",
+  dir_script = ".",
+  desc = gridMET_metadata()
+) {
   dir.create(dir_data, recursive = TRUE, showWarnings = FALSE)
 
   years <- seq(desc[["start_year"]], desc[["end_year"]])
@@ -2108,34 +2114,37 @@ gridMET_download_and_check <- function(dir_data, desc = gridMET_metadata()) {
 
 
   #--- Create script to download files if any are missing
-  fname_bash <- NA
+  fname_sh <- NA
 
   if (any(is_missing)) {
-    metdata_bash <- "#!/bin/bash"
+    metdata_sh <- "#!/bin/sh"
 
     for (iv in seq_along(desc[["vars"]])) {
       if (any(is_missing[, iv])) {
-        metdata_bash <- c(
-          metdata_bash,
+        metdata_sh <- c(
+          metdata_sh,
           paste0(
             "wget -nc -c -nd ",
-            "http://www.northwestknowledge.net/metdata/data/",
+            if (!identical(dir_data, ".")) {
+              paste0("--directory-prefix=", dir_data)
+            },
+            " http://www.northwestknowledge.net/metdata/data/",
             fnames_gridMET[is_missing[, iv], iv]
           )
         )
       }
     }
 
-    fname_bash <- file.path(
-      dir_data,
+    fname_sh <- file.path(
+      dir_script,
       paste0("metdata_wget_", format(Sys.time(), "%Y%m%d%H%M%S"), ".sh")
     )
 
-    writeLines(metdata_bash, con = fname_bash)
+    writeLines(metdata_sh, con = fname_sh)
 
     warning(
       "Please execute script ",
-      shQuote(basename(fname_bash)),
+      shQuote(basename(fname_sh)),
       " to download missing gridMET data."
     )
 
@@ -2143,7 +2152,7 @@ gridMET_download_and_check <- function(dir_data, desc = gridMET_metadata()) {
     message("All gridMET files are available.")
   }
 
-  fname_bash
+  fname_sh
 }
 
 
