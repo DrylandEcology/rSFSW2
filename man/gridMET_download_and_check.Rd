@@ -7,6 +7,7 @@
 gridMET_download_and_check(
   dir_data = "../data-raw/",
   dir_script = ".",
+  scripts_by_variable = FALSE,
   desc = gridMET_metadata()
 )
 }
@@ -16,6 +17,9 @@ is/will be stored on disk.}
 
 \item{dir_script}{A character string. Path to where the \var{wget} script
 will be saved to disk.}
+
+\item{scripts_by_variable}{A logical value. \code{TRUE} creates a separate
+\var{wget} script for each variable.}
 
 \item{desc}{A named list. Describing the \var{gridMET} dataset.}
 }

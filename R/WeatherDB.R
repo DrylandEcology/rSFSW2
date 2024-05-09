@@ -2066,6 +2066,8 @@ find_gridMET_files <- function(dir_data, vars = gridMET_metadata()[["vars"]]) {
 #'   is/will be stored on disk.
 #' @param dir_script A character string. Path to where the \var{wget} script
 #'   will be saved to disk.
+#' @param scripts_by_variable A logical value. \code{TRUE} creates a separate
+#'   \var{wget} script for each variable.
 #' @param desc A named list. Describing the \var{gridMET} dataset.
 #'
 #' @return If all files are available, then a message is printed to the
@@ -2093,6 +2095,7 @@ find_gridMET_files <- function(dir_data, vars = gridMET_metadata()[["vars"]]) {
 gridMET_download_and_check <- function(
   dir_data = "../data-raw/",
   dir_script = ".",
+  scripts_by_variable = FALSE,
   desc = gridMET_metadata()
 ) {
   dir.create(dir_data, recursive = TRUE, showWarnings = FALSE)
@@ -2114,37 +2117,64 @@ gridMET_download_and_check <- function(
 
 
   #--- Create script to download files if any are missing
-  fname_sh <- NA
+  fnames_sh <- rep(
+    NA_character_,
+    times = if (scripts_by_variable) length(desc[["vars"]]) else 1L
+  )
 
   if (any(is_missing)) {
-    metdata_sh <- "#!/bin/sh"
+
+    fnames_sh <- file.path(
+      dir_script,
+      paste0(
+        "wget_",
+        format(Sys.time(), "%Y%m%d%H%M%S"),
+        "_metdata",
+        if (scripts_by_variable) {
+          paste0("-", desc[["vars"]])
+        },
+        ".sh"
+      )
+    )
+
+    metdata_sh <- if (scripts_by_variable) {
+      lapply(desc[["vars"]], function(k) "#!/bin/sh")
+    } else {
+      "#!/bin/sh"
+    }
 
     for (iv in seq_along(desc[["vars"]])) {
       if (any(is_missing[, iv])) {
-        metdata_sh <- c(
-          metdata_sh,
+        tmp <- paste(
+          "wget -nc -c -nd -nv",
+          if (!identical(dir_data, ".")) {
+            paste0("--directory-prefix=", dir_data)
+          },
           paste0(
-            "wget -nc -c -nd ",
-            if (!identical(dir_data, ".")) {
-              paste0("--directory-prefix=", dir_data)
-            },
-            " http://www.northwestknowledge.net/metdata/data/",
+            "https://www.northwestknowledge.net/metdata/data/",
             fnames_gridMET[is_missing[, iv], iv]
           )
         )
+
+        if (scripts_by_variable) {
+          metdata_sh[[iv]] <- c(metdata_sh[[iv]], tmp)
+        } else {
+          metdata_sh <- c(metdata_sh, tmp)
+        }
       }
     }
 
-    fname_sh <- file.path(
-      dir_script,
-      paste0("metdata_wget_", format(Sys.time(), "%Y%m%d%H%M%S"), ".sh")
-    )
-
-    writeLines(metdata_sh, con = fname_sh)
+    if (scripts_by_variable) {
+      for (k in seq_along(desc[["vars"]])) {
+        writeLines(metdata_sh[[k]], con = fnames_sh[[k]])
+      }
+    } else {
+      writeLines(metdata_sh, con = fnames_sh)
+    }
 
     warning(
-      "Please execute script ",
-      shQuote(basename(fname_sh)),
+      "Please execute script(s) ",
+      toString(shQuote(basename(fnames_sh))),
       " to download missing gridMET data."
     )
 
@@ -2152,7 +2182,7 @@ gridMET_download_and_check <- function(
     message("All gridMET files are available.")
   }
 
-  fname_sh
+  fnames_sh
 }
 
 
