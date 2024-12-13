@@ -690,6 +690,25 @@ do_OneSite <- function(
       tasks[, "create"] <- 0L
       print(paste0(tag_simfid, ": i_sw_weatherList ERROR: ", i_sw_weatherList))
     }
+
+    # Upgrade weather object (requires rSOILWAT2 >= v6.2.0) ------
+    if (getNamespaceVersion("rSOILWAT2") >= as.numeric_version("6.2.0")) {
+      i_sw_weatherList <- lapply(
+        i_sw_weatherList,
+        function(weatherList) rSOILWAT2::upgrade_weatherHistory(weatherList)
+      )
+    }
+
+    weatherChecks <- vapply(
+      i_sw_weatherList,
+      rSOILWAT2::dbW_check_weatherData,
+      FUN.VALUE = NA
+    )
+
+    if (!all(weatherChecks)) {
+      tasks[, "create"] <- 0L
+      print(paste0(tag_simfid, ": i_sw_weatherList does not pass checks."))
+    }
   }
 
 
