@@ -4272,3 +4272,25 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
 
   invisible(TRUE)
 }
+
+
+#' Query `dbOutput` for scenario table and write spreadsheet to disk
+#'
+#' @seealso [write_scen_description()]
+#'
+#' @examples
+#' dbOutput_print_scenarioList(
+#'   SFSW2_prj_meta[["fnames_out"]][["dbOutput"]],
+#'   fnameScenarioList = "Table_ScenarioDescription.csv"
+#' )
+#'
+#' @md
+#' @export
+dbOutput_print_scenarioList <- function(dbOutput, fnameScenarioList) {
+  con_dbOut <- DBI::dbConnect(RSQLite::SQLite(), dbname = dbOutput)
+  on.exit(DBI::dbDisconnect(con_dbOut), add = TRUE)
+
+  res <- DBI::dbReadTable(con_dbOut, name = "scenario_labels")
+
+  utils::write.csv(res, file = fnameScenarioList, row.names = FALSE)
+}

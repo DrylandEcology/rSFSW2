@@ -1098,6 +1098,20 @@ populate_rSFSW2_project_with_data <- function(SFSW2_prj_meta, opt_behave,
   }
 
 
+  #--- Write scenario description to spreadsheet
+  ftmp <- SFSW2_prj_meta[["fnames_out"]][["scenarioList"]]
+  if (is.null(ftmp)) {
+    ftmp <- file.path(
+      SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+      "Table_ScenarioDescription.csv"
+    )
+  }
+
+  if (!file.exists(ftmp)) {
+    write_scen_description(SFSW2_prj_meta, fnameScenarioList = ftmp)
+  }
+
+
   #------ DATA EXTRACTIONS
   #--- Soil data
   # nolint start
@@ -2149,14 +2163,25 @@ move_output_to_dbOutput <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
 
 #' Write scenario description table to file on disk
 #'
+#' @seealso [dbOutput_print_scenarioList()]
+#'
+#' @examples
+#' write_scen_description(
+#'   SFSW2_prj_meta,
+#'   fnameScenarioList = "Table_ScenarioDescription.csv"
+#' )
+#'
+#' @md
 #' @export
-write_scen_description <- function(SFSW2_prj_meta) {
-  utils::write.csv(
-    SFSW2_prj_meta[["sim_scens"]][["df"]],
-    file = file.path(
-      SFSW2_prj_meta[["project_paths"]][["dir_out"]],
-      "Table_ScenarioDescription.csv"
-    ),
-    row.names = FALSE
+write_scen_description <- function(
+  SFSW2_prj_meta,
+  fnameScenarioList = file.path(
+    SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+    "Table_ScenarioDescription.csv"
   )
+) {
+  x <- SFSW2_prj_meta[["sim_scens"]][["df"]]
+  x <- data.frame(scid = seq_len(nrow(x)), x, stringsAsFactors = FALSE)
+
+  utils::write.csv(x, file = fnameScenarioList, row.names = FALSE)
 }

@@ -156,8 +156,12 @@ fnames_in <- list(
 #------ Full names of output files
 fnames_out <- list(
   dbOutput = file.path(project_paths[["dir_out"]], "dbOutput.sqlite3"),
-  dbOutput_current = file.path(project_paths[["dir_out"]],
-    "dbOutput_current.sqlite3"),
+  dbOutput_current = file.path(
+    project_paths[["dir_out"]], "dbOutput_current.sqlite3"
+  ),
+  scenarioList = file.path(
+    project_paths[["dir_out"]], "Table_ScenarioDescription.csv"
+  ),
   timerfile = file.path(project_paths[["dir_out"]], "Timing_Simulation.csv")
 )
 

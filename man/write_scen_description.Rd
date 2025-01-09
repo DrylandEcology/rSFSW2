@@ -4,8 +4,22 @@
 \alias{write_scen_description}
 \title{Write scenario description table to file on disk}
 \usage{
-write_scen_description(SFSW2_prj_meta)
+write_scen_description(
+  SFSW2_prj_meta,
+  fnameScenarioList = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+    "Table_ScenarioDescription.csv")
+)
 }
 \description{
 Write scenario description table to file on disk
+}
+\examples{
+write_scen_description(
+  SFSW2_prj_meta,
+  fnameScenarioList = "Table_ScenarioDescription.csv"
+)
+
+}
+\seealso{
+\code{\link[=dbOutput_print_scenarioList]{dbOutput_print_scenarioList()}}
 }
