@@ -1611,7 +1611,7 @@ check_rSFSW2_project_input_data <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 
   if (map_soils) {
     map_vars <- c("SoilDepth", "Matricd", "GravelContent", "Sand", "Clay",
-      "TOC_GperKG", "EvapCoeff")
+      "SOM", "EvapCoeff")
     icheck <- map_input_variables(map_vars = map_vars, SFSW2_prj_meta,
       SFSW2_prj_inputs, verbose = opt_verbosity[["verbose"]])
 

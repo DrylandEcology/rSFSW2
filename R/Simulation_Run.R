@@ -1121,7 +1121,10 @@ do_OneSite <- function(
     soil_cols <- c(
       "depth_cm", "matricd", "gravel_content", "EvapBareSoil_frac",
       "transpGrass_frac", "transpShrub_frac", "transpTree_frac",
-      "transpForb_frac", "sand", "clay", "imperm", "soilTemp_c"
+      "transpForb_frac", "sand", "clay", "imperm", "soilTemp_c",
+      if (getNamespaceVersion("rSOILWAT2") >= as.numeric_version("6.3.0")) {
+        "som_frac"
+      }
     )
     soil_swdat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]])
     dimnames(soil_swdat)[[2]] <- soil_cols
@@ -1201,7 +1204,10 @@ do_OneSite <- function(
           "Matricd", "GravelContent", "EvapCoeff",
           "Grass_TranspCoeff", "Shrub_TranspCoeff", "Tree_TranspCoeff",
           "Forb_TranspCoeff",
-          "Sand", "Clay", "Imperm", "SoilTemp"
+          "Sand", "Clay", "Imperm", "SoilTemp",
+          if (getNamespaceVersion("rSOILWAT2") >= as.numeric_version("6.3.0")) {
+            "SOM"
+          }
         ),
         sw = soil_cols[-1]
       )
@@ -2337,12 +2343,12 @@ do_OneSite <- function(
     sand <- stemp[, 9]
     clay <- stemp[, 10]
 
-    #TODO: adjust this once TOC is incorporated into rSOILWAT2
-    soil_TOC <- rep(NA, soilLayers_N)
+    #TODO: adjust this once SOM is incorporated into rSOILWAT2
+    soil_SOM <- rep(NA, soilLayers_N)
     if (exists("i_sw_input_soils") && exists("sw_input_soils_use")) {
-      temp <- grep("TOC_GperKG_L", names(sw_input_soils_use))
+      temp <- grep("SOM_L", names(sw_input_soils_use))
       if (length(temp) > 0)
-        soil_TOC <- as.numeric(i_sw_input_soils[, temp[ld]])
+        soil_SOM <- as.numeric(i_sw_input_soils[, temp[ld]])
     }
 
     #get soil aggregation layer for daily aggregations
@@ -2430,6 +2436,9 @@ do_OneSite <- function(
 
       scw <- if (opt_sim[["use_dbW_future"]]) sc else 1L
       mDepth <- rSOILWAT2::swSite_SoilTemperatureConsts(swRunScenariosData[[sc]])["MaxDepth"]
+
+      DeltaX <- c(NA, 0L)
+      is_SOILTEMP_INSTABLE <- rep(NA, N_sim_scens)
 
       if (DeltaX[2] > 0) {
         print_debug(opt_verbosity, tag_simpidfid, "using pre-determined DeltaX", DeltaX[1])
@@ -4032,7 +4041,7 @@ do_OneSite <- function(
           SMTR <- rSW2funs::calc_SMTRs(
             sim_in = swRunScenariosData[[sc]],
             sim_agg = sim_agg,
-            soil_TOC = soil_TOC,
+            soil_TOC = soil_SOM,
             has_soil_temperature = isTRUE(!is_SOILTEMP_INSTABLE[sc]),
             opt_SMTR = opt_agg[["NRCS_SMTRs"]],
             simTime1 = isim_time[[itime]],

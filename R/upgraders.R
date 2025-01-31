@@ -90,3 +90,27 @@ upgrade_soilsin_v11_to_v12 <- function(file, new_name = NULL) {
   upgrade_datafile(file, new_name, insert_after_tag = "Clay",
     inserted_colnames = paste0("TOC_GperKG_L", seq_len(100)))
 }
+
+
+#' Upgrade \var{\sQuote{datafile.soils}} from version 12 to version 13
+#'
+#' Rename organic matter variable from \var{TOC} to \var{SOM}
+#'
+#' @rdname upgrade_datafile
+#' @export
+upgrade_soilsin_v12_to_v13 <- function(file, new_name = NULL) {
+  if (is.null(new_name)) {
+    new_name <- sub("v12", "v13", basename(file))
+  }
+
+  x <- utils::read.csv(file)
+
+  colnames(x) <- gsub("^TOC_GperKG_L", "SOM_L", colnames(x))
+
+  # write data to disk
+  tmp <- utils::write.csv(
+    x, file = file.path(dirname(file), new_name), row.names = FALSE
+  )
+
+  is.null(tmp)
+}

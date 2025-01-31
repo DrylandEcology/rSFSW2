@@ -13,12 +13,12 @@ extract_soil_CONUSSOIL(
   fnames_in,
   resume,
   verbose,
-  default_TOC_GperKG = 0
+  default_SOM = 0
 )
 }
 \arguments{
-\item{default_TOC_GperKG}{A numeric value. The default value is
-0 g \var{TOC} per kg soil.}
+\item{default_SOM}{A numeric value. The default value is
+0 \var{SOM} [mass proportion].}
 }
 \description{
 \var{\sQuote{CONUS-SOIL}} is a rasterized and controlled

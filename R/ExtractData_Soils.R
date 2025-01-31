@@ -77,7 +77,7 @@ prepare_ExtractData_Soils <- function(SWRunInformation, sim_size, field_sources,
     ncol = 2 + nvars * SFSW2_glovars[["slyrs_maxN"]],
     dimnames = list(NULL, coln))
   vars <- data.frame(input = c("SoilDepth_cm", "Matricd_L", "Sand_L",
-                               "Clay_L", "GravelContent_L", "TOC_GperKG_L"),
+                               "Clay_L", "GravelContent_L", "SOM_L"),
                      intern = c("depth", lvars),
                      stringsAsFactors = FALSE)
 
@@ -144,8 +144,8 @@ adjust_soils_todos <- function(todos, MMC, sim_size) {
 #' \var{\sQuote{CONUS-SOIL}} is a rasterized and controlled
 #' \var{\sQuote{STATSGO}} dataset; information for 11 soil are layers available.
 #'
-#' @param default_TOC_GperKG A numeric value. The default value is
-#'   0 g \var{TOC} per kg soil.
+#' @param default_SOM A numeric value. The default value is
+#'   0 \var{SOM} [mass proportion].
 #'
 #' @references Miller, D. A. and R. A. White. 1998. A conterminous United States
 #'  multilayer soil characteristics dataset for regional climate and hydrology
@@ -157,7 +157,7 @@ adjust_soils_todos <- function(todos, MMC, sim_size) {
 #'   If this variable is indeed \var{\dQuote{bulk density}}, then equation 20
 #'   (Saxton et al. 2006) would give negative values
 extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, project_paths,
-  fnames_in, resume, verbose, default_TOC_GperKG = 0) {
+  fnames_in, resume, verbose, default_SOM = 0) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -259,7 +259,7 @@ extract_soil_CONUSSOIL <- function(MMC, sim_size, sim_space, project_paths,
 
 
     # There is no organic carbon data, set all values to a default
-    MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[ils]] <- default_TOC_GperKG
+    MMC[["data"]][todos, grep("carbon", MMC[["cn"]])[ils]] <- default_SOM
 
     # Determine successful extractions
     MMC[["idone"]]["CONUSSOIL1"] <- TRUE

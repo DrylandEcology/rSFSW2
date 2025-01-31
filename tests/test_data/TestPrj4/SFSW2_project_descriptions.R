@@ -119,7 +119,7 @@ fnames_in <- list(
   fclimnorm = "SWRuns_InputData_cloud_v10.csv",
   fvegetation = "SWRuns_InputData_prod_v11.csv",
   fsite = "SWRuns_InputData_siteparam_v17.csv",
-  fsoils = "SWRuns_InputData_soils_v12.csv",
+  fsoils = "SWRuns_InputData_soils_v13.csv",
   fswrcp = "SWRuns_InputData_SWRCp_v1.csv",
   fweathersetup = "SWRuns_InputData_weathersetup_v10.csv",
   fclimscen_delta = "SWRuns_InputData_ClimateScenarios_Change_v11.csv",
