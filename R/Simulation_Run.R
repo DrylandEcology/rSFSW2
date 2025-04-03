@@ -1419,7 +1419,17 @@ do_OneSite <- function(
     }
 
 
-    #add weather setup information to weatherin
+    #--- * Correct weather values (requires rSOILWAT2 >= v6.4.0) ------
+    if (isTRUE(opt_sim[["correctWeatherValues"]])) {
+      if (getNamespaceVersion("rSOILWAT2") < as.numeric_version("6.4.0")) {
+        stop("Correction of weather values requested but rSOILWAT2 < v6.4.0")
+      }
+
+      swRunScenariosData[[1L]]@weather@correctWeatherValues[] <- TRUE
+    }
+
+
+    #---* Add weather setup information to weatherin ------
     if (sw_input_weather_use["SnowFlag"])
       rSOILWAT2::swWeather_UseSnow(swRunScenariosData[[1]]) <- as.logical(i_sw_input_weather$SnowFlag)
     if (sw_input_weather_use["SnowDrift_Percent"])

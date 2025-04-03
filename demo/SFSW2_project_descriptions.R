@@ -304,6 +304,9 @@ opt_sim <- list(
   # Identifying tag of folder names for weather data if 'LookupWeatherFolder'
   tag_WeatherFolder = "weath",
 
+  # Correction of problematic weather values (rSOILWAT2 >= v6.4.0)
+  correctWeatherValues = TRUE,
+
   # Approach if there is no soil texture information for the deepest layer(s)
   #   - [TRUE] adjust soil depth
   #   - [FALSE] fill soil layer structure from shallower layer(s)

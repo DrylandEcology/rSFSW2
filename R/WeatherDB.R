@@ -2215,14 +2215,14 @@ get_gridMET_cellID <- function(x, crs = 4326, fname_gridMET) {
 }
 
 
-#' Extract daily gridded weather data from the \var{gridMET} dataset
+#' Extract daily gridded weather data from the `gridMET` dataset
 #'
 #' Extracts daily gridded weather data, including precipitation,
-#' maximum temperature and minimum temperature from the \var{gridMET}
+#' maximum temperature and minimum temperature from the `gridMET`
 #' (Abatzoglou 2013) database: a 1/24 degree gridded weather database that
 #' contains data for the years 1979 - yesterday.
 #'
-#' @section Details: Run the function \code{\link{gridMET_download_and_check}}
+#' @section Details: Run the function [gridMET_download_and_check()]
 #'   to download and check the dataset.
 #'
 #' @references Abatzoglou, J. T. (2013) Development of gridded surface
@@ -2230,11 +2230,11 @@ get_gridMET_cellID <- function(x, crs = 4326, fname_gridMET) {
 #'   \var{Int. J. Climatol.}, 33: 121–131.
 #'
 #' @param dir_data A character string. The directory containing the
-#'   \var{gridMET} dataset files.
+#'   `gridMET` dataset files.
 #' @param site_ids An integer vector. The indices of sites for which to extract
-#'   \var{gridMET} weather data.
+#'   `gridMET` weather data.
 #' @param coords_WGS84 A two-dimensional numerical object.
-#'   The coordinates for each site in \var{WGS84}.
+#'   The coordinates for each site in `WGS84`.
 #' @param start_year An integer value. The first calendar year for which to
 #'   extract daily weather data.
 #' @param end_year An integer value. The last calendar year for which to
@@ -2243,8 +2243,12 @@ get_gridMET_cellID <- function(x, crs = 4326, fname_gridMET) {
 #'   weather database.
 #' @param dbW_digits An integer value. The number of digits to which the
 #'   daily weather values are rounded to.
+#' @param correctWeatherValues A logical value.
+#'   Correct weather values including switched minimum/maximum values or
+#'   humidity > `100%`.
 #' @param verbose A logical value.
 #'
+#' @md
 #' @export
 extract_daily_weather_from_gridMET <- function(
   dir_data,
@@ -2256,6 +2260,7 @@ extract_daily_weather_from_gridMET <- function(
   id_ambient_scenario = 1,
   comp_type = "gzip",
   dbW_digits = NA,
+  correctWeatherValues = FALSE,
   chunksize = 10000,
   verbose = FALSE
 ) {
@@ -2400,6 +2405,19 @@ extract_daily_weather_from_gridMET <- function(
         "rHmax_pct", "rHmin_pct",
         "shortWR"
       )
+
+      if (isTRUE(correctWeatherValues)) {
+        if (getNamespaceVersion("rSOILWAT2") < as.numeric_version("6.4.0")) {
+          stop("Correction of weather values requested but rSOILWAT2 < v6.4.0")
+        }
+
+        wd <- rSOILWAT2::dbW_fixWeather(
+          wd,
+          correctWeatherValues = TRUE,
+          fillMissingValues = FALSE,
+          return_weatherDF = TRUE
+        )
+      }
 
       wdb <- rSOILWAT2::dbW_weatherData_to_blob(
         rSOILWAT2::dbW_dataframe_to_weatherData(wd, round = dbW_digits),
