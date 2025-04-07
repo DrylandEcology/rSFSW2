@@ -1581,14 +1581,23 @@ do_OneSite <- function(
         # headers: RCP85, RCP85.1
 
         # Extract CO2 concentration values in units of ppm into swCarbon
+        yearRangeCO2 <- c(
+          isim_time[[itime]]$simstartyr, isim_time[[itime]]$endyr
+        ) +
+          rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]])
+
+
+        if (getNamespaceVersion("rSOILWAT2") >= "6.4.0") {
+          yearRangeCO2 <- c(
+            min(yearRangeCO2[[1L]], swRunScenariosData[[sc]]@prod@vegYear),
+            max(yearRangeCO2[[2L]], swRunScenariosData[[sc]]@prod@vegYear)
+          )
+        }
+
         co2_data <- try(
           rSOILWAT2::lookup_annual_CO2a(
-            start =
-              isim_time[[itime]]$simstartyr +
-              rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]),
-            end =
-              isim_time[[itime]]$endyr +
-              rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]),
+            start = yearRangeCO2[[1L]],
+            end = yearRangeCO2[[2L]],
             name_co2 = scenario_CO2,
             tr_CO2a = tr_input_CO2data
           ),
