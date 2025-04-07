@@ -1283,7 +1283,12 @@ do_OneSite <- function(
       # Impute missing/bad soil data from previous layer
       icol_excl <- which(soil_cols %in% "soilTemp_c")
       icols <- seq_along(soil_cols)[-icol_excl]
-      bad_data <- !check_soil_data(soildat[, -icol_excl, drop = FALSE])
+      bad_data <- !check_soil_data(
+        x = soildat[, -icol_excl, drop = FALSE],
+        allowAllSandClayOrSilt = isTRUE(
+          getNamespaceVersion("rSOILWAT2") >= "6.4.0"
+        )
+      )
 
       if (any(bad_data)) {
         for (l in ld) {
@@ -1303,8 +1308,7 @@ do_OneSite <- function(
             } else {
               print(paste0(
                 tag_simfid,
-                ": data missing for 1st layer -> no data to impute: ",
-                "simulation will fail"
+                ": bad data in 1st layer: simulation will fail"
               ))
               print(soildat[l, icols])
               tasks[, "create"] <- 0L
@@ -1318,7 +1322,12 @@ do_OneSite <- function(
 
     } else {
       # Check soil
-      check_soil <- check_soil_data(soil_swdat)
+      check_soil <- check_soil_data(
+        x = soil_swdat,
+        allowAllSandClayOrSilt = isTRUE(
+          getNamespaceVersion("rSOILWAT2") >= "6.4.0"
+        )
+      )
 
       if (!all(check_soil)) {
         print(paste0(

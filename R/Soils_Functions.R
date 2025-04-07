@@ -9,23 +9,35 @@ setLayerSequence <- function(d) seq_len(d)
 
 
 
-check_soil_data <- function(data) {
-    check_soil <- is.finite(data)
+check_soil_data <- function(x, allowAllSandClayOrSilt = FALSE) {
+    check_soil <- is.finite(x)
+
     check_soil[, "depth_cm"] <- check_soil[, "depth_cm"] &
-      data[, "depth_cm"] > 0 &
-      diff(c(0, data[, "depth_cm"])) > 0
+      x[, "depth_cm"] > 0 &
+      diff(c(0, x[, "depth_cm"])) > 0
+
     check_soil[, "matricd"] <- check_soil[, "matricd"] &
-      data[, "matricd"] > 0.3 &
-      data[, "matricd"] - 2.65 <= SFSW2_glovars[["tol"]]
+      x[, "matricd"] > 0.3 &
+      x[, "matricd"] - 2.65 <= SFSW2_glovars[["tol"]]
+
     check_soil[, "gravel_content"] <- check_soil[, "gravel_content"] &
-      data[, "gravel_content"] >= 0 & data[, "gravel_content"] < 1
+      x[, "gravel_content"] >= 0 & x[, "gravel_content"] < 1
+
     itemp <- c("sand", "clay")
-    check_soil[, itemp] <- check_soil[, itemp] & data[, itemp] > 0 &
-      data[, itemp] - 1 <= SFSW2_glovars[["tol"]]
-    itemp <- c("EvapBareSoil_frac", "transpGrass_frac", "transpShrub_frac",
-              "transpTree_frac", "transpForb_frac", "imperm")
-    check_soil[, itemp] <- check_soil[, itemp] & data[, itemp] >= 0 &
-      data[, itemp] - 1 <= SFSW2_glovars[["tol"]]
+    check_soil[, itemp] <- check_soil[, itemp] & x[, itemp] >= 0
+    check_soil[, itemp] <- if (isTRUE(allowAllSandClayOrSilt)) {
+      check_soil[, itemp] & x[, itemp] <= 1
+    } else {
+      check_soil[, itemp] & x[, itemp] - 1 <= SFSW2_glovars[["tol"]]
+    }
+
+    itemp <- c(
+      "EvapBareSoil_frac", "transpGrass_frac", "transpShrub_frac",
+      "transpTree_frac", "transpForb_frac", "imperm"
+    )
+    check_soil[, itemp] <- check_soil[, itemp] &
+      x[, itemp] >= 0 &
+      x[, itemp] - 1 <= SFSW2_glovars[["tol"]]
 
     check_soil
 }
