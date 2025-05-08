@@ -2069,6 +2069,12 @@ find_gridMET_files <- function(dir_data, vars = gridMET_metadata()[["vars"]]) {
 #' @param scripts_by_variable A logical value. \code{TRUE} creates a separate
 #'   \var{wget} script for each variable.
 #' @param desc A named list. Describing the \var{gridMET} dataset.
+#' @param wget_options A character string. \var{wget} options.
+#' The default includes
+#'    -N, only download files that are newer than the local copies;
+#'    -c, continue downloading a partially downloaded file;
+#'    -nd, prevent creating directory structure (and use \var{dir_data});
+#'    -nv, less verbose but still display essential messages
 #'
 #' @return If all files are available, then a message is printed to the
 #'  R console with that information. Otherwise, the message points to a
@@ -2096,7 +2102,8 @@ gridMET_download_and_check <- function(
   dir_data = "../data-raw/",
   dir_script = ".",
   scripts_by_variable = FALSE,
-  desc = gridMET_metadata()
+  desc = gridMET_metadata(),
+  wget_options = "-N -c -nd -nv"
 ) {
   dir.create(dir_data, recursive = TRUE, showWarnings = FALSE)
 
@@ -2146,7 +2153,8 @@ gridMET_download_and_check <- function(
     for (iv in seq_along(desc[["vars"]])) {
       if (any(is_missing[, iv])) {
         tmp <- paste(
-          "wget -nc -c -nd -nv",
+          "wget",
+          wget_options,
           if (!identical(dir_data, ".")) {
             paste0("--directory-prefix=", dir_data)
           },

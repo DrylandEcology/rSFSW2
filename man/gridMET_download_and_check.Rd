@@ -8,7 +8,8 @@ gridMET_download_and_check(
   dir_data = "../data-raw/",
   dir_script = ".",
   scripts_by_variable = FALSE,
-  desc = gridMET_metadata()
+  desc = gridMET_metadata(),
+  wget_options = "-N -c -nd -nv"
 )
 }
 \arguments{
@@ -22,6 +23,13 @@ will be saved to disk.}
 \var{wget} script for each variable.}
 
 \item{desc}{A named list. Describing the \var{gridMET} dataset.}
+
+\item{wget_options}{A character string. \var{wget} options.
+The default includes
+   -N, only download files that are newer than the local copies;
+   -c, continue downloading a partially downloaded file;
+   -nd, prevent creating directory structure (and use \var{dir_data});
+   -nv, less verbose but still display essential messages}
 }
 \value{
 If all files are available, then a message is printed to the
