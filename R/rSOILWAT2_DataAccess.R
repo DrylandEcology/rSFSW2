@@ -209,25 +209,52 @@ get_Response_aggL <- function(response,
   res
 }
 
-get_SWPmatric_aggL <- function(vwcmatric, texture, sand, clay) {
+get_SWPmatric_aggL <- function(vwcmatric, swrc_name, texture, sand, clay, SWRCp) {
   res <- list()
 
   if (!is.null(vwcmatric[["top"]])) {
-    res[["top"]] <- rSOILWAT2::VWCtoSWP(vwcmatric[["top"]],
-      sand = texture[["sand.top"]], clay = texture[["clay.top"]])
+    res[["top"]] <- rSOILWAT2::swrc_vwc_to_swp(
+      vwcmatric[["top"]],
+      sand = texture[["sand.top"]],
+      clay = texture[["clay.top"]],
+      swrc = list(
+        swrc_name = swrc_name,
+        swrcp = texture[["SWRCp.top"]]
+      )
+    )
   }
 
   if (!is.null(vwcmatric$bottom)) {
-    res[["bottom"]] <- rSOILWAT2::VWCtoSWP(vwcmatric[["bottom"]],
-      sand = texture[["sand.bottom"]], clay = texture[["clay.bottom"]])
+    res[["bottom"]] <- rSOILWAT2::swrc_vwc_to_swp(
+      vwcmatric[["bottom"]],
+      sand = texture[["sand.bottom"]],
+      clay = texture[["clay.bottom"]],
+      swrc = list(
+        swrc_name = swrc_name,
+        swrcp = texture[["SWRCp.bottom"]]
+      )
+    )
   }
 
   if (!is.null(vwcmatric[["aggMean.top"]])) {
-    res[["aggMean.top"]] <- rSOILWAT2::VWCtoSWP(vwcmatric[["aggMean.top"]],
-      sand = texture[["sand.top"]], clay = texture[["clay.top"]])
-    res[["aggMean.bottom"]] <- rSOILWAT2::VWCtoSWP(vwc =
-      vwcmatric[["aggMean.bottom"]], sand = texture[["sand.bottom"]],
-      clay = texture[["clay.bottom"]])
+    res[["aggMean.top"]] <- rSOILWAT2::swrc_vwc_to_swp(
+      vwcmatric[["aggMean.top"]],
+      sand = texture[["sand.top"]],
+      clay = texture[["clay.top"]],
+      swrc = list(
+        swrc_name = swrc_name,
+        swrcp = texture[["SWRCp.top"]]
+      )
+    )
+    res[["aggMean.bottom"]] <- rSOILWAT2::swrc_vwc_to_swp(
+      vwcmatric[["aggMean.bottom"]],
+      sand = texture[["sand.bottom"]],
+      clay = texture[["clay.bottom"]],
+      swrc = list(
+        swrc_name = swrc_name,
+        swrcp = texture[["SWRCp.bottom"]]
+      )
+    )
   }
 
   if (!is.null(vwcmatric$val)) {
@@ -236,8 +263,18 @@ get_SWPmatric_aggL <- function(vwcmatric, texture, sand, clay) {
     } else {
       index.header <- 1 # yearly
     }
-    res[["val"]] <- cbind(vwcmatric[["val"]][, index.header],
-      rSOILWAT2::VWCtoSWP(vwcmatric[["val"]][, -index.header], sand, clay))
+    res[["val"]] <- cbind(
+      vwcmatric[["val"]][, index.header],
+      rSOILWAT2::swrc_vwc_to_swp(
+        vwcmatric[["val"]][, -index.header, drop = FALSE],
+        sand = sand,
+        clay = clay,
+        swrc = list(
+          swrc_name = swrc_name,
+          swrcp = SWRCp
+        )
+      )
+    )
   }
 
   res

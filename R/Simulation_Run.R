@@ -275,6 +275,10 @@ do_OneSite <- function(
   sim_seq_scens <- sc1:N_sim_scens
 
 
+  # Initialize SWRC/PTF variables utilized for create & aggregate actions
+  swrc_flags <- swrcp <- NULL
+
+
   #- Check which output needs to be generated
   tmp0 <- c("aggregation_overall", "aggregation_doy")
 
@@ -426,14 +430,40 @@ do_OneSite <- function(
 
     if (
       !inherits(tmp, "try-error") &&
-      all(sapply(objnames_saveRsoilwatInput, exists, where = environment())) &&
-      check_rSW2_version(
-        object = swRunScenariosData[[1]],
-        strict = opt_out_run[["enforce_rSW2_version"]]
+      all(
+        vapply(
+          objnames_saveRsoilwatInput,
+          exists,
+          where = environment(),
+          FUN.VALUE = NA
+        )
       )
     ) {
-      print_debug(opt_verbosity, tag_simfid, "section", "existing rSOILWAT2 input object loaded")
-      tasks[, "create"] <- 2L
+      tmpd <- lapply(
+        swRunScenariosData,
+        function(x) {
+          rSOILWAT2::sw_upgrade(x, verbose = opt_verbosity[["verbose"]])
+        }
+      )
+
+      if (
+        check_rSW2_version(
+          object = tmpd[[1L]],
+          strict = opt_out_run[["enforce_rSW2_version"]]
+        )
+      ) {
+        print_debug(opt_verbosity, tag_simfid, "section", "existing rSOILWAT2 input object loaded")
+        swRunScenariosData <- tmpd
+        tasks[, "create"] <- 2L
+
+        # Extract SWRC/PTF information if utilized for aggregations
+        if (isTRUE(prj_todos[["aggs_req_SWRC"]])) {
+          swrc_flags <- rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1L]])
+          swrcp <- if (rSOILWAT2::swSite_hasSWRCp(swRunScenariosData[[1L]])) {
+            rSOILWAT2::swSoils_SWRCp(swRunScenariosData[[1L]])
+          }
+        }
+      }
     }
   }
 
@@ -1087,8 +1117,8 @@ do_OneSite <- function(
       site_use <- sw_input_site_use[flags]
 
       if (any(site_use)) {
-        tmp <- rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])
-        rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])[site_use] <-
+        tmp <- rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1L]])
+        rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1L]])[site_use] <-
           i_sw_input_site[flags][site_use]
 
         # Handle "NoPTF" and refer to input of "SWRCp"
@@ -1363,13 +1393,17 @@ do_OneSite <- function(
 
 
     # add SWRCp (requested as input or PTF = "NoPTF")
-    if (uses_NoPTF || isTRUE(opt_out_run[["saveRsoilwatInputWithSWRCp"]])) {
+    if (
+      uses_NoPTF ||
+      isTRUE(opt_out_run[["saveRsoilwatInputWithSWRCp"]]) ||
+      isTRUE(prj_todos[["aggs_req_SWRC"]])
+    ) {
       swrcp <- NULL
       soil_swdat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]])
 
       if (uses_NoPTF) {
         # convert from wide to semi-long format
-        vars_swrcp <- paste0("Params", seq_len(6))
+        vars_swrcp <- paste0("Params", seq_len(6L))
 
         swrcp <- rSW2data::reshape_soilproperties_to_long(
           i_sw_input_swrcp,
@@ -1380,7 +1414,7 @@ do_OneSite <- function(
         )
         swrcp <- swrcp[, vars_swrcp, drop = FALSE]
 
-      } else if (isTRUE(opt_out_run[["saveRsoilwatInputWithSWRCp"]])) {
+      } else {
 
         tmp_name <- rSOILWAT2::swSite_SWRCflags(swRunScenariosData[[1]])
         swrcp <- rSOILWAT2::ptf_estimate(
@@ -1388,8 +1422,8 @@ do_OneSite <- function(
           clay = soil_swdat[, "clay_frac"],
           fcoarse = soil_swdat[, "gravel_content"],
           bdensity = soil_swdat[, "bulkDensity_g/cm^3"],
-          swrc_name = tmp_name[1],
-          ptf_name = tmp_name[2]
+          swrc_name = tmp_name[[1L]],
+          ptf_name = tmp_name[[2L]]
         )
       }
 
@@ -1400,8 +1434,10 @@ do_OneSite <- function(
         )
       }
 
-      rSOILWAT2::swSoils_SWRCp(swRunScenariosData[[1]]) <- swrcp
+      rSOILWAT2::swSoils_SWRCp(swRunScenariosData[[1L]]) <- swrcp
+      rSOILWAT2::swSite_hasSWRCp(swRunScenariosData[[1L]]) <- TRUE
     }
+
 
     #--- * Spinup (requires rSOILWAT2 >= v6.1.0) ------
     if (sw_input_site_use[["Spinup_Active"]]) {
@@ -2367,6 +2403,7 @@ do_OneSite <- function(
     topL <- setTopLayer(soilLayers_N, DeepestTopLayer)
     bottomL <- setBottomLayer(soilLayers_N, DeepestTopLayer)
 
+    bdensity <- stemp[, 2]
     gravel <- stemp[, 3]
     sand <- stemp[, 9]
     clay <- stemp[, 10]
@@ -2387,24 +2424,97 @@ do_OneSite <- function(
     }
     aggLs_no <- length(aggLs)
 
+
     texture <- list(
       sand.top = stats::weighted.mean(sand[topL], layers_width[topL]),
       sand.bottom = stats::weighted.mean(sand[bottomL], layers_width[bottomL]),
       clay.top = stats::weighted.mean(clay[topL], layers_width[topL]),
       clay.bottom = stats::weighted.mean(clay[bottomL], layers_width[bottomL]),
       gravel.top = stats::weighted.mean(gravel[topL], layers_width[topL]),
-      gravel.bottom = stats::weighted.mean(gravel[bottomL], layers_width[bottomL]))
+      gravel.bottom = stats::weighted.mean(gravel[bottomL], layers_width[bottomL]),
+      bd.top = stats::weighted.mean(bdensity[topL], layers_width[topL]),
+      bd.bottom = stats::weighted.mean(bdensity[bottomL], layers_width[bottomL])
+    )
+
+
+    #--- Deal with SWRC parameters
+    if (isTRUE(prj_todos[["aggs_req_SWRC"]])) {
+      # Check if we can actively estimate SWRCp of aggregated soil layers
+      # or if we have to interpolate
+      if (rSOILWAT2::check_ptf_availability(swrc_flags[["ptf_name"]])) {
+        texture[["SWRCp.top"]] <- rSOILWAT2::ptf_estimate(
+          sand = texture[["sand.top"]],
+          clay = texture[["clay.top"]],
+          fcoarse = texture[["gravel.top"]],
+          bdensity = texture[["bd.top"]],
+          swrc_name = swrc_flags[["swrc_name"]],
+          ptf_name = swrc_flags[["ptf_name"]]
+        )
+
+        texture[["SWRCp.bottom"]] <- rSOILWAT2::ptf_estimate(
+          sand = texture[["sand.bottom"]],
+          clay = texture[["clay.bottom"]],
+          fcoarse = texture[["gravel.bottom"]],
+          bdensity = texture[["bd.bottom"]],
+          swrc_name = swrc_flags[["swrc_name"]],
+          ptf_name = swrc_flags[["ptf_name"]]
+        )
+
+      } else {
+        texture[["SWRCp.top"]] <- apply(
+          swrcp[topL, , drop = FALSE],
+          MARGIN = 2L,
+          FUN = weighted.mean,
+          w = layers_width[topL]
+        )
+
+        texture[["SWRCp.bottom"]] <- apply(
+          swrcp[bottomL, , drop = FALSE],
+          MARGIN = 2L,
+          FUN = weighted.mean,
+          w = layers_width[bottomL]
+        )
+      }
+    }
+
 
     if (prj_todos[["adaily"]][["N"]] > 0) {
       temp <- seq_along(aggLs)
 
       textureDAgg <- list(
-        gravel = sapply(temp,
-          function(x) stats::weighted.mean(gravel[aggLs[[x]]], layers_width[aggLs[[x]]])),
-        sand = sapply(temp,
-          function(x) stats::weighted.mean(sand[aggLs[[x]]], layers_width[aggLs[[x]]])),
-        clay = sapply(temp,
-          function(x) stats::weighted.mean(clay[aggLs[[x]]], layers_width[aggLs[[x]]])))
+        gravel = sapply(
+          temp,
+          function(x) {
+            stats::weighted.mean(gravel[aggLs[[x]]], layers_width[aggLs[[x]]])
+          }
+        ),
+        sand = sapply(
+          temp,
+          function(x) {
+            stats::weighted.mean(sand[aggLs[[x]]], layers_width[aggLs[[x]]])
+          }
+        ),
+        clay = sapply(
+          temp,
+          function(x) {
+            stats::weighted.mean(clay[aggLs[[x]]], layers_width[aggLs[[x]]])
+          }
+        ),
+        SWRCp = if (isTRUE(prj_todos[["aggs_req_SWRC"]])) {
+          t(vapply(
+            temp,
+            function(x) {
+              apply(
+                swrcp[aggLs[[x]], , drop = FALSE],
+                MARGIN = 2L,
+                FUN = weighted.mean,
+                w = layers_width[aggLs[[x]]]
+              )
+            },
+            FUN.VALUE = rep(NA_real_, ncol(swrcp))
+          ))
+        }
+        )
     }
 
     #prepare SQL result container
@@ -3316,7 +3426,16 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySeasonalityIndices")
           if (!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "mo", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.mo")) swpmatric.mo <- get_SWPmatric_aggL(vwcmatric.mo, texture, sand, clay)
+          if (!exists("swpmatric.mo")) {
+            swpmatric.mo <- get_SWPmatric_aggL(
+              vwcmatric.mo,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
           if (!exists("temp.mo")) temp.mo <- get_Temp_mo(runDataSC, isim_time[[itime]])
           if (!exists("prcp.mo")) prcp.mo <- get_PPT_mo(runDataSC, isim_time[[itime]])
           if (!exists("PET.mo")) PET.mo <- get_PET_mo(runDataSC, isim_time[[itime]])
@@ -3964,7 +4083,16 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySWPextremes")
           if (!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
+          if (!exists("swpmatric.dy")) {
+            swpmatric.dy <- get_SWPmatric_aggL(
+              vwcmatric.dy,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
 
           extremes <- matrix(NA, nrow = isim_time[[itime]]$no.useyr, ncol = 2 * 4)
           temp <- tapply(swpmatric.dy$top, simTime2[[itime]]$year_ForEachUsedDay, extreme_values_and_doys)
@@ -4002,14 +4130,26 @@ do_OneSite <- function(
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyRechargeExtremes")
           if (!exists("swcbulk.dy")) swcbulk.dy <- get_Response_aggL(swof["sw_swcbulk"], tscale = "dy", scaler = 10, FUN = sum, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
 
+          warning("'dailyRechargeExtremes': is not corrected for fcoarse!")
           recharge.dy <- list()
-          recharge.dy$top <- swcbulk.dy$top / (rSOILWAT2::SWPtoVWC(-0.033, texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL]))
+
+          tmp_vwc_at_fc <- rSOILWAT2::swrc_swp_to_vwc(
+            -0.033,
+            sand = sand,
+            clay = clay,
+            swrc = list(
+              swrc_name = swrc_flags[["swrc_name"]],
+              swrcp = swrcp
+            )
+          )
+
+          recharge.dy$top <- swcbulk.dy$top / sum(10. * tmp_vwc_at_fc[topL] * layers_width[topL])
           extremes <- matrix(NA, nrow = isim_time[[itime]]$no.useyr, ncol = 2 * 4)
           temp <- tapply(recharge.dy$top, simTime2[[itime]]$year_ForEachUsedDay, extreme_values_and_doys)
           extremes[, 1:4] <- matrix(unlist(temp), ncol = 4, byrow = TRUE)
 
           if (length(bottomL) > 0 && !identical(bottomL, 0)) {
-            recharge.dy$bottom <- swcbulk.dy$bottom / (rSOILWAT2::SWPtoVWC(-0.033, texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL]))
+            recharge.dy$bottom <- swcbulk.dy$bottom / sum(10. * tmp_vwc_at_fc[bottomL] * layers_width[bottomL])
             temp <- tapply(recharge.dy$bottom, simTime2[[itime]]$year_ForEachUsedDay, extreme_values_and_doys)
             extremes[, 5:8] <- matrix(unlist(temp), ncol = 4, byrow = TRUE)
           }
@@ -4049,7 +4189,16 @@ do_OneSite <- function(
           if (!exists("soiltemp.yr.all")) soiltemp.yr.all <- get_Response_aggL(swof["sw_soiltemp"], tscale = "yrAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
           if (!exists("soiltemp.mo.all")) soiltemp.mo.all <- get_Response_aggL(swof["sw_soiltemp"], tscale = "moAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
           if (!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay)
+          if (!exists("swpmatric.dy.all")) {
+            swpmatric.dy.all <- get_SWPmatric_aggL(
+              vwcmatric.dy.all,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
           if (!exists("prcp.yr")) prcp.yr <- get_PPT_yr(runDataSC, isim_time[[itime]])
           if (!exists("prcp.mo")) prcp.mo <- get_PPT_mo(runDataSC, isim_time[[itime]])
           if (!exists("pet.mo")) pet.mo <- get_PET_mo(runDataSC, isim_time[[itime]])
@@ -4169,7 +4318,16 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyWetDegreeDays")
           if (!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
+          if (!exists("swpmatric.dy")) {
+            swpmatric.dy <- get_SWPmatric_aggL(
+              vwcmatric.dy,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time[[itime]])
 
           degday <- ifelse(temp.dy$mean > opt_agg[["Tbase_DD_C"]],
@@ -4208,7 +4366,16 @@ do_OneSite <- function(
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyThermalDrynessStartEnd")
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time[[itime]])
           if (!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
+          if (!exists("swpmatric.dy")) {
+            swpmatric.dy <- get_SWPmatric_aggL(
+              vwcmatric.dy,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
           adjDays <- simTime2[[itime]]$doy_ForEachUsedDay_NSadj[1] - simTime2[[itime]]$doy_ForEachUsedDay[1]
 
           thermal <- temp.dy$mean > 0
@@ -4264,9 +4431,27 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyThermalSWPConditionCount")
           if (!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay)
+          if (!exists("swpmatric.dy.all")) {
+            swpmatric.dy.all <- get_SWPmatric_aggL(
+              vwcmatric.dy.all,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
           if (!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
+          if (!exists("swpmatric.dy")) {
+            swpmatric.dy <- get_SWPmatric_aggL(
+              vwcmatric.dy,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time[[itime]])
 
           Tcrit_N <- length(opt_agg[["Tmean_crit_C"]])
@@ -4311,7 +4496,16 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySWPdryness")
           if (!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "mo", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.mo")) swpmatric.mo <- get_SWPmatric_aggL(vwcmatric.mo, texture, sand, clay)
+          if (!exists("swpmatric.mo")) {
+            swpmatric.mo <- get_SWPmatric_aggL(
+              vwcmatric.mo,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
 
           adjMonths <- ifelse(simTime2[[itime]]$month_ForEachUsedMonth[1] == simTime2[[itime]]$month_ForEachUsedMonth_NSadj[1], 0, 6)
 
@@ -4368,7 +4562,16 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySWPdrynessANDwetness")
           if (!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay) #swp.dy.all is required to get all layers
+          if (!exists("swpmatric.dy.all")) {
+            swpmatric.dy.all <- get_SWPmatric_aggL(
+              vwcmatric.dy.all,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
 
           adjDays <- simTime2[[itime]]$doy_ForEachUsedDay_NSadj[1] - simTime2[[itime]]$doy_ForEachUsedDay[1]
           durationDryPeriods.min <- 10 # days
@@ -4449,7 +4652,16 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySuitablePeriodsDuration")
           if (!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
+          if (!exists("swpmatric.dy")) {
+            swpmatric.dy <- get_SWPmatric_aggL(
+              vwcmatric.dy,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time[[itime]])
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time[[itime]])
 
@@ -4489,12 +4701,23 @@ do_OneSite <- function(
 
           suitable <- (SWE.dy$val == 0) & (temp.dy$mean >= opt_agg[["Tbase_DD_C"]])
 
+          warning("'dailySuitablePeriodsAvailableWater': is not corrected for fcoarse!")
+          tmp_vwc_at_fc <- rSOILWAT2::swrc_swp_to_vwc(
+            opt_agg[["SWPcrit_MPa"]],
+            sand = sand,
+            clay = clay,
+            swrc = list(
+              swrc_name = swrc_flags[["swrc_name"]],
+              swrcp = swrcp
+            )
+          )
+
           for (icrit in seq(along = opt_agg[["SWPcrit_MPa"]])) {
-            SWCcritT <- rSOILWAT2::SWPtoVWC(opt_agg[["SWPcrit_MPa"]][icrit], texture$sand.top, texture$clay.top) * 10 * sum(layers_width[topL])
+            SWCcritT <- sum(10. * tmp_vwc_at_fc[icrit, topL] * layers_width[topL])
             swa.top <- ifelse(suitable, rSW2utils::cut0Inf(swcbulk.dy$top - SWCcritT, val = 0), 0)
 
             if (length(bottomL) > 0 && !identical(bottomL, 0)) {
-              SWCcritB <- rSOILWAT2::SWPtoVWC(opt_agg[["SWPcrit_MPa"]][icrit], texture$sand.bottom, texture$clay.bottom) * 10 * sum(layers_width[bottomL])
+              SWCcritB <- sum(10. * tmp_vwc_at_fc[icrit, bottomL] * layers_width[bottomL])
               swa.bottom <- ifelse(suitable, rSW2utils::cut0Inf(swcbulk.dy$bottom - SWCcritB, val = 0), 0)
             } else {
               swa.bottom <- rep(0, length(swa.top))
@@ -4517,7 +4740,16 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySuitablePeriodsDrySpells")
           if (!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay) #swp.dy.all is required to get all layers
+          if (!exists("swpmatric.dy.all")) {
+            swpmatric.dy.all <- get_SWPmatric_aggL(
+              vwcmatric.dy.all,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time[[itime]])
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time[[itime]])
 
@@ -4588,7 +4820,16 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySWPdrynessDurationDistribution")
           if (!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
+          if (!exists("swpmatric.dy")) {
+            swpmatric.dy <- get_SWPmatric_aggL(
+              vwcmatric.dy,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
 
           deciles <- (0:10)*10/100
           quantiles <- (0:4)/4
@@ -4624,7 +4865,16 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySWPdrynessEventSizeDistribution")
           if (!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
+          if (!exists("swpmatric.dy")) {
+            swpmatric.dy <- get_SWPmatric_aggL(
+              vwcmatric.dy,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
           binSize <- c(1, 8, 15, 29, 57, 183, 367) #closed interval lengths in [days] within a year; NOTE: n_variables is set for binsN == 6
           binsN <- length(binSize) - 1
 
@@ -4678,19 +4928,30 @@ do_OneSite <- function(
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailySWPdrynessIntensity")
           if (!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
 
+          warning("'dailySWPdrynessIntensity': is not corrected for fcoarse!")
+          tmp_vwc_at_fc <- rSOILWAT2::swrc_swp_to_vwc(
+            opt_agg[["SWPcrit_MPa"]],
+            sand = sand,
+            clay = clay,
+            swrc = list(
+              swrc_name = swrc_flags[["swrc_name"]],
+              swrcp = swrcp
+            )
+          )
+
           SWCtop <- vwcmatric.dy$top * sum(layers_width[topL])*10
           if (length(bottomL) > 0 && !identical(bottomL, 0)) SWCbottom <- vwcmatric.dy$bottom * sum(layers_width[bottomL])*10
 
           for (icrit in seq(along = opt_agg[["SWPcrit_MPa"]])) {
             #amount of SWC required so that layer wouldn't be dry
-            SWCcritT <- rSOILWAT2::SWPtoVWC(opt_agg[["SWPcrit_MPa"]][icrit], texture$sand.top, texture$clay.top) * sum(layers_width[topL])*10
+            SWCcritT <- sum(10. * tmp_vwc_at_fc[icrit, topL] * layers_width[topL])
             missingSWCtop <- rSW2utils::cut0Inf(SWCcritT - SWCtop, val = 0)
             IntensitySum_top <- c(mean(temp <- sapply(isim_time[[itime]]$useyrs, FUN = function(y) sum(missingSWCtop[simTime2[[itime]]$year_ForEachUsedDay == y])), na.rm = TRUE), stats::sd(temp, na.rm = TRUE))
             IntensityMean_top <- c(mean(temp <- sapply(isim_time[[itime]]$useyrs, FUN = function(y) mean((temp <- missingSWCtop[simTime2[[itime]]$year_ForEachUsedDay == y])[temp > 0], na.rm = TRUE)), na.rm = TRUE), stats::sd(temp, na.rm = TRUE))
             IntensityDurationAndNumber_top <- c(apply(temp <- sapply(isim_time[[itime]]$useyrs, FUN = function(y) c(mean(temp <- (temp <- rle(missingSWCtop[simTime2[[itime]]$year_ForEachUsedDay == y] > 0))$lengths[temp$values]), length(temp))), 1, mean), apply(temp, 1, stats::sd))[c(1, 3, 2, 4)]
 
             if (length(bottomL) > 0 && !identical(bottomL, 0)) {
-              SWCcritB <- rSOILWAT2::SWPtoVWC(opt_agg[["SWPcrit_MPa"]][icrit], texture$sand.bottom, texture$clay.bottom) * sum(layers_width[bottomL])*10
+              SWCcritB <-sum(10. * tmp_vwc_at_fc[icrit, bottomL] * layers_width[bottomL])
               missingSWCbottom <- rSW2utils::cut0Inf(SWCcritB - SWCbottom, val = 0)
               IntensitySum_bottom <- c(mean(temp <- sapply(isim_time[[itime]]$useyrs, FUN = function(y) sum(missingSWCbottom[simTime2[[itime]]$year_ForEachUsedDay == y])), na.rm = TRUE), stats::sd(temp, na.rm = TRUE))
               IntensityMean_bottom <- c(mean(temp <- sapply(isim_time[[itime]]$useyrs, FUN = function(y) mean((temp <- missingSWCbottom[simTime2[[itime]]$year_ForEachUsedDay == y])[temp > 0], na.rm = TRUE)), na.rm = TRUE), stats::sd(temp, na.rm = TRUE))
@@ -4715,9 +4976,27 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "dailyThermalDrynessStress")
           if (!exists("vwcmatric.dy.all")) vwcmatric.dy.all <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dyAll", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy.all")) swpmatric.dy.all <- get_SWPmatric_aggL(vwcmatric.dy.all, texture, sand, clay) #swp.dy.all is required to get all layers
+          if (!exists("swpmatric.dy.all")) {
+            swpmatric.dy.all <- get_SWPmatric_aggL(
+              vwcmatric.dy.all,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
           if (!exists("vwcmatric.dy")) vwcmatric.dy <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "dy", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.dy")) swpmatric.dy <- get_SWPmatric_aggL(vwcmatric.dy, texture, sand, clay)
+          if (!exists("swpmatric.dy")) {
+            swpmatric.dy <- get_SWPmatric_aggL(
+              vwcmatric.dy,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
           if (!exists("temp.dy")) temp.dy <- get_Temp_dy(runDataSC, isim_time[[itime]])
           if (!exists("vpd.dy")) vpd.dy <- get_VPD_dy(sc, temp.dy, xin = swRunScenariosData, st2 = simTime2[[itime]])
           if (!exists("SWE.dy")) SWE.dy <- get_SWE_dy(runDataSC, isim_time[[itime]])
@@ -4976,7 +5255,16 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySWPmatric")
           if (!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "mo", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
-          if (!exists("swpmatric.mo")) swpmatric.mo <- get_SWPmatric_aggL(vwcmatric.mo, texture, sand, clay)
+          if (!exists("swpmatric.mo")) {
+            swpmatric.mo <- get_SWPmatric_aggL(
+              vwcmatric.mo,
+              swrc_name = swrc_flags[["swrc_name"]],
+              texture = texture,
+              sand = sand,
+              clay = clay,
+              SWRCp = swrcp
+            )
+          }
 
           resMeans[nv+SFSW2_glovars[["st_mo"]]-1] <- swpmatric.mo$aggMean.top
           resMeans[nv+SFSW2_glovars[["st_mo"]]-1+12] <- swpmatric.mo$aggMean.bottom
@@ -5036,12 +5324,38 @@ do_OneSite <- function(
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "monthlySWAbulk")
           if (!exists("vwcmatric.mo")) vwcmatric.mo <- get_Response_aggL(swof["sw_vwcmatric"], tscale = "mo", scaler = 1, FUN = stats::weighted.mean, weights = layers_width, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
 
-          VWCcritsT <- rSOILWAT2::SWPtoVWC(opt_agg[["SWPcrit_MPa"]], texture$sand.top, texture$clay.top)
+          warning("'monthlySWAbulk': is not corrected for fcoarse!")
+          tmp_vwc_at_fc <- rSOILWAT2::swrc_swp_to_vwc(
+            opt_agg[["SWPcrit_MPa"]],
+            sand = sand,
+            clay = clay,
+            swrc = list(
+              swrc_name = swrc_flags[["swrc_name"]],
+              swrcp = swrcp
+            )
+          )
+
+          VWCcritsT <- 10. * rowSums(
+            sweep(
+              tmp_vwc_at_fc[, topL, drop = FALSE],
+              MARGIN = 2L,
+              STATS = layers_width[topL],
+              FUN = "*"
+            )
+          )
+
           VWCcritsB <- if (length(bottomL) > 0 && !identical(bottomL, 0)) {
-              rSOILWAT2::SWPtoVWC(opt_agg[["SWPcrit_MPa"]], texture$sand.bottom, texture$clay.bottom)
-            } else {
-              rep(NA, opt_agg[["SWPcrit_N"]])
-            }
+            10. * rowSums(
+              sweep(
+                tmp_vwc_at_fc[, bottomL, drop = FALSE],
+                MARGIN = 2L,
+                STATS = layers_width[bottomL],
+                FUN = "*"
+              )
+            )
+          } else {
+            rep(NA, opt_agg[["SWPcrit_N"]])
+          }
 
           for (icrit in opt_agg[["SWPcrit_MPa"]]) {
             temp_top_mo <- 10 * sum(layers_width[topL]) * (vwcmatric.mo$top - VWCcritsT[icrit])
@@ -5574,13 +5888,31 @@ do_OneSite <- function(
                 }
               }
 
+              if (agg.resp %in% c("SWPmatric", "SWAbulk")) {
+                warning(shQuote(agg.resp), ": is not corrected for fcoarse!")
+              }
 
               #calculate mean/stats::sd daily values
               for (al in seq_len(agg.no)) {
                 ir <- (al - 1) * 366 + 1:366
-                res.dailyMean[ir] <- stats::aggregate(scaler * agg.dat[[al]], by = list(simTime2[[itime]]$doy_ForEachUsedDay), FUN = mean)[, 2]
-                if (agg.resp == "SWPmatric") { ##post-aggregate calculation of SWP: convert VWC to SWP
-                  res.dailyMean[ir] <- rSOILWAT2::VWCtoSWP(res.dailyMean[ir], textureDAgg$sand[al], textureDAgg$clay[al])
+                res.dailyMean[ir] <- stats::aggregate(
+                  scaler * agg.dat[[al]],
+                  by = list(simTime2[[itime]]$doy_ForEachUsedDay),
+                  FUN = mean
+                )[, 2]
+
+                if (agg.resp == "SWPmatric") {
+                  ##post-aggregate calculation of SWP: convert VWC to SWP
+                  res.dailyMean[ir] <-rSOILWAT2::swrc_vwc_to_swp(
+                    res.dailyMean[ir],
+                    sand = textureDAgg[["sand"]][al],
+                    clay = textureDAgg[["clay"]][al],
+                    swrc = list(
+                      swrc_name = swrc_flags[["swrc_name"]],
+                      swrcp = textureDAgg[["swrcp"]][al, , drop = FALSE]
+                    )
+                  )
+
                   res.dailySD[ir] <- 0 #was NA now 0
                 } else {
                   res.dailySD[ir] <- stats::aggregate(scaler * agg.dat[[al]], by = list(simTime2[[itime]]$doy_ForEachUsedDay), FUN = stats::sd)[, 2]
@@ -5589,7 +5921,15 @@ do_OneSite <- function(
 
               #post-aggregate calculation of SWA based on SWC for each SWPcrit
               if (agg.resp == "SWAbulk") {
-                swc.swpcrit.layers <- layers_width * 10 * rSOILWAT2::SWPtoVWC(index.SWPcrit, sand, clay)
+                swc.swpcrit.layers <- layers_width * 10 * rSOILWAT2::swrc_swp_to_vwc(
+                  index.SWPcrit,
+                  sand = sand,
+                  clay,
+                  swrc = list(
+                    swrc_name = swrc_flags[["swrc_name"]],
+                    swrcp = swrcp
+                  )
+                )
 
                 for (al in seq_len(agg.no)) {
                   ir <- (al - 1) * 366 + 1:366

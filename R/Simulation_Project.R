@@ -554,8 +554,8 @@ is_project_description_outdated <- function(meta) {
   if (!has) {
     warning(
       "Outdated project description: ",
-      "The element `fdbWeather2` of list 'fnames_in'",
-      "it was added after v4.3.0; ",
+      "The element `fdbWeather2` of list 'fnames_in' ",
+      "was added after v4.3.0; ",
       "assuming previous behavior, ",
       "i.e., setting as if only one weather database; ",
       "please update description."
@@ -1764,6 +1764,46 @@ update_todos <- function(SFSW2_prj_meta) {
   SFSW2_prj_meta[["prj_todos"]][["do_ensembles"]] <-
     SFSW2_prj_meta[["sim_scens"]][["has_ensembles"]] &&
     SFSW2_prj_meta[["prj_todos"]][["actions"]][["ensemble"]]
+
+
+  # Determine if any requested across-year aggregation requires SWRC
+  list_aggs_req_SWRC <- c(
+    "dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates",
+    "dailyNRCS_SoilMoistureTemperatureRegimes",
+    "dailyRechargeExtremes",
+    "dailySuitablePeriodsAvailableWater",
+    "dailySuitablePeriodsDrySpells",
+    "dailySuitablePeriodsDuration",
+    "dailySWPdrynessANDwetness",
+    "dailySWPdrynessDurationDistribution",
+    "dailySWPdrynessEventSizeDistribution",
+    "dailySWPdrynessIntensity",
+    "dailySWPextremes",
+    "dailyThermalDrynessStartEnd",
+    "dailyThermalDrynessStress",
+    "dailyThermalSWPConditionCount",
+    "dailyWetDegreeDays",
+    "monthlySeasonalityIndices",
+    "monthlySWAbulk",
+    "monthlySWPdryness",
+    "monthlySWPmatric"
+  )
+
+  SFSW2_prj_meta[["prj_todos"]][["aggs_req_SWRC"]] <- any(
+    vapply(
+      list_aggs_req_SWRC,
+      function(x) isTRUE(SFSW2_prj_meta[["prj_todos"]][["aon"]][[x]]),
+      FUN.VALUE = NA
+    ),
+    vapply(
+      SFSW2_prj_meta[["prj_todos"]][["adaily"]][["tag"]],
+      function(doi) {
+        grepl("SWAbulk|SWPmatric", doi, fixed = TRUE)
+      },
+      FUN.VALUE = NA
+    )
+  )
+
 
   SFSW2_prj_meta
 }
