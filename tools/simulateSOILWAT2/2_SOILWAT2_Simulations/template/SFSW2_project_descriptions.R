@@ -1,0 +1,823 @@
+#------------------------------------------------------------------------------#
+# rSFSW2: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS,
+#         EXECUTING SIMULATIONS, AND AGGREGATING OUTPUTS
+#
+# See demo/SFSW2_project_code.R for details
+#------------------------------------------------------------------------------#
+
+
+################################################################################
+#----------------------- DESCRIPTION OF SIMULATION PROJECT ---------------------
+
+# NOTE: The values cannot be changed once a rSFSW2 simulation project is set up.
+#  The values of settings (file demo/SFSW2_project_settings.R) may be changed
+#  from run to run.
+
+#----- Metainformation about computing platform
+opt_platform <- list(
+  host = c("local", "hpc")[1],
+  no_parallel = any(
+    identical(tolower(Sys.getenv("NOT_CRAN")), "false"),
+    identical(tolower(Sys.getenv("TRAVIS")), "true"),
+    identical(tolower(Sys.getenv("APPVEYOR")), "true"))
+)
+
+
+#------ Paths to simulation framework project folders
+project_paths <- list(
+  # path to simulation project
+  dir_prj = dir_prj <- getwd(),
+
+  # Path to inputs
+  dir_in = dir_in <- file.path(dir_prj, "1_Input"),
+  # Folder with data input files
+  dir_in_dat = file.path(dir_in, "datafiles"),
+  # Folder with treatment input files according to treatment instructions
+  dir_in_treat = file.path(dir_in, "treatments"),
+  # Folder with GISSM regeneration parameters (one file per species)
+  dir_in_gissm = file.path(dir_in, "regeneration"),
+
+  # Path to where large outputs are saved to disk
+  dir_big = dir_big <- if (identical(opt_platform[["host"]], "local")) {
+    dir_prj
+  } else if (identical(opt_platform[["host"]], "hpc")) {
+    dir_prj
+  },
+  # Path to where rSOILWAT2 objects are saved to disk
+  #   if saveRsoilwatInput and/or saveRsoilwatOutput
+  dir_out_sw = file.path(dir_big, "3_Runs"),
+  # Path to outputs produced by rSFSW2
+  dir_out = dir_out <- file.path(dir_big, "4_Simulation"),
+  # Path to where rSFSW2 will store temporary files
+  dir_out_temp = file.path(dir_out, "temp"),
+  # Path to various other output
+  dir_out_expDesign = file.path(dir_out, "Experimentals_Input_Data"),
+  dir_out_traces = file.path(dir_out, "Time_Traces"),
+  dir_log = file.path(dir_prj, "logs"),
+
+  # Path from where external data are extraced
+  dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
+    file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
+  } else if (identical(opt_platform[["host"]], "hpc")) {
+    file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
+  },
+  # Path to historic weather and climate data including
+  #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
+  dir_ex_weather = dir_ex_weather <- file.path(dir_ex, "Weather_Past"),
+  # Path to future scenario data
+  dir_ex_fut = file.path(dir_ex, "Weather_Future"),
+  # Path to soil data
+  dir_ex_soil = file.path(dir_ex, "Soils"),
+  # Path to topographic data
+  dir_ex_dem = file.path(dir_ex, "Topography"),
+
+  #--- Paths to historic weather data (defaults used if not specified)
+  # see `set_paths_to_dailyweather_datasources()`
+  dir_maurer2002 = NA,
+  dir_daymet = NA,
+  dir_NRCan = NA,
+  dir_Livneh2013 = NA,
+  dir_gridMET = NA,
+  dir_NCEPCFSR = NA,
+
+  #--- Paths to mean monthly climate data (defaults used if not specified)
+  # see `get_path_to_meanmonthlyclimate_datasources()`
+  dir_ClimateAtlasUS = NA,
+
+  #--- Paths to projected climate data (defaults used if not specified)
+  # see `get_path_to_projectedclimate_datasources()`
+  dir_CMIP5_BCSD_GDODCPUCLLNL_USA = NA,
+  dir_BCSD_GDODCPUCLLNL_Global = NA,
+  dir_CMIP5_MACAv2metdata_USA = NA,
+  dir_ESGF_Global = NA,
+  dir_BCSD_SageSeer_USA = NA,
+  dir_BCSD_NEX_USA = NA,
+  dir_ClimateWizardEnsembles_USA = NA,
+  dir_ClimateWizardEnsembles_Global = NA,
+
+  #--- Paths to soils data (defaults used if not specified)
+  # see `get_path_to_soil_datasources()`
+  dir_CONUSSOILFromSTATSGO_USA = NA,
+  dir_ISRICWISEv12 = NA,
+  dir_ISRICWISE30secV1a = NA,
+
+  #--- Paths to elevation data (defaults used if not specified)
+  # see `get_path_to_elevation_datasources()`
+  dir_NED_USA = NA,
+  dir_HWSD_Global = NA
+)
+
+
+#------ Base names or full names of input files
+fnames_in <- list(
+  fmain = "biocrustSERF173_InputMain_obs_obs_SOLUS100_vrun1-20250122.csv",
+
+  fslayers = "biocrustSERF173_InputData_SoilLayers_v9_obs_SOLUS100_vrun1-20250122.csv",
+  ftreatDesign = "SWRuns_InputData_TreatmentDesign_v18.csv",
+  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v13.csv",
+
+  fclimnorm = "SWRuns_InputData_cloud_v10.csv",
+  fvegetation = "biocrustSERF173_InputData_Vegetation_v11_vrun1-20250122.csv",
+  fsite = "SWRuns_InputData_siteparam_v17.csv",
+  fsoils = "biocrustSERF173_InputData_Soils_v13_obs_SOLUS100_vrun1-20250122.csv",
+  fswrcp = "SWRuns_InputData_SWRCp_v1.csv",
+  fweathersetup = "SWRuns_InputData_weathersetup_v10.csv",
+  fclimscen_delta = "SWRuns_InputData_ClimateScenarios_Change_v11.csv",
+  fclimscen_values = "SWRuns_InputData_ClimateScenarios_Values_v11.csv",
+
+  LookupClimatePPT = "climate_ppt.csv",
+  LookupClimateTemp = "climate_temp.csv",
+  LookupShiftedPPT = "shifted_ppt.csv",
+  LookupEvapCoefs = "EvaporationCoefs_v2.csv",
+  LookupTranspCoefs = "TranspirationCoefs_v2.csv",
+  LookupTranspRegions = "TranspirationRegions.csv",
+  LookupSnowDensity = "SnowDensities_v2.csv",
+  LookupVegBiomass = "Vegetation_MeanMonthly_v5.csv",
+  LookupCO2data = "AtmosCO2.csv",
+
+  # Pre-processed input: storage file of input data for (faster) access
+  #   if flag 'use_preprocin' is TRUE; otherwise, code will be re-reading
+  #   from (slower) csv files
+  fpreprocin = "SWRuns_InputAll_PreProcessed.rds",
+
+  # Database with daily ambient weather data
+  fdbWeather = file.path(
+    project_paths[["dir_prj"]],
+    "..",
+    "0_WeatherDatabase",
+    "dbWeatherData_biocrustSERF173_DayMet_v20250122.sqlite3"
+  ),
+
+  # Database with projected daily weather data
+  # (set to `fdbWeather` or NA if data are combined in `fdbWeather`)
+  fdbWeather2 = NA,
+
+  # Raster describing spatial interpretation of simulation experiment
+  # if scorp == "cell"
+  fsimraster = file.path(project_paths[["dir_in"]], "sim_raster.grd")
+)
+
+
+#------ Full names of output files
+fnames_out <- list(
+  dbOutput = file.path(project_paths[["dir_out"]], "dbOutput.sqlite3"),
+  dbOutput_current = file.path(
+    project_paths[["dir_out"]], "dbOutput_current.sqlite3"
+  ),
+  scenarioList = file.path(
+    project_paths[["dir_out"]], "Table_ScenarioDescription.csv"
+  ),
+  timerfile = file.path(project_paths[["dir_out"]], "Timing_Simulation.csv")
+)
+
+
+
+#------ Input data sources and options for data preparation
+opt_input <- list(
+  prior_calculations = c(
+    "AddRequestedSoilLayers", 0,
+    "EstimateConstantSoilTemperatureAtUpperAndLowerBoundaryAsMeanAnnualAirTemperature", 1, # nolint
+    "EstimateInitialSoilTemperatureForEachSoilLayer", 1,
+    "CalculateBareSoilEvaporationCoefficientsFromSoilTexture", 1
+  ),
+
+  # Update soil profile and data if 'AddRequestedSoilLayers'
+  requested_soil_layers = c(5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150, 201),
+  # Determine soil depth
+  #   - [TRUE] keep input/previous soil depth, i.e., don't add
+  #     `requested_soil_layers` that are deeper
+  #   - [FALSE] include all of `requested_soil_layers`, potentially
+  #     extending soil depth to `max(requested_soil_layers)`
+  keep_prev_soildepth = TRUE,
+  # Determine final set of soil layers
+  #   - [TRUE] combine input/previous soil layers with `requested_soil_layers`
+  #   - [FALSE] keep `requested_soil_layers` and dissolve others
+  keep_prev_soillayers = FALSE,
+
+  # Request data from datasets ('external' to a rSFSW2-project)
+  req_data = c(
+      # Daily weather data for current conditions
+      #   - Maurer et al. 2002: 1/8-degree res. for 1949-2010; data expected at
+      #     project_paths[["dir_maurer2002"]]
+      "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,
+      #   - Thornton et al. 1997: 1-km res. for 1980-current; data expected at
+      #     project_paths[["dir_daymet"]]
+      "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,
+      #   - McKenney et al. 2011: 10-km res. for 1950-2013; use with dbW;
+      #     data expected at project_paths[["dir_NRCan"]]
+      "GriddedDailyWeatherFromNRCan_10km_Canada", 0,
+      #   - Saha et al. 2010: 0.3125-deg res. for 1979-2010; use with dbW;
+      #     data expected at project_paths[["dir_NCEPCFSR"]]
+      "GriddedDailyWeatherFromNCEPCFSR_Global", 0,
+      #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at
+      #     project_paths[["dir_Livneh2013"]]
+      "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
+      #   - Abatzoglou et al. 2013: 1/24 degree res. for 1979-yesterday;
+      #     data expected at project_paths[["dir_gridMET"]],
+      #     obtain data with function `gridMET_download_and_check`
+      "GriddedDailyWeatherFromgridMET_NorthAmerica", 0,
+
+      # Monthly PPT, Tmin, Tmax conditions: if using NEX or GDO-DCP-UC-LLNL,
+      #   climate condition names must be of the form SCENARIO.GCM with
+      #   SCENARIO being used for ensembles; if using climatewizard, climate
+      #   condition names must be equal to what is in the respective directories
+      #   - data expected at file.path(project_paths[["dir_ex_fut"]],
+      #   "ClimateScenarios")
+      "ExtractClimateChangeScenarios", 0,
+
+      # Mean monthly wind, relative humidity, and 100% - sunshine
+      #   - NCDC 2005: data expected at project_paths[["dir_ClimateAtlasUS"]]
+      "ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
+      #   - Saha et al. 2010: project_paths[["dir_NCEPCFSR"]]
+      "ExtractSkyDataFromNCEPCFSR_Global", 0,
+
+      # Topography
+      #   - NED, National Elevation Dataset (ned.usgs.gov): 1-arcsec res;
+      #     data expected at project_paths[["dir_NED_USA"]]
+      "ExtractElevation_NED_USA", 0,
+      #   - Harmonized World Soil Database: 30-arcsec res; data expected
+      #     at project_paths[["dir_HWSD_Global"]]
+      "ExtractElevation_HWSD_Global", 0,
+
+      # Soil texture
+      #   - Harmonized World Soil Database: 1-km re-gridded; data expected
+      #     at project_paths[["dir_CONUSSOILFromSTATSGO_USA"]]
+      "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
+      #   - ISRIC-WISE 5-arcmin v1.2 (2012): 5-arcmin re-gridded; data expected
+      #     at project_paths[["dir_ISRICWISEv12"]]
+      "ExtractSoilDataFromISRICWISEv12_Global", 0,
+      #   - ISRIC-WISE 30-arsec v1.0 (2016): 30-arcsec re-gridded; data expected
+      #     at project_paths[["dir_ISRICWISE30secV1a"]]
+      "ExtractSoilDataFromISRICWISE30secV1a_Global", 0
+  ),
+
+  # Approach to determine prioprities of external data source extractions
+  # - If how_determine_sources == "order", then
+  #   - Elevation: 'ExtractElevation_NED_USA' has priority over
+  #     'ExtractElevation_HWSD_Global' on a per site basis if both are requested
+  #     and data is available for both
+  #   - Soil texture: 'ExtractSoilDataFromCONUSSOILFromSTATSGO_USA' has first
+  #     priority, then 'ExtractSoilDataFromISRICWISE30secV1a_Global' has
+  #     second priority, and 'ExtractSoilDataFromISRICWISEv12_Global' has third
+  #     priority on a per site basis if more than one are requested and data
+  #     are available for multiple sources
+  #   - Climate normals: 'ExtractSkyDataFromNOAAClimateAtlas_USA' has priority
+  #     over 'ExtractSkyDataFromNCEPCFSR_Global' on a per site basis if both
+  #     are requested and data is available for both
+  # - If how_determine_sources == "SWRunInformation", then use information in
+  #   suitable columns of spreadsheet 'SWRunInformation' if available; if not
+  #   available, then fall back to option 'order'
+  how_determine_sources = "SWRunInformation",
+
+  # If a run has multiple sources for daily weather, then take the one in the
+  #   first position of 'dw_source_priority' if available, if not then second
+  #   etc.
+  # Do not change/remove/add entries; only re-order to set different priorities
+  dw_source_priority = c("DayMet_NorthAmerica", "LookupWeatherFolder",
+    "Maurer2002_NorthAmerica", "Livneh2013_NorthAmerica",
+    "gridMET_NorthAmerica", "NRCan_10km_Canada", "NCEPCFSR_Global"
+  ),
+
+  # Creation of dbWeather
+  # Compression type of dbWeather; one value of eval(formals(memCompress)[[2]])
+  set_dbW_compresstype = "gzip"
+)
+
+
+
+#------ Options for simulation and meta-information of input data
+opt_sim <- list(
+  # Set the random number generator for each task so that repeating runs with
+  # the same inputs results in the same outputs even under load-balanced
+  # parallel computations and under re-starts of partially finished runs
+  reproducible = TRUE,
+  global_seed = 1235L,
+
+  # Daily weather either from database 'dbWeather' or specified via
+  #   'WeatherFolder' in InputMain.csv, treatmentDesign.csv, or
+  #   experimentalDesign.csv
+  # Use daily weather from dbWeather for current condition
+  use_dbW_current = TRUE,
+  # Use daily weather from dbWeather for future scenario conditions
+  use_dbW_future = TRUE,
+  # Number of decimal places to which weather data is rounded
+  dbW_digits = 4,
+  # Identifying tag of folder names for weather data if 'LookupWeatherFolder'
+  tag_WeatherFolder = "weath",
+
+  # Correction of problematic weather values (rSOILWAT2 >= v6.4.0)
+  correctWeatherValues = TRUE,
+
+  # Approach if there is no soil texture information for the deepest layer(s)
+  #   - [TRUE] adjust soil depth
+  #   - [FALSE] fill soil layer structure from shallower layer(s)
+  fix_depth_to_layers = FALSE,
+
+  # SOILWAT2 requires windspeed data observed at a height of 2 m above ground
+  #   - NCEP/CRSF data are at 10 m
+  windspeed_obs_height_m = 2,
+
+  # SOILWAT2 simulations are repeated with incrementally increased soil
+  #   temperature profile layer width until a stable soil temperature solution
+  #   is found or total failure is determined
+  increment_soiltemperature_deltaX_cm = 5,
+
+  # Maximal soil depth for which bare-soil evaporation coefficients are
+  #   calculated if 'CalculateBareSoilEvaporationCoefficientsFromSoilTexture'
+  #   is TRUE
+  depth_max_bs_evap_cm = 15,
+
+  # Shift monthly vegetation/production values in prod.in file by six months
+  #   if TRUE and latitude < 0 (i.e., southern hemisphere)
+  adjust_veg_input_NS = TRUE,
+
+  # Potential natural vegetation based on climate data (Jose Paruelo et al.
+  #  1996, 1998)
+  #  - default value: shrub_limit = 0.2 on page 1213 in Paruelo JM,
+  #     Lauenroth WK (1996) Relative abundance of plant functional types in
+  #     grasslands and shrublands of North America. Ecological Applications,
+  #     6, 1212-1224.
+  shrub_limit = 0.2,
+  # Growing season threshold
+  #   - 10 C based on Trewartha's D temperateness definition:
+  #     temperate climate := has >=4 & < 8 months with > 10C
+  #   - 4 C based standard input of mean monthly biomass values described in
+  #   Bradford et al. 2014 Journal of Ecology
+  growseason_Tlimit_C = 4,
+  # Mean monthly reference temperature describing default phenology values
+  #   - below values calculated by KP as median across 898 big sagebrush sites
+  #     (see https://github.com/DrylandEcology/rSFSTEP2/issues/195)
+  reference_temperature_default_phenology = c(
+    -4.6768, -2.7282, 1.8257, 6.0538, 10.696, 15.3878,
+    19.7777, 18.8755, 13.7868, 7.2843, 0.4167, -4.6912
+  )
+)
+
+
+#------ Output options
+opt_out_fix <- list(
+  # Control granularity of tracking the output generation
+  #  - use_granular_control = FALSE (default); dbWork tracks completion of each
+  #    runID, i.e., an entire call to `do_OneSite`
+  #  - use_granular_control = TRUE; dbWork adds a second table `need_outputs`
+  #    that tracks the completion of each Pid (= runID x scenario) x output
+  #    table combination
+  use_granular_control = FALSE,
+
+  # Column numbers of main input file 'SWRunInformation', e.g, c(3, 7:9), or
+  #   NULL: Selected columns will be part of 'header' table in dbOutput in
+  #   addition to those of create_treatments, experimental_treatments, and
+  #   climate scenario
+  Index_RunInformation = NULL,
+
+  # Text separator if 'makeInputForExperimentalDesign'
+  ExpInput_Seperator = "X!X",
+
+  # Current subset of dbOutput
+  #   - Create from a subset of temporary text files (fast)
+  dbOutCurrent_from_tempTXT = FALSE,
+  #   - Subset scenarios to climate.ambient (slow)
+  dbOutCurrent_from_dbOut = FALSE,
+
+  # Output variables produced by rSOILWAT2
+  #   - Create minimal (TRUE) or full (FALSE) set of output variables
+  #     The minimal set is sufficient for some cases and is c. 70% smaller
+  minimal_rSOILWAT2_output = TRUE
+)
+
+
+
+#----- Spatial setup of simulations
+# scorp := one of c("point", "cell"), whether to interpret the simulation
+#   locations provided in 'SWRunInformation' as point locations (1D-sites) or
+#   as means of 2D-cells
+# If `scorp`` is "cell" then provide either valid path to 'fsimraster'
+#   (takes precedence) or (grid resolution and grid crs/epsg)
+# Currently, implemented for
+#   - create maps during input checks
+#   - external extractions:
+#   - soils: "ExtractSoilDataFromISRICWISEv12_Global",
+#       "ExtractSoilDataFromISRICWISE30secV1a_Global",
+#       "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA",
+#   - elevation: "ExtractElevation_NED_USA", "ExtractElevation_HWSD_Global",
+#   - climate normals: "ExtractSkyDataFromNOAAClimateAtlas_USA"
+#     NOTE: not implemented for 'ExtractSkyDataFromNCEPCFSR_Global'
+in_space <- list(
+  scorp = scorp <- "point",
+
+  # Resolution of raster cells in units of raster
+  sim_res = if (scorp == "cell") c(1e4, 1e4) else NA,
+
+  # Coordinate reference system (CRS), e.g., as EPSG
+  # e.g., WGS84 is 4326; Web Pseudo-Mercator is 3857;
+  # NAD27(USA) was 2163, now 9311; NAD83(USA) is 4269,
+  # NAD83(HARN) is 5072; NAD83(2011, USA) is 6318
+  sim_crs = if (scorp == "cell") 5072 else 4326
+)
+
+
+#------ Time frames of simulation (may be modified by treatments)
+sim_time <- list(
+  # current simulation years is calculated as \code{simstartyr:endyr}
+  # spinup_N is calculated as \code{startyr - simstartyr}
+  # years used for results is determined as \code{startyr:endyr}
+  simstartyr = 1980,
+  startyr = startyr <- 1980,
+  endyr = endyr <- 2023,
+
+  #--- Future time period(s):
+  # Each list element of 'future_yrs' is a vector with three elements
+  #   \code{c(delta, DSfut_startyr, DSfut_endyr)}
+  #
+  # Daily scenario data "idem" (pass through):
+  #   - Each list element ("row") of 'future_yrs' must match to one
+  #     of the scenario experiments of 'req_scens[["models"]]`
+  #     (e.g., "historical", "RCP45", "RCP85"):
+  #     matching is by name if names available
+  #     (multiple rows per scenario possible),
+  #     otherwise by position (limited to one row per scenario)
+  #
+  #   - Value of 'delta' is ignored
+  #
+  # Monthly scenario data:
+  #   - Each list element ("row") of 'future_yrs' will be applied to every
+  #     climate.conditions
+  #   - future simulation years = delta + simstartyr:endyr
+  #   - future simulation years downscaled based on
+  #     - current conditions = DScur_startyr:DScur_endyr
+  #     - future conditions = DSfut_startyr:DSfut_endyr
+  #
+  # NOTE: Multiple time periods doesn't work with external type
+  #   'ClimateWizardEnsembles'
+  DScur_startyr = startyr,
+  DScur_endyr = endyr,
+
+  future_yrs = list(
+    historical = c(NA, 1950, 2005), # historical runs of GCMs
+    RCP45 = c(NA, 2025, 2055),
+    RCP45 = c(NA, 2069, 2099),
+    RCP85 = c(NA, 2025, 2055),
+    RCP85 = c(NA, 2069, 2099)
+  )
+)
+
+
+#------ Requested climate conditions
+req_scens <- list(
+  # Era of MIP: "CMIP3", "CMIP5", "CMIP6"
+  mip_era = "CMIP6",
+
+  # Name of climatic conditions of the daily weather input when monthly climate
+  #   perturbations are all off
+  ambient = "Current",
+
+  # Name of atmospheric CO2-concentration dataset(s) to be used for "ambient"
+  # conditions.
+  # The string(s) must each match a column name of `rSOILWAT2::sw2_tr_CO2a`.
+  # Yearly values from the first matched column are used until that
+  # column has no more values, then the second matched column is used, etc.
+  # (see ranges of years in documentation of `rSOILWAT2::sw2_tr_CO2a`).
+  # An error is produced if no value can be found.
+  tag_aCO2_ambient = c("CMIP6_historical", "CMIP6_SSP585"),
+
+  # Names of climate scenarios
+  #   - If a simulation project does not include future climate conditions,
+  #     then set models = NULL
+  #   - If climate datafiles used, then in the order of data in the those
+  #     datafiles
+  # Excluded models: NorESM1-M and CCSM4 (no relative humidity but specific humidity)
+  models = NULL,
+
+  sources = c(
+    # For each climate data set from which to extract, add an element like
+    #   'dataset1'
+    # Priority of extraction: dataset1, dataset2, ... if multiple sources
+    #   provide data for a location
+    # Dataset = 'project_source' with
+    #   - project = one string out of c("CMIP3", "CMIP5")
+    #   - source = one string out of:
+    #     - "ClimateWizardEnsembles_Global": mean monthly values at 50-km
+    #       resolution for 2070-2099
+    #     - "ClimateWizardEnsembles_USA": mean monthly change at 12-km
+    #       resolution between 2070-2099 and 1971-2000
+    #     - "BCSD_GDODCPUCLLNL_USA": monthly time series at 1/8-degree
+    #       resolution
+    #     - "BCSD_GDODCPUCLLNL_Global": monthly time series at 1/2-degree
+    #       resolution
+    #     - "BCSD_NEX_USA": monthly time series at 30-arcsec resolution;
+    #       requires live internet access
+    #     - "BCSD_SageSeer_USA": monthly time-series at 1-km resolution for the
+    #       western US prepared by Katie Renwick
+    #     - "CMIP5_MACAv2metdata_USA": daily time series at 1/24-degree
+    #       resolution for the US (requires `method_DS = "idem"`)
+    #     - "ESGF_Global": monthly time-series at varying resolution
+    # Path to dataset: default or specify in `project_paths` as element
+    # named as "dir_<dataset>"
+      dataset1 = "CMIP5_MACAv2metdata_USA"
+  ),
+
+  # Downscaling method (applied to each each climate.conditions)
+  #   Daily scenario data
+  #   - "idem" (pass through)
+  #   Monthly scenario -> daily forcing variables
+  #   One or multiple elements of
+  #   - "raw"
+  #   - "delta" (Hay et al. 2002)
+  #   - "hybrid-delta" (Hamlet et al. 2010), "hybrid-delta-3mod"
+  #   - "wgen-package" (Steinschneider & Brown 2013 WRR, doi:10.1002/wrcr.20528
+  method_DS = "idem",
+
+  # Downscaling parameters
+  opt_DS = list(
+    daily_ppt_limit = 1.5,
+    monthly_limit = 1.5,
+
+    # Method to apply precipitation changes: either "detailed" or "simple"
+    ppt_type = "detailed",
+
+    # Method to fix spline predictions: one of "fail", "none" or "attempt";
+    #   only used if extrapol_type is using splines
+    #  - "fail": downscaling fails if spline extrapolations fall outside
+    #     estimated monthly extremes
+    #  - "none": no correction for extrapolated monthly extreme values, but
+    #     this will likely fail during correction of extreme daily PPT events
+    #  - "attempt": repeated attempts with jittering data to fit spline
+    #     extrapolations within estimated monthly extreme values
+    fix_spline = "attempt",
+
+    # Method to extrapolate beyond observed data
+    #   Options: one of "linear_Boe", "linear_Thermessl2012CC.QMv1b",
+    #     "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural",
+    #     "normal_anomalies"
+    #  - "linear": Gudmundsson et al. 2012: "If new model values (e.g. from
+    #     climate projections) are larger than the training values used to
+    #     estimate the empirical CDF, the correction found for the highest
+    #     quantile of the training period is used (Boe et al., 2007;
+    #     Themessl et al., 2012)."
+    #  - "tricub": I got really large output values, e.g., obs.hist = 54 cm,
+    #     scen.fut = 64 cm, sbc.fut = 88 cm, hd.fut = 89 cm
+    #  - "linear" (i.e., using Boe et al.'s correction) resulted for the
+    #     same site to: obs.hist = 54 cm, scen.fut = 64 cm, sbc.fut = 75 cm,
+    #     hd.fut = 75 cm
+    #  - "normal", but no implemented in qmap: Tohver et al. 2014, Appendix A,
+    #     p. 6: "... values that are outside the observed quantile map (e.g. in
+    #     the early parts of the 20th century) are interpolated using standard
+    #     anomalies (i.e. number of standard deviations from the mean)
+    #     calculated for observed data and GCM data. Although this approach
+    #     ostensibly assumes a normal distribution, it was found during testing
+    #     to be much more stable than attempts to use more sophisticated
+    #     approaches. In particular, the use of Extreme Value Type I or
+    #     Generalized Extreme Value distributions for extending the tail of the
+    #     probability distributions were both found to be highly unstable in
+    #     practice and introduced unacceptable daily extremes in isolated grid
+    #     cells. These errors occur because of irregularities in the shapes
+    #     of the CDFs for observed and GCM data, which relates in part to the
+    #     relatively small sample size used to construct the monthly CDFs
+    #     (i.e. n = 30)."
+    extrapol_type = "linear_Thermessl2012CC.QMv1b",
+
+    # Test whether data distributions are within sigmaN * stats::sd of mean
+    sigmaN = 6,
+
+    # Additive instead of multiplicative adjustments for precipitation if
+    #   precipitation is above or below 'PPTratioCutoff'; 3 was too small
+    #   -> resulting in too many medium-sized ppt-event
+    PPTratioCutoff = 10
+  ),
+
+  # Climate ensembles created across scenarios
+  # Ensemble families: NULL or from c("SRESA2", "SRESA1B", "SRESB1")
+  # This defines the groups for which ensembles of climate scenarios are
+  #   calculated; corresponds to first part of scenario name
+  ensemble.families = NULL,
+  # If(!is.null(ensemble.families)) then this needs to have at least one value;
+  #   this variable defines which ranked climate.conditions the ensembles are
+  #   representing for each ensemble.families
+  ensemble.levels = c(2, 8, 15),
+  # If TRUE then for each ensemble.levels a file is saved with the scenario
+  #   numbers corresponding to the ensemble.levels
+  save.scenario.ranks = TRUE
+)
+
+
+#------ Requested output
+# Turn aggregation for variable groups on (1) or off (0), don't delete any names
+req_out <- list(
+  # Overall aggregated output table
+  #   - Note: `dbOutput` is created even if no aggregated output is requested
+  #     (because it is used internally by the code to organize simulations)
+  overall_out = c(
+  #---Aggregation: SOILWAT2 inputs
+    "input_SoilProfile", 0,
+    "input_FractionVegetationComposition", 0,
+    "input_VegetationBiomassMonthly", 0,
+    "input_VegetationBiomassTrends", 0,
+    "input_VegetationPeak", 0,
+    "input_Phenology", 0,
+    "input_TranspirationCoeff", 0,
+    "input_ClimatePerturbations", 0,
+    "input_CO2Effects", 0,
+  #---Aggregation: Climate and weather
+    "yearlyTemp", 0,
+    "yearlyPPT", 0,
+    "dailySnowpack", 0,
+    "dailyFrostInSnowfreePeriod", 0,
+    "dailyHotDays", 0,
+    "dailyWarmDays", 0,
+    "dailyColdDays", 0,
+    "dailyCoolDays", 0,
+    "dailyPrecipitationEventSizeDistribution", 0,
+    "yearlyPET", 0,
+    "monthlySeasonalityIndices", 0,
+  #---Aggregation: Climatic dryness
+    "yearlymonthlyTemperateDrylandIndices", 0,
+    "yearlyDryWetPeriods", 0,
+    "dailyWeatherGeneratorCharacteristics", 0,
+    "dailyPrecipitationFreeEventDistribution", 0,
+    "monthlySPEIEvents", 0,
+  #---Aggregation: Climatic control
+    "monthlyPlantGrowthControls", 0,
+    "dailyC4_TempVar", 0,
+    "dailyDegreeDays", 0,
+    "dailyColdDegreeDays", 0,
+  #---Aggregation: Yearly water balance
+    "yearlyAET", 0,
+    "yearlyWaterBalanceFluxes", 0,
+    "yearlyTranspirationBySoilLayer", 0,
+    "dailySoilWaterPulseVsStorage", 0,
+  #---Aggregation: Daily extreme values
+    "dailyTranspirationExtremes", 0,
+    "dailyTotalEvaporationExtremes", 0,
+    "dailyDrainageExtremes", 0,
+    "dailyInfiltrationExtremes", 0,
+    "dailyAETExtremes", 0,
+    "dailySWPextremes", 0,
+    "dailyRechargeExtremes", 0,
+  #---Aggregation: Ecological dryness
+    # Note: 'dailyNRCS_SoilMoistureTemperatureRegimes*' require at least soil
+    #   layers at 10, 20, 30, 50, 60, 90 cm
+    "dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates", 0,
+    "dailyNRCS_SoilMoistureTemperatureRegimes", 0,
+    "dailyNRCS_Chambers2014_ResilienceResistance", 0,
+    "dailyNRCS_Maestas2016_ResilienceResistance", 0,
+    "dailyWetDegreeDays", 0,
+    "dailyThermalDrynessStartEnd", 0,
+    "dailyThermalSWPConditionCount", 0,
+    "monthlySWPdryness", 0,
+    "dailySWPdrynessANDwetness", 0,
+    "dailySuitablePeriodsDuration", 0,
+    "dailySuitablePeriodsAvailableWater", 0,
+    "dailySuitablePeriodsDrySpells", 0,
+    "dailySWPdrynessDurationDistribution", 0,
+    "dailySWPdrynessEventSizeDistribution", 0,
+    "dailySWPdrynessIntensity", 0,
+    "dailyThermalDrynessStress", 0,
+    "periodicVWCmatricFirstLayer", 0,
+  #---Aggregation: Mean monthly values
+    "monthlyTemp", 0,
+    "monthlyPPT", 0,
+    "monthlySnowpack", 0,
+    "monthlySoilTemp", 0,
+    "monthlyRunoff", 0,
+    "monthlyRunon", 0,
+    "monthlyHydraulicRedistribution", 0,
+    "monthlyInfiltration", 0,
+    "monthlyDeepDrainage", 0,
+    "monthlySWPmatric", 0,
+    "monthlyVWCbulk", 0,
+    "monthlyVWCmatric", 0,
+    "monthlySWCbulk", 0,
+    "monthlySWAbulk", 0,
+    "monthlyTranspiration", 0,
+    "monthlySoilEvaporation", 0,
+    "monthlyAET", 0,
+    "monthlyPET", 0,
+    "monthlyVPD", 0,
+    "monthlyAETratios", 0,
+    "monthlyPETratios", 0,
+  #---Aggregation: Potential regeneration
+    "dailyRegeneration_bySWPSnow", 0,
+    "dailyRegeneration_GISSM", 0
+  ),
+
+  # Select variables to aggregate daily means and stats::sd
+  #  (one per day of year, DOY) options: NULL or a selection of
+  #   c("AET", "Transpiration", "EvaporationSoil",
+  #   "EvaporationSurface", "EvaporationTotal", "VWCbulk", "VWCmatric",
+  #   "SWCbulk", "SWPmatric", "Snowpack", "SWAbulk", "Rain", "Snowfall",
+  #   "Snowmelt", "SnowLoss", "Runoff", "Runon", "Infiltration", "DeepDrainage",
+  #   "PET", "TotalPrecipitation", "TemperatureMin", "TemperatureMax",
+  #   "SoilTemperature")
+  mean_daily = NULL,
+  # Select variables to output as aggregated yearly time series
+  #  options: NULL or a selection of c("dailyRegeneration_GISSM")
+  traces = NULL
+)
+
+#------ Parameters for output aggregations
+opt_agg <- list(
+  # Aggregate overall simulation output across soil layers with separate values
+  #   for shallow/top (soil layers < aon_toplayer_cm) and deep/bottom soil
+  #   layers
+  aon_toplayer_cm = 20,
+
+  # Aggregate mean daily simulation output across soil layers
+  doy_slyrs = list(
+    # Do [no] aggregate soil layers
+    #   - TRUE, aggregate into 1-4 layers for mean/stats::sd
+    #   - FALSE, output values for every simulated soil layer
+    do = FALSE,
+    # Depth of aggregated soil layers
+    #   Options: depth in centimeters or
+    #   - NULL is interpreted as deepest soil layer (not available for first)
+    #   - NA indicates that no third/fourth aggregated layer is calculated
+    #       (not available for first and second)
+    # Depth of first aggregated soil layer
+    first_cm = 10,
+    # Depth of second aggregated soil layer
+    second_cm = 20,
+    # Depth of third aggregated soil layer
+    third_cm = 60,
+    # Depth of fourth aggregated soil layer
+    fourth_cm = NULL
+  ),
+
+  # The ccounting of timing variables is shifted by 6 months (e.g., July becomes
+  #   1st month, etc.) if TRUE and latitude < 0 (i.e., southern hemisphere)
+  adjust_NorthSouth = TRUE,
+
+  # Critical soil water potential(s) [MPa] to calculate 'dry' and 'wet' soils
+  #   (cf. wilting point) and available soil water
+  SWPcrit_MPa = c(-1.5, -3.0, -3.5, -3.9),
+
+  # Critical temperatures [Celsius degrees]
+  Tmin_crit_C = c(-15, -9, 0),
+  Tmax_crit_C = c(34, 40),
+  Tmean_crit_C = c(5, 15, 25, 35),
+
+  # Base temperature (degree C) above which degree-days are accumulated
+  Tbase_DD_C = 0,
+
+  # Base temperature (degree C) below which cold-degree-days are accumulated
+  Tbase_coldDD_C = 0,
+
+  # Options for calculating daily aggregation options over a specific range of
+  #   days. Defaults (i.e. default, defaultWaterYear_N, defaultWaterYear_S),
+  #   will be used if no values are specified for the other specific value
+  #   (i.e. NULL)
+  # Variables that are calculated within water-years (Begin Oct 1st in N,
+  #   DOY 275, April 1st in S, DOY 92), as opposed to typical years
+  #   (Begin Jan 1st, DOY 1), the doy specific values need to be set within the
+  #   bounds of a water-year. For example, in the N., c(300, 30), is an
+  #   acceptable input, but c(200, 30) is not.
+  use_doy_range = FALSE,
+  doy_ranges = list(
+    yearlyPPT = NULL,
+    periodicVWCmatric = NULL,
+    default = c(1, 250), #default doy_range aggregation period
+    #water-years calcs - N & S option for each
+    dailySnowpack_N = NULL,
+    dailySnowpack_S = NULL,
+    dailyFrostinSnowPeriod_N = NULL,
+    dailyFrostinSnowPeriod_S = NULL,
+    # default doy_range water-year aggregation in the N. Hemisphere:
+    defaultWateryear_N = c(274, 60),
+    # default doy_range water-year aggregation in the S. Hemisphere:
+    defaultWateryear_S = c(92, 213)
+  ),
+
+  # Daily weather frequency distributions
+  # Bins of x mm precipitation event sizes
+  bin_prcp_mm = 5,
+  # Bins of x consecutive days without precipitation
+  bin_prcpfree_days = 10,
+
+  # Parameters for 'dailyRegeneration_bySWPSnow'
+  dailyRegeneration_bySWPSnow = list(
+    season.start = "LastSnow", # either doy or "LastSnow"
+    season.end = "FirstSnow", # either doy or "FirstSnow"
+    germination.duration = 7, # in days
+    germination.swp.surface = -0.2, # in MPa, duration must have >= x MPa
+    establishment.duration = 14, # in days
+    establishment.swp.surface = -0.4, # in MPa, duration must have >= x MPa
+    # establishment starts latest x days after end of germination:
+    establishment.delay = 1
+  ),
+
+  # NRCS soil moisture regimes (SMR) and soil temperature regimes (STR) settings
+  NRCS_SMTRs = list(
+    # Approach for regime determination ('data' -> 'conditions' -> 'regime')
+    aggregate_at = "conditions",
+    # Aggregation agreement level (e.g., 0.5 = majority; 1 = all)
+    crit_agree_frac = 0.9,
+    # Restrict data to normal years (as defined by SSS 2014) if TRUE;
+    #   if FALSE, all years
+    use_normal = TRUE,
+    SWP_dry = -1.5,       # dry means SWP below -1.5 MPa
+                          # (Soil Survey Staff 2014: p.29)
+    SWP_sat = -0.033,     # saturated means SWP above -0.033 MPa
+    impermeability = 0.9  # impermeable layer
+  )
+)
+
+################################################################################

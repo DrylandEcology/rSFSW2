@@ -1,0 +1,279 @@
+#!/usr/bin/env Rscript
+
+#------------------------------------------------------------------------------#
+# rSFSW2: FRAMEWORK FOR SOILWAT2 SIMULATIONS: CREATING SIMULATION RUNS,
+#         EXECUTING SIMULATIONS, AND AGGREGATING OUTPUTS
+
+#----- LICENSE
+#    Copyright (C) 2017-2024 by `r packageDescription("rSFSW2")[["Author"]]`
+#    Contact information `r packageDescription("rSFSW2")[["Maintainer"]]`
+
+#    This program is free software: you can redistribute it and/or modify
+#    it under the terms of the GNU General Public License as published by
+#    the Free Software Foundation, version 3 of the License.
+
+#------ DISCLAIMER:
+#    This program is distributed in the hope that it will be useful,
+#    but WITHOUT ANY WARRANTY; without even the implied warranty of
+#    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+#    GNU General Public License for more details.
+
+#------ NOTES:
+#  - Display a package overview: `r package?rSFSW2`
+#  - List package functionality: `r help(package = "rSFSW2")`
+#------------------------------------------------------------------------------#
+
+
+################################################################################
+
+t_job_start <- Sys.time()
+
+
+#------ Grab command line arguments (if any)
+# e.g., `Rscript SFSW2_project_code.R -nparallel=10 -chunksims=1,5`
+
+args <- commandArgs(trailingOnly = TRUE)
+
+nparallel <- if (any(ids <- grepl("-nparallel", args))) {
+  as.integer(sub("-nparallel=", "", args[ids]))
+}
+
+chunksims <- if (any(ids <- grepl("-chunksims", args))) {
+  tmp <- as.integer(
+    strsplit(sub("-chunksims=", "", args[ids]), split = ",", fixed = TRUE)[[1]]
+  )
+  if (length(tmp) == 2) tmp else NA
+}
+
+
+#------ Turn on/off actions to be carried out by simulation framework
+actions <- list(
+  # Input checking
+  check_inputs = FALSE,
+
+  # Simulation runs
+  # "sim_create", "sim_execute", and "sim_aggregate" can be used individually if
+  # "saveRsoilwatInput" and/or "saveRsoilwatOutput" are true
+  #   - Prepare/collect inputs for a rSOILWAT2 run (formerly, 'create')
+  sim_create = TRUE,
+  #   - Execute SOILWAT2 simulations (formerly 'execute')
+  sim_execute = TRUE,
+  #   - Calculate aggregated response variables from  SOILWAT2 output and store
+  #     results in temporary text files on disk (formerly, "aggregate')
+  sim_aggregate = TRUE,
+
+  # Output handling
+  #   - Copy simulation results from temporary text files to a output
+  #     SQL-database (formerly, 'concatenate')
+  concat_dbOut = TRUE,
+  #   - Calculate 'ensembles' across climate scenarios and stores the results
+  #     in additional SQL-databases as specified by 'ensemble.families' and
+  #     'ensemble.levels'
+  ensemble = FALSE,
+  #   - Check completeness of output database
+  check_dbOut = TRUE
+)
+
+
+
+################################################################################
+#------ 1) CREATE A NEW / LOAD AN EXISTING SIMULATION PROJECT ------------------
+
+# If code is run non-interactively or if this is a test project:
+# then current working directory must be folder of projects,
+# e.g., rSFSW2_tools/Test_projects/TestPrj4
+dir_prj <- getwd()
+
+
+writeLines(c(
+  "", "",
+  "###########################################################################",
+  paste(
+    "#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)),
+    "run started at", t_job_start
+  ),
+  "###########################################################################",
+  ""
+))
+
+SFSW2_prj_meta <- rSFSW2::init_rSFSW2_project(
+  fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"),
+  update = FALSE,
+  verbose = interactive(),
+  print.debug = FALSE
+)
+
+
+
+################################################################################
+#------ 2) LOAD THE SETTINGS FOR THIS RUN --------------------------------------
+# Setting objects:
+#   opt_behave, opt_parallel, opt_verbosity, opt_out_run, opt_chunks
+source(
+  file = file.path(dir_prj, "SFSW2_project_settings.R"),
+  keep.source = FALSE
+)
+
+SFSW2_prj_meta <- rSFSW2::update_actions(
+  SFSW2_prj_meta,
+  actions,
+  wipe_dbOutput = opt_out_run[["wipe_dbOutput"]]
+)
+
+
+if (isTRUE(is.finite(nparallel))) {
+  opt_parallel[["num_cores"]] <- max(0, nparallel - 1)
+}
+
+
+if (isTRUE(!is.null(chunksims))) {
+  opt_behave[["chunk_sims"]] <- if (anyNA(chunksims)) NULL else chunksims
+}
+
+
+
+################################################################################
+#------ 3) POPULATE PROJECT WITH INPUT DATA (REPEAT UNTIL COMPLETE) ------------
+
+tmp <- rSFSW2::populate_rSFSW2_project_with_data(
+  SFSW2_prj_meta,
+  opt_behave,
+  opt_parallel,
+  opt_chunks,
+  opt_out_run,
+  opt_verbosity
+)
+
+if (
+  isTRUE(opt_verbosity[["verbose"]]) &&
+  !identical(SFSW2_prj_meta, tmp[["SFSW2_prj_meta"]])
+) {
+  warning(
+    "'SFSW2_prj_meta' has changed: ",
+    "modify/reset input tracker status ",
+    "'SFSW2_prj_meta[['input_status']]', if needed ",
+    "(see help `?update_intracker`) and re-run project.",
+    call. = FALSE,
+    immediate. = TRUE
+  )
+}
+
+SFSW2_prj_meta <- tmp[["SFSW2_prj_meta"]]
+SFSW2_prj_inputs <- tmp[["SFSW2_prj_inputs"]]
+
+
+
+################################################################################
+#------ 4) ATTEMPT TO CHECK INPUT DATA -----------------------------------------
+
+if (isTRUE(actions[["check_inputs"]])) {
+
+  tmp <- rSFSW2::check_rSFSW2_project_input_data(
+    SFSW2_prj_meta,
+    SFSW2_prj_inputs,
+    opt_chunks,
+    opt_verbosity
+  )
+
+  SFSW2_prj_meta <- tmp[["SFSW2_prj_meta"]]
+  SFSW2_prj_inputs <- tmp[["SFSW2_prj_inputs"]]
+
+  if (
+    isTRUE(opt_verbosity[["verbose"]]) &&
+    !all(stats::na.exclude(SFSW2_prj_meta[["input_status"]][, "checked"]))
+  ) {
+    warning(
+      "'SFSW2_prj_meta[['input_status']]': ",
+      "some input tracker checks failed; ",
+      "fix inputs, if needed, and re-run project.",
+      call. = FALSE,
+      immediate. = TRUE
+    )
+  }
+}
+
+
+
+################################################################################
+#------ 5) RUN SIMULATION EXPERIMENT (REPEAT UNTIL COMPLETE) -------------------
+
+if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate")]))) {
+
+  SFSW2_prj_meta <- rSFSW2::simulate_SOILWAT2_experiment(
+    SFSW2_prj_meta,
+    SFSW2_prj_inputs,
+    opt_behave,
+    opt_parallel,
+    opt_chunks,
+    opt_out_run,
+    opt_verbosity,
+    check_dbWork = isTRUE(actions[["check_dbOut"]])
+  )
+}
+
+if (isTRUE(actions[["concat_dbOut"]])) {
+
+  stopifnot(
+    rSFSW2::move_output_to_dbOutput(
+      SFSW2_prj_meta,
+      t_job_start,
+      opt_parallel,
+      opt_behave,
+      opt_out_run,
+      opt_verbosity,
+      check_if_Pid_present = opt_verbosity[["print.debug"]]
+    )
+  )
+}
+
+
+
+################################################################################
+#------ 6) ENSEMBLE GENERATION -------------------------------------------------
+
+if (isTRUE(actions[["ensemble"]])) {
+
+  rSFSW2:::generate_ensembles(
+    SFSW2_prj_meta,
+    t_job_start,
+    opt_parallel,
+    opt_chunks,
+    verbose = opt_verbosity[["verbose"]]
+  )
+}
+
+
+
+################################################################################
+#------ 7) CHECK COMPLETENESS OF OUTPUT DATABASE AND SIMULATION ----------------
+
+if (isTRUE(actions[["check_dbOut"]])) {
+
+  info_missing <- rSFSW2::check_outputDB_completeness(
+    SFSW2_prj_meta,
+    opt_parallel,
+    opt_behave,
+    opt_out_run,
+    opt_verbosity
+  )
+}
+
+
+
+################################################################################
+#------ 8) FINISH RUN CLEANLY --------------------------------------------------
+
+#--- Terminate infrastructure for parallel framework runs
+rSFSW2::exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]])
+
+#--- Goodbye message
+writeLines(c("",
+  "###########################################################################",
+  paste(
+    "#------ rSFSW2-PROJECT:", shQuote(basename(dir_prj)),
+    "run on", SFSW2_prj_meta[["opt_platform"]][["host"]], "platform ended at",
+    Sys.time()
+  ),
+  "###########################################################################",
+  ""
+))
