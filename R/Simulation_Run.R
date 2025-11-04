@@ -2009,9 +2009,9 @@ do_OneSite <- function(
           )
         }
 
-        rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3] <- tmp[["grass"]][, 1:3]
-        rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 1:3] <- tmp[["grass"]][, 1:3]
-        rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 1:3] <- tmp[["shrub"]][, 1:3]
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 1:3] <- tmp[["grass"]][, 1:3]
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 1:3] <- tmp[["grass"]][, 1:3]
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 1:3] <- tmp[["shrub"]][, 1:3]
       }
 
       #adjust Root Profile - need composition fractions set above
@@ -2162,15 +2162,15 @@ do_OneSite <- function(
             temp <- SiteClimate_Scenario$meanMonthlyTempC > opt_sim[["growseason_Tlimit_C"]]
             templength <- sum(temp)
             if (templength > 1) {
-              rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3], MARGIN = 2, FUN = "*", grass_LitterTotalLiveScalingFactors)
-              rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3], MARGIN = 2, FUN = "*", shrub_LitterTotalLiveScalingFactors)
-              rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3], MARGIN = 2, FUN = "*", tree_LitterTotalLiveScalingFactors)
-              rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3], MARGIN = 2, FUN = "*", forb_LitterTotalLiveScalingFactors)
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3], MARGIN = 2, FUN = "*", grass_LitterTotalLiveScalingFactors)
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3], MARGIN = 2, FUN = "*", shrub_LitterTotalLiveScalingFactors)
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3], MARGIN = 2, FUN = "*", tree_LitterTotalLiveScalingFactors)
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3], MARGIN = 2, FUN = "*", forb_LitterTotalLiveScalingFactors)
             } else if (templength == 1) {
-              rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3]*grass_LitterTotalLiveScalingFactors
-              rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3]*shrub_LitterTotalLiveScalingFactors
-              rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3]*tree_LitterTotalLiveScalingFactors
-              rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3] <-rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3]*forb_LitterTotalLiveScalingFactors
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3]*grass_LitterTotalLiveScalingFactors
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3]*shrub_LitterTotalLiveScalingFactors
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3]*tree_LitterTotalLiveScalingFactors
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3] <-rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3]*forb_LitterTotalLiveScalingFactors
             } else {
               print(paste0(tag_simfid, ": to Cold to do Vegetation Scaling Season for Growing"))
             }
@@ -2178,29 +2178,29 @@ do_OneSite <- function(
             temp <- SiteClimate_Scenario$meanMonthlyTempC <= opt_sim[["growseason_Tlimit_C"]]
             templength <- sum(temp)
             if (templength > 1) {
-              rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3], MARGIN = 2, FUN = "*", grass_LitterTotalLiveScalingFactors)
-              rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3], MARGIN = 2, FUN = "*", shrub_LitterTotalLiveScalingFactors)
-              rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3], MARGIN = 2, FUN = "*", tree_LitterTotalLiveScalingFactors)
-              rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3], MARGIN = 2, FUN = "*", forb_LitterTotalLiveScalingFactors)
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3], MARGIN = 2, FUN = "*", grass_LitterTotalLiveScalingFactors)
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3], MARGIN = 2, FUN = "*", shrub_LitterTotalLiveScalingFactors)
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3], MARGIN = 2, FUN = "*", tree_LitterTotalLiveScalingFactors)
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3], MARGIN = 2, FUN = "*", forb_LitterTotalLiveScalingFactors)
             } else if (templength == 1) {
-              rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[temp, 1:3]*grass_LitterTotalLiveScalingFactors
-              rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[temp, 1:3]*shrub_LitterTotalLiveScalingFactors
-              rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[temp, 1:3]*tree_LitterTotalLiveScalingFactors
-              rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3] <- rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[temp, 1:3]*forb_LitterTotalLiveScalingFactors
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3]*grass_LitterTotalLiveScalingFactors
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3]*shrub_LitterTotalLiveScalingFactors
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3]*tree_LitterTotalLiveScalingFactors
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3]*forb_LitterTotalLiveScalingFactors
             } else {
               print(paste0(tag_simfid, ": to Hot to do Vegetation Scaling Season for NonGrowing"))
             }
           }
         } else {
-          rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 1:3], MARGIN = 2, FUN = "*", grass_LitterTotalLiveScalingFactors)
-          rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 1:3], MARGIN = 2, FUN = "*", shrub_LitterTotalLiveScalingFactors)
-          rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 1:3], MARGIN = 2, FUN = "*", tree_LitterTotalLiveScalingFactors)
-          rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 1:3], MARGIN = 2, FUN = "*", forb_LitterTotalLiveScalingFactors)
+          rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 1:3], MARGIN = 2, FUN = "*", grass_LitterTotalLiveScalingFactors)
+          rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 1:3], MARGIN = 2, FUN = "*", shrub_LitterTotalLiveScalingFactors)
+          rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[, 1:3], MARGIN = 2, FUN = "*", tree_LitterTotalLiveScalingFactors)
+          rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 1:3], MARGIN = 2, FUN = "*", forb_LitterTotalLiveScalingFactors)
         }
-        rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
-        rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
-        rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
-        rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 3])  #Check that live biomass fraction <= 1 & >= 0
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 3])  #Check that live biomass fraction <= 1 & >= 0
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 3])  #Check that live biomass fraction <= 1 & >= 0
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[, 3])  #Check that live biomass fraction <= 1 & >= 0
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 3])  #Check that live biomass fraction <= 1 & >= 0
       }
 
       if (any(create_treatments == "Vegetation_Height_ScalingFactor")) {
@@ -2214,17 +2214,19 @@ do_OneSite <- function(
       print_debug(opt_verbosity, tag_simpidfid, "creating", "hemisphere adjustment")
 
       if (opt_sim[["adjust_veg_input_NS"]] && i_SWRunInformation$Y_WGS84 < 0 && !any(create_treatments == "AdjMonthlyBioMass_Temperature")) {
-        rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3] <- rbind(rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[7:12, ], rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[1:6, ])
-        rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3] <- rbind(rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[7:12, ], rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[1:6, ])
-        rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3] <- rbind(rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[7:12, ], rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[1:6, ])
-        rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 3] <- rbind(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[7:12, ], rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[1:6, ])
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 3] <- rbind(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[7:12, ], rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[1:6, ])
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 3] <- rbind(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[7:12, ], rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[1:6, ])
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[, 3] <- rbind(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[7:12, ], rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[1:6, ])
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 3] <- rbind(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[7:12, ], rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[1:6, ])
       }
 
       # check that vegetation has no NAs
-      is_bad_veg <- any(anyNA(rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])),
-        anyNA(rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])),
-        anyNA(rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])),
-        anyNA(rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])))
+      is_bad_veg <- any(
+        anyNA(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")),
+        anyNA(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")),
+        anyNA(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")),
+        anyNA(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS"))
+      )
       if (is_bad_veg) {
         print(paste0(tag_simpidfid, ": ERROR: vegetation values contain NA."))
         tasks[sc, "create"] <- 0L
@@ -2686,9 +2688,12 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_VegetationBiomassMonthly")
 
-          temp <- lapply(c("swProd_MonProd_grass", "swProd_MonProd_shrub",
-            "swProd_MonProd_tree", "swProd_MonProd_forb"),
-            function(x) utils::getFromNamespace(x, "rSOILWAT2")(swRunScenariosData[[sc]]))
+          temp <- lapply(
+            c("SW_GRASS", "SW_SHRUB", "SW_TREES", "SW_FORBS"),
+            function(vegType) {
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vegType)
+            }
+          )
 
           for (k in seq_along(temp)) {
             resMeans[nv:(nv + 11)] <- temp[[k]][, 1]
@@ -2731,10 +2736,10 @@ do_OneSite <- function(
           fracs <- rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]])[1:4] #get the fractional Composition of grasses, shrubs, and trees
           tempdat <- matrix(data = NA, nrow = 12, ncol = 4)#matrix to hold biomass * percLive for grass, shrubs, trees
           colnames(tempdat) <- c("grass", "shrub", "tree", "forb")
-          tempdat[, 1] <- rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 2]*rSOILWAT2::swProd_MonProd_grass(swRunScenariosData[[sc]])[, 3]
-          tempdat[, 2] <- rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 2]*rSOILWAT2::swProd_MonProd_shrub(swRunScenariosData[[sc]])[, 3]
-          tempdat[, 3] <- rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 2]*rSOILWAT2::swProd_MonProd_tree(swRunScenariosData[[sc]])[, 3]
-          tempdat[, 4] <- rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 2]*rSOILWAT2::swProd_MonProd_forb(swRunScenariosData[[sc]])[, 3]
+          tempdat[, 1] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 2]*rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 3]
+          tempdat[, 2] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 2]*rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 3]
+          tempdat[, 3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[, 2]*rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[, 3]
+          tempdat[, 4] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 2]*rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 3]
 
           sumWeightedLiveBiomassByMonth <- apply(sweep(tempdat, MARGIN = 2, fracs, FUN = "*"), MARGIN = 1, sum) #sweep out fractionals, and sum over rows
           maxMonth <- which(sumWeightedLiveBiomassByMonth == max(sumWeightedLiveBiomassByMonth)) #returns index, which is the month, of max bio
