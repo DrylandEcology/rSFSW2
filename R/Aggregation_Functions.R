@@ -73,9 +73,14 @@ fields_input_FractionVegetationComposition <- function(aon, ...) {
   id <- "input_FractionVegetationComposition"
 
   if (isTRUE(aon[[id]])) {
+    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
+
     vtemps <- c("Grasses", "Shrubs", "Trees", "Forbs")
-    temp <- paste0("SWinput.Composition.", c(vtemps, "BareGround",
-      "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"), "_fraction_const")
+    temp <- paste0(
+      "SWinput.Composition.",
+      c(vtemps, "BareGround", "C3ofGrasses", "C4ofGrasses", "AnnualsofGrasses"),
+      "_fraction_const"
+    )
   }
 
   list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
@@ -87,10 +92,17 @@ fields_input_VegetationBiomassMonthly <- function(aon, ...) {
   id <- "input_VegetationBiomassMonthly"
 
   if (isTRUE(aon[[id]])) {
+    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
+
     vtemp <- c("Grass", "Shrub", "Tree", "Forb")
-    temp <- paste0(rep(vtemp, each = 36L), "_",
+    temp <- paste0(
+      rep(vtemp, each = 36L),
+      "_",
       c(rep("Litter", 12), rep("TotalBiomass", 12), rep("LiveBiomass", 12)),
-      "_m", SFSW2_glovars[["st_mo"]], "_gPERm2")
+      "_m",
+      SFSW2_glovars[["st_mo"]],
+      "_gPERm2"
+    )
   }
 
   list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
@@ -102,15 +114,20 @@ fields_input_VegetationBiomassTrends <- function(aon, ...) {
   id <- "input_VegetationBiomassTrends"
 
   if (isTRUE(aon[[id]])) {
+    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
+
     vtemp <- c("Tree", "Shrub", "Forb", "Grass")
     temp <- paste0(
-      c(paste0(
-         rep(c("Total", vtemp), 2), "_",
-         rep(c("Total", "Live"), each = 1 + length(vtemp))
+      c(
+        paste0(
+          rep(c("Total", vtemp), 2),
+          "_",
+          rep(c("Total", "Live"), each = 1 + length(vtemp))
         ),
         "Litter_"
       ),
-      "Biomass_gPERm2_mean")
+      "Biomass_gPERm2_mean"
+    )
   }
 
   list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
@@ -147,50 +164,102 @@ fields_input_TranspirationCoeff <- function(aon, opt_agg, ...) {
   id <- "input_TranspirationCoeff"
 
   if (isTRUE(aon[[id]])) {
+    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
+
     if (opt_agg[["doy_slyrs"]][["do"]]) {
       ltemp <- paste0("L0to", opt_agg[["doy_slyrs"]][["first_cm"]], "cm")
 
       if (is.null(opt_agg[["doy_slyrs"]][["second_cm"]])) {
-        ltemp <- c(ltemp, paste0("L", opt_agg[["doy_slyrs"]][["first_cm"]],
-          "toSoilDepth"))
+        ltemp <- c(
+          ltemp,
+          paste0("L", opt_agg[["doy_slyrs"]][["first_cm"]], "toSoilDepth")
+        )
       } else if (is.numeric(opt_agg[["doy_slyrs"]][["second_cm"]])) {
-        ltemp <- c(ltemp, paste0("L", opt_agg[["doy_slyrs"]][["first_cm"]],
-          "to", opt_agg[["doy_slyrs"]][["second_cm"]], "cm"))
+        ltemp <- c(
+          ltemp,
+          paste0(
+            "L",
+            opt_agg[["doy_slyrs"]][["first_cm"]],
+            "to",
+            opt_agg[["doy_slyrs"]][["second_cm"]],
+            "cm"
+          )
+        )
       }
 
       if (is.null(opt_agg[["doy_slyrs"]][["third_cm"]])) {
-        ltemp <- c(ltemp, paste0("L", opt_agg[["doy_slyrs"]][["second_cm"]],
-          "toSoilDepth"))
-      } else if (is.na(opt_agg[["doy_slyrs"]][["third_cm"]])) {
-      } else if (is.numeric(opt_agg[["doy_slyrs"]][["third_cm"]])) {
-        ltemp <- c(ltemp, paste0("L", opt_agg[["doy_slyrs"]][["second_cm"]],
-          "to", opt_agg[["doy_slyrs"]][["third_cm"]], "cm"))
+        ltemp <- c(
+          ltemp,
+          paste0("L", opt_agg[["doy_slyrs"]][["second_cm"]], "toSoilDepth")
+        )
+      } else if (is.na(opt_agg[["doy_slyrs"]][["third_cm"]])) {} else if (
+        is.numeric(opt_agg[["doy_slyrs"]][["third_cm"]])
+      ) {
+        ltemp <- c(
+          ltemp,
+          paste0(
+            "L",
+            opt_agg[["doy_slyrs"]][["second_cm"]],
+            "to",
+            opt_agg[["doy_slyrs"]][["third_cm"]],
+            "cm"
+          )
+        )
       }
 
       if (is.null(opt_agg[["doy_slyrs"]][["fourth_cm"]])) {
-        ltemp <- c(ltemp, paste0("L", opt_agg[["doy_slyrs"]][["third_cm"]],
-          "toSoilDepth"))
-      } else if (is.na(opt_agg[["doy_slyrs"]][["fourth_cm"]])) {
-      } else if (is.numeric(opt_agg[["doy_slyrs"]][["fourth_cm"]])) {
-        ltemp <- c(ltemp, paste0("L", opt_agg[["doy_slyrs"]][["third_cm"]],
-          "to", opt_agg[["doy_slyrs"]][["fourth_cm"]], "cm"))
+        ltemp <- c(
+          ltemp,
+          paste0("L", opt_agg[["doy_slyrs"]][["third_cm"]], "toSoilDepth")
+        )
+      } else if (is.na(opt_agg[["doy_slyrs"]][["fourth_cm"]])) {} else if (
+        is.numeric(opt_agg[["doy_slyrs"]][["fourth_cm"]])
+      ) {
+        ltemp <- c(
+          ltemp,
+          paste0(
+            "L",
+            opt_agg[["doy_slyrs"]][["third_cm"]],
+            "to",
+            opt_agg[["doy_slyrs"]][["fourth_cm"]],
+            "cm"
+          )
+        )
       }
 
-      ltemp <- c(ltemp, paste0("NA",
-        (length(ltemp) + 1):SFSW2_glovars[["slyrs_maxN"]]))
-
+      ltemp <- c(
+        ltemp,
+        paste0("NA", (length(ltemp) + 1):SFSW2_glovars[["slyrs_maxN"]])
+      )
     } else {
-      ltemp <- paste0("L", formatC(SFSW2_glovars[["slyrs_ids"]], width = 2,
-        format = "d", flag = "0"))
+      ltemp <- paste0(
+        "L",
+        formatC(
+          SFSW2_glovars[["slyrs_ids"]],
+          width = 2,
+          format = "d",
+          flag = "0"
+        )
+      )
     }
 
     vtemp <- c("Grass", "Shrub", "Tree", "Forb")
     temp <- c(
-      paste0("SWinput.", rep(vtemp, each = SFSW2_glovars[["slyrs_maxN"]]),
-        ".TranspirationCoefficients.", rep(ltemp, times = 4), "_fraction"),
-      paste0("SWinput.", rep(vtemp, each = 2),
+      paste0(
+        "SWinput.",
+        rep(vtemp, each = SFSW2_glovars[["slyrs_maxN"]]),
         ".TranspirationCoefficients.",
-        rep(c("topLayer", "bottomLayer"), times = 4), "_fraction"))
+        rep(ltemp, times = 4),
+        "_fraction"
+      ),
+      paste0(
+        "SWinput.",
+        rep(vtemp, each = 2),
+        ".TranspirationCoefficients.",
+        rep(c("topLayer", "bottomLayer"), times = 4),
+        "_fraction"
+      )
+    )
   }
 
   list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
@@ -217,6 +286,8 @@ fields_input_CO2Effects <- function(aon, ...) {
   id <- "input_CO2Effects"
 
   if (isTRUE(aon[[id]])) {
+    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
+
     vtemp <- c("Tree", "Shrub", "Forb", "Grass")
     temp <- paste0(
       rep(vtemp, 2),
@@ -580,6 +651,7 @@ fields_yearlyTranspirationBySoilLayer <- function(aon, ...) {
   id <- "yearlyTranspirationBySoilLayer"
 
   if (isTRUE(aon[[id]])) {
+    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
     vegtypes <- c("total", "tree", "shrub", "forb", "grass")
 
     temp <- paste0("Transpiration_",

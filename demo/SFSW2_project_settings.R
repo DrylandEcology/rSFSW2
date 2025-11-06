@@ -51,7 +51,11 @@ opt_behave <- list(
   check_updates_dbWork = TRUE,
 
   # Check linked BLAS library before simulation runs
-  check_blas = FALSE
+  check_blas = FALSE,
+
+  # Utilize the six v2 vegetation types introduced with rSOILWAT2 v6.5.0
+  # (if FALSE and rSOILWAT2 >= v6.5.0, then collapse to old v1)
+  useVegTypesV2 = FALSE
 )
 
 

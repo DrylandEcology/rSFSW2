@@ -439,7 +439,86 @@ do_OneSite <- function(
 
 
   # --- Further preparations ------
-  #------Learn about soil layer structure
+
+  #--- rSOILWAT2 version ------
+  tmp <- c("6.0.0", "6.1.0", "6.2.0", "6.3.0", "6.4.0", "6.5.0")
+  has_rSW2 <- stats::setNames(
+    getNamespaceVersion("rSOILWAT2") >= as.numeric_version(tmp),
+    nm = tmp
+  )
+
+
+  #--- Vegetation version ------
+  usedVegTypes <- if (has_rSW2[["6.5.0"]]) {
+    if (isTRUE(opt_behave[["rSW2VegTypesV2"]])) {
+      stop("rSFSW2 hasn't yet implemented vegetation types v2.", call. = FALSE)
+    }
+    ids <- rSOILWAT2::mapVegTypes("2from1")
+    data.frame(
+      v2c = names(rSOILWAT2::namesVegTypes("v2"))[ids > 0L],
+      v2 = rSOILWAT2::namesVegTypes("v2")[ids > 0L],
+      v1c = names(rSOILWAT2::namesVegTypes("v1"))[ids],
+      v1 = rSOILWAT2::namesVegTypes("v1")[ids],
+      v1s = rSOILWAT2::namesVegTypes("v1", shortened = TRUE)[ids],
+      row.names = NULL
+    )
+  } else {
+    data.frame(
+      v1c = c("SW_TREES", "SW_SHRUB", "SW_FORBS", "SW_GRASS"),
+      v1 = c("Trees", "Shrubs", "Forbs", "Grasses"),
+      v1s = c("Tree", "Shrub", "Forb", "Grass"),
+      row.names = NULL
+    )
+  }
+
+  cvts <- usedVegTypes[[if (has_rSW2[["6.5.0"]]) "v2c" else "v1c"]]
+  uvts <- usedVegTypes[[if (has_rSW2[["6.5.0"]]) "v2" else "v1s"]]
+
+  # Update inputs with new vegetation names
+  if (has_rSW2[["6.5.0"]]) {
+    # Patterns to replace
+    repa <- c(
+      "^LookupTranspCoefs_<vt>$",
+      "^<vt>_SWPcrit_MPa$",
+      "^<vt>_HydRed_OnOff$",
+      "^<vt>_Albedo$",
+      "^<vt>_CanopyHeight_Constant_cm$",
+      "^Composition_<vt>Fraction$",
+      "^<vt>_Litter_m",
+      "^<vt>_Biomass_m",
+      "^<vt>_FractionLive_m",
+      "^<vt>_LAIconv_m",
+      "^<vt>_TotalBiomass_ScalingFactor$",
+      "^<vt>_LiveBiomass_ScalingFactor$",
+      "^<vt>_Litter_ScalingFactor$",
+      "^<vt>_TranspCoeff_L"
+    )
+
+    for (kp in seq_along(repa)) {
+      for (kv in seq_len(nrow(usedVegTypes))) {
+        pold <- sub("<vt>", usedVegTypes[kv, "v1s", drop = TRUE], repa[[kp]])
+        pnew <- sub(
+          "<vt>",
+          usedVegTypes[kv, "v2", drop = TRUE],
+          gsub("[$^]", "", repa[[kp]])
+        )
+
+        create_treatments <- sub(pold, pnew, create_treatments)
+        names(i_sw_input_treatments) <- sub(
+          pold, pnew, names(i_sw_input_treatments)
+        )
+
+        names(sw_input_prod_use) <- sub(pold, pnew, names(sw_input_prod_use))
+        names(i_sw_input_prod) <- sub(pold, pnew, names(i_sw_input_prod))
+
+        names(sw_input_soils_use) <- sub(pold, pnew, names(sw_input_soils_use))
+        names(i_sw_input_soils) <- sub(pold, pnew, names(i_sw_input_soils))
+      }
+    }
+  }
+
+
+  #------Learn about soil layer structure ------
   if (any(tasks == 1L)) {
     soil_source <- NULL
 
@@ -525,7 +604,7 @@ do_OneSite <- function(
   }
 
 
-  #------Learn about simulation time
+  #------Learn about simulation time ------
   if (
     any(tasks == 1L) &&
     !all(sapply(c("isim_time", "simTime2"), exists, inherits = FALSE))
@@ -692,7 +771,7 @@ do_OneSite <- function(
     }
 
     # Upgrade weather object (requires rSOILWAT2 >= v6.2.0) ------
-    if (getNamespaceVersion("rSOILWAT2") >= as.numeric_version("6.2.0")) {
+    if (has_rSW2[["6.2.0"]]) {
       i_sw_weatherList <- lapply(
         i_sw_weatherList,
         function(weatherList) rSOILWAT2::upgrade_weatherHistory(weatherList)
@@ -724,13 +803,24 @@ do_OneSite <- function(
     temp <- c(Grasses_C3 = NA, Grasses_C4 = NA, Grasses_Annuals = NA)
     grasses.c3c4ann.fractions <- rep(list(temp), N_sim_scens)
 
-    ClimatePerturbationsVals <- matrix(c(rep(1, 12), rep(0, 24)),
-      nrow = N_sim_scens, ncol = 12 * 3, byrow = TRUE) #, dimnames = list(NULL, paste0(rep(paste0("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m")), each = 12), SFSW2_glovars[["st_mo"]], rep(c("_none", "_C", "_C"), each = 12), "_const"))
+    ClimatePerturbationsVals <- matrix(
+      c(rep(1, 12), rep(0, 24)),
+      nrow = N_sim_scens,
+      ncol = 12 * 3,
+      byrow = TRUE
+    )
+    #, dimnames = list(NULL, paste0(rep(paste0("ClimatePerturbations.", c("PrcpMultiplier.m", "TmaxAddand.m", "TminAddand.m")), each = 12), SFSW2_glovars[["st_mo"]], rep(c("_none", "_C", "_C"), each = 12), "_const"))
 
     #------1. Step: Information for this SOILWAT2-run from default rSOILWAT2-input object
     #Make a local copy of the swInput object do not want to destroy orignal
     swRunScenariosData <- list()
     swRunScenariosData[[1]] <- swDefaultInputs
+
+    # Turn off v2 vegetation types without v1 equivalent
+    if (has_rSW2[["6.5.0"]] && !isTRUE(opt_behave[["rSW2VegTypesV2"]])) {
+      tmp <- setdiff(rSOILWAT2::namesVegTypes("v2"), usedVegTypes[["v2"]])
+      rSOILWAT2::swProd_Composition(swRunScenariosData[[1]])[tmp] <- 0
+    }
 
     #------2. Step: a) Information for this SOILWAT2-run from treatment SOILWAT2 input files stored in dir_in_treat
     if (any(create_treatments == "sw"))
@@ -755,7 +845,7 @@ do_OneSite <- function(
     #------2. Step: b) Information for this SOILWAT2-run from treatment chunks stored in dir_in_treat
     #Do the lookup stuff for experimental design that was done for the treatment design before the call to call_OneSite, but couldn't for the experimental design because at that time information was unkown
 
-    #----- Begin carbon effects
+    #--- ** CO2 fertilization flags ------
     if (!is.na(i_sw_input_treatments$UseCO2BiomassMultiplier) &&
       i_sw_input_treatments$UseCO2BiomassMultiplier == 1) {
       rSOILWAT2::swCarbon_Use_Bio(swRunScenariosData[[1]]) <- 1L
@@ -769,9 +859,9 @@ do_OneSite <- function(
     } else {
       rSOILWAT2::swCarbon_Use_WUE(swRunScenariosData[[1]]) <- 0L
     }
-    # End carbon effects -----
+    # End carbon effects
 
-    # Table lookups
+    #--- * Table lookups ------
     lookup_names <- c("LookupEvapCoefs", "LookupTranspRegions",
       "LookupSnowDensity")
 
@@ -785,7 +875,8 @@ do_OneSite <- function(
           sw_input_use = sw_input_soils_use,
           sw_input = i_sw_input_soils,
           nvars = SFSW2_glovars[["slyrs_maxN"]],
-          do_fill = FALSE),
+          do_fill = FALSE
+        ),
 
         LookupTranspRegions = list(
           flag = "LookupTranspRegions",
@@ -794,7 +885,8 @@ do_OneSite <- function(
           sw_input_use = sw_input_soils_use,
           sw_input = i_sw_input_soils,
           nvars = SFSW2_glovars[["slyrs_maxN"]],
-          do_fill = FALSE),
+          do_fill = FALSE
+        ),
 
         LookupSnowDensity = list(
           flag = "LookupSnowDensity",
@@ -809,7 +901,8 @@ do_OneSite <- function(
           # Judson, A. & Doesken, N. (2000) Density of Freshly Fallen Snow in
           # the Central Rocky Mountains. Bulletin of the American Meteorological
           # Society, 81, 1577-1587.
-          fill_value = 76)
+          fill_value = 76
+        )
       )
 
       for (pc in do_lookup) {
@@ -850,12 +943,14 @@ do_OneSite <- function(
     }
 
     #Treatment chunks
+    #--- ** LookupTranspCoeff ------
     print_debug(opt_verbosity, tag_simfid, "creating", "LookupTranspCoeff")
+
     do_vegs <- list(
-      veg = c("Grass", "Shrub", "Tree", "Forb"),
-      flag = c("LookupTranspCoefs_Grass", "LookupTranspCoefs_Shrub",
-                "LookupTranspCoefs_Tree", "LookupTranspCoefs_Forb"),
-      adjustType = c("positive", "inverse", "inverse", "inverse"))
+      veg = uvts,
+      flag = paste0("LookupTranspCoefs_", uvts),
+      adjustType = c("inverse", "inverse", "inverse", "positive")
+    )
 
     for (k in seq_along(do_vegs[["veg"]])) {
       print_debug(opt_verbosity, tag_simfid, "creating", do_vegs[["veg"]][k])
@@ -882,12 +977,16 @@ do_OneSite <- function(
             adjustType = do_vegs[["adjustType"]][k]
           )
 
-          if (!any(is.na(trco)) || sum(trco, na.rm = TRUE) > 0) {#trco does not have NA and sum is greater than 0.
+          if (!any(is.na(trco)) || sum(trco, na.rm = TRUE) > 0) {
             #set the use flags
-            i.temp <- grep(paste0(do_vegs[["veg"]][k], "_TranspCoeff"), names(sw_input_soils_use))
+            i.temp <- grep(
+              paste0(do_vegs[["veg"]][k], "_TranspCoeff"),
+              names(sw_input_soils_use)
+            )
             sw_input_soils_use[i.temp[seq_along(trco)]] <- TRUE
-            if (length(i.temp) > length(trco))
+            if (length(i.temp) > length(trco)) {
               sw_input_soils_use[i.temp[(length(trco) + 1):length(i.temp)]] <- FALSE
+            }
             #add data to sw_input_soils
             i_sw_input_soils[i.temp[seq_along(trco)]] <- trco
           } else {
@@ -900,6 +999,7 @@ do_OneSite <- function(
       }
     }
 
+    #--- ** monthly ppt-shifts ------
     #the monthly ppt-shifts are extracted, but written to the weathersetup input file only at the end of the create section 'copy and make climate scenarios from datafiles', because they are multiplied with any climate change factors
     ppt_scShift <- rep(1, times = 12)
     if (any(create_treatments == "LookupShiftedPPT")) {
@@ -925,7 +1025,7 @@ do_OneSite <- function(
 
 
     #------4. Step: Information from datafiles are added if flagged 'use' to SOILWAT2 input files
-    #add information from datafile to cloudin
+    #--- ** Add information to cloud ------
     print_debug(opt_verbosity, tag_simfid, "creating", "cloudin")
 
     wind <- with(i_sw_input_cloud, data.frame(wind_ms_1, wind_ms_2, wind_ms_3, wind_ms_4,
@@ -960,7 +1060,7 @@ do_OneSite <- function(
       }
     }
 
-    #add vegetation information  from datafile to prodin
+    #--- ** Add vegetation information ------
     print_debug(opt_verbosity, tag_simfid, "creating", "vegetation")
 
     if (any(sw_input_prod_use)) {
@@ -969,21 +1069,35 @@ do_OneSite <- function(
       use <- sw_input_prod_use[ids]
       if (any(use)) {
         def <- rSOILWAT2::swProd_CanopyHeight(swRunScenariosData[[1]])
-        temp <- colnames(def)
-        def_names <- substr(temp, 1, nchar(temp) - 2)
+        if (!has_rSW2[["6.5.0"]]) def <- t(def)
+        temp <- rownames(def)
+        def_names <- if (has_rSW2[["6.5.0"]]) {
+          temp
+        } else {
+          substr(temp, 1, nchar(temp) - 2)
+        }
         for (k in seq_along(def_names)) {
           itemp <- grep(def_names[k], names(use))
           if (length(itemp) == 1 && use[itemp]) {
-            def["height_cm", k] <- as.numeric(i_sw_input_prod[ids][itemp])
+            def[k, "height_cm"] <- as.numeric(i_sw_input_prod[ids][itemp])
           }
         }
+        if (!has_rSW2[["6.5.0"]]) def <- t(def)
         rSOILWAT2::swProd_CanopyHeight(swRunScenariosData[[1]]) <- def
       }
 
       #composition
-      temp <- try(rSOILWAT2::set_requested_flags(swIn = swRunScenariosData[[1]],
-        tag = "Composition", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_Composition", reset = TRUE, default = 0))
+      temp <- try(
+        rSOILWAT2::set_requested_flags(
+          swIn = swRunScenariosData[[1]],
+          tag = "Composition",
+          use = sw_input_prod_use,
+          values = i_sw_input_prod,
+          fun = "swProd_Composition",
+          reset = TRUE,
+          default = 0
+        )
+      )
       if (inherits(temp, "try-error")) {
         tasks[, "create"] <- 0L
       } else {
@@ -991,9 +1105,16 @@ do_OneSite <- function(
       }
 
       #albedo
-      temp <- try(rSOILWAT2::set_requested_flags(swIn = swRunScenariosData[[1]],
-        tag = "Albedo", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_Albedo", reset = FALSE))
+      temp <- try(
+        rSOILWAT2::set_requested_flags(
+          swIn = swRunScenariosData[[1]],
+          tag = "Albedo",
+          use = sw_input_prod_use,
+          values = i_sw_input_prod,
+          fun = "swProd_Albedo",
+          reset = FALSE
+        )
+      )
       if (inherits(temp, "try-error")) {
         tasks[, "create"] <- 0L
       } else {
@@ -1001,9 +1122,16 @@ do_OneSite <- function(
       }
 
       #flag for hydraulic redistribution
-      temp <- try(rSOILWAT2::set_requested_flags(swIn = swRunScenariosData[[1]],
-        tag = "HydRed", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_HydrRedstro_use", reset = FALSE))
+      temp <- try(
+        rSOILWAT2::set_requested_flags(
+          swIn = swRunScenariosData[[1]],
+          tag = "HydRed",
+          use = sw_input_prod_use,
+          values = i_sw_input_prod,
+          fun = "swProd_HydrRedstro_use",
+          reset = FALSE
+        )
+      )
       if (inherits(temp, "try-error")) {
         tasks[, "create"] <- 0L
       } else {
@@ -1011,24 +1139,40 @@ do_OneSite <- function(
       }
 
       #flag for transpiration-critical SWP (MPa)
-      temp <- try(rSOILWAT2::set_requested_flags(swIn = swRunScenariosData[[1]],
-        tag = "SWPcrit_MPa", use = sw_input_prod_use, values = i_sw_input_prod,
-        fun = "swProd_CritSoilWaterPotential", reset = FALSE))
+      temp <- try(
+        rSOILWAT2::set_requested_flags(
+          swIn = swRunScenariosData[[1]],
+          tag = "SWPcrit_MPa",
+          use = sw_input_prod_use,
+          values = i_sw_input_prod,
+          fun = "swProd_CritSoilWaterPotential",
+          reset = FALSE
+        )
+      )
       if (inherits(temp, "try-error")) {
         tasks[, "create"] <- 0L
       } else {
         swRunScenariosData[[1]] <- temp
       }
 
-      for (k in c("Grass", "Shrub", "Tree", "Forb")) {
-        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[1]], k) <-
-          rSOILWAT2::update_biomass(fg = k, use = sw_input_prod_use,
-          prod_input = i_sw_input_prod,
-          prod_default = swRunScenariosData[[1]]@prod)
+      for (k in seq_along(uvts)) {
+        vt <- cvts[[k]]
+
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[1L]], vt) <-
+          rSOILWAT2::update_biomass(
+            fg = uvts[[k]],
+            use = sw_input_prod_use,
+            prod_input = i_sw_input_prod,
+            prod_default = if (has_rSW2[["6.5.0"]]) {
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[1L]], vt)
+            } else {
+              swRunScenariosData[[1L]]
+            }
+          )
       }
     }
 
-    #add site information to siteparamin
+    #--- ** Add site information ------
     print_debug(opt_verbosity, tag_simfid, "creating", "site parameters")
 
     uses_NoPTF <- FALSE
@@ -1114,20 +1258,48 @@ do_OneSite <- function(
     rSOILWAT2::swSite_IntrinsicSiteParams(swRunScenariosData[[1]]) <- tmp
 
 
-    #add soil information to soilsin
+    #--- ** Add soil information ------
     print_debug(opt_verbosity, tag_simfid, "creating", "soils")
 
     # Use fixed column names
-    soil_cols <- c(
-      "depth_cm", "matricd", "gravel_content", "EvapBareSoil_frac",
-      "transpGrass_frac", "transpShrub_frac", "transpTree_frac",
-      "transpForb_frac", "sand", "clay", "imperm", "soilTemp_c",
-      if (getNamespaceVersion("rSOILWAT2") >= as.numeric_version("6.3.0")) {
-        "som_frac"
-      }
-    )
+    if (has_rSW2[["6.5.0"]]) {
+      namesTrCoRSFSW <- paste0("TrCo_", rSOILWAT2::namesVegTypes("v2"))
+      namesTrCoRSW <- namesTrCoRSFSW
+    } else {
+      namesTrCoRSFSW <- paste0(uvts[c(4L, 2L, 1L, 3L)], "_TranspCoeff")
+      namesTrCoRSW <- paste0("transp", uvts[c(4L, 2L, 1L, 3L)], "_frac")
+    }
+
+    if (has_rSW2[["6.5.0"]]) {
+      tmp <- c(
+        "depth_cm",
+        "matricd",
+        "gravel_content",
+        "sand",
+        "clay",
+        "som_frac",
+        "imperm",
+        "soilTemp_c",
+        "EvapBareSoil_frac"
+      )
+      soil_cols <- c(tmp, namesTrCoRSFSW)
+    } else {
+      soil_cols <- c(
+        "depth_cm",
+        "matricd",
+        "gravel_content",
+        "EvapBareSoil_frac",
+        namesTrCoRSFSW,
+        "sand",
+        "clay",
+        "imperm",
+        "soilTemp_c",
+        if (has_rSW2[["6.3.0"]]) "som_frac"
+      )
+    }
+
     soil_swdat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]])
-    dimnames(soil_swdat)[[2]] <- soil_cols
+    colnames(soil_swdat) <- soil_cols
 
     done.Imperm_L1 <- FALSE
 
@@ -1200,17 +1372,35 @@ do_OneSite <- function(
       infile_cols <- names(sw_input_soils_use)
 
       coefs <- list(
-        infile = c(
-          "Matricd", "GravelContent", "EvapCoeff",
-          "Grass_TranspCoeff", "Shrub_TranspCoeff", "Tree_TranspCoeff",
-          "Forb_TranspCoeff",
-          "Sand", "Clay", "Imperm", "SoilTemp",
-          if (getNamespaceVersion("rSOILWAT2") >= as.numeric_version("6.3.0")) {
-            "SOM"
-          }
-        ),
+        infile = if (has_rSW2[["6.5.0"]]) {
+          c(
+            "Matricd",
+            "GravelContent",
+            "Sand",
+            "Clay",
+            "SOM",
+            "Imperm",
+            "SoilTemp",
+            "EvapCoeff",
+            namesTrCoRSFSW
+          )
+        } else {
+          c(
+            "Matricd",
+            "GravelContent",
+            "EvapCoeff",
+            namesTrCoRSFSW,
+            "Sand",
+            "Clay",
+            "Imperm",
+            "SoilTemp",
+            if (has_rSW2[["6.3.0"]]) "SOM"
+          )
+        },
         sw = soil_cols[-1]
       )
+
+      stopifnot(length(coefs[["infile"]]) == length(coefs[["sw"]]))
 
       for (iv in seq_along(coefs[[1]])) {
         icol <- grep(
@@ -1229,7 +1419,7 @@ do_OneSite <- function(
             use = which(sw_input_soils_use[icol]),
             other = intersect(
               which(!sw_input_soils_use[icol]),
-              seq_len(dim(soil_swdat)[1])
+              seq_len(nrow(soil_swdat))
             )
           )
 
@@ -1285,9 +1475,7 @@ do_OneSite <- function(
       icols <- seq_along(soil_cols)[-icol_excl]
       bad_data <- !check_soil_data(
         x = soildat[, -icol_excl, drop = FALSE],
-        allowAllSandClayOrSilt = isTRUE(
-          getNamespaceVersion("rSOILWAT2") >= "6.4.0"
-        )
+        allowAllSandClayOrSilt = has_rSW2[["6.4.0"]]
       )
 
       if (any(bad_data)) {
@@ -1324,9 +1512,7 @@ do_OneSite <- function(
       # Check soil
       check_soil <- check_soil_data(
         x = soil_swdat,
-        allowAllSandClayOrSilt = isTRUE(
-          getNamespaceVersion("rSOILWAT2") >= "6.4.0"
-        )
+        allowAllSandClayOrSilt = has_rSW2[["6.4.0"]]
       )
 
       if (!all(check_soil)) {
@@ -1405,7 +1591,7 @@ do_OneSite <- function(
 
     #--- * Spinup (requires rSOILWAT2 >= v6.1.0) ------
     if (sw_input_site_use[["Spinup_Active"]]) {
-      if (getNamespaceVersion("rSOILWAT2") < as.numeric_version("6.1.0")) {
+      if (!has_rSW2[["6.1.0"]]) {
         stop("Spinup requested but rSOILWAT2 < v6.1.0")
       }
 
@@ -1430,11 +1616,14 @@ do_OneSite <- function(
 
     #--- * Correct weather values (requires rSOILWAT2 >= v6.4.0) ------
     if (isTRUE(opt_sim[["correctWeatherValues"]])) {
-      if (getNamespaceVersion("rSOILWAT2") < as.numeric_version("6.4.0")) {
-        stop("Correction of weather values requested but rSOILWAT2 < v6.4.0")
+      if (has_rSW2[["6.4.0"]]) {
+        swRunScenariosData[[1L]]@weather@correctWeatherValues[] <- TRUE
+      } else {
+        warning(
+          "Correction of weather values requested but rSOILWAT2 < v6.4.0",
+          call. = FALSE
+        )
       }
-
-      swRunScenariosData[[1L]]@weather@correctWeatherValues[] <- TRUE
     }
 
 
@@ -1483,8 +1672,9 @@ do_OneSite <- function(
         # but has since been used to also display the correct years in runDataSC, so this information is
         # extracted regardless of whether or not CO2 effects are being used
         delta_yr <- sim_scens[["df"]][sc, "Delta_yrs"]
-        if (!is.na(delta_yr))
+        if (!is.na(delta_yr)) {
           rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]]) <- as.integer(delta_yr)
+        }
 
       } else {
         if (prj_todos[["need_cli_means"]]) {
@@ -1508,7 +1698,7 @@ do_OneSite <- function(
         as.integer(isim_time[[itime]][["endyr"]])
       rSOILWAT2::swYears_StartYear(swRunScenariosData[[sc]]) <-
         as.integer(isim_time[[itime]][["simstartyr"]])
-      if (getNamespaceVersion("rSOILWAT2") < as.numeric_version("6.0.0")) {
+      if (!has_rSW2[["6.0.0"]]) {
         rSOILWAT2::swWeather_FirstYearHistorical(swRunScenariosData[[sc]]) <-
           as.integer(isim_time[[itime]][["simstartyr"]])
       }
@@ -1587,7 +1777,12 @@ do_OneSite <- function(
           rSOILWAT2::swCarbon_DeltaYear(swRunScenariosData[[sc]])
 
 
-        if (getNamespaceVersion("rSOILWAT2") >= "6.4.0") {
+        if (has_rSW2[["6.5.0"]]) {
+          yearRangeCO2 <- c(
+            min(yearRangeCO2[[1L]], swRunScenariosData[[sc]]@prod2@vegYear),
+            max(yearRangeCO2[[2L]], swRunScenariosData[[sc]]@prod2@vegYear)
+          )
+        } else if (has_rSW2[["6.4.0"]]) {
           yearRangeCO2 <- c(
             min(yearRangeCO2[[1L]], swRunScenariosData[[sc]]@prod@vegYear),
             max(yearRangeCO2[[2L]], swRunScenariosData[[sc]]@prod@vegYear)
@@ -1896,10 +2091,10 @@ do_OneSite <- function(
       use_soil_temp <- sw_input_soils_use[stemp]
       if (any(use_soil_temp)) {
         if (exists("init.soilTprofile")) {
-          rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[ld, 12] <-
+          rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[ld, "soilTemp_c"] <-
             init.soilTprofile
         } else {
-          rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[use_soil_temp, 12] <-
+          rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[use_soil_temp, "soilTemp_c"] <-
             as.numeric(i_sw_input_soils[stemp[use_soil_temp]])
         }
       }
@@ -1958,13 +2153,29 @@ do_OneSite <- function(
 
         } else {
           # ---- `veg.in`: Composition of vegetation type components
-          # Grasses Shrubs Trees Forbs BareGround
-          ids <- c("SW_GRASS", "SW_SHRUB", "SW_TREES", "SW_FORBS",
-            "SW_BAREGROUND")
-          temp <- rSW2utils::finite01(pnv[["Rel_Abundance_L1"]][ids])
-          rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]]) <- temp
-
           grasses.c3c4ann.fractions[[sc]] <- pnv[["Grasses"]]
+
+          if (has_rSW2[["6.5.0"]] && isTRUE(opt_behave[["rSW2VegTypesV2"]])) {
+            rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]]) <-
+              rSW2utils::finite01(pnv[["Rel_Abundance_L2"]])
+
+          } else {
+            tmp <- rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]])
+            pnv1 <- rSW2utils::finite01(pnv[["Rel_Abundance_L1"]])
+            res <- rep(0, length(tmp))
+
+            if (has_rSW2[["6.5.0"]]) {
+              ids <- rSOILWAT2::mapVegTypes("2from1", order = "SOILWAT2")
+              res[c(which(ids > 0L), 7L)] <- pnv1[c(ids, 5L)]
+            } else {
+              tmpc <- c(usedVegTypes[["v1c"]], "SW_BAREGROUND")
+              tmpv <- c(usedVegTypes[["v1"]], "Bare Ground")
+              ids <- match(tmpc[match(names(tmp), tmpv)], names(pnv1))
+              res <- pnv1[ids]
+            }
+
+            rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]]) <- res
+          }
         }
       }
 
@@ -2004,12 +2215,13 @@ do_OneSite <- function(
         ) {
           warning(
             "Function `rSOILWAT2::estimate_PotNatVeg_biomass()` estimated ",
-            "biomass for grasses and shrubs, but not for forbs and trees; ",
+            "biomass for grasses and shrubs, but not for C4-grasses, forbs and trees; ",
             "use estimated grass biomass for forbs as well."
           )
         }
 
-        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 1:3] <- tmp[["grass"]][, 1:3]
+        idg <- if (has_rSW2[["6.5.0"]]) "SW_GRASS3" else "SW_GRASS"
+        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], idg)[, 1:3] <- tmp[["grass"]][, 1:3]
         rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 1:3] <- tmp[["grass"]][, 1:3]
         rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 1:3] <- tmp[["shrub"]][, 1:3]
       }
@@ -2067,12 +2279,13 @@ do_OneSite <- function(
           "SchenkJackson2003_PCdry_forbs"
         }
 
+        tmpt <- paste0("LookupTranspCoefs_", uvts[[1L]])
         tro_type_tree <- if (
-          any(create_treatments == "LookupTranspCoefs_Tree") &&
-          "LookupTranspCoefs_Tree" %in% names(i_sw_input_treatments) &&
-          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments$LookupTranspCoefs_Tree)
+          any(create_treatments == tmpt) &&
+          tmpt %in% names(i_sw_input_treatments) &&
+          any(colnames(tr_input_TranspCoeff) == i_sw_input_treatments[1L, tmpt, drop = TRUE])
         ) {
-          i_sw_input_treatments$LookupTranspCoefs_Tree
+          i_sw_input_treatments[[tmpt]]
         } else {
           "FILL"
         }
@@ -2082,16 +2295,34 @@ do_OneSite <- function(
           na.rm = TRUE
         )
 
-        veg_trco <- rSOILWAT2::estimate_PotNatVeg_roots(
-          layers_depth = layers_depth,
-          trco_type_by_veg = list(
+        if (has_rSW2[["6.5.0"]]) {
+          icns2 <- usedVegTypes[["v2"]]
+          icns1 <- paste0("TrCo_", icns2)
+          tmp_trcos <- list(
+            treeNL = tro_type_tree,
+            treeBL = tro_type_tree,
+            shrub = trco_type_shrubs,
+            forbs = tro_type_forb,
+            grassC3 = trco_type_C3,
+            grassC4 = trco_type_C4,
+            grass_annuals = trco_type_annuals
+          )
+        } else {
+          icns2 <- usedVegTypes[["v1s"]]
+          icns1 <- paste0("transp", icns2, "_frac")
+          tmp_trcos <- list(
             grass_C3 = trco_type_C3,
             grass_C4 = trco_type_C4,
             grass_annuals = trco_type_annuals,
             shrub = trco_type_shrubs,
             forb = tro_type_forb,
             tree = tro_type_tree
-          ),
+          )
+        }
+
+        veg_trco <- rSOILWAT2::estimate_PotNatVeg_roots(
+          layers_depth = layers_depth,
+          trco_type_by_veg = tmp_trcos,
           fgrass_c3c4ann = if (has_grasses_by_subtype > 0) {
             # Only known if potnatveg is used
             grasses.c3c4ann.fractions[[sc]]
@@ -2109,125 +2340,164 @@ do_OneSite <- function(
           )
         )
 
-        rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, 5:8] <- veg_trco
+        rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])[, icns1] <-
+          veg_trco[, icns2, drop = FALSE]
 
         TRCO_done <- TRUE
       }
 
       print_debug(opt_verbosity, tag_simpidfid, "creating", "vegetation scaling")
 
-      Grass_Scaling_use <- c("Grass_TotalBiomass_ScalingFactor", "Grass_LiveBiomass_ScalingFactor", "Grass_Litter_ScalingFactor")
-      Shrub_Scaling_use <- c("Shrub_TotalBiomass_ScalingFactor", "Shrub_LiveBiomass_ScalingFactor", "Shrub_Litter_ScalingFactor")
-      Tree_Scaling_use <- c("Tree_TotalBiomass_ScalingFactor", "Tree_LiveBiomass_ScalingFactor", "Tree_Litter_ScalingFactor")
-      Forb_Scaling_use <- c("Forb_TotalBiomass_ScalingFactor", "Forb_LiveBiomass_ScalingFactor", "Forb_Litter_ScalingFactor")
-      if (any(create_treatments %in% c(Grass_Scaling_use, Shrub_Scaling_use, Tree_Scaling_use, Forb_Scaling_use))) {
-        grass_LitterTotalLiveScalingFactors <- rep(1, 3)
-        if (any(create_treatments == "Grass_Litter_ScalingFactor") && is.finite(i_sw_input_treatments$Grass_Litter_ScalingFactor))
-          grass_LitterTotalLiveScalingFactors[1] <- i_sw_input_treatments$Grass_Litter_ScalingFactor
-        if (any(create_treatments == "Grass_TotalBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Grass_TotalBiomass_ScalingFactor))
-          grass_LitterTotalLiveScalingFactors[2] <- i_sw_input_treatments$Grass_TotalBiomass_ScalingFactor
-        if (any(create_treatments == "Grass_LiveBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Grass_LiveBiomass_ScalingFactor))
-          grass_LitterTotalLiveScalingFactors[3] <- i_sw_input_treatments$Grass_LiveBiomass_ScalingFactor
+      tmp <- c(
+        "TotalBiomass_ScalingFactor",
+        "LiveBiomass_ScalingFactor",
+        "Litter_ScalingFactor"
+      )
+      veg_lblBiomScaling_use <- lapply(
+        stats::setNames(uvts, nm = cvts), function(vt) paste0(vt, "_", tmp)
+      )
 
-        shrub_LitterTotalLiveScalingFactors <- rep(1, 3)
-        if (any(create_treatments == "Shrub_Litter_ScalingFactor") && is.finite(i_sw_input_treatments$Shrub_Litter_ScalingFactor))
-          shrub_LitterTotalLiveScalingFactors[1] <- i_sw_input_treatments$Shrub_Litter_ScalingFactor
-        if (any(create_treatments == "Shrub_TotalBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Shrub_TotalBiomass_ScalingFactor))
-          shrub_LitterTotalLiveScalingFactors[2] <- i_sw_input_treatments$Shrub_TotalBiomass_ScalingFactor
-        if (any(create_treatments == "Shrub_LiveBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Shrub_LiveBiomass_ScalingFactor))
-          shrub_LitterTotalLiveScalingFactors[3] <- i_sw_input_treatments$Shrub_LiveBiomass_ScalingFactor
+      if (any(create_treatments %in% unlist(veg_lblBiomScaling_use))) {
+        veg_LitterTotalLiveScalingFactors <- lapply(
+          stats::setNames(nm = cvts), function(vt) rep(1, 3)
+        )
 
-        tree_LitterTotalLiveScalingFactors <- rep(1, 3)
-        if (any(create_treatments == "Tree_Litter_ScalingFactor") && is.finite(i_sw_input_treatments$Tree_Litter_ScalingFactor))
-          tree_LitterTotalLiveScalingFactors[1] <- i_sw_input_treatments$Tree_Litter_ScalingFactor
-        if (any(create_treatments == "Tree_TotalBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Tree_TotalBiomass_ScalingFactor))
-          tree_LitterTotalLiveScalingFactors[2] <- i_sw_input_treatments$Tree_TotalBiomass_ScalingFactor
-        if (any(create_treatments == "Tree_LiveBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Tree_LiveBiomass_ScalingFactor))
-          tree_LitterTotalLiveScalingFactors[3] <- i_sw_input_treatments$Tree_LiveBiomass_ScalingFactor
+        for (vt in cvts) {
+          usfs <- veg_lblBiomScaling_use[[vt]]
 
-        forb_LitterTotalLiveScalingFactors <- rep(1, 3)
-        if (any(create_treatments == "Forb_Litter_ScalingFactor") && is.finite(i_sw_input_treatments$Forb_Litter_ScalingFactor))
-          forb_LitterTotalLiveScalingFactors[1] <- i_sw_input_treatments$Forb_Litter_ScalingFactor
-        if (any(create_treatments == "Forb_TotalBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Forb_TotalBiomass_ScalingFactor))
-          forb_LitterTotalLiveScalingFactors[2] <- i_sw_input_treatments$Forb_TotalBiomass_ScalingFactor
-        if (any(create_treatments == "Forb_LiveBiomass_ScalingFactor") && is.finite(i_sw_input_treatments$Forb_LiveBiomass_ScalingFactor))
-          forb_LitterTotalLiveScalingFactors[3] <- i_sw_input_treatments$Forb_LiveBiomass_ScalingFactor
+          for (kb in seq_along(usfs)) {
+            sf <- usfs[[kb]]
+
+            if (
+              any(create_treatments == sf) &&
+              is.finite(i_sw_input_treatments[[sf]])
+            ) {
+              veg_LitterTotalLiveScalingFactors[[vt]][[kb]] <-
+                i_sw_input_treatments[[sf]]
+            }
+          }
+        }
 
         ScalingSeason <- i_sw_input_treatments$Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing
-        if (is.na(ScalingSeason) || !any(c("All", "Growing", "Nongrowing") == ScalingSeason)) #set to All for default
+        if (
+          is.na(ScalingSeason) ||
+          !any(c("All", "Growing", "Nongrowing") == ScalingSeason)
+        ) {
+          #set to All for default
           ScalingSeason <- "All"
+        }
 
-        if (any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing") && !is.na(ScalingSeason) && !(any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing") && ScalingSeason == "All")) {
-          if (ScalingSeason == "Growing") { #Growing: apply 'Vegetation_Biomass_ScalingFactor' only to those months that have MAT > growseason_Tlimit_C
+        if (
+          any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing") &&
+          !is.na(ScalingSeason) &&
+          !(
+            any(create_treatments == "Vegetation_Biomass_ScalingSeason_AllGrowingORNongrowing") &&
+            ScalingSeason == "All"
+          )
+        ) {
+          if (ScalingSeason == "Growing") {
+            #Growing: apply 'Vegetation_Biomass_ScalingFactor' only to those months that have MAT > growseason_Tlimit_C
             temp <- SiteClimate_Scenario$meanMonthlyTempC > opt_sim[["growseason_Tlimit_C"]]
             templength <- sum(temp)
             if (templength > 1) {
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3], MARGIN = 2, FUN = "*", grass_LitterTotalLiveScalingFactors)
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3], MARGIN = 2, FUN = "*", shrub_LitterTotalLiveScalingFactors)
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3], MARGIN = 2, FUN = "*", tree_LitterTotalLiveScalingFactors)
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3], MARGIN = 2, FUN = "*", forb_LitterTotalLiveScalingFactors)
+              for (vt in cvts) {
+                rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[temp, 1:3] <- sweep(
+                  rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[temp, 1:3],
+                  MARGIN = 2L,
+                  FUN = "*",
+                  veg_LitterTotalLiveScalingFactors[[vt]]
+                )
+              }
             } else if (templength == 1) {
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3]*grass_LitterTotalLiveScalingFactors
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3]*shrub_LitterTotalLiveScalingFactors
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3]*tree_LitterTotalLiveScalingFactors
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3] <-rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3]*forb_LitterTotalLiveScalingFactors
+              for (vt in cvts) {
+                rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[temp, 1:3] <-
+                  rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[temp, 1:3] *
+                  veg_LitterTotalLiveScalingFactors[[vt]]
+              }
             } else {
               print(paste0(tag_simfid, ": to Cold to do Vegetation Scaling Season for Growing"))
             }
-          } else if (ScalingSeason == "Nongrowing") {# Nongrowing: apply 'Vegetation_Biomass_ScalingFactor' only to those months that have MAT <= growseason_Tlimit_C
+          } else if (ScalingSeason == "Nongrowing") {
+            # Nongrowing: apply 'Vegetation_Biomass_ScalingFactor' only to those months that have MAT <= growseason_Tlimit_C
             temp <- SiteClimate_Scenario$meanMonthlyTempC <= opt_sim[["growseason_Tlimit_C"]]
             templength <- sum(temp)
             if (templength > 1) {
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3], MARGIN = 2, FUN = "*", grass_LitterTotalLiveScalingFactors)
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3], MARGIN = 2, FUN = "*", shrub_LitterTotalLiveScalingFactors)
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3], MARGIN = 2, FUN = "*", tree_LitterTotalLiveScalingFactors)
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3], MARGIN = 2, FUN = "*", forb_LitterTotalLiveScalingFactors)
+              for (vt in cvts) {
+                rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[temp, 1:3] <- sweep(
+                  rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[temp, 1:3],
+                  MARGIN = 2L,
+                  FUN = "*",
+                  veg_LitterTotalLiveScalingFactors[[vt]]
+                )
+              }
             } else if (templength == 1) {
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[temp, 1:3]*grass_LitterTotalLiveScalingFactors
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[temp, 1:3]*shrub_LitterTotalLiveScalingFactors
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[temp, 1:3]*tree_LitterTotalLiveScalingFactors
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3] <- rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[temp, 1:3]*forb_LitterTotalLiveScalingFactors
+              for (vt in cvts) {
+                rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[temp, 1:3] <-
+                  rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[temp, 1:3] *
+                  veg_LitterTotalLiveScalingFactors[[vt]]
+              }
             } else {
               print(paste0(tag_simfid, ": to Hot to do Vegetation Scaling Season for NonGrowing"))
             }
           }
         } else {
-          rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 1:3], MARGIN = 2, FUN = "*", grass_LitterTotalLiveScalingFactors)
-          rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 1:3], MARGIN = 2, FUN = "*", shrub_LitterTotalLiveScalingFactors)
-          rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[, 1:3], MARGIN = 2, FUN = "*", tree_LitterTotalLiveScalingFactors)
-          rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 1:3] <- sweep(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 1:3], MARGIN = 2, FUN = "*", forb_LitterTotalLiveScalingFactors)
+          for (vt in cvts) {
+            rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[, 1:3] <- sweep(
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[, 1:3],
+              MARGIN = 2L,
+              FUN = "*",
+              veg_LitterTotalLiveScalingFactors[[vt]]
+            )
+          }
         }
-        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 3])  #Check that live biomass fraction <= 1 & >= 0
-        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 3])  #Check that live biomass fraction <= 1 & >= 0
-        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[, 3])  #Check that live biomass fraction <= 1 & >= 0
-        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 3] <- rSW2utils::finite01(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 3])  #Check that live biomass fraction <= 1 & >= 0
+
+        #Check that live biomass fraction <= 1 & >= 0
+        for (vt in cvts) {
+          rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[, 3] <-
+            rSW2utils::finite01(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[, 3])
+        }
       }
 
       if (any(create_treatments == "Vegetation_Height_ScalingFactor")) {
+        tmp <- rSOILWAT2::swProd_CanopyHeight(swRunScenariosData[[sc]])
+        if (!has_rSW2[["6.5.0"]]) tmp <- t(tmp)
+
         #scale constant height
-        rSOILWAT2::swProd_CanopyHeight(swRunScenariosData[[sc]])[5, ] <- pmax(0, rSOILWAT2::swProd_CanopyHeight(swRunScenariosData[[sc]])[5, ] * i_sw_input_treatments$Vegetation_Height_ScalingFactor)
+        tmp[, "height_cm"] <- pmax(
+          0,
+          tmp[, "height_cm"] * i_sw_input_treatments$Vegetation_Height_ScalingFactor
+        )
+
         #scale tanfunc parameters: scale yinflec and range, leave xinflec and slope as is
-        rSOILWAT2::swProd_CanopyHeight(swRunScenariosData[[sc]])[2:3, ] <- pmax(0, rSOILWAT2::swProd_CanopyHeight(swRunScenariosData[[sc]])[2:3, ] * i_sw_input_treatments$Vegetation_Height_ScalingFactor)
+        ivs <- c("yinflec", "range")
+        tmp[, ivs] <- pmax(
+          0,
+          tmp[, ivs] * i_sw_input_treatments$Vegetation_Height_ScalingFactor
+        )
+
+        if (!has_rSW2[["6.5.0"]]) tmp <- t(tmp)
+        rSOILWAT2::swProd_CanopyHeight(swRunScenariosData[[sc]]) <- tmp
       }
 
       #if southern hemisphere adjust if set, but not when already adjusted by, e.g., growing season
       print_debug(opt_verbosity, tag_simpidfid, "creating", "hemisphere adjustment")
 
       if (opt_sim[["adjust_veg_input_NS"]] && i_SWRunInformation$Y_WGS84 < 0 && !any(create_treatments == "AdjMonthlyBioMass_Temperature")) {
-        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[, 3] <- rbind(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[7:12, ], rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")[1:6, ])
-        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[, 3] <- rbind(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[7:12, ], rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")[1:6, ])
-        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[, 3] <- rbind(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[7:12, ], rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")[1:6, ])
-        rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[, 3] <- rbind(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[7:12, ], rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS")[1:6, ])
+        for (vt in cvts) {
+          rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt) <-
+            rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)[c(7:12, 1:6), ]
+        }
       }
 
       # check that vegetation has no NAs
-      is_bad_veg <- any(
-        anyNA(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_GRASS")),
-        anyNA(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_SHRUB")),
-        anyNA(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_TREES")),
-        anyNA(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], "SW_FORBS"))
+      is_bad_veg <- vapply(
+        cvts,
+        function(vt) {
+          anyNA(rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt))
+        },
+        FUN.VALUE = NA
       )
-      if (is_bad_veg) {
+      if (any(is_bad_veg)) {
         print(paste0(tag_simpidfid, ": ERROR: vegetation values contain NA."))
         tasks[sc, "create"] <- 0L
         break
@@ -2247,11 +2517,15 @@ do_OneSite <- function(
 
       # Check evaporation- and transpiration coefficients
       soil_swdat <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[sc]])
-      dimnames(soil_swdat)[[2]] <- soil_cols
       EVCO_done <- check_soilco(soil_swdat[, "EvapBareSoil_frac"])
-      temp_trco <- soil_swdat[, c("transpGrass_frac", "transpShrub_frac",
-        "transpTree_frac", "transpForb_frac"), drop = FALSE]
-      TRCO_done <- all(apply(temp_trco, 2, check_soilco))
+      TRCO_done <- all(
+        apply(
+          soil_swdat[, namesTrCoRSW, drop = FALSE],
+          MARGIN = 2L,
+          FUN = check_soilco,
+          allowZeroSum = has_rSW2[["6.5.0"]]
+        )
+      )
 
       temp <- paste0(colnames(tasks), ": ", apply(tasks, 2, paste, collapse = ", "),
         collapse = " / ")
@@ -2263,11 +2537,11 @@ do_OneSite <- function(
 
     # Check that all flags are good across scenarios
     if (!EVCO_done) {
-      print(paste0(tag_simfid, ": evaporation coefficients not set for this run."))
+      stop(paste0(tag_simfid, ": evaporation coefficients not set for this run."))
     } else if (!TRCO_done) {
-      print(paste0(tag_simfid, ": transpiration coefficients not set for this run."))
+      stop(paste0(tag_simfid, ": transpiration coefficients not set for this run."))
     } else if (!TRRG_done) {
-      print(paste0(tag_simfid, ": transpiration regions not set for this run."))
+      stop(paste0(tag_simfid, ": transpiration regions not set for this run."))
     }
 
     if (!EVCO_done || !TRCO_done || !TRRG_done) {
@@ -2559,6 +2833,7 @@ do_OneSite <- function(
       out_failed <- inherits(runDataSC, "try-error") || DeltaX[2] < 0
       if (out_failed) {
         tasks[sc, "execute"] <- 0L
+        warning(runDataSC, call. = FALSE)
       }
 
       if (opt_out_run[["saveRsoilwatInput"]]) {
@@ -2676,6 +2951,8 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_FractionVegetationComposition")
 
+          stopifnot(!has_rSW2[["6.5.0"]])
+
           resMeans[nv:(nv+7)] <- c(rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]]),
             grasses.c3c4ann.fractions[[sc]])
           nv <- nv+8
@@ -2688,10 +2965,12 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_VegetationBiomassMonthly")
 
+          stopifnot(!has_rSW2[["6.5.0"]])
+
           temp <- lapply(
-            c("SW_GRASS", "SW_SHRUB", "SW_TREES", "SW_FORBS"),
-            function(vegType) {
-              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vegType)
+            usedVegTypes[["v1c"]],
+            function(vt) {
+              rSOILWAT2::swProd_MonProd_veg(swRunScenariosData[[sc]], vt)
             }
           )
 
@@ -2710,6 +2989,8 @@ do_OneSite <- function(
         if (isTRUE(prj_todos[["aon"]][["input_VegetationBiomassTrends"]])) {
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_VegetationBiomassTrends")
+
+          stopifnot(!has_rSW2[["6.5.0"]])
 
           if (!exists("veg.yr")) {
             veg.yr <- get_Vegetation_yr(runDataSC, isim_time[[itime]])
@@ -2732,6 +3013,8 @@ do_OneSite <- function(
         if (isTRUE(prj_todos[["aon"]][["input_VegetationPeak"]])) {
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_VegetationPeak")
+
+          stopifnot(!has_rSW2[["6.5.0"]])
 
           fracs <- rSOILWAT2::swProd_Composition(swRunScenariosData[[sc]])[1:4] #get the fractional Composition of grasses, shrubs, and trees
           tempdat <- matrix(data = NA, nrow = 12, ncol = 4)#matrix to hold biomass * percLive for grass, shrubs, trees
@@ -2785,6 +3068,8 @@ do_OneSite <- function(
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_TranspirationCoeff")
 
+          stopifnot(!has_rSW2[["6.5.0"]])
+
           Tcoeff <- rSOILWAT2::swSoils_Layers(swRunScenariosData[[1]])[, 5:8, drop = FALSE]
           if (is.null(dim(Tcoeff))) Tcoeff <- matrix(Tcoeff, nrow = 1)
 
@@ -2825,6 +3110,8 @@ do_OneSite <- function(
         if (isTRUE(prj_todos[["aon"]][["input_CO2Effects"]])) {
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "input_CO2Effects")
+
+          stopifnot(!has_rSW2[["6.5.0"]])
 
           if (!exists("co2effects.yr")) {
             co2effects.yr <- get_CO2effects_yr(runDataSC, isim_time[[itime]])
@@ -3688,6 +3975,7 @@ do_OneSite <- function(
         if (isTRUE(prj_todos[["aon"]][["yearlyTranspirationBySoilLayer"]])) {
           nv0 <- nv
           print_debug(opt_verbosity, tag_simpidfid, "aggregating", "yearlyTranspirationBySoilLayer")
+          stopifnot(!has_rSW2[["6.5.0"]])
           if (!exists("transp.yr.all")) transp.yr.all <- get_Response_aggL(swof["sw_transp"], tscale = "yrAll", scaler = 10, FUN = sum, x = runDataSC, st = isim_time[[itime]], st2 = simTime2[[itime]], topL = topL, bottomL = bottomL)
 
           # aggregate across years for each soil layer and vegetation type

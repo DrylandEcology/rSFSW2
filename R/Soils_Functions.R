@@ -31,9 +31,14 @@ check_soil_data <- function(x, allowAllSandClayOrSilt = FALSE) {
       check_soil[, itemp] & x[, itemp] - 1 <= SFSW2_glovars[["tol"]]
     }
 
+    v650 <- getNamespaceVersion("rSOILWAT2") >= as.numeric_version("6.5.0")
+    namesTrCo <- if (v650) {
+      paste0("TrCo_", rSOILWAT2::namesVegTypes("v2"))
+    } else {
+      paste0(c("Tree", "Shrub", "Forb", "Grass"), "_TranspCoeff")
+    }
     itemp <- c(
-      "EvapBareSoil_frac", "transpGrass_frac", "transpShrub_frac",
-      "transpTree_frac", "transpForb_frac", "imperm"
+      "EvapBareSoil_frac", intersect(namesTrCo, colnames(check_soil)), "imperm"
     )
     check_soil[, itemp] <- check_soil[, itemp] &
       x[, itemp] >= 0 &
@@ -46,16 +51,20 @@ check_soil_data <- function(x, allowAllSandClayOrSilt = FALSE) {
 #'
 #' Expectations are: \itemize{
 #'  \item Every coefficient must be equal or larger than 0,
-#'  \item Their sum is strictly larger than 0,
+#'  \item Their sum is strictly larger than 0 (unless \code{allowZeroSum}),
 #'  \item Their sum is equal or smaller than 1.
 #' }
 #'
 #' @param data A numeric vector. The coefficient of each soil layer.
 #'
 #' @return A logical value. \code{TRUE} if \code{data} meets expectations.
-check_soilco <- function(data) {
+check_soilco <- function(data, allowZeroSum = FALSE) {
     temp <- sum(data)
-    all(data >= 0, temp > 0, temp - 1 <= SFSW2_glovars[["tol"]])
+    all(
+      data >= 0,
+      if (isTRUE(allowZeroSum)) temp >= 0 else temp > 0,
+      temp - 1 <= SFSW2_glovars[["tol"]]
+    )
 }
 
 

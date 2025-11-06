@@ -1980,13 +1980,19 @@ simulate_SOILWAT2_experiment <- function(
   #------------------------RUN RSOILWAT
   if (
     SFSW2_prj_meta[["prj_todos"]][["use_SOILWAT2"]] &&
-    SFSW2_prj_meta[["sim_size"]][["runsN_todo"]] > 0
+      SFSW2_prj_meta[["sim_size"]][["runsN_todo"]] > 0
   ) {
-
     on.exit(
       dbWork_clean(SFSW2_prj_meta[["project_paths"]][["dir_out"]]),
       add = TRUE
     )
+
+    if (isTRUE(opt_behave[["rSW2VegTypesV2"]])) {
+      stop("Vegetation types v2 are not yet implemented.", call. = FALSE)
+      if (getNamespaceVersion("rSOILWAT2") < as.numeric_version("6.5.0")) {
+        stop("Vegetation types v2 requires rSOILWAT2 >= 6.5.0", call. = FALSE)
+      }
+    }
 
     swof <- rSOILWAT2::sw_out_flags()
     swDefaultInputs <- read_SOILWAT2_DefaultInputs()
@@ -1999,7 +2005,6 @@ simulate_SOILWAT2_experiment <- function(
       MoreArgs = args_do_OneSite,
       rSW2_options = op[grep("^RSW2", names(op))]
     )
-
   } else {
     runs.completed <- 0
   }
