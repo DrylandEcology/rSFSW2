@@ -187,7 +187,8 @@ plot_map <- function(
   crs = 5070,
   size = 0.1,
   ids_highlight = NULL,
-  var_plot = NULL
+  var_plot = NULL,
+  colorScaleName = NULL
 ) {
   plotType <- 1L
   used_vars <- var_index
@@ -252,6 +253,15 @@ plot_map <- function(
     "discrete"
   }
 
+  if (identical(colorScaleName, "viridis")) {
+    tmpg <- tmpg +
+      switch(
+        EXPR = st,
+        discrete = ggplot2::scale_color_viridis_d(),
+        continuous = ggplot2::scale_color_viridis_c()
+      )
+  }
+
   if (identical(st, "discrete")) {
     tmpg <- tmpg +
       ggplot2::guides(
@@ -268,10 +278,15 @@ plot_map <- function(
     ggplot2::theme_bw()
 
 
+  # See `ggplot2::coord_sf()$aspect` to figure out the aspect ratio:
+  # sf::st_is_longlat(sf::st_crs(crs_map)) is FALSE => ratio = 1
+  asp <- (xbbox[["ymax"]] - xbbox[["ymin"]]) / (xbbox[["xmax"]] - xbbox[["xmin"]])
+  asp <- min(c(max(c(0.5, asp)), 2))
+
   grDevices::png(
     filename = fname,
-    width = 5,
-    height = 5,
+    width = 7,
+    height = 7 * asp,
     units = "in",
     res = 300
   )

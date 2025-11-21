@@ -280,13 +280,15 @@ metaObservedVegetation <- if (any(veg_sources == "obs")) {
 #------ Paths ------
 dir_prj <- ".."
 dir_script <- "."
-dir_R <- "."
 
 dir_dataraw <- file.path(dir_prj, "data-raw")
 stopifnot(dir.exists(dir_dataraw))
 
 dir_data <- file.path(dir_prj, "data", versions[[vsel]])
 dir.create(dir_data, recursive = TRUE, showWarnings = FALSE)
+
+dir_R <- file.path(dir_prj, "R")
+stopifnot(dir.exists(dir_R))
 
 dir_results <- file.path(dir_prj, "results", versions[[vsel]])
 dir.create(dir_results, recursive = TRUE, showWarnings = FALSE)
@@ -830,7 +832,7 @@ if (all(file.exists(fname_xsim3), !isTRUE(tasks[["topo"]]))) {
   xsim <- readRDS(fname_xsim3)
 
 } else {
-  #--- ..* Create soils data container ------
+  #--- ..* Create topo data container ------
   res_topo <- list()
 
   varsTopo <- c("ELEV_m", "Slope_deg", "Aspect_deg")
@@ -1311,6 +1313,49 @@ if (doFigures) {
       crs = mapCRS,
       ids_highlight = which(xsoils[["table_keys"]][["Include_YN"]] == 0L)
     )
+  }
+
+
+  #--- Maps of soil properties
+  tmpVars <- c("Matricd", "GravelContent", "Sand", "Clay", "SOM")
+  tmpAcrossProfile <- c("mean", "max")
+
+  for (ks in seq_along(tmpVars)) for (kp in seq_along(tmpAcrossProfile)) {
+    tag <- paste0(tmpVars[[ks]], "-", tmpAcrossProfile[[kp]])
+
+    fname_fig_map_soilp <- file.path(
+      dir_figs, paste0("Fig-map_soil-", tag, ".png")
+    )
+
+    if (!file.exists(fname_fig_map_soilp)) {
+      ids <- grep(
+        paste0(tmpVars[[ks]], "_L[[:digit:]]{1,2}$"),
+        colnames(xsoils[["table_texture"]])
+      )
+
+      xtmp <- cbind(
+        xSoilsSpatial,
+        xsim[, varsSimLabel],
+        soilProperty = apply(
+          X = xsoils[["table_texture"]][, ids, drop = FALSE],
+          MARGIN = 1L,
+          FUN = tmpAcrossProfile[[kp]],
+          na.rm = TRUE
+        )
+      )
+
+      colnames(xtmp)[grep("soilProperty", colnames(xtmp))] <- tag
+
+      plot_map(
+        fname = fname_fig_map_soilp,
+        x = xtmp,
+        var_index = varsSimLabel,
+        crs = mapCRS,
+        var_plot = tag,
+        size = 0.2,
+        colorScaleName = "viridis"
+      )
+    }
   }
 }
 
