@@ -73,7 +73,7 @@ fields_input_FractionVegetationComposition <- function(aon, ...) {
   id <- "input_FractionVegetationComposition"
 
   if (isTRUE(aon[[id]])) {
-    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
+    stopifnot(getNamespaceVersion("rSOILWAT2") < numeric_version("6.5.0"))
 
     vtemps <- c("Grasses", "Shrubs", "Trees", "Forbs")
     temp <- paste0(
@@ -92,7 +92,7 @@ fields_input_VegetationBiomassMonthly <- function(aon, ...) {
   id <- "input_VegetationBiomassMonthly"
 
   if (isTRUE(aon[[id]])) {
-    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
+    stopifnot(getNamespaceVersion("rSOILWAT2") < numeric_version("6.5.0"))
 
     vtemp <- c("Grass", "Shrub", "Tree", "Forb")
     temp <- paste0(
@@ -114,7 +114,7 @@ fields_input_VegetationBiomassTrends <- function(aon, ...) {
   id <- "input_VegetationBiomassTrends"
 
   if (isTRUE(aon[[id]])) {
-    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
+    stopifnot(getNamespaceVersion("rSOILWAT2") < numeric_version("6.5.0"))
 
     vtemp <- c("Tree", "Shrub", "Forb", "Grass")
     temp <- paste0(
@@ -164,7 +164,7 @@ fields_input_TranspirationCoeff <- function(aon, opt_agg, ...) {
   id <- "input_TranspirationCoeff"
 
   if (isTRUE(aon[[id]])) {
-    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
+    stopifnot(getNamespaceVersion("rSOILWAT2") < numeric_version("6.5.0"))
 
     if (opt_agg[["doy_slyrs"]][["do"]]) {
       ltemp <- paste0("L0to", opt_agg[["doy_slyrs"]][["first_cm"]], "cm")
@@ -286,7 +286,7 @@ fields_input_CO2Effects <- function(aon, ...) {
   id <- "input_CO2Effects"
 
   if (isTRUE(aon[[id]])) {
-    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
+    stopifnot(getNamespaceVersion("rSOILWAT2") < numeric_version("6.5.0"))
 
     vtemp <- c("Tree", "Shrub", "Forb", "Grass")
     temp <- paste0(
@@ -651,7 +651,7 @@ fields_yearlyTranspirationBySoilLayer <- function(aon, ...) {
   id <- "yearlyTranspirationBySoilLayer"
 
   if (isTRUE(aon[[id]])) {
-    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
+    stopifnot(getNamespaceVersion("rSOILWAT2") < numeric_version("6.5.0"))
     vegtypes <- c("total", "tree", "shrub", "forb", "grass")
 
     temp <- paste0("Transpiration_",

@@ -820,7 +820,7 @@ process_inputs <- function(
         colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)
 
         #--- Merge additional information from `rSOILWAT2::sw2_trco_table`
-        if (getNamespaceVersion("rSOILWAT2") >= as.numeric_version("5.0.0")) {
+        if (getNamespaceVersion("rSOILWAT2") >= numeric_version("5.0.0")) {
           cns_to_add <- setdiff(
             colnames(rSOILWAT2::sw2_trco_table[["data"]]),
             colnames(tr_input_TranspCoeff)
@@ -855,7 +855,7 @@ process_inputs <- function(
         }
 
       } else {
-        if (getNamespaceVersion("rSOILWAT2") >= as.numeric_version("5.0.0")) {
+        if (getNamespaceVersion("rSOILWAT2") >= numeric_version("5.0.0")) {
           # No input for "LookupTranspCoefs": use `rSOILWAT2::sw2_trco_table`
           tr_input_TranspCoeff_Code <- rSOILWAT2::sw2_trco_table[["desc"]]
           tr_input_TranspCoeff <- rSOILWAT2::sw2_trco_table[["data"]]

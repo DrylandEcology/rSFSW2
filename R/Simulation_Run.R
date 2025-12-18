@@ -443,7 +443,7 @@ do_OneSite <- function(
   #--- rSOILWAT2 version ------
   tmp <- c("6.0.0", "6.1.0", "6.2.0", "6.3.0", "6.4.0", "6.5.0")
   has_rSW2 <- stats::setNames(
-    getNamespaceVersion("rSOILWAT2") >= as.numeric_version(tmp),
+    getNamespaceVersion("rSOILWAT2") >= numeric_version(tmp),
     nm = tmp
   )
 

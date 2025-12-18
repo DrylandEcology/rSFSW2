@@ -907,7 +907,7 @@ get_DayMet_NorthAmerica <- function(
   Xdm_WGS84, Ydm_WGS84,
   start_year, end_year
 ) {
-  stopifnot(getNamespaceVersion("rSOILWAT2") >= "6.0.4")
+  stopifnot(getNamespaceVersion("rSOILWAT2") >= numeric_version("6.0.4"))
 
   mm_dm <- rSOILWAT2::sw_meteo_obtain_DayMet(
     x = c(longitude = unname(Xdm_WGS84), latitude = unname(Ydm_WGS84)),
@@ -2415,7 +2415,7 @@ extract_daily_weather_from_gridMET <- function(
       )
 
       if (isTRUE(correctWeatherValues)) {
-        if (getNamespaceVersion("rSOILWAT2") < as.numeric_version("6.4.0")) {
+        if (getNamespaceVersion("rSOILWAT2") < numeric_version("6.4.0")) {
           stop("Correction of weather values requested but rSOILWAT2 < v6.4.0")
         }
 

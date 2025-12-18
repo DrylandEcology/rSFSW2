@@ -23,10 +23,10 @@ versions_rSWSF <- c("20240422", "20240604")
 
 #----- Dependencies ------
 stopifnot(
-  getNamespaceVersion("rSW2data") >= "0.1.5",
-  getNamespaceVersion("rSW2exter") >= "0.3.2",
-  getNamespaceVersion("rSOILWAT2") >= "6.4.0",
-  getNamespaceVersion("rSFSW2") >= "5.0.0"
+  getNamespaceVersion("rSW2data") >= numeric_version("0.1.5"),
+  getNamespaceVersion("rSW2exter") >= numeric_version("0.3.2"),
+  getNamespaceVersion("rSOILWAT2") >= numeric_version("6.4.0"),
+  getNamespaceVersion("rSFSW2") >= numeric_version("5.0.0")
 )
 #------ . ------
 

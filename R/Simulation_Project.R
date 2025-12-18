@@ -1989,7 +1989,7 @@ simulate_SOILWAT2_experiment <- function(
 
     if (isTRUE(opt_behave[["rSW2VegTypesV2"]])) {
       stop("Vegetation types v2 are not yet implemented.", call. = FALSE)
-      if (getNamespaceVersion("rSOILWAT2") < as.numeric_version("6.5.0")) {
+      if (getNamespaceVersion("rSOILWAT2") < numeric_version("6.5.0")) {
         stop("Vegetation types v2 requires rSOILWAT2 >= 6.5.0", call. = FALSE)
       }
     }

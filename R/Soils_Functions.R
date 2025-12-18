@@ -31,7 +31,7 @@ check_soil_data <- function(x, allowAllSandClayOrSilt = FALSE) {
       check_soil[, itemp] & x[, itemp] - 1 <= SFSW2_glovars[["tol"]]
     }
 
-    v650 <- getNamespaceVersion("rSOILWAT2") >= as.numeric_version("6.5.0")
+    v650 <- getNamespaceVersion("rSOILWAT2") >= numeric_version("6.5.0")
     namesTrCo <- if (v650) {
       paste0("TrCo_", rSOILWAT2::namesVegTypes("v2"))
     } else {
