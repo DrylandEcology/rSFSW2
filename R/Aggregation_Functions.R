@@ -139,6 +139,8 @@ fields_input_VegetationPeak <- function(aon, ...) {
   id <- "input_VegetationPeak"
 
   if (isTRUE(aon[[id]])) {
+    stopifnot(getNamespaceVersion("rSOILWAT2") < "6.5.0")
+
     temp <- paste0("SWinput.PeakLiveBiomass_", c("month_mean",
       "months_duration"))
   }
