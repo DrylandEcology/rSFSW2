@@ -5790,8 +5790,11 @@ do_OneSite <- function(
               if (agg.resp == "EvaporationTotal") {
                 temp1 <- slot(slot(runDataSC, swof["sw_evsoil"]), "Day")
                 temp2 <- slot(slot(runDataSC, swof["sw_evapsurface"]), "Day")
+                hasDailyOutput <- NROW(temp1) > 0L && NROW(temp2) > 0L
+
               } else {#"VWCbulk", "VWCmatric", "SWCbulk", "SWPmatric", "SWAbulk"
-                agg.file <- switch(EXPR = agg.resp,
+                agg.file <- switch(
+                    EXPR = agg.resp,
                     AET = swof["sw_aet"],
                     Transpiration = swof["sw_transp"],
                     EvaporationSoil = swof["sw_evsoil"],
@@ -5814,8 +5817,19 @@ do_OneSite <- function(
                     TemperatureMax = swof["sw_temp"],
                     SoilTemperature = swof["sw_soiltemp"],
                     Runoff = swof["sw_runoff"],
-                    Runon = swof["sw_runoff"])
+                    Runon = swof["sw_runoff"]
+                )
                 temp1 <- slot(slot(runDataSC, agg.file), "Day")
+                hasDailyOutput <- NROW(temp1) > 0L
+              }
+
+              if (!hasDailyOutput) {
+                stop(
+                  "Daily aggregation of ", shQuote(agg.resp), " requested ",
+                  "but not included in output: review value of ",
+                  "`opt_out_fix[[\"minimal_rSOILWAT2_output\"]]`",
+                  call. = FALSE
+                )
               }
 
               #extract data and aggregate into layers if requested
