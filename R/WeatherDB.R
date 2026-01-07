@@ -907,7 +907,8 @@ get_DayMet_NorthAmerica <- function(
   Xdm_WGS84, Ydm_WGS84,
   start_year, end_year
 ) {
-  stopifnot(getNamespaceVersion("rSOILWAT2") >= numeric_version("6.0.4"))
+  version_rSW2 <- getNamespaceVersion("rSOILWAT2")
+  stopifnot(version_rSW2 >= numeric_version("6.0.4"))
 
   mm_dm <- rSOILWAT2::sw_meteo_obtain_DayMet(
     x = c(longitude = unname(Xdm_WGS84), latitude = unname(Ydm_WGS84)),
@@ -916,8 +917,15 @@ get_DayMet_NorthAmerica <- function(
   )
 
   # Fill in missing values arising from DayMet's 365-day calendar
-  data_sw <- rSOILWAT2::dbW_fixWeather(mm_dm[["weatherDF"]])[["weatherData"]]
+  tmp <- c(
+    list(
+      weatherData = mm_dm[["weatherDF"]],
+      fillMissingValues = TRUE
+    ),
+    if (version_rSW2 >= numeric_version("6.5.1")) list(squashToBounds = TRUE)
+  )
 
+  data_sw <- do.call(rSOILWAT2::dbW_fixWeather, args = tmp)[["weatherData"]]
 
   # Check that weather data is well-formed
   stopifnot(rSOILWAT2::dbW_check_weatherData(data_sw, check_all = TRUE))
