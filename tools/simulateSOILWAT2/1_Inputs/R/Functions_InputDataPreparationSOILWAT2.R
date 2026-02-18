@@ -94,12 +94,15 @@ readInputFile <- function(filename) {
     xls = ,
     xlsx = readxl::read_excel(filename),
     csv = utils::read.csv(filename),
+    geojson = sf::st_read(filename),
     stop("Not implemented.")
   )
 }
 
 create_xmain <- function(x, varsCoords, varsKeep, prjCRS = 4326) {
-  hasCoords <- all(varsCoords %in% colnames(x))
+  if (inherits(x, "sf")) {
+    x <- cbind(sf::st_drop_geometry(x), sf::st_coordinates(x))
+  }
 
   sf::st_as_sf(
     x = data.frame(
@@ -112,15 +115,11 @@ create_xmain <- function(x, varsCoords, varsKeep, prjCRS = 4326) {
       ELEV_m = NA_real_,
       Slope = NA_real_,
       Aspect = NA_real_,
-      if (hasCoords) {
-        x[, setdiff(varsKeep, varsCoords), drop = FALSE]
-      } else {
-        x[, varsKeep, drop = FALSE]
-      },
+      x[, setdiff(varsKeep, varsCoords), drop = FALSE],
       exclusionReason = NA_character_
     ),
     coords = c("X_WGS84", "Y_WGS84"),
-    remove = !hasCoords,
+    remove = FALSE,
     crs = prjCRS
   )
 }
@@ -134,8 +133,8 @@ create_xsim <- function(xmain, varsSimLabel, expVegTrt = NULL) {
   Nsim <- nrow(xmain) * N_trt
 
   # xsim: based on repeated copies of xmain, one copy for each "design treatment"
-  xsim <- if (N_trt > 1L) {
-    do.call(
+  if (N_trt > 1L) {
+    xsim <- do.call(
       rbind,
       args = lapply(
         seq_len(N_trt),
@@ -148,8 +147,9 @@ create_xsim <- function(xmain, varsSimLabel, expVegTrt = NULL) {
         }
       )
     )
+    varsSimLabel <- unique(c(varsSimLabel, "ExpTrt_tag"))
   } else {
-    xmain
+    xsim <- xmain
   }
 
   xsim[, "site_id"] <- seq_len(Nsim)
@@ -175,7 +175,7 @@ create_xsim <- function(xmain, varsSimLabel, expVegTrt = NULL) {
     if (any(nchar(tmp) > 0L)) paste0("__", tmp)
   )
 
-  xsim
+  list(xsim = xsim, varsSimLabel = varsSimLabel)
 }
 
 #------ . ------
@@ -319,9 +319,14 @@ listWeatherFolderNames <- function(
   )
 }
 
-setup_dbWeather <- function(fdbWeather, wfs, weather_source) {
+setup_dbWeather <- function(
+  fdbWeather,
+  wfs,
+  weather_source,
+  uniqueWeather = TRUE
+) {
   tmp <- data.frame(
-    site_id = NA,
+    site_id = seq_along(wfs[["cellID"]]),
     X_WGS84 = wfs[["dm_WGS84"]][, 1L, drop = TRUE],
     Y_WGS84 = wfs[["dm_WGS84"]][, 2L, drop = TRUE],
     WeatherFolder = wfs[["cellID"]],
@@ -335,8 +340,11 @@ setup_dbWeather <- function(fdbWeather, wfs, weather_source) {
     stringsAsFactors = FALSE
   )
 
-  SWRunInformation <- unique(tmp)
-  SWRunInformation[["site_id"]] <- seq_len(nrow(SWRunInformation))
+  SWRunInformation <- if (isTRUE(uniqueWeather)) {
+    tmp[!duplicated(wfs[["cellID"]]), , drop = FALSE]
+  } else {
+    tmp
+  }
 
   # Create or connect to `dbWeather`
   res <- rSFSW2::make_dbW(
@@ -425,6 +433,8 @@ get_DayMet <- function(
   wd <- rSOILWAT2::dbW_fixWeather(
     mm_dm[["weatherDF"]],
     correctWeatherValues = isTRUE(correctWeatherValues),
+    fillMissingValues = TRUE,
+    squashToBounds = TRUE,
     return_weatherDF = FALSE
   )[["weatherData"]]
 
@@ -1026,6 +1036,7 @@ processObservedWeatherData <- function(
     nmax_interp = 2L,
     precip_lt_nmax = 0,
     fillMissingValues = TRUE,
+    squashToBounds = TRUE,
     correctWeatherValues = isTRUE(correctWeatherValues),
     return_weatherDF = TRUE
   )
@@ -1616,10 +1627,13 @@ createSoilsTemplate <- function(
   Nsim <- nrow(x)
 
   varSoilsTag <- c(
-    "Matricd_L", "GravelContent_L", "EvapCoeff_L", "Grass_TranspCoeff_L",
-    "Shrub_TranspCoeff_L", "Tree_TranspCoeff_L", "Forb_TranspCoeff_L",
-    "TranspRegion_L", "Sand_L", "Clay_L", "SOM_L", "Imperm_L",
-    "SoilTemp_L"
+    "Matricd_L",
+    "GravelContent_L", "Sand_L", "Clay_L", "SOM_L",
+    "Imperm_L",
+    "SoilTemp_L",
+    "EvapCoeff_L",
+    paste0("TrCo_", rSOILWAT2::namesVegTypes("v2"), "_L"),
+    "TranspRegion_L"
   )
   ids <- seq_len(Nmax)
 
@@ -1631,12 +1645,14 @@ createSoilsTemplate <- function(
       stringsAsFactors = FALSE
     ),
     table_depths = array(
+      data = NA_real_,
       dim = c(Nsim, 2L + Nmax),
       dimnames = list(
         NULL, c("N_horizons", "SoilDepth_cm", paste0("depth_L", ids))
       )
     ),
     table_texture = array(
+      data = NA_real_,
       dim = c(Nsim, length(varSoilsTag) * Nmax),
       dimnames = list(
         NULL, paste0(varSoilsTag, rep(ids, each = length(varSoilsTag)))
@@ -1915,10 +1931,23 @@ getSoilsFromSOLUS100 <- function(
       digits = NA
     )
 
-    stopifnot(xbuf[["table_depths"]][, "N_horizons"] > 0L)
+    hasStillNoSoils <- xbuf[["table_depths"]][, "N_horizons"] == 0L
+    if (any(hasStillNoSoils)) {
+      warning(
+        "Some sites (n = ", sum(hasStillNoSoils), ") still no soil data",
+        " extracted from SOLUS100 despite buffering."
+      )
+    }
 
     xs100s[["table_depths"]][idsFailedSites, ] <- xbuf[["table_depths"]]
     xs100s[["table_texture"]][idsFailedSites, ] <- xbuf[["table_texture"]]
+
+    if (is.null(xs100s[["table_keys"]])) {
+      xs100s[["table_keys"]] <- data.frame(
+        Label = x[, "Label", drop = TRUE],
+        Comment = NA
+      )
+    }
     xs100s[["table_keys"]][idsFailedSites, "Comment"] <-
       "Extracted with buffer."
   }
@@ -2171,6 +2200,7 @@ combineTwoSoils <- function(
   combineSoilSource2 = c("missingSoil1", "failedSoil1", "complementSoil1"),
   varsUseSoil2IfValueMissingInSoil1 = NULL,
   hasObsSoilDepth = FALSE,
+  minSoilDepth = NA,
   imputeLOCF = FALSE,
   allowAllSandClayOrSilt = FALSE,
   doFigures = FALSE,
@@ -2465,6 +2495,25 @@ combineTwoSoils <- function(
     x1[["table_texture"]][idsSoilVars1]
 
 
+  #--- ......*** Minimum soil depth ------
+  if (isTRUE(is.finite(minSoilDepth)) && isTRUE(minSoilDepth > 0)) {
+    idsMinDepth <- which(
+      xsoils[["table_depths"]][, "SoilDepth_cm"] > 0 &
+        xsoils[["table_depths"]][, "SoilDepth_cm"] < minSoilDepth
+    )
+
+    if (length(idsMinDepth) > 0L) {
+      tmp <- simSoilLayers[simSoilLayers <= minSoilDepth]
+      xsoils[["table_depths"]][idsMinDepth, "SoilDepth_cm"] <- minSoilDepth
+      xsoils[["table_depths"]][idsMinDepth, "N_horizons"] <- length(tmp)
+      xsoils[["table_depths"]][idsMinDepth, varDepths] <- NA
+      xsoils[["table_depths"]][idsMinDepth, varDepths[seq_along(tmp)]] <- matrix(
+        tmp, nrow = length(idsMinDepth), ncol = length(tmp), byrow = TRUE
+      )
+    }
+  }
+
+
   #--- ......*** Impute missing soils ------
   if (isTRUE(imputeLOCF)) {
     varsSoilProperties <- colnames(xsoils[["table_texture"]]) |>
@@ -2473,19 +2522,22 @@ combineTwoSoils <- function(
       unlist() |>
       unique()
 
+    varsSoilProperties2 <- c(varsSoilProperties, "depth")
+
     # reshaping from wide to semi-long
     tmp <- rSW2data::reshape_soilproperties_to_long(
       data.frame(
         Label = xsoils[["table_keys"]][["Label"]],
-        xsoils[["table_texture"]]
+        xsoils[["table_texture"]],
+        xsoils[["table_depths"]][, varDepths, drop = FALSE]
       ),
       type_to = "long_by_properties",
       id_site = "Label",
-      soilproperties = varsSoilProperties
+      soilproperties = varsSoilProperties2
     )
 
     ids <- which(
-      rowSums(!is.na(tmp[, varsSoilProperties, drop = FALSE])) > 0L
+      rowSums(!is.na(tmp[, varsSoilProperties2, drop = FALSE])) > 0L
     )
 
 
@@ -2569,12 +2621,12 @@ combineTwoSoils <- function(
 #------ . ------
 #--- Vegetation functions ------
 
-createVegetationTemplate <- function(x, vegHeader, pfts) {
+createVegetationTemplate <- function(x, vegHeader, pfts, bg = "BareGround") {
   xveg <- sf::st_drop_geometry(x[, vegHeader, drop = FALSE])
 
   # Add vegetation composition columns
-  varsVeg <- paste0("Composition_", pfts, "Fraction")
-  xveg[, varsVeg] <- NA
+  varsVeg <- paste0("Composition_", c(pfts, bg), "Fraction")
+  xveg[, varsVeg] <- NA_real_
 
   # Add biomass columns
   for (kt in seq_along(pfts)) {
@@ -2586,7 +2638,7 @@ createVegetationTemplate <- function(x, vegHeader, pfts) {
       paste0(pfts[[kt]], "_Litter_m", seq_len(12L))
     )
     varsVeg <- c(varsVeg, tmp)
-    xveg[, tmp] <- NA
+    xveg[, tmp] <- NA_real_
   }
 
   list(xveg = xveg, varsVeg = varsVeg)

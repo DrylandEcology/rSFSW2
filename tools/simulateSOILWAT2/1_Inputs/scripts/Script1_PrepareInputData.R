@@ -1,4 +1,4 @@
-# last update: 20250320_SoilClimateDynamics_SOILWAT2_simulations
+# last update: 20260216_PIPOFutureManagement_SOILWAT2_simulations
 
 #------ . ------
 #------ SOILWAT2 simulations at YOUR-EXPERIMENT ------
@@ -24,8 +24,9 @@ versions_rSWSF <- c("20240422", "20240604")
 #----- Dependencies ------
 stopifnot(
   getNamespaceVersion("rSW2data") >= numeric_version("0.1.5"),
+  getNamespaceVersion("rSW2st") >= numeric_version("0.3.2"),
   getNamespaceVersion("rSW2exter") >= numeric_version("0.3.2"),
-  getNamespaceVersion("rSOILWAT2") >= numeric_version("6.4.0"),
+  getNamespaceVersion("rSOILWAT2") >= numeric_version("6.6.0"),
   getNamespaceVersion("rSFSW2") >= numeric_version("5.0.0")
 )
 #------ . ------
@@ -34,10 +35,13 @@ stopifnot(
 #------ Settings ------
 vsel <- 1L # select version to use now, i.e., index of `versions`
 
+methodSW <- "SWNC" # method for SOILWAT2 experiment: "SWNC", "rSFSW2"
+
 # Completion dates for run1-20240422
 tasks <- list(
   dbW = TRUE, # completed:
-  dbFuture = FALSE, # completed: NA
+  dbFuture = FALSE, # completed:
+  site = FALSE, # completed:
   topo = TRUE, # completed:
   soils = TRUE, # completed:
   veg = TRUE # completed:
@@ -89,8 +93,8 @@ soil_sources <- c("KSSL", "SOLUS100")
 
 #' @param veg_sources One or two data sources of vegetation inputs.
 #' The first value takes priority; the second (if any) completes.
-#' Possible values: `"obs"`, `"climVeg"`
-veg_sources <- "climVeg"
+#' Possible values: `"obs"`, `"climVeg2014"` (Bradford et al. 2014)
+veg_sources <- "climVeg2014"
 
 
 weather_actions <- list(
@@ -105,7 +109,18 @@ weather_actions <- list(
   #' @param imputeMissingObsWeather A logical value.
   #' TRUE, impute missing weather from the `"obs"` weather source using
   #' values extracted from `"DayMet"`
-  imputeMissingObsWeather = TRUE
+  imputeMissingObsWeather = TRUE,
+
+  #' @param convertWeatherDBToNC A logical value.
+  #' TRUE, convert the weather database to a netCDF input file
+  #' if `methodSW` is `"SWNC"`
+  convertWeatherDBToNC = TRUE
+)
+
+site_actions <- list(
+  #' @param doTasClimForLowerSoilTemperatureBoundary A logical value
+  #' TRUE, calculate long-term mean air temperature (replicating `rSFSW2`)
+  doTasClimForLowerSoilTemperatureBoundary = FALSE
 )
 
 topo_actions <- list(
@@ -163,6 +178,11 @@ soil_actions <- list(
   #'    * FALSE, soil depth from the other (not `"obs"`) soil source is used.
   hasObsSoilDepth = FALSE,
 
+  #' @param minSoilDepth A numeric value. Sites with a shallower soil depth
+  #' will be adjusted to this new value (unless it is `NA` or `NULL`).
+  #' Soil properties of added layers are set to `NA` (see `imputeLOCF`).
+  minSoilDepth_cm = NA,
+
   #' @param imputeLOCF A logical value.
   #' Impute missing soil values per location by shallow-depth value carried
   #' deeper (in analogy to `LOCF`), but do not impute missing values
@@ -171,7 +191,16 @@ soil_actions <- list(
 
   #' @param allowAllSandClayOrSilt A logical value.
   #' Check of soil texture allows a 100% content of sand, clay, or silt.
-  allowAllSandClayOrSilt = TRUE
+  allowAllSandClayOrSilt = TRUE,
+
+  #' @param estimateEvCo A logical value.
+  #' Estimate evaporation coefficients based on soil properties.
+  estimateEvCo = TRUE,
+
+  #' @param roundEvCoLikeRSFSW2 A logical value.
+  #' Round estimated evaporation coefficients to 4 digits; this replicates
+  #' the behavior of [rSFSW2:::get_BareSoilEvapCoefs()]
+  roundEvCoLikeRSFSW2 = FALSE
 )
 
 veg_actions <- list(
@@ -228,14 +257,25 @@ veg_actions <- list(
   #' @param interpretPNVSucculents A character string.
   #' PNV estimates succulent cover, but simulations currently don't represent;
   #' assign succulent cover to one of the four implement types.
-  interpretSucculentCoverPNV = "Shrub",
+  interpretSucculentCoverPNV = "shrub",
 
   #' @param monthScalePNVByObs An integer value.
   #' The month `[1-12]` when observed biomass was collected, i.e.,
   #' the code will scale PNV to match live biomass amount for grasses and forbs
   #' and total biomass for shrubs.
   #' A negative value will skip this step.
-  monthScalePNVByObs = -1L
+  monthScalePNVByObs = -1L,
+
+  #' @param estimateTrCo A logical value.
+  #' Estimate rooting distributions (potential transpiration coefficients)
+  #' based on vegetation composition and soil layer depths.
+  estimateTrCo = FALSE,
+
+  #' @param rootingProfileTreeNL A character string.
+  #' Rooting profile basis for `"treeNL"`, e.g.,
+  #' `"Bradfordetal2014_LodgepolePine"` (default),
+  #' `"SchenkJackson2003_PCdry_shrubs"`
+  rootingProfileTreeNL = NULL
 )
 
 
@@ -287,7 +327,7 @@ stopifnot(dir.exists(dir_dataraw))
 dir_data <- file.path(dir_prj, "data", versions[[vsel]])
 dir.create(dir_data, recursive = TRUE, showWarnings = FALSE)
 
-dir_R <- file.path(dir_prj, "R")
+dir_R <- file.path(dir_script, "R")
 stopifnot(dir.exists(dir_R))
 
 dir_results <- file.path(dir_prj, "results", versions[[vsel]])
@@ -305,6 +345,9 @@ names(weather_sources) <- weather_sources
 
 #------ . ------
 #------ Load functions ------
+attributesProject <- NULL
+source(file.path(dir_R, paste0("Functions__", prjTag, ".R")))
+
 matchMultipleVariables <- NULL
 readInputFile <- NULL
 create_xmain <- NULL
@@ -350,12 +393,14 @@ if (isTRUE(veg_actions[["doBasalAreaPIPO"]])) {
 
 #------ . ------
 #------ Create empty rSFSW2 project ------
+tmp <- regmatches(versions[[vsel]], regexpr("[[:digit:]]{8}", versions[[vsel]]))
+
 fnames_dbW <- file.path(
   dir_sim,
   "0_WeatherDatabase",
   paste0(
     "dbWeatherData_",
-    prjTag, "_", weather_sources, "_v", versions_rSWSF[[vsel]],
+    prjTag, "_", weather_sources, "_v", tmp,
     ".sqlite3"
   )
 )
@@ -368,7 +413,7 @@ if (!is.null(future_sources)) {
     "0_WeatherDatabase",
     paste0(
       "dbWeatherData_",
-      prjTag, "_", future_sources, "_v", versions_rSWSF[[vsel]],
+      prjTag, "_", future_sources, "_v", tmp,
       ".sqlite3"
     )
   )
@@ -378,14 +423,17 @@ if (!is.null(future_sources)) {
   )
 }
 
-dir_rSFSW2 <- file.path(
-  dir_sim,
-  paste0(
-    versions_rSWSF[[vsel]], "_",
-    prjTag, "_SOILWAT2_simulations")
-)
-if (!dir.exists(dir_rSFSW2)) {
-  rSFSW2::setup_rSFSW2_project_infrastructure(dir_prj = dir_rSFSW2)
+
+if (identical(methodSW, "rSFSW2")) {
+  dir_rSFSW2 <- file.path(
+    dir_sim,
+    paste0(
+      versions_rSWSF[[vsel]], "_",
+      prjTag, "_SOILWAT2_simulations")
+  )
+  if (!dir.exists(dir_rSFSW2)) {
+    rSFSW2::setup_rSFSW2_project_infrastructure(dir_prj = dir_rSFSW2)
+  }
 }
 
 
@@ -397,6 +445,10 @@ fname_xsim1 <- file.path(dir_data, "xsim1.rds")
 #--- ..* Sites/locations ------
 if (file.exists(fname_xsim1)) {
   xsim <- readRDS(fname_xsim1)
+
+  if ("ExpTrt_tag" %in% colnames(xsim)) {
+    varsSimLabel <- unique(c(varsSimLabel, "ExpTrt_tag"))
+  }
 
 } else {
   tmp <- switch(
@@ -416,17 +468,26 @@ if (file.exists(fname_xsim1)) {
     x = xtmp,
     varsCoords = varsCoords,
     varsKeep = unique(
-      c(varsSimLabel, setdiff(colnames(xtmp), c(varsCoords, "fname_weather")))
+      c(
+        varsSimLabel,
+        setdiff(
+          colnames(xtmp),
+          c(varsCoords, "fname_weather", attr(xtmp, "sf_column"))
+        )
+      )
     ),
     prjCRS = prjCRS
   )
 
   #--- ..* Simulation setup with "design treatments" ------
-  xsim <- create_xsim(
+  tmp <- create_xsim(
     xmain = xmain,
     varsSimLabel = varsSimLabel,
     expVegTrt = expVegTrt
   )
+
+  xsim <- tmp[["xsim"]]
+  varsSimLabel <- tmp[["varsSimLabel"]]
 
   saveRDS(xsim, file = fname_xsim1)
 }
@@ -455,7 +516,16 @@ if (doFigures) {
 #------ Weather data ------
 fname_xsim2 <- file.path(dir_data, "xsim2.rds")
 
-if (any(!file.exists(fname_xsim2), isTRUE(tasks[["dbW"]]))) {
+if (
+  any(
+    !file.exists(fname_xsim2),
+    isTRUE(tasks[["dbW"]]),
+    isTRUE(tasks[["site"]]) &&
+      isTRUE(site_actions[["doTasClimForLowerSoilTemperatureBoundary"]]),
+    isTRUE(weather_actions[["convertWeatherDBToNC"]]) &&
+      identical(methodSW, "SWNC")
+  )
+) {
 
   #--- ..* Download gridMET (if requested) ------
   if (any(weather_sources == "gridMET")) {
@@ -501,7 +571,8 @@ if (isTRUE(tasks[["dbW"]])) {
     tasks_by_dbW <- setup_dbWeather(
       fdbWeather = fnames_dbW[[kw]],
       wfs = tmp_wfs[[kw]],
-      weather_source = weather_sources[[kw]]
+      weather_source = weather_sources[[kw]],
+      uniqueWeather = TRUE
     )
 
     stopifnot(rSOILWAT2::dbW_setConnection(fnames_dbW[[kw]]))
@@ -816,6 +887,69 @@ if (isTRUE(tasks[["dbFuture"]])) {
 
 
 #------ . ------
+#------ Site conditions ------
+
+fname_xsiteconditions <- file.path(dir_data, "xsim-siteConditions.rds")
+
+if (all(file.exists(fname_xsiteconditions), !isTRUE(tasks[["site"]]))) {
+  xsiteconds <- readRDS(fname_xsiteconditions)
+
+} else {
+  #--- ..* Create site conditions data container ------
+  varsSiteConds <- c(
+    if (site_actions[["doTasClimForLowerSoilTemperatureBoundary"]]) {
+      paste("tasclim", weather_sources, sep = "-")
+    }
+  )
+  xsiteconds <- xsim[, "Label", drop = FALSE]
+  xsiteconds[, varsSiteConds] <- NA
+
+
+  #------ ..* Long-term mean air temperature ------
+  if (site_actions[["doTasClimForLowerSoilTemperatureBoundary"]]) {
+
+    for (kw in seq_along(weather_sources)) {
+
+      vartasclim <- paste("tasclim", weather_sources[[kw]], sep = "-")
+
+      stopifnot(rSOILWAT2::dbW_setConnection(fnames_dbW[[kw]]))
+
+      tasks_by_dbW <- setup_dbWeather(
+        fdbWeather = fnames_dbW[[kw]],
+        wfs = tmp_wfs[[kw]],
+        weather_source = weather_sources[[kw]],
+        uniqueWeather = FALSE
+      )
+
+
+      #--- Loop over sites
+      pb <- utils::txtProgressBar(max = Nsim, style = 3L)
+
+      for (ks in seq_len(Nsim)) {
+        wdata <- rSOILWAT2::dbW_getWeatherData(
+          Label = tasks_by_dbW[ks, "Label"]
+        )
+        tmp <- rSOILWAT2::calc_SiteClimate(wdata)
+        xsiteconds[ks, vartasclim] <- mean(tmp[["meanMonthlyTempC"]])
+
+        utils::setTxtProgressBar(pb, value = ks)
+      }
+
+
+      #--- Clean up
+      close(pb)
+
+      rSOILWAT2::dbW_disconnectConnection()
+    }
+  }
+
+
+  #--- Write to disk
+  saveRDS(xsiteconds, file = fname_xsiteconditions)
+}
+
+
+#------ . ------
 #------ Topographic position ------
 # Aspect
 # * input: -1 = no slope; 0 degrees is north in this case. 90 is east, 180 south, 270 west, etc.
@@ -856,8 +990,13 @@ if (all(file.exists(fname_xsim3), !isTRUE(tasks[["topo"]]))) {
       res_topo[["NED1"]] <- readRDS(fname_topoNED)
 
     } else {
-      dir_ned1 <- file.path(dir_dataraw, "NED1")
-      dir.create(dir_ned1, recursive = TRUE, showWarnings = FALSE)
+      dir_ned1_priority <- "/Volumes/BookDuo_12TB/BigData/GIS/Data/Topography/NED_USA/NED1"
+      if (dir.exists(dir_ned1_priority)) {
+        dir_ned1 <- dir_ned1_priority
+      } else {
+        dir_ned1 <- file.path(dir_dataraw, "NED1")
+        dir.create(dir_ned1, recursive = TRUE, showWarnings = FALSE)
+      }
 
       xned <- getTopoNED1(
         x = templateTopo,
@@ -1244,13 +1383,40 @@ if (all(file.exists(fname_xsoils), !isTRUE(tasks[["soils"]]))) {
     varsUseSoil2IfValueMissingInSoil1 =
       soil_actions[["varsUseSoil2IfValueMissingInSoil1"]],
     hasObsSoilDepth = soil_actions[["hasObsSoilDepth"]],
+    minSoilDepth = soil_actions[["minSoilDepth_cm"]],
     imputeLOCF = soil_actions[["imputeLOCF"]],
     allowAllSandClayOrSilt = soil_actions[["allowAllSandClayOrSilt"]],
     doFigures = doFigures,
     pathFigure = dir_figs
   )
 
-  #--- ....** Save final soils ------
+
+  #--- ..* Estimate evaporation coefficient ------
+  if (isTRUE(soil_actions[["estimateEvCo"]])) {
+    tmpc <- list(
+      depth = grep("depth_L[[:digit:]]+", colnames(xsoils[["table_depths"]])),
+      sand = grep("Sand_L[[:digit:]]+", colnames(xsoils[["table_texture"]])),
+      clay = grep("Clay_L[[:digit:]]+", colnames(xsoils[["table_texture"]]))
+    )
+    tmp_evco <- rSW2data::calc_BareSoilEvapCoefs(
+      layers_depth = xsoils[["table_depths"]][, tmpc[["depth"]], drop = FALSE],
+      sand = xsoils[["table_texture"]][, tmpc[["sand"]], drop = FALSE],
+      clay = xsoils[["table_texture"]][, tmpc[["clay"]], drop = FALSE],
+      method_bad_soils = "pass",
+      noSoilValue = NA
+    )
+
+    if (isTRUE(soil_actions[["roundEvCoLikeRSFSW2"]])) {
+      # rSFSW2::get_BareSoilEvapCoefs() rounds evco to 4 digits
+      tmp_evco <- round(tmp_evco, digits = 4L)
+    }
+
+    tmp <- grep("EvapCoeff_L[[:digit:]]+", colnames(xsoils[["table_texture"]]))
+    xsoils[["table_texture"]][, tmp] <- tmp_evco
+  }
+
+
+  #--- ..* Save final soils ------
   saveRDS(xsoils, file = fname_xsoils)
 }
 
@@ -1258,6 +1424,18 @@ if (all(file.exists(fname_xsoils), !isTRUE(tasks[["soils"]]))) {
 
 #--- ..* Map final soils ------
 if (doFigures) {
+
+  if (!exists("xSoilsSpatial")) {
+    tmp <- createSoilsTemplate(
+      xsim,
+      soilHeader = c("Label", varsSimLabel, varsSoilID),
+      varsCoords = varsSoilCoords,
+      prjCRS = prjCRS
+    )
+    xSoilsSpatial <- tmp[["xSoilsSpatial"]]
+  }
+
+
   # Map of soil sources
   fname_fig_map_source <- file.path(dir_figs, "Fig-map_soil-source.png")
 
@@ -1268,7 +1446,7 @@ if (doFigures) {
         xSoilsSpatial,
         xsim[, varsSimLabel],
         source = paste(
-          xsoils[["table_keys"]][, varsSimLabel[[1L]]],
+          #xsoils[["table_keys"]][, varsSimLabel[[1L]]],
           xsoils[["table_keys"]][, "Source_Soils"],
           sep = "-"
         )
@@ -1368,7 +1546,8 @@ if (file.exists(fname_xsim4)) {
 
 } else {
 
-  xsim[, "Source_Soils"] <- xsoils[["table_keys"]][, "Source_Soils"]
+  xsim[, "Source_Soils"] <-
+    xsoils[["table_keys"]][, "Source_Soils", drop = TRUE]
 
   #--- Exclude sites due to missing soils
   ids_exclude <- which(xsoils[["table_keys"]][["Include_YN"]] == 0L)
@@ -1386,6 +1565,13 @@ if (file.exists(fname_xsim4)) {
 
 #------ . ------
 #------ Vegetation ------
+pftsV1 <- c("Tree", "Shrub", "Forb", "Grass")
+
+# names of pftsV2 used by
+#   - rSOILWAT2::estimate_PotNatVeg_roots()
+#   - rSFSW2 SWRuns_InputData_soils_v13
+pftsV2 <- stats::setNames(nm = rSOILWAT2::namesVegTypes("v2"))
+
 
 fname_xveg <- file.path(dir_data, "xveg.rds")
 
@@ -1393,8 +1579,7 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
   xveg <- readRDS(fname_xveg)
 
 } else {
-  pfts <- c("Tree", "Shrub", "Grass", "Forb")
-  pftsNonTree <- pfts[-1L]
+  pftsNonTree <- pftsV1[-1L]
 
   varsVegHas <- NULL
   varsVegAll <- NULL
@@ -1407,7 +1592,7 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
   ) |>
     unique()
 
-  res <- createVegetationTemplate(xsim, vegHeader, pfts)
+  res <- createVegetationTemplate(xsim, vegHeader, pftsV1)
   xveg <- res[["xveg"]]
   varsVegAll <- res[["varsVeg"]]
 
@@ -1540,8 +1725,8 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
     )
     totalLitter <- xveg[, veg_actions[["varCombinedLitter"]], drop = TRUE]
 
-    for (kv in seq_along(pfts)) {
-      varsLitter <- paste0(pfts[[kv]], "_Litter_m", seq_len(12L))
+    for (kv in seq_along(pftsV1)) {
+      varsLitter <- paste0(pftsV1[[kv]], "_Litter_m", seq_len(12L))
       stopifnot(varsLitter %in% varsVegAll)
       xveg[, varsLitter] <- totalLitter
       varsVegHas <- unique(c(varsVegHas, varsLitter))
@@ -1596,12 +1781,12 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
   # Use "raw" (unscaled) composition
   # SOILWAT2 expects biomass inputs each to reflect 100% cover
   if (isTRUE(veg_actions[["isBiomassOnTheGround"]])) {
-    for (kv in seq_along(pfts)) {
-      tmpVarCover <- paste0("Composition_", pfts[[kv]], "Fraction")
+    for (kv in seq_along(pftsV1)) {
+      tmpVarCover <- paste0("Composition_", pftsV1[[kv]], "Fraction")
 
       if (isTRUE(tmpVarCover %in% varsVegHas)) {
         tmpVarBiomass <- intersect(
-          paste0(pfts[[kv]], "_Biomass_m", seq_len(12L)),
+          paste0(pftsV1[[kv]], "_Biomass_m", seq_len(12L)),
           varsVegHas
         )
 
@@ -1617,10 +1802,10 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
           )
 
         } else {
-          warning("No biomass for type ", shQuote(pfts[[kv]]), " to scale.")
+          warning("No biomass for type ", shQuote(pftsV1[[kv]]), " to scale.")
         }
       } else {
-        warning("No cover for type ", shQuote(pfts[[kv]]), " to scale biomass.")
+        warning("No cover for type ", shQuote(pftsV1[[kv]]), " to scale biomass.")
       }
     }
   }
@@ -1635,12 +1820,12 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
       !isTRUE(veg_actions[["hasCombinedLitter"]])
     )
 
-    for (kv in seq_along(pfts)) {
-      tmpVarCover <- paste0("Composition_", pfts[[kv]], "Fraction")
+    for (kv in seq_along(pftsV1)) {
+      tmpVarCover <- paste0("Composition_", pftsV1[[kv]], "Fraction")
 
       if (isTRUE(tmpVarCover %in% varsVegHas)) {
         tmpVarLitter <- intersect(
-          paste0(pfts[[kv]], "_Litter_m", seq_len(12L)),
+          paste0(pftsV1[[kv]], "_Litter_m", seq_len(12L)),
           varsVegHas
         )
 
@@ -1656,17 +1841,17 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
           )
 
         } else {
-          warning("No litter for type ", shQuote(pfts[[kv]]), " to scale.")
+          warning("No litter for type ", shQuote(pftsV1[[kv]]), " to scale.")
         }
       } else {
-        warning("No cover for type ", shQuote(pfts[[kv]]), " to scale litter.")
+        warning("No cover for type ", shQuote(pftsV1[[kv]]), " to scale litter.")
       }
     }
   }
 
 
-  #--- ..* Data source: climate relationships ------
-  if (any(veg_sources == "climVeg")) {
+  #--- ..* Data source: climate relationships (Bradford et al. 2014) ------
+  if (any(veg_sources == "climVeg2014")) {
     fname_xvegClim <- file.path(dir_data, "xveg-clim.csv")
 
     if (file.exists(fname_xvegClim)) {
@@ -1683,17 +1868,23 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
       )
 
       tmpTags <- lapply(
-        c("_Biomass_m", "_FractionLive_m", "_AmountLive_m", "_Litter_m"),
-        function(tag) paste0(tag, seq_len(12L))
+        stats::setNames(
+          nm = c("Biomass", "FractionLive", "BiomassLive", "Litter", "LAIconv")
+        ),
+        function(tag) paste0("_", tag, "_m", seq_len(12L))
       )
 
-      stopifnot(veg_actions[["interpretSucculentCoverPNV"]] %in% pfts)
+      stopifnot(veg_actions[["interpretSucculentCoverPNV"]] %in% pftsV1)
       varSucCov <- paste0(
         "Composition_", veg_actions[["interpretSucculentCoverPNV"]], "Fraction"
       )
 
 
       #--- ....** Estimate PNV ------
+      monVegDefault <- slot(
+        rSOILWAT2::get_swProd(rSOILWAT2::sw_exampleData), "MonthlyVeg"
+      )
+
       pb <- utils::txtProgressBar(max = Nsim, style = 3L)
 
       for (ks in seq_len(Nsim)) {
@@ -1715,22 +1906,43 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
         covclim <- rSOILWAT2::estimate_PotNatVeg_composition(
           MAP_mm = 10 * clim[["MAP_cm"]],
           MAT_C = clim[["MAT_C"]],
-          mean_monthly_ppt_mm = clim[["meanMonthlyPPTcm"]],
+          # Circa 2025-Oct to 2026-Feb-04, this was by mistake
+          # `mean_monthly_ppt_mm = clim[["meanMonthlyPPTcm"]]`
+          # -- see also SOILWAT2 issue #517
+          mean_monthly_ppt_mm = 10 * clim[["meanMonthlyPPTcm"]],
           mean_monthly_Temp_C = clim[["meanMonthlyTempC"]],
-          dailyC4vars = clim[["dailyC4vars"]]
+          dailyC4vars = clim[["dailyC4vars"]],
+          isNorth = xsim[ks, "Y_WGS84", drop = TRUE] > 0,
+          shrub_limit = 0.2,
+          fix_succulents = TRUE,
+          Succulents_Fraction = 0,
+          fix_annuals = TRUE,
+          Annuals_Fraction = 0,
+          fix_trees = TRUE,
+          Trees_Fraction = 0,
+          fix_BareGround = TRUE,
+          BareGround_Fraction = 0,
+          fill_empty_with_BareGround = TRUE,
+          warn_extrapolation = TRUE
         )
 
+        # rSFSW2 still uses V1
         xvegClim[ks, "Composition_TreeFraction"] <-
-          covclim[["Rel_Abundance_L1"]][["SW_TREES"]]
+          covclim[["Rel_Abundance_L0"]][["Trees"]]
 
         xvegClim[ks, "Composition_ShrubFraction"] <-
-          covclim[["Rel_Abundance_L1"]][["SW_SHRUB"]]
+          covclim[["Rel_Abundance_L0"]][["Shrubs"]]
 
         xvegClim[ks, "Composition_GrassFraction"] <-
-          covclim[["Rel_Abundance_L1"]][["SW_GRASS"]]
+          covclim[["Rel_Abundance_L0"]][["Grasses_C3"]] +
+          covclim[["Rel_Abundance_L0"]][["Grasses_C4"]] +
+          covclim[["Rel_Abundance_L0"]][["Grasses_Annuals"]]
 
         xvegClim[ks, "Composition_ForbFraction"] <-
           covclim[["Rel_Abundance_L0"]][["Forbs"]]
+
+        xvegClim[ks, "Composition_BareGroundFraction"] <-
+          covclim[["Rel_Abundance_L0"]][["BareGround"]]
 
         xvegClim[ks, varSucCov] <- xvegClim[ks, varSucCov] +
           covclim[["Rel_Abundance_L0"]][["Succulents"]]
@@ -1742,20 +1954,52 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
           target_MAP_mm = 10 * clim[["MAP_cm"]],
           do_adjust_phenology = TRUE,
           do_adjust_biomass = TRUE,
-          fgrass_c3c4ann = covclim[["Grasses"]]
+          fgrass_c3c4ann = if (
+            isTRUE(sum(covclim[["Grasses"]]) < sqrt(.Machine[["double.eps"]]))
+          ) {
+            c(1, 0, 0)
+          } else {
+            covclim[["Grasses"]]
+          }
         )
 
-        for (pft in c("Shrub", "Grass", "Forb")) {
-          xtmp <- switch(EXPR = pft, Shrub = "shrub", "grass")
+        for (pft in pftsNonTree) {
+            tmpp <- switch(EXPR = tolower(pft), shrub = "shrub", "grass")
+            tmpp2 <- switch(EXPR = tolower(pft), shrub = "shrub", "grassC3")
 
-          xvegClim[ks, paste0(pft, tmpTags[[1L]])] <-
-            vegclim[[xtmp]][, "Biomass", drop = TRUE]
-          xvegClim[ks, paste0(pft, tmpTags[[2L]])] <-
-            vegclim[[xtmp]][, "Perc.Live", drop = TRUE]
-          xvegClim[ks, paste0(pft, tmpTags[[3L]])] <-
-            vegclim[[xtmp]][, "Amount.Live", drop = TRUE]
-          xvegClim[ks, paste0(pft, tmpTags[[4L]])] <-
-            vegclim[[xtmp]][, "Litter", drop = TRUE]
+          xvegClim[ks, paste0(pft, tmpTags[["Biomass"]])] <-
+            vegclim[[tmpp]][, "Biomass", drop = TRUE]
+
+          xvegClim[ks, paste0(pft, tmpTags[["FractionLive"]])] <-
+            vegclim[[tmpp]][, "Perc.Live", drop = TRUE]
+
+          xvegClim[ks, paste0(pft, tmpTags[["BiomassLive"]])] <-
+            vegclim[[tmpp]][, "Amount.Live", drop = TRUE]
+
+          xvegClim[ks, paste0(pft, tmpTags[["Litter"]])] <-
+            vegclim[[tmpp]][, "Litter", drop = TRUE]
+
+          xvegClim[ks, paste0(pft, tmpTags[["LAIconv"]])] <-
+            monVegDefault[[tmpp2]][, "LAI_conv", drop = TRUE]
+        }
+
+        for (pft in setdiff(pftsV1, pftsNonTree)) {
+          tmpp2 <- switch(EXPR = tolower(pft), tree = "treeNL", stop(pft))
+          xvegClim[ks, paste0(pft, tmpTags[["Biomass"]])] <-
+            monVegDefault[[tmpp2]][, "Biomass", drop = TRUE]
+
+          xvegClim[ks, paste0(pft, tmpTags[["FractionLive"]])] <-
+            monVegDefault[[tmpp2]][, "Live_pct", drop = TRUE]
+
+          xvegClim[ks, paste0(pft, tmpTags[["BiomassLive"]])] <-
+            monVegDefault[[tmpp2]][, "Biomass", drop = TRUE] *
+            monVegDefault[[tmpp2]][, "Live_pct", drop = TRUE]
+
+          xvegClim[ks, paste0(pft, tmpTags[["Litter"]])] <-
+            monVegDefault[[tmpp2]][, "Litter", drop = TRUE]
+
+          xvegClim[ks, paste0(pft, tmpTags[["LAIconv"]])] <-
+            monVegDefault[[tmpp2]][, "LAI_conv", drop = TRUE]
         }
 
         utils::setTxtProgressBar(pb, ks)
@@ -1783,33 +2027,33 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
     if (isTRUE(veg_actions[["monthScalePNVByObs"]] %in% seq_len(12L))) {
       #--- ....** Scale PNV to observed month ------
       varObsBiomassToScale <- list(
-        Shrub = paste0(
-          "Shrub_Biomass_m", veg_actions[["monthScalePNVByObs"]]
+        shrub = paste0(
+          "shrub_Biomass_m", veg_actions[["monthScalePNVByObs"]]
         )
       ) |> lapply(
         function(var) intersect(var, varsVegObs)
       )
 
-      varObsAmountLiveToScale <- list(
-        Grass = paste0(
-          "Grass_AmountLive_m", veg_actions[["monthScalePNVByObs"]]
+      varObsBiomassLiveToScale <- list(
+        grass = paste0(
+          "grass_BiomassLive_m", veg_actions[["monthScalePNVByObs"]]
         ),
-        Forb = paste0(
-          "Forb_AmountLive_m", veg_actions[["monthScalePNVByObs"]]
+        forbs = paste0(
+          "forbs_BiomassLive_m", veg_actions[["monthScalePNVByObs"]]
         )
       ) |> lapply(
         function(var) intersect(var, varsVegObs)
       )
 
       stopifnot(
-        c("obs", "climVeg") %in% veg_sources,
-        names(varObsBiomassToScale) %in% pfts,
-        names(varObsAmountLiveToScale) %in% pfts,
+        c("obs", "climVeg2014") %in% veg_sources,
+        names(varObsBiomassToScale) %in% pftsV1,
+        names(varObsBiomassLiveToScale) %in% pftsV1,
         length(
-          intersect(names(varObsBiomassToScale), names(varObsAmountLiveToScale))
+          intersect(names(varObsBiomassToScale), names(varObsBiomassLiveToScale))
         ) == 0L,
         grepl("_Biomass_", unlist(varObsBiomassToScale), fixed = TRUE),
-        grepl("_AmountLive_", unlist(varObsAmountLiveToScale), fixed = TRUE)
+        grepl("_BiomassLive_", unlist(varObsBiomassLiveToScale), fixed = TRUE)
       )
 
 
@@ -1835,17 +2079,17 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
 
       # Scale PNV live biomass amount and litter with observed biomass
       # Recalculate PNV total biomass
-      for (kv in seq_along(varObsAmountLiveToScale)) {
+      for (kv in seq_along(varObsBiomassLiveToScale)) {
         fscale <-
-          xveg[, varObsAmountLiveToScale[[kv]], drop = TRUE] /
-          xvegClim[, varObsAmountLiveToScale[[kv]], drop = TRUE]
+          xveg[, varObsBiomassLiveToScale[[kv]], drop = TRUE] /
+          xvegClim[, varObsBiomassLiveToScale[[kv]], drop = TRUE]
 
         varToScale <- paste0(
-          sub("[[:digit:]]{1,2}", "", varObsAmountLiveToScale[[kv]]),
+          sub("[[:digit:]]{1,2}", "", varObsBiomassLiveToScale[[kv]]),
           seq_len(12L)
         )
 
-        varToScaleLitter <- gsub("_AmountLive_", "_Litter_", varToScale)
+        varToScaleLitter <- gsub("_BiomassLive_", "_Litter_", varToScale)
 
         xvegClim[, varToScale] <-
           fscale * xvegClim[, varToScale, drop = FALSE]
@@ -1854,8 +2098,8 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
           fscale * xvegClim[, varToScaleLitter, drop = FALSE]
 
         # Recalculate PNV total biomass
-        varBiomass <- gsub("_AmountLive_", "_Biomass_", varToScale)
-        varPctLive <- gsub("_AmountLive_", "_FractionLive_", varToScale)
+        varBiomass <- gsub("_BiomassLive_", "_Biomass_", varToScale)
+        varPctLive <- gsub("_BiomassLive_", "_FractionLive_", varToScale)
 
         xvegClim[, varBiomass] <-
           xvegClim[, varToScale] / xvegClim[, varPctLive]
@@ -1878,6 +2122,16 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
   }
 
 
+  #--- ..* Check units of cover ------
+  tmp <- intersect(paste0("Composition_", pftsV1, "Fraction"), colnames(xveg))
+  if (max(colMeans(xveg[, tmp, drop = FALSE])) > 1.1) {
+    stop(
+      "Some vegetation cover values are substantially larger than 1 ",
+      "suggesting incorrect units, e.g., % instead of fractions."
+    )
+  }
+
+
   #--- ..* Cover: scale understory to sum to `1 - tree cover` ------
   if (isTRUE(veg_actions[["doScaleNonTreeCoverToUnderstory"]])) {
     tmp <- paste0("Composition_", pftsNonTree, "Fraction")
@@ -1896,7 +2150,7 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
 
   #--- ..* Cover: scale to sum to 1 ------
   if (isTRUE(veg_actions[["doScaleCover"]])) {
-    tmp <- paste0("Composition_", pfts, "Fraction")
+    tmp <- paste0("Composition_", pftsV1, "Fraction")
     tmpCover <- rowSums(xveg[, tmp, drop = FALSE])
     fucs <- 1 / tmpCover
 
@@ -1910,143 +2164,136 @@ if (all(file.exists(fname_xveg), !isTRUE(tasks[["veg"]]))) {
 }
 
 
+
 #------ . ------
-#------ Prepare rSFSW2 input tables ------
+#------ Vegetation - rooting profiles ------
+fname_xsoils2 <- file.path(dir_data, "xsoils2.rds")
 
-#--- ..* Table: soil layer depth profile ------
-fname_outDepths <- file.path(
-  dir_results,
-  paste0(
-    prjTag,
-    "_InputData_SoilLayers_v9_",
-    paste0(soil_sources, collapse = "_"),
-    "_v", versions[[vsel]],
-    ".csv"
-  )
-)
+hadXSoil2 <- file.exists(fname_xsoils2)
 
-if (!file.exists(fname_outDepths)) {
-  tmp <- file.path(
-    dir_rSFSW2,
-    "1_Input",
-    "SWRuns_InputData_SoilLayers_v9.csv"
-  ) |>
-    readInputFile()
-
-  xsoils_layers <- array(
-    dim = c(Nsim, ncol(tmp)),
-    dimnames = list(NULL, colnames(tmp))
-  ) |>
-    as.data.frame()
-
-  ids <- intersect(
-    colnames(xsoils_layers),
-    colnames(xsoils[["table_depths"]])
-  )
-  xsoils_layers[, ids] <- xsoils[["table_depths"]][, ids]
-  xsoils_layers[["Label"]] <- xsim[["Label"]]
-
-  utils::write.csv(xsoils_layers, file = fname_outDepths, row.names = FALSE)
+if (hadXSoil2) {
+  xsoils <- readRDS(fname_xsoils2)
 }
 
 
-#--- ..* Table: soil properties ------
-fname_outSoils <- file.path(
-  dir_results,
-  paste0(
-    prjTag,
-    "_InputData_Soils_v13_",
-    paste0(soil_sources, collapse = "_"),
-    "_v", versions[[vsel]],
-    ".csv"
-  )
+#------ .. * Update soil data: vegetation types v1 to v2 ------
+idsVegV1 <- lapply(
+  pftsV1,
+  function(pftV1) {
+    grep(paste0("^", pftV1, "_"), x = colnames(xsoils[["table_texture"]]))
+  }
 )
 
-if (!file.exists(fname_outSoils)) {
+nHasVegV1 <- lengths(idsVegV1)
 
-  tmp <- file.path(
-    dir_rSFSW2,
-    "1_Input",
-    "datafiles",
-    "SWRuns_InputData_soils_v13.csv"
-  ) |>
-    readInputFile()
+if (all(nHasVegV1 > 0L) && unique(diff(nHasVegV1)) == 0L) {
 
-  xsoils_properties <- array(
-    dim = c(1L + Nsim, ncol(tmp)),
-    dimnames = list(NULL, colnames(tmp))
-  ) |>
-    as.data.frame()
+  pftV2mapping <- rSOILWAT2::mapVegTypes("2from1", order = "SOILWAT2")
 
-  xsoils_properties[1L, "Label"] <- "UseInformationToCreateSoilWatRuns"
-  xsoils_properties[-1L, "Label"] <- xsim[["Label"]]
-  xsoils_properties[1L, -1L] <- 0L
+  for (kv in seq_along(idsVegV1)) {
+    tmp <- colnames(xsoils[["table_texture"]])[idsVegV1[[kv]]]
+    if (length(tmp) > 0L) {
+      kv2 <- which(pftV2mapping == kv)
+      tmp <- gsub(
+        pattern = paste0(pftsV1[[kv]], "_TranspCoeff_"),
+        replacement = paste0("TrCo_", pftsV2[[kv2]], "_"),
+        x = tmp,
+        fixed = TRUE
+      )
+      colnames(xsoils[["table_texture"]])[idsVegV1[[kv]]] <- tmp
+    }
+  }
 
-  ids <- intersect(
-    colnames(xsoils_properties),
-    colnames(xsoils[["table_texture"]])
-  )
-  xsoils_properties[-1L, ids] <- xsoils[["table_texture"]][, ids, drop = FALSE]
-
-  hasVals <- apply(
-    xsoils[["table_texture"]][, ids, drop = FALSE],
-    MARGIN = 2L,
-    function(x) !all(is.na(x))
-  )
-  xsoils_properties[1L, 1L + which(hasVals)] <- 1L
-
-  utils::write.csv(xsoils_properties, file = fname_outSoils, row.names = FALSE)
+  if (hadXSoil2) {
+    saveRDS(xsoils, file = fname_xsoils2)
+  }
 }
 
 
-#--- ..* Table: vegetation properties ------
-fname_veg <- file.path(
-  dir_results,
-  paste0(
-    prjTag,
-    "_InputData_Vegetation_v11_v", versions[[vsel]],
-    ".csv"
-  )
-)
 
-if (!file.exists(fname_veg) && !is.null(xveg)) {
-  tmp <- file.path(
-    dir_rSFSW2,
-    "1_Input",
-    "datafiles",
-    "SWRuns_InputData_prod_v11.csv"
-  ) |>
-    readInputFile()
+if (!hadXSoil2) {
+  #--- ..* Estimate transpiration coefficient ------
+  if (isTRUE(veg_actions[["estimateTrCo"]])) {
+
+    tmpcd <- grep("depth_L[[:digit:]]+", colnames(xsoils[["table_depths"]]))
+
+    tmp_trco <- apply(
+      xsoils[["table_depths"]][, tmpcd, drop = FALSE],
+      MARGIN = 1L,
+      function(x) {
+        if (!all(is.na(x))) {
+          res <- rSOILWAT2::estimate_PotNatVeg_roots(
+            layers_depth = x,
+            trco_type_by_veg = list(
+              treeNL = if (is.null(veg_actions[["rootingProfileTreeNL"]])) {
+                "Bradfordetal2014_LodgepolePine"
+              } else {
+                veg_actions[["rootingProfileTreeNL"]]
+              },
+              treeBL = "Bradfordetal2014_LodgepolePine",
+              shrub = "SchenkJackson2003_PCdry_shrubs",
+              forbs = "SchenkJackson2003_PCdry_forbs",
+              grassC3 = "SchenkJackson2003_PCdry_grasses",
+              grassC4 = "SchenkJackson2003_PCdry_grasses",
+              grass_annuals = "Jacksonetal1996_crops"
+            ),
+            fgrass_c3c4ann = c(
+              grassC3 = 0.5, grassC4 = 0.5, grass_annuals = 0
+            )
+          )
+          res[is.na(x)] <- NA_real_
+          res[, names(pftsV2), drop = FALSE]
+        } else {
+          array(
+            NA_real_,
+            dim = c(length(x), length(pftsV2)),
+            dimnames = list(NULL, names(pftsV2))
+          )
+        }
+      },
+      simplify = FALSE
+    )
+
+    # Convert list of trco to matrix with sites x (layer-pft)
+    for (kv in seq_along(pftsV2)) {
+      tmpx <- vapply(
+        tmp_trco,
+        FUN = function(x) x[, names(pftsV2)[[kv]], drop = TRUE],
+        FUN.VALUE = rep(NA_real_, length(tmpcd))
+      )
+
+      tmpv <- grep(
+        paste0("TrCo_", names(pftsV2)[[kv]], "_L[[:digit:]]+"),
+        colnames(xsoils[["table_texture"]])
+      )
+
+      if (length(tmpv) == 0L) {
+        xsoils[["table_texture"]] <- cbind(
+          xsoils[["table_texture"]],
+          array(
+            data = NA_real_,
+            dim = c(nrow(xsoils[["table_texture"]]), length(tmpcd)),
+            dimnames = list(
+              NULL,
+              paste0("TrCo_", names(pftsV2)[[kv]], "_L", seq_along(tmpcd))
+            )
+          )
+        )
+      }
+
+      xsoils[["table_texture"]][, tmpv] <- t(tmpx)
+    }
+  }
 
 
-  xveg_properties <- array(
-    dim = c(1L + Nsim, ncol(tmp)),
-    dimnames = list(NULL, colnames(tmp))
-  ) |>
-    as.data.frame()
-
-  xveg_properties[1L, "Label"] <- "UseInformationToCreateSoilWatRuns"
-  xveg_properties[-1L, "Label"] <- xsim[["Label"]]
-  xveg_properties[1L, -1L] <- 0L
-
-  varsKeep <- intersect(colnames(xveg), colnames(xveg_properties))
-
-  isNotAllNA <- apply(
-    xveg[, varsKeep, drop = FALSE],
-    MARGIN = 2L,
-    function(x) !all(is.na(x))
-  )
-
-  varsKeep <- varsKeep[isNotAllNA]
-
-  xveg_properties[-1L, varsKeep] <- xveg[, varsKeep, drop = FALSE]
-  xveg_properties[1L, varsKeep] <- 1L
-
-  utils::write.csv(xveg_properties, file = fname_veg, row.names = FALSE)
+  #--- ..* Save updated soils ------
+  saveRDS(xsoils, file = fname_xsoils2)
 }
 
 
-#--- ..* Table: main simulation specification ------
+#------ . ------
+#--- Output: documentation table ------
+# rSFSW2 main simulation specification
 fname_main <- file.path(
   dir_results,
   paste0(
@@ -2066,6 +2313,1044 @@ if (!file.exists(fname_main)) {
   )
 }
 
+
+#------ . ------
+#------ Output: rSFSW2 input tables ------
+if (identical(methodSW, "rSFSW2")) {
+  #--- ..* Table: soil layer depth profile ------
+  fname_outDepths <- file.path(
+    dir_results,
+    paste0(
+      prjTag,
+      "_InputData_SoilLayers_v9_",
+      paste0(soil_sources, collapse = "_"),
+      "_v", versions[[vsel]],
+      ".csv"
+    )
+  )
+
+  if (!file.exists(fname_outDepths)) {
+    tmp <- file.path(
+      dir_rSFSW2,
+      "1_Input",
+      "SWRuns_InputData_SoilLayers_v9.csv"
+    ) |>
+      readInputFile()
+
+    xsoils_layers <- array(
+      dim = c(Nsim, ncol(tmp)),
+      dimnames = list(NULL, colnames(tmp))
+    ) |>
+      as.data.frame()
+
+    ids <- intersect(
+      colnames(xsoils_layers),
+      colnames(xsoils[["table_depths"]])
+    )
+    xsoils_layers[, ids] <- xsoils[["table_depths"]][, ids]
+    xsoils_layers[["Label"]] <- xsim[["Label"]]
+
+    utils::write.csv(xsoils_layers, file = fname_outDepths, row.names = FALSE)
+  }
+
+
+  #--- ..* Table: soil properties ------
+  fname_outSoils <- file.path(
+    dir_results,
+    paste0(
+      prjTag,
+      "_InputData_Soils_v13_",
+      paste0(soil_sources, collapse = "_"),
+      "_v", versions[[vsel]],
+      ".csv"
+    )
+  )
+
+  if (!file.exists(fname_outSoils)) {
+    xtt <- xsoils[["table_texture"]]
+
+    #------ .. * Downgrade soil data: vegetation types v2 to v1 for rSFSW2 ------
+    idsVegV2 <- lapply(
+      pftsV2,
+      function(pftsV2) {
+        grep(paste0("_", pftsV2, "_"), x = colnames(xtt))
+      }
+    )
+
+    nHasVegV2 <- lengths(idsVegV2)
+
+    if (all(nHasVegV2 > 0L) && unique(diff(nHasVegV2)) == 0L) {
+
+      pftV2mapping <- rSOILWAT2::mapVegTypes("2from1", order = "SOILWAT2")
+      idsVegV2to1 <- idsVegV2[pftV2mapping > 0L]
+
+      for (kv in seq_along(idsVegV2to1)) {
+        tmp <- colnames(xtt)[idsVegV2to1[[kv]]]
+        if (length(tmp) > 0L) {
+          tmp <- gsub(
+            pattern = paste0("TrCo_", names(idsVegV2to1)[[kv]], "_"),
+            replacement = paste0(pftsV1[[kv]], "_TranspCoeff_"),
+            x = tmp,
+            fixed = TRUE
+          )
+          colnames(xtt)[idsVegV2to1[[kv]]] <- tmp
+        }
+      }
+    }
+
+
+    #--- ....** Copy soil properties to rSFSW2 format ------
+    tmp <- file.path(
+      dir_rSFSW2,
+      "1_Input",
+      "datafiles",
+      "SWRuns_InputData_soils_v13.csv"
+    ) |>
+      readInputFile()
+
+    xsoils_properties <- array(
+      dim = c(1L + Nsim, ncol(tmp)),
+      dimnames = list(NULL, colnames(tmp))
+    ) |>
+      as.data.frame()
+
+    xsoils_properties[1L, "Label"] <- "UseInformationToCreateSoilWatRuns"
+    xsoils_properties[-1L, "Label"] <- xsim[["Label"]]
+    xsoils_properties[1L, -1L] <- 0L
+
+    ids <- intersect(
+      colnames(xsoils_properties),
+      colnames(xtt)
+    )
+    xsoils_properties[-1L, ids] <- xtt[, ids, drop = FALSE]
+
+    hasVals <- apply(
+      xsoils_properties[-1L, , drop = FALSE],
+      MARGIN = 2L,
+      function(x) !all(is.na(x))
+    )
+    xsoils_properties[1L, setdiff(which(hasVals), 1L)] <- 1L
+
+    utils::write.csv(xsoils_properties, file = fname_outSoils, row.names = FALSE)
+  }
+
+
+  #--- ..* Table: vegetation properties ------
+  fname_veg <- file.path(
+    dir_results,
+    paste0(
+      prjTag,
+      "_InputData_Vegetation_v11_v", versions[[vsel]],
+      ".csv"
+    )
+  )
+
+  if (!file.exists(fname_veg) && !is.null(xveg)) {
+    tmp <- file.path(
+      dir_rSFSW2,
+      "1_Input",
+      "datafiles",
+      "SWRuns_InputData_prod_v11.csv"
+    ) |>
+      readInputFile()
+
+
+    xveg_properties <- array(
+      dim = c(1L + Nsim, ncol(tmp)),
+      dimnames = list(NULL, colnames(tmp))
+    ) |>
+      as.data.frame()
+
+    xveg_properties[1L, "Label"] <- "UseInformationToCreateSoilWatRuns"
+    xveg_properties[-1L, "Label"] <- xsim[["Label"]]
+    xveg_properties[1L, -1L] <- 0L
+
+    varsKeep <- intersect(colnames(xveg), colnames(xveg_properties))
+
+    isNotAllNA <- apply(
+      xveg[, varsKeep, drop = FALSE],
+      MARGIN = 2L,
+      function(x) !all(is.na(x))
+    )
+
+    varsKeep <- varsKeep[isNotAllNA]
+
+    xveg_properties[-1L, varsKeep] <- xveg[, varsKeep, drop = FALSE]
+    xveg_properties[1L, varsKeep] <- 1L
+
+    utils::write.csv(xveg_properties, file = fname_veg, row.names = FALSE)
+  }
+}
+
+
+
+#------ . ------
+#------ Output: ncSOILWAT2 inputs ------
+if (identical(methodSW, "SWNC")) {
+
+  #--- ..* ncDomain ------
+  fname_domain <- file.path(
+    dir_results, "SW2ncDomain", paste0("domain__", prjTag, ".nc")
+  )
+
+  domain_bbox <- sf::st_bbox(xsim)
+
+  cat("Values for domain.txt:\n")
+  cat(sprintf("Domain    %s\n", "s"))
+  cat(sprintf("nDimS     %d\n", Nsim))
+  cat(sprintf("xmin_bbox %.6f\n", domain_bbox[["xmin"]]))
+  cat(sprintf("ymin_bbox %.6f\n", domain_bbox[["ymin"]]))
+  cat(sprintf("xmax_bbox %.6f\n", domain_bbox[["xmax"]]))
+  cat(sprintf("ymax_bbox %.6f\n", domain_bbox[["ymax"]]))
+
+
+  if (!file.exists(fname_domain)) {
+    dir.create(dirname(fname_domain), recursive = TRUE, showWarnings = FALSE)
+
+    #--- Prepare data
+    domain_sites <- array(seq_len(Nsim), dim = c(Nsim, 1L))
+
+    #--- Write to disk
+    rSW2st::create_netCDF(
+      filename = fname_domain,
+      xyspace = xsim[, 0L],
+      data = domain_sites,
+      data_str = "s",
+      data_type = "integer",
+      var_attributes = list(
+        name = "domain",
+        long_name = "simulation domain",
+        units = "1",
+        grid_mapping = "crs",
+        coordinates = "latitude longitude site"
+      ),
+      xy_attributes = list(
+        name = c("longitude", "latitude"),
+        standard_name = c("longitude", "latitude"),
+        long_name = c("longitude", "latitude"),
+        units = c("degrees_east", "degrees_north"),
+        axis = c("X", "Y")
+      ),
+      crs_attributes = list(
+        long_name = "WGS84",
+        #crs_wkt = sf::st_crs("WGS84")$Wkt,
+        crs_wkt = "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]",
+        grid_mapping_name = "latitude_longitude",
+        longitude_of_prime_meridian = 0.0,
+        semi_major_axis = 6378137.0,
+        inverse_flattening = 298.257223563
+      ),
+      global_attributes = attributesProject(),
+      nc_compression = TRUE
+    )
+  }
+
+
+  #--- ..* ncTopo ------
+  fname_topo <- file.path(
+    dir_results,
+    "SW2ncTopo",
+    paste0("topo__", prjTag, "__", paste0(topo_sources, collapse = "-"), ".nc")
+  )
+
+  if (!file.exists(fname_topo)) {
+    dir.create(dirname(fname_topo), recursive = TRUE, showWarnings = FALSE)
+
+    #--- Prepare data
+    ncVars <- c(
+      elevation = "ELEV_m",
+      slope = "Slope_deg",
+      aspect = "Aspect_deg"
+    )
+
+    #--- Write to disk
+    file.copy(from = fname_domain, to = fname_topo)
+    xnc <- RNetCDF::open.nc(fname_topo, write = TRUE)
+
+    for (kv in seq_along(ncVars)) {
+      tmp_vals <- xsim[, ncVars[[kv]], drop = TRUE]
+      if (all(is.na(tmp_vals))) next
+
+      tmp_var <- names(ncVars)[[kv]]
+      tmp_units <- switch(
+        EXPR = tmp_var,
+        elevation = "m",
+        slope = "degree",
+        aspect = "degree"
+      )
+      tmp_attr <- switch(
+        EXPR = tmp_var,
+        elevation = NULL,
+        slope = list(comment = "no slope = 0, vertical surface = 90"),
+        aspect = list(
+          comment = paste(
+            "surface azimuth angle (degrees): S=0, E=-90, N=180 or -180, W=90;",
+            "ignored if slope = 0 or aspect takes a missing value"
+          )
+        )
+      )
+
+      rSW2st::setVariableNCSW(
+        xnc,
+        varName = tmp_var,
+        dimensions = "site",
+        units = tmp_units,
+        coordinates = "latitude longitude site",
+        grid_mapping = "crs",
+        dataType = "double",
+        values = tmp_vals,
+        count = Nsim,
+        attributes = tmp_attr
+      )
+    }
+
+    RNetCDF::close.nc(xnc)
+  }
+
+
+  #--- ..* ncSoil ------
+  fname_soils <- file.path(
+    dir_results,
+    "SW2ncSoils",
+    paste0("soils__", prjTag, "__", paste0(soil_sources, collapse = "-"), ".nc")
+  )
+
+  if (!file.exists(fname_soils)) {
+    dir.create(dirname(fname_soils), recursive = TRUE, showWarnings = FALSE)
+
+    #--- Prepare data
+    ncVars <- c(
+      hzdpt = "depth_L",
+      hzthk = "depth_L",
+      dbovendry = "Matricd_L",
+      fragvol = "GravelContent_L",
+      sandtotal = "Sand_L",
+      silttotal = NA,
+      claytotal = "Clay_L",
+      som = "SOM_L",
+      evc = "EvapCoeff_L",
+      trc_treeNL = "TrCo_treeNL_L",
+      trc_treeBL = "TrCo_treeBL_L",
+      trc_shrub = "TrCo_shrub_L",
+      trc_forbs = "TrCo_forbs_L",
+      trc_grassC3 = "TrCo_grassC3_L",
+      trc_grassC4 = "TrCo_grassC4_L"
+    )
+
+    nMaxSoilLayers <- max(xsoils[["table_depths"]][, "N_horizons", drop = TRUE])
+
+
+    #--- Write to disk
+    file.copy(from = fname_domain, to = fname_soils)
+    xnc <- RNetCDF::open.nc(fname_soils, write = TRUE)
+
+
+    #--- Add vertical axis
+    rSW2st::setAxisVerticalNCSW(
+      xnc,
+      verticalValues = seq_len(nMaxSoilLayers),
+      verticalType = "layers"
+    )
+
+
+    #--- Add variables
+    for (kv in seq_along(ncVars)) {
+      tmp_var <- names(ncVars)[[kv]]
+
+      tmpx <- switch(
+        EXPR = tmp_var,
+        hzdpt = ,
+        hzthk = xsoils[["table_depths"]],
+        xsoils[["table_texture"]]
+      )
+
+      if (
+        identical(grepl("silt", tmp_var, ignore.case = TRUE) &&
+          isTRUE(is.na(ncVars[[kv]]))
+      ) {
+        idSand <- grep("sand", colnames(tmpx), ignore.case = TRUE)
+        idClay <- grep("clay", colnames(tmpx), ignore.case = TRUE)
+        tmp_sand <-  tmpx[, idSand, drop = FALSE]
+        tmp_clay <-  tmpx[, idClay, drop = FALSE]
+        tmp_vals <- data.matrix(
+          1 - (tmp_sand + tmp_clay)
+        )[, seq_len(nMaxSoilLayers), drop = FALSE]
+
+      } else if (identical(tmp_var, "hzthk")) {
+        tmp <- cbind(
+          0,
+          tmpx[, paste0(ncVars[[kv]], seq_len(nMaxSoilLayers)), drop = FALSE]
+        )
+        tmp <- apply(tmp, MARGIN = 1L, diff)
+        tmp_vals <- data.matrix(t(tmp))
+
+      } else {
+        vcn <- paste0(ncVars[[kv]], seq_len(nMaxSoilLayers))
+        if (!all(vcn %in% colnames(tmpx))) next
+        tmp_vals <- data.matrix(tmpx[, vcn, drop = FALSE])
+      }
+
+      tmp_longname <- switch(
+        EXPR = tmp_var,
+        hzdpt = "depth to soil layer bottom",
+        hzthk = "thickness (width) of soil layer",
+        dbovendry = "density of matric soil",
+        fragvol = "coarse fragments in bulk soil",
+        sandtotal = "sand content in the less than 2 mm soil fraction",
+        silttotal = "silt content in the less than 2 mm soil fraction",
+        claytotal = "clay content in the less than 2 mm soil fraction",
+        som = "soil organic material in the less than 2 mm soil fraction",
+        evc = "potential evaporation coefficient",
+        trc_treeNL = "fractional needle-leaved tree rooting profile",
+        trc_treeBL = "fractional broad-leaved tree rooting profile",
+        trc_shrub = "fractional shrub rooting profile",
+        trc_forbs = "fractional forb rooting profile",
+        trc_grassC3 = "fractional C3-grass rooting profile",
+        trc_grassC4 = "fractional C4-grass rooting profile"
+      )
+      tmp_units <- switch(
+        EXPR = tmp_var,
+        hzdpt = "cm",
+        hzthk = "cm",
+        dbovendry = "g cm-3",
+        fragvol = "cm3 cm-3",
+        sandtotal = "g g-1",
+        silttotal = "g g-1",
+        claytotal = "g g-1",
+        som = "cm3 cm-3",
+        evc = "1",
+        trc_treeNL = "1",
+        trc_treeBL = "1",
+        trc_shrub = "1",
+        trc_forbs = "1",
+        trc_grassC3 = "1",
+        trc_grassC4 = "1"
+      )
+
+      rSW2st::setVariableNCSW(
+        xnc,
+        varName = tmp_var,
+        dimensions = c("vertical", "site"),
+        long_name = tmp_longname,
+        units = tmp_units,
+        coordinates = "latitude longitude site",
+        grid_mapping = "crs",
+        dataType = "double",
+        values = t(tmp_vals),
+        count = c(nMaxSoilLayers, Nsim),
+        attributes = NULL
+      )
+    }
+
+    RNetCDF::close.nc(xnc)
+  }
+
+
+  #--- ..* ncVeg ------
+  fname_veg <- file.path(
+    dir_results,
+    "SW2ncVeg",
+    paste0("veg__", prjTag, "__", paste0(veg_sources, collapse = "-"), ".nc")
+  )
+
+  if (!file.exists(fname_veg)) {
+    dir.create(dirname(fname_veg), recursive = TRUE, showWarnings = FALSE)
+
+
+    #--- ....** Update vegetation types from v1 to v2 ------
+    idsVegV1 <- lapply(
+      pftsV1,
+      function(pftV1) {
+        c(
+          grep(paste0("_", pftV1, "Fraction"), x = colnames(xveg)),
+          grep(paste0("^", pftV1, "_"), x = colnames(xveg))
+        )
+      }
+    )
+
+    pftV2mapping <- rSOILWAT2::mapVegTypes("2from1", order = "SOILWAT2")
+
+    for (kv in seq_along(idsVegV1)) {
+      tmp <- colnames(xveg)[idsVegV1[[kv]]]
+      if (length(tmp) > 0L) {
+        kv2 <- which(pftV2mapping == kv)
+        tmp <- gsub(pftsV1[[kv]], pftsV2[[kv2]], tmp, fixed = TRUE)
+        colnames(xveg)[idsVegV1[[kv]]] <- tmp
+      }
+    }
+
+    addVarsCover <- setdiff(
+      paste0("Composition_", pftsV2, "Fraction"),
+      colnames(xveg)
+    )
+    if (length(addVarsCover) > 0L) {
+      tmp <- array(
+        data = 0,
+        dim = c(nrow(xveg), length(addVarsCover)),
+        dimnames = list(NULL, addVarsCover)
+      )
+      xveg <- cbind(xveg, tmp)
+    }
+
+
+    #--- Convert all data columns to numeric (particularly logical NAs)
+    for (kc in seq_len(ncol(xveg))) {
+      if (mode(xveg[[kc]]) == "logical") {
+        xveg[[kc]] <- as.numeric(xveg[[kc]])
+      }
+    }
+
+
+    #--- ....** Set up nc for vegetation ------
+    file.copy(from = fname_domain, to = fname_veg)
+    xnc <- RNetCDF::open.nc(fname_veg, write = TRUE)
+
+    NMonths <- 12L
+    dataType <- "NC_DOUBLE"
+
+    xDim <- list(sp = "site", clim = "time")
+
+    varAttrSp <- list(
+      coordinates = paste("latitude longitude", xDim[["sp"]]),
+      coordinatesClim = paste(
+        "latitude longitude", xDim[["sp"]], xDim[["clim"]]
+      ),
+      grid_mapping = "crs"
+    )
+
+    chunkVarClim <- c(NMonths, ceiling(Nsim / 3L))
+
+
+    rSW2st::setGlobalAttributesNCSW(xnc, attributesProject())
+
+    rSW2st::setGlobalAttributesNCSW(
+      xnc,
+      attributes = c(frequency = "month", featureType = "timeSeries")
+    )
+
+    #--- ......*** inVeg: month ------
+    rSW2st::setAxisMonthClimatologyNCSW(
+      xnc,
+      startYear = simYears[[1L]],
+      endYear = simYears[[length(simYears)]]
+    )
+
+    #--- ......*** inVeg: fcover_bg ------
+    rSW2st::setVariableNCSW(
+      xnc,
+      varName = "fcover_bg",
+      long_name = "fractional cover of bare ground",
+      dimensions = xDim[["sp"]],
+      units = "1",
+      coordinates = varAttrSp[["coordinates"]],
+      grid_mapping = varAttrSp[["grid_mapping"]],
+      dataType = dataType,
+      values = NULL
+    )
+
+
+    for (k in seq_along(pftsV2)) {
+      #--- ......*** inVeg: fcover_[veg] ------
+      rSW2st::setVariableNCSW(
+        xnc,
+        varName = paste0("fcover_", pftsV2[[k]]),
+        long_name = paste("fractional cover of", pftsV2[[k]]),
+        dimensions = xDim[["sp"]],
+        var_chunksizes_xyzt = chunkVarClim,
+        units = "1",
+        coordinates = varAttrSp[["coordinates"]],
+        grid_mapping = varAttrSp[["grid_mapping"]],
+        dataType = dataType,
+        values = NULL
+      )
+
+      #--- ......*** inVeg: litter_[veg] ------
+      rSW2st::setVariableNCSW(
+        xnc,
+        varName = paste0("litter_", pftsV2[[k]]),
+        long_name = paste("litter of", pftsV2[[k]]),
+        dimensions = c(xDim[["clim"]], xDim[["sp"]]),
+        var_chunksizes_xyzt = chunkVarClim,
+        units = "g m-2",
+        coordinates = varAttrSp[["coordinatesClim"]],
+        grid_mapping = varAttrSp[["grid_mapping"]],
+        dataType = dataType,
+        values = NULL
+      )
+
+      #--- ......*** inVeg: biomass_[veg] ------
+      rSW2st::setVariableNCSW(
+        xnc,
+        varName = paste0("biomass_", pftsV2[[k]]),
+        long_name = paste("total biomass of", pftsV2[[k]]),
+        dimensions = c(xDim[["clim"]], xDim[["sp"]]),
+        var_chunksizes_xyzt = chunkVarClim,
+        units = "g m-2",
+        coordinates = varAttrSp[["coordinatesClim"]],
+        grid_mapping = varAttrSp[["grid_mapping"]],
+        dataType = dataType,
+        values = NULL
+      )
+
+      #--- ......*** inVeg: live_[veg] ------
+      rSW2st::setVariableNCSW(
+        xnc,
+        varName = paste0("live_", pftsV2[[k]]),
+        long_name = paste(
+          "fraction of biomass of", pftsV2[[k]], "that is living"
+        ),
+        dimensions = c(xDim[["clim"]], xDim[["sp"]]),
+        var_chunksizes_xyzt = chunkVarClim,
+        units = "g m-2",
+        coordinates = varAttrSp[["coordinatesClim"]],
+        grid_mapping = varAttrSp[["grid_mapping"]],
+        dataType = dataType,
+        values = NULL
+      )
+
+      #--- ......*** inVeg: convLAI_[veg] ------
+      rSW2st::setVariableNCSW(
+        xnc,
+        varName = paste0("convLAI_", pftsV2[[k]]),
+        long_name = paste(
+          "biomass needed to produce LAI = 1 of", pftsV2[[k]]
+        ),
+        var_chunksizes_xyzt = chunkVarClim,
+        dimensions = c(xDim[["clim"]], xDim[["sp"]]),
+        units = "1",
+        coordinates = varAttrSp[["coordinatesClim"]],
+        grid_mapping = varAttrSp[["grid_mapping"]],
+        dataType = dataType,
+        values = NULL
+      )
+    }
+
+
+    #--- ....** Write pre-calculated values to ncVeg ------
+    startXY <- 1L
+    startPXY <- c(1L, startXY)
+    countXY <- Nsim
+    countPXY <- c(NMonths, countXY)
+
+
+    #--- Loop over vegetation types
+    for (k in seq_along(pftsV2)) {
+      #--- ......*** inVeg: fcover_[veg] ------
+      tmpv <- grep(
+        paste0("Composition_", pftsV2[[k]]),
+        x = colnames(xveg),
+        value = TRUE,
+        ignore.case = TRUE
+      )
+      if (length(tmpv) != 1L) next
+
+      rSW2st::setVariableNCSW(
+        xnc,
+        varName = paste0("fcover_", pftsV2[[k]]),
+        values = xveg[, tmpv, drop = TRUE],
+        start = startXY,
+        count = countXY
+      )
+
+
+      #--- ......*** inVeg: litter_[veg] ------
+      tmpv <- grep(
+        paste0(pftsV2[[k]], "_Litter_m[[:digit:]]{1,2}"),
+        x = colnames(xveg),
+        value = TRUE,
+        ignore.case = TRUE
+      )
+      if (length(tmpv) != 12L) next
+
+      rSW2st::setVariableNCSW(
+        xnc,
+        varName = paste0("litter_", pftsV2[[k]]),
+        values = t(xveg[, tmpv, drop = FALSE]),
+        start = startPXY,
+        count = countPXY
+      )
+
+      #--- ......*** inVeg: biomass_[veg] ------
+      tmpv <- grep(
+        paste0(pftsV2[[k]], "_Biomass_m[[:digit:]]{1,2}"),
+        x = colnames(xveg),
+        value = TRUE,
+        ignore.case = TRUE
+      )
+      rSW2st::setVariableNCSW(
+        xnc,
+        varName = paste0("biomass_", pftsV2[[k]]),
+        values = t(xveg[, tmpv, drop = FALSE]),
+        start = startPXY,
+        count = countPXY
+      )
+
+      #--- ......*** inVeg: live_[veg] ------
+      tmpv <- grep(
+        paste0(pftsV2[[k]], "_FractionLive_m[[:digit:]]{1,2}"),
+        x = colnames(xveg),
+        value = TRUE,
+        ignore.case = TRUE
+      )
+      rSW2st::setVariableNCSW(
+        xnc,
+        varName = paste0("live_", pftsV2[[k]]),
+        values = t(xveg[, tmpv, drop = FALSE]),
+        start = startPXY,
+        count = countPXY
+      )
+
+      #--- ......*** inVeg: convLAI_[veg] ------
+      tmpv <- grep(
+        paste0(pftsV2[[k]], "_LAIconv_m[[:digit:]]{1,2}"),
+        x = colnames(xveg),
+        value = TRUE,
+        ignore.case = TRUE
+      )
+      rSW2st::setVariableNCSW(
+        xnc,
+        varName = paste0("convLAI_", pftsV2[[k]]),
+        values = t(xveg[, tmpv, drop = FALSE]),
+        start = startPXY,
+        count = countPXY
+      )
+    }
+
+
+    #--- ......*** inVeg: fcover_bg ------
+    hasBG <- "Composition_BareGroundFraction" %in% colnames(xveg)
+
+    rSW2st::setVariableNCSW(
+      xnc,
+      varName = "fcover_bg",
+      values = if (hasBG) {
+        xveg[, "Composition_BareGroundFraction", drop = TRUE]
+      } else {
+        array(data = 0, dim = countXY)
+      },
+      start = startXY,
+      count = countXY
+    )
+
+
+    #--- ....** Clean up ------
+    RNetCDF::close.nc(xnc)
+  }
+
+
+  #--- ..* ncWeather ------
+  if (isTRUE(weather_actions[["convertWeatherDBToNC"]])) {
+
+    #--- ....** Metadata ------
+    dataType <- "NC_DOUBLE"
+
+    xDim <- list(sp = "site", time = "time")
+
+    varAttrSp <- list(
+      coordinates = paste("latitude longitude", xDim[["sp"]]),
+      grid_mapping = "crs"
+    )
+    ntime <- seq.Date(
+      from = as.Date(paste0(simYears[[1L]], "-01-01")),
+      to = as.Date(paste0(simYears[[length(simYears)]], "-12-31")),
+      by = "day"
+    ) |>
+      length()
+
+
+    #--- ....** Weather datasets ------
+    if (is.null(future_sources)) {
+      meteo_sources <- weather_sources
+      fnames_dbMeteo <- fnames_dbW
+      tmpMeteo_wfs <- tmp_wfs
+    } else {
+      meteo_sources <- c(weather_sources, future_sources)
+      fnames_dbMeteo <- c(fnames_dbW, fnames_dbFuture)
+      tmpMeteo_wfs <- stop("tmp_wfs not implemented for future sources")
+    }
+
+    for (kw in seq_along(meteo_sources)) {
+
+      fname_weather <- file.path(
+        dir_results,
+        "SW2ncWeather",
+        paste0(
+          "weather__", prjTag, "__", meteo_sources[[kw]],
+          ".nc"
+        )
+      )
+
+      if (!file.exists(fname_weather)) {
+        dir.create(
+          dirname(fname_weather), recursive = TRUE, showWarnings = FALSE
+        )
+
+        tasks_by_dbW <- setup_dbWeather(
+          fdbWeather = fnames_dbMeteo[[kw]],
+          wfs = tmpMeteo_wfs[[kw]],
+          weather_source = meteo_sources[[kw]],
+          uniqueWeather = FALSE
+        )
+
+        idsUniqueMeteo <- which(!duplicated(tasks_by_dbW[["ID_by_dbW"]]))
+        tasks_by_dbW <- tasks_by_dbW[idsUniqueMeteo, , drop = FALSE]
+        Nweather <- nrow(tasks_by_dbW)
+
+        xsimMeteo <- xsim[idsUniqueMeteo, 0, drop = FALSE]
+
+        basedOnDomain <- Nweather == Nsim
+
+        varsMeteo <- switch(
+          EXPR = meteo_sources[[kw]],
+          gridMET = c(
+            "Tmax_C", "Tmin_C", "PPT_cm", "windSpeed_mPERs", "rHmax_pct",
+            "rHmin_pct", "shortWR"
+          ),
+          stop("Not implemented: ", meteo_sources[[kw]])
+        )
+
+
+        # gridMET metadata
+        ncMetaMeteo <- switch(
+          EXPR = meteo_sources[[kw]],
+          gridMET = list(
+            Tmax_C = list(
+              varName = "tasmax",
+              long_name = "maximum air temperature",
+              units = "degree_C",
+              cell_method = "time: maximum",
+              attributes = list(units_metadata = "temperature: on_scale")
+            ),
+            Tmin_C = list(
+              varName = "tasmin",
+              long_name = "minimum air temperature",
+              units = "degree_C",
+              cell_method = "time: minimum",
+              attributes = list(units_metadata = "temperature: on_scale")
+            ),
+            PPT_cm = list(
+              varName = "pr",
+              long_name = "precipitation amount",
+              units = "cm",
+              cell_method = "time: sum"
+            ),
+            windSpeed_mPERs = list(
+              varName = "vs",
+              long_name = "wind speed",
+              units = "m s-1",
+              cell_method = "time: mean"
+            ),
+            rHmax_pct = list(
+              varName = "hursmax",
+              long_name = "maximum relative humidity",
+              units = "%",
+              cell_method = "time: maximum"
+            ),
+            rHmin_pct = list(
+              varName = "hursmin",
+              long_name = "minimum relative humidity",
+              units = "%",
+              cell_method = "time: minimum"
+            ),
+            shortWR = list(
+              varName = "rsds",
+              long_name = "incoming shortwave radiation",
+              units = "W m-2",
+              cell_method = "time: mean",
+              typeRSDS = 1L # gridMET rsds is flux density over 24 hours
+            )
+          ),
+          stop("Not implemented: ", meteo_sources[[kw]])
+        )
+
+
+        #--- ....** Set up nc for weather ------
+        if (isTRUE(basedOnDomain)) {
+          file.copy(from = fname_domain, to = fname_weather)
+
+        } else {
+          rSW2st::create_netCDF(
+            filename = fname_weather,
+            xyspace = xsimMeteo[, 0L],
+            data = array(seq_len(Nweather), dim = c(Nweather, 1L)),
+            data_str = "s",
+            data_type = "integer",
+            var_attributes = list(
+              name = "domainWeather",
+              long_name = "simulation domain for weather",
+              units = "1",
+              grid_mapping = "crs",
+              coordinates = "latitude longitude site"
+            ),
+            xy_attributes = list(
+              name = c("longitude", "latitude"),
+              standard_name = c("longitude", "latitude"),
+              long_name = c("longitude", "latitude"),
+              units = c("degrees_east", "degrees_north"),
+              axis = c("X", "Y")
+            ),
+            crs_attributes = list(
+              long_name = "WGS84",
+              #crs_wkt = sf::st_crs("WGS84")$Wkt,
+              crs_wkt = "GEOGCS[\"WGS 84\",DATUM[\"WGS_1984\",SPHEROID[\"WGS 84\",6378137,298.257223563,AUTHORITY[\"EPSG\",\"7030\"]],AUTHORITY[\"EPSG\",\"6326\"]],PRIMEM[\"Greenwich\",0,AUTHORITY[\"EPSG\",\"8901\"]],UNIT[\"degree\",0.0174532925199433,AUTHORITY[\"EPSG\",\"9122\"]],AUTHORITY[\"EPSG\",\"4326\"]]",
+              grid_mapping_name = "latitude_longitude",
+              longitude_of_prime_meridian = 0.0,
+              semi_major_axis = 6378137.0,
+              inverse_flattening = 298.257223563
+            ),
+            global_attributes = attributesProject(),
+            nc_compression = TRUE
+          )
+        }
+
+        xnc <- RNetCDF::open.nc(fname_weather, write = TRUE)
+
+        rSW2st::setGlobalAttributesNCSW(xnc, attributesProject())
+
+        rSW2st::setGlobalAttributesNCSW(
+          xnc,
+          attributes = c(frequency = "day", featureType = "timeSeries")
+        )
+
+        #--- ......*** inWeather: time ------
+        rSW2st::setAxisTimeNCSW(
+          xnc,
+          startYear = simYears[[1L]],
+          timeValues = seq_len(ntime) - 0.5, # midday
+          calendar = "standard"
+        )
+
+
+        #--- ......*** inWeather: variables ------
+        for (kv in seq_along(varsMeteo)) {
+          varm <- varsMeteo[[kv]]
+
+          stopifnot(!is.null(ncMetaMeteo[[varm]]))
+
+          rSW2st::setVariableNCSW(
+            xnc,
+            varName = ncMetaMeteo[[varm]][["varName"]],
+            long_name = ncMetaMeteo[[varm]][["long_name"]],
+            dimensions = c(xDim[["time"]], xDim[["sp"]]),
+            units = ncMetaMeteo[[varm]][["units"]],
+            coordinates = varAttrSp[["coordinates"]],
+            grid_mapping = varAttrSp[["grid_mapping"]],
+            cell_method = ncMetaMeteo[[varm]][["cell_method"]],
+            attributes = ncMetaMeteo[[varm]][["attributes"]],
+            dataType = dataType,
+            values = NULL
+          )
+        }
+
+
+        #--- ....** Write weather data for each site ------
+        startTXY <- c(time = 1L, sp = 1L)
+        countTXY <- c(time = ntime, sp = 1L)
+
+
+        #--- Loop over sites
+        stopifnot(rSOILWAT2::dbW_setConnection(fnames_dbMeteo[[kw]]))
+
+        pb <- utils::txtProgressBar(max = Nweather, style = 3L)
+
+        for (ks in seq_len(Nweather)) {
+          wdata <- rSOILWAT2::dbW_getWeatherData(
+            Label = tasks_by_dbW[ks, "Label"]
+          ) |>
+            rSOILWAT2::upgrade_weatherHistory() |>
+            rSOILWAT2::dbW_weatherData_to_dataframe()
+          dif <- rSOILWAT2::calc_dailyInputFlags(wdata)
+          stopifnot(varsMeteo %in% names(dif)[dif])
+
+          #--- ......*** inWeather: variables ------
+          for (kv in seq_along(varsMeteo)) {
+            varm <- varsMeteo[[kv]]
+            rSW2st::setVariableNCSW(
+              xnc,
+              varName = ncMetaMeteo[[varm]][["varName"]],
+              values = wdata[, varm, drop = FALSE],
+              start = startTXY,
+              count = countTXY
+            )
+          }
+
+          startTXY[["sp"]] <- startTXY[["sp"]] + 1L
+          utils::setTxtProgressBar(pb, value = ks)
+        }
+
+        close(pb)
+
+
+        #--- ....** Clean up ------
+        RNetCDF::close.nc(xnc)
+        rSOILWAT2::dbW_disconnectConnection()
+      }
+    }
+  }
+
+
+  #--- ..* ncSite ------
+  if (isTRUE(site_actions[["doTasClimForLowerSoilTemperatureBoundary"]])) {
+
+    for (kw in seq_along(weather_sources)) {
+
+      fname_tasclim <- file.path(
+        dir_results,
+        "SW2ncSite",
+        paste0("tas-clim__", prjTag, "__", weather_sources[[kw]], ".nc")
+      )
+
+      if (!file.exists(fname_tasclim)) {
+        dir.create(
+          dirname(fname_tasclim), recursive = TRUE, showWarnings = FALSE
+        )
+
+        #--- Prepare data
+        ncVars <- c(
+          tas = paste("tasclim", weather_sources[[kw]], sep = "-")
+        )
+
+        #--- Write to disk
+        file.copy(from = fname_domain, to = fname_tasclim)
+        xnc <- RNetCDF::open.nc(fname_tasclim, write = TRUE)
+
+        for (kv in seq_along(ncVars)) {
+          tmp_vals <- xsiteconds[, ncVars[[kv]], drop = TRUE]
+          if (all(is.na(tmp_vals))) next
+
+          tmp_var <- names(ncVars)[[kv]]
+          tmp_units <- switch(
+            EXPR = tmp_var,
+            tas = "degC"
+          )
+          tmp_attr <- switch(
+            EXPR = tmp_var,
+            tas = list(
+              long_name = "mean air temperature",
+              cell_method = "time: mean",
+              attributes = list(units_metadata = "temperature: on_scale")
+            )
+          )
+
+          rSW2st::setVariableNCSW(
+            xnc,
+            varName = tmp_var,
+            dimensions = "site",
+            units = tmp_units,
+            coordinates = "latitude longitude site",
+            grid_mapping = "crs",
+            dataType = "double",
+            values = tmp_vals,
+            count = Nsim,
+            attributes = tmp_attr
+          )
+        }
+
+        RNetCDF::close.nc(xnc)
+      }
+    }
+  }
+}
 
 #------ . ------
 #------ . ------
