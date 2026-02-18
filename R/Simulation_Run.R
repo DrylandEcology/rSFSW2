@@ -1498,7 +1498,7 @@ do_OneSite <- function(
                 tag_simfid, ": layer ", l,
                 " filled in with data imputed from ",
                 "previous layer: ",
-                paste(names(lbad)[lbad], collapse = ", ")
+                toString(names(lbad)[lbad])
               ))
 
             } else {
@@ -2652,7 +2652,7 @@ do_OneSite <- function(
         )
       )
 
-      temp <- paste0(colnames(tasks), ": ", apply(tasks, 2, paste, collapse = ", "),
+      temp <- paste0(colnames(tasks), ": ", apply(tasks, 2, toString),
         collapse = " / ")
       print_debug(opt_verbosity, tag_simpidfid, "tasks =",
         paste(temp, ", evco = ", EVCO_done, ", trco = ", TRCO_done,
@@ -6201,7 +6201,7 @@ do_OneSite <- function(
         units(delta.do_OneSite),
         " with status of tasks = ",
         paste0(
-          colnames(tasks), ": ", apply(tasks, 2, paste, collapse = ", "),
+          colnames(tasks), ": ", apply(tasks, 2, toString),
           collapse = " / "
         )
       )
@@ -6393,7 +6393,7 @@ run_simulation_experiment <- function(SFSW2_prj_inputs, MoreArgs, rSW2_options) 
           # Worker has sent results back to main
           if (MoreArgs[["opt_verbosity"]][["print.debug"]]) {
             print(paste(Sys.time(), ": MPI-main received results from worker", worker_id,
-              paste(complete, collapse = ", ")))
+              toString(complete)))
           }
 
           # Invoke checkpoint on dbWork in an attempt to avoid checkpoint starvation
@@ -6411,7 +6411,7 @@ run_simulation_experiment <- function(SFSW2_prj_inputs, MoreArgs, rSW2_options) 
         } else if (tag_from_worker == 4L) {
           #The worker had a problem
           print(paste(Sys.time(), ": MPI-main was notified that worker", worker_id,
-            "failed with task:", paste(complete, collapse = ", "), "-- storing info",
+            "failed with task:", toString(complete), "-- storing info",
             "in file 'MPI_ProblemRuns.tab'."))
 
           ftemp <- file.path(MoreArgs[["project_paths"]][["dir_out"]],

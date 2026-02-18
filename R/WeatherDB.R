@@ -1866,7 +1866,7 @@ extract_daily_weather_from_livneh <- function(
 
       if (!all(ltemp)) {
         stop("ERROR: Monthly data file is missing for year-month: ",
-          paste(etemp[!ltemp], collapse = ", "))
+          toString(etemp[!ltemp]))
       }
 
       if (verbose) {

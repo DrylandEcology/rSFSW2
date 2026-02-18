@@ -266,7 +266,7 @@ merge_2soils <- function(fmain, fmain1, fmain2, fslayer, fslayer1,
     shQuote(source2), "will be merged, and values from", shQuote(source1),
     "will be used for sites which contain data from both sources.",
     if (length(var_from2) > 0) paste("However, data from", shQuote(source2),
-    "for variables", paste(shQuote(var_from2), collapse = ", "), "will be",
+    "for variables", toString(shQuote(var_from2)), "will be",
     "used for all sites if available")))
 
   temp1 <- !is.na(main1$SoilTexture_source) &

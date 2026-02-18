@@ -100,7 +100,7 @@ dbOutput_add_calculated_field <- function(dbOut_fname, table,
 
   if (has_new) {
     if (!overwrite) {
-      stop("Requested variable(s): ", paste(shQuote(vars_new), collapse = ", "),
+      stop("Requested variable(s): ", toString(shQuote(vars_new)),
         " already exist(s) as field(s) in database.")
     }
 
@@ -124,7 +124,7 @@ dbOutput_add_calculated_field <- function(dbOut_fname, table,
 
   # Prepare SQL statement to extract `vars_orig`
   sql_get <- paste(
-    "SELECT", paste(vars_origq, collapse = ", "),
+    "SELECT", toString(vars_origq),
     "FROM", tableq,
     "WHERE \"P_id\" IN (:pids_chunk)",
     "ORDER BY \"P_id\"")
@@ -132,7 +132,7 @@ dbOutput_add_calculated_field <- function(dbOut_fname, table,
   # Prepare SQL statements to insert `vars_new`
   sql_put <- paste0(
     "UPDATE ", tableq, " ",
-    "SET (", paste0(vars_newq, collapse = ", "), ") = (:res) ",
+    "SET (", toString(vars_newq), ") = (:res) ",
     "WHERE P_id = :pids_chunk")
 
   # Loop over chunks

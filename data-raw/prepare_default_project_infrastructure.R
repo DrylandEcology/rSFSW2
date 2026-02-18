@@ -50,7 +50,7 @@ for (k in seq_along(ftemp)) {
   # Path (but remove 'data-raw'
   ptemp <- dirname(ftemp[k])
   ptemp <- strsplit(ptemp, split = .Platform$file.sep, fixed = TRUE)[[1]]
-  ptemp <- paste0(ptemp[-1], collapse = .Platform$file.sep)
+  ptemp <- paste(ptemp[-1], collapse = .Platform$file.sep)
   btemp <- basename(ftemp[k])
 
   # File extension: # should be one of c("csv", "in", "YYYY") where YYYY is a

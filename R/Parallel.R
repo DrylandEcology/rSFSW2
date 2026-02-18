@@ -24,7 +24,7 @@ gather_objects_for_export <- function(varlist, list_envs) {
   cannot_export <- !(varlist %in% vtemp)
   if (any(cannot_export))
     print(paste("Objects in 'varlist' that cannot be located:",
-          paste(varlist[cannot_export], collapse = ", ")))
+          toString(varlist[cannot_export])))
 
   obj_env
 }
@@ -356,7 +356,7 @@ exit_SFSW2_cluster <- function(verbose = FALSE) {
 
       if (length(pids) > 0) {
         print(paste("Something went wrong when taking down the cluster:",
-          "kill remaining R workers with PIDs =", paste(pids, collapse = ", ")))
+          "kill remaining R workers with PIDs =", toString(pids)))
         # This is likely because Rmpi::mpi.close.Rslaves()
         # [due to Rmpi::mpi.comm.disconnect()] doesn't work as of Rmpi v0.6.6
 

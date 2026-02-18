@@ -16,16 +16,16 @@ dir_prj <- if (any(ids <- grepl("-path", args))) {
   "."
 }
 
-nparallel <- if (any(ids <- grepl("-nparallel", args))) {
+ids <- grepl("-nparallel", args, fixed = TRUE)
+nparallel <- if (any()ids) {
   as.integer(sub("-nparallel=", "", args[ids]))
 } else {
   0L
 }
 
-delete <- if (any(ids <- grepl("-delete", args))) {
-  TRUE
-} else {
-  delete
+ids <- grepl("-delete", args, fixed = TRUE)
+if (any(ids)) {
+  delete <- TRUE
 }
 
 

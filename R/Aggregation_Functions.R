@@ -14,27 +14,43 @@
 #'   names of those output fields.
 #' @export
 generate_OverallAggregation_fields <- function(aon, opt_agg) {
+  tagSignTmin <- rep("", length(opt_agg[["Tmin_crit_C"]]))
+  tagSignTmin[opt_agg[["Tmin_crit_C"]] < 0] <- "Neg"
+  tagSignTmin[opt_agg[["Tmin_crit_C"]] > 0] <- "Pos"
+
+  tagSignTmax <- rep("", length(opt_agg[["Tmax_crit_C"]]))
+  tagSignTmax[opt_agg[["Tmax_crit_C"]] < 0] <- "Neg"
+  tagSignTmax[opt_agg[["Tmax_crit_C"]] > 0] <- "Pos"
+
+  tagSignTmean <- rep("", length(opt_agg[["Tmean_crit_C"]]))
+  tagSignTmean[opt_agg[["Tmean_crit_C"]] < 0] <- "Neg"
+  tagSignTmean[opt_agg[["Tmean_crit_C"]] > 0] <- "Pos"
+
+
   field_args <- list(
     aon = aon,
     opt_agg = opt_agg,
 
     fieldtag_SWPcrit_MPa = paste0(
-      abs(round(-1000 * opt_agg[["SWPcrit_MPa"]], 0)), "kPa"),
-    fieldtag_Tmin_crit_C = paste0(ifelse(opt_agg[["Tmin_crit_C"]] < 0, "Neg",
-      ifelse(opt_agg[["Tmin_crit_C"]] > 0, "Pos", "")),
-      abs(opt_agg[["Tmin_crit_C"]]), "C"),
-    fieldtag_Tmax_crit_C = paste0(ifelse(opt_agg[["Tmax_crit_C"]] < 0, "Neg",
-      ifelse(opt_agg[["Tmax_crit_C"]] > 0, "Pos", "")),
-      abs(opt_agg[["Tmax_crit_C"]]), "C"),
-    fieldtag_Tmean_crit_C = paste0(ifelse(opt_agg[["Tmean_crit_C"]] < 0, "Neg",
-      ifelse(opt_agg[["Tmean_crit_C"]] > 0, "Pos", "")),
-      abs(opt_agg[["Tmean_crit_C"]]), "C")
+      abs(round(-1000 * opt_agg[["SWPcrit_MPa"]], 0)), "kPa"
+    ),
+    fieldtag_Tmin_crit_C = paste0(
+      tagSignTmin, abs(opt_agg[["Tmin_crit_C"]]), "C"
+    ),
+    fieldtag_Tmax_crit_C = paste0(
+      tagSignTmax, abs(opt_agg[["Tmax_crit_C"]]), "C"
+    ),
+    fieldtag_Tmean_crit_C = paste0(
+      tagSignTmean, abs(opt_agg[["Tmean_crit_C"]]), "C"
+    )
   )
 
   aon_names <- names(aon)
 
-  x <- lapply(seq_along(aon), function(k)
-    do.call(paste0("fields_", aon_names[k]), args = field_args))
+  x <- lapply(
+    seq_along(aon),
+    function(k) do.call(paste0("fields_", aon_names[k]), args = field_args)
+  )
 
   res <- data.frame(N = sapply(x, function(x) x[["N"]]), fields = NA)
   rownames(res) <- sapply(x, function(x) x[["aon"]])
@@ -48,7 +64,7 @@ generate_OverallAggregation_fields <- function(aon, opt_agg) {
 
 
 coerce_sqlNames <- function(x) {
-  gsub("\\.", "_", x)
+  gsub(".", "_", x, fixed = TRUE)
 }
 
 
@@ -467,7 +483,7 @@ fields_monthlySeasonalityIndices <- function(aon, ...) {
 
   if (isTRUE(aon[[id]])) {
     temp <- paste0("Seasonality.monthly", c("PETandSWPtopLayers",
-    "PETandSWPbottomLayers", "TandPPT"), "_PearsonCor_mean")
+      "PETandSWPbottomLayers", "TandPPT"), "_PearsonCor_mean")
   }
 
   list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
@@ -600,10 +616,17 @@ fields_dailyColdDegreeDays <- function(aon, opt_agg, ...) {
   id <- "dailyColdDegreeDays"
 
   if (isTRUE(aon[[id]])) {
-    temp <- paste0(c("ColdDegreeDays", "ColdDegreeDays.SnowFree"), ".Base.",
-      ifelse(opt_agg[["Tbase_coldDD_C"]] < 0, "Neg",
-        ifelse(opt_agg[["Tbase_coldDD_C"]] > 0, "Pos", "")),
-      abs(opt_agg[["Tbase_coldDD_C"]]), "C.dailyTMean_Cdays_mean")
+    tagSign <- rep("", length(opt_agg[["Tbase_coldDD_C"]]))
+    tagSign[opt_agg[["Tbase_coldDD_C"]] < 0] <- "Neg"
+    tagSign[opt_agg[["Tbase_coldDD_C"]] > 0] <- "Pos"
+
+    temp <- paste0(
+      c("ColdDegreeDays", "ColdDegreeDays.SnowFree"),
+      ".Base.",
+      tagSign,
+      abs(opt_agg[["Tbase_coldDD_C"]]),
+      "C.dailyTMean_Cdays_mean"
+    )
   }
 
   list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
@@ -791,70 +814,70 @@ fields_dailyRechargeExtremes <- function(aon, ...) {
 fields_dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates <-
   function(aon, ...) {
 
-  temp <- NULL
-  id <- "dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates"
+    temp <- NULL
+    id <- "dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates"
 
-  if (isTRUE(aon[[id]])) {
-    temp <- paste0("NRCS_",
-      c(c("SoilTemp_simulated_TF", "SoilTemp_realistic_TF",
-        "Depth50cmOrImpermeable_cm",
-        "MCS_Upper_cm", "MCS_Lower_cm",
-        "ACS_Upper_cm", "ACS_Lower_cm",
-        "Permafrost_years", "SMR_normalyears_N", "Soil_with_Ohorizon_TF"),
-        # MATLanh, MAT50:
-        paste0(c("SoilTemp_ACS_Annual_C", "SoilTemp_at50cm_Annual_C",
-          "SoilTemp_at50cm_JJA_C", "SoilTemp_at50cm_DJF_C", # T50jja, T50djf
-          "Saturation_ConsecutiveMaxDuration_JJA_days", # CSPartSummer
-          "SoilTemp_Offset_from_MeanAirTemp_C", # meanTair_Tsoil50_offset_C
-          # Anhydrous_annual_means:
-          "COND1_ACS_at50cm_LE0C_prob", # COND1
-          "COND2_ACS_atAnhDepth_LE5C_prob", # COND2
-          # COND3:
-          "COND3_ACS_MoreThanHalfDry_and_at50cm_GT0C_isGThalf_at50cm_GT0C_prob",
-          # HalfDryDaysCumAbove0C:
-          "COND3_ACS_MoreThanHalfDry_and_at50cm_GT0C_days",
-          "COND3_ACS_at50cm_GT0C_days", # SoilAbove0C
-          "COND3_ACS_at50cm_GT0C_prob", # T50_at0C
-          "COND3_ACS_MoreThanHalfDry_prob", # Lanh_Dry_Half
-          "COND3_ACS_MoreThanHalfDry_and_at50cm_GT0C_prob", # COND3_Test
-          # MCS_annual_means:
-          "COND0_mPPT_GT_mPET_prob", # COND0
-          "COND1_MCS_AllDry_and_at50cm_GT5C_days", # DryDaysCumAbove5C
-          "COND1_MCS_at50cm_GT5C_days", # SoilAbove5C
-          "COND1_MCS_AllDry_and_at50cm_GT5C_isGThalf_at50cm_GT5C_prob", # COND1
-          # MaxContDaysAnyMoistCumAbove8:
-          "COND2_MCS_AnyWetConsec_Max_at50cm_GT8C_days",
-          "COND2_MCS_AnyWetConsec_LT90Days_at50cm_GT8C_prob", # COND2
-          "COND2-1_MCS_AnyWetConsec_LT180Days_at50cm_GT8C_prob", # COND2_1
-          "COND2-2_MCS_AnyWetConsec_LT270Days_at50cm_GT8C_prob", # COND2_2
-          "COND2-3_MCS_AnyWetConsec_LE45Days_at50cm_GT8C_prob", # COND2_3
-          "COND3_MCS_AnyDry_days", # DryDaysCumAny
-          "COND3_MCS_AnyDryTotal_LT90Days_prob", # COND3
-          "COND3-1_MCS_AnyDryTotal_LT30Days_prob", # COND3_1
-          "COND4_MCS_at50cm_GT22C_prob", # COND4
-          "COND5_MCS_at50cm_DiffJJAtoDJF_C", # AbsDiffSoilTemp_DJFvsJJA
-          "COND5_MCS_at50cm_DiffJJAtoDJF_GT6C_prob", # COND5
-          "COND6_MCS_AllDry_Summer_days",  # DryDaysConsecSummer
-          "COND6_MCS_AllDry_Summer_LT45Days_prob", # COND6
-          "COND6-1_MCS_AllDry_Summer_GT90Days_prob", # COND6_1
-          "COND7_MCS_AnyMoist_GT180Days_days", # MoistDaysCumAny
-          "COND7_MCS_AnyMoist_GT180Days_prob", # COND7
-          "COND8_MCS_AnyWetConsec_days", # MoistDaysConsecAny
-          "COND8_MCS_AnyWetConsec_GT90Days_prob", # COND8
-          "COND9_MCS_AllWet_Winter_days", # MoistDaysConsecWinter
-          "COND9_MCS_AllWet_Winter_GT45days_prob", # COND9
-          "COND10_MCS_AllDry_days", # AllDryDaysCumAny
-          "COND10_MCS_AllDry_prob", # COND10
+    if (isTRUE(aon[[id]])) {
+      temp <- paste0("NRCS_",
+        c(c("SoilTemp_simulated_TF", "SoilTemp_realistic_TF",
+          "Depth50cmOrImpermeable_cm",
+          "MCS_Upper_cm", "MCS_Lower_cm",
+          "ACS_Upper_cm", "ACS_Lower_cm",
+          "Permafrost_years", "SMR_normalyears_N", "Soil_with_Ohorizon_TF"),
+          # MATLanh, MAT50:
+          paste0(c("SoilTemp_ACS_Annual_C", "SoilTemp_at50cm_Annual_C",
+            "SoilTemp_at50cm_JJA_C", "SoilTemp_at50cm_DJF_C", # T50jja, T50djf
+            "Saturation_ConsecutiveMaxDuration_JJA_days", # CSPartSummer
+            "SoilTemp_Offset_from_MeanAirTemp_C", # meanTair_Tsoil50_offset_C
+            # Anhydrous_annual_means:
+            "COND1_ACS_at50cm_LE0C_prob", # COND1
+            "COND2_ACS_atAnhDepth_LE5C_prob", # COND2
+            # COND3:
+            "COND3_ACS_MoreThanHalfDry_and_at50cm_GT0C_isGThalf_at50cm_GT0C_prob",
+            # HalfDryDaysCumAbove0C:
+            "COND3_ACS_MoreThanHalfDry_and_at50cm_GT0C_days",
+            "COND3_ACS_at50cm_GT0C_days", # SoilAbove0C
+            "COND3_ACS_at50cm_GT0C_prob", # T50_at0C
+            "COND3_ACS_MoreThanHalfDry_prob", # Lanh_Dry_Half
+            "COND3_ACS_MoreThanHalfDry_and_at50cm_GT0C_prob", # COND3_Test
+            # MCS_annual_means:
+            "COND0_mPPT_GT_mPET_prob", # COND0
+            "COND1_MCS_AllDry_and_at50cm_GT5C_days", # DryDaysCumAbove5C
+            "COND1_MCS_at50cm_GT5C_days", # SoilAbove5C
+            "COND1_MCS_AllDry_and_at50cm_GT5C_isGThalf_at50cm_GT5C_prob", # COND1
+            # MaxContDaysAnyMoistCumAbove8:
+            "COND2_MCS_AnyWetConsec_Max_at50cm_GT8C_days",
+            "COND2_MCS_AnyWetConsec_LT90Days_at50cm_GT8C_prob", # COND2
+            "COND2-1_MCS_AnyWetConsec_LT180Days_at50cm_GT8C_prob", # COND2_1
+            "COND2-2_MCS_AnyWetConsec_LT270Days_at50cm_GT8C_prob", # COND2_2
+            "COND2-3_MCS_AnyWetConsec_LE45Days_at50cm_GT8C_prob", # COND2_3
+            "COND3_MCS_AnyDry_days", # DryDaysCumAny
+            "COND3_MCS_AnyDryTotal_LT90Days_prob", # COND3
+            "COND3-1_MCS_AnyDryTotal_LT30Days_prob", # COND3_1
+            "COND4_MCS_at50cm_GT22C_prob", # COND4
+            "COND5_MCS_at50cm_DiffJJAtoDJF_C", # AbsDiffSoilTemp_DJFvsJJA
+            "COND5_MCS_at50cm_DiffJJAtoDJF_GT6C_prob", # COND5
+            "COND6_MCS_AllDry_Summer_days",  # DryDaysConsecSummer
+            "COND6_MCS_AllDry_Summer_LT45Days_prob", # COND6
+            "COND6-1_MCS_AllDry_Summer_GT90Days_prob", # COND6_1
+            "COND7_MCS_AnyMoist_GT180Days_days", # MoistDaysCumAny
+            "COND7_MCS_AnyMoist_GT180Days_prob", # COND7
+            "COND8_MCS_AnyWetConsec_days", # MoistDaysConsecAny
+            "COND8_MCS_AnyWetConsec_GT90Days_prob", # COND8
+            "COND9_MCS_AllWet_Winter_days", # MoistDaysConsecWinter
+            "COND9_MCS_AllWet_Winter_GT45days_prob", # COND9
+            "COND10_MCS_AllDry_days", # AllDryDaysCumAny
+            "COND10_MCS_AllDry_prob", # COND10
 
-          "Days_at50cm_GT5C_prob", "Days_at50cm_GT8C_prob",
-          "Days_MCS_AllWet_prob",
-          "COND1_MCS_AllDry_and_at50cm_GT5C_prob", # COND1_Test
-          "COND2_MCS_AnyWet_and_at50cm_GT8C_prob"), # COND2_Test
-          "_mean")))
+            "Days_at50cm_GT5C_prob", "Days_at50cm_GT8C_prob",
+            "Days_MCS_AllWet_prob",
+            "COND1_MCS_AllDry_and_at50cm_GT5C_prob", # COND1_Test
+            "COND2_MCS_AnyWet_and_at50cm_GT8C_prob"), # COND2_Test
+            "_mean")))
+    }
+
+    list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
   }
-
-  list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
-}
 
 #' @seealso
 #' \code{\link{fields_dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates}}
@@ -907,7 +930,7 @@ fields_dailyWetDegreeDays <- function(aon, opt_agg, fieldtag_SWPcrit_MPa, ...) {
   if (isTRUE(aon[[id]])) {
     temp <- paste0("WetDegreeDays.SWPcrit", rep(fieldtag_SWPcrit_MPa, each = 3),
       rep(c(".topLayers", ".bottomLayers", ".anyLayer"),
-      times = opt_agg[["SWPcrit_N"]]), "_Cdays_mean")
+        times = opt_agg[["SWPcrit_N"]]), "_Cdays_mean")
   }
 
   list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
@@ -1147,20 +1170,24 @@ fields_periodicVWCmatricFirstLayer <- function(aon, opt_agg, ...) {
   temp <- NULL
   id <- "periodicVWCmatricFirstLayer"
 
-  if (isTRUE(aon[[id]])) {
-    if (isTRUE(opt_agg$use_doy_range)) {
-      ranges <- if (is.null(opt_agg$doy_ranges$periodicVWCmatric)) {
-          c(opt_agg$doy_ranges$default)
-        } else {
-          c(opt_agg$doy_ranges$periodicVWCmatric)
-        }
-
-      temp <- c(temp,
-        paste0("periodicVWCmatricMean_FirstLayer_doyRange", ranges[1], "to",
-          ranges[2], "_mean"),
-        paste0("periodicVWCmatricSum_FirstLayer_doyRange", ranges[1], "to",
-          ranges[2], "_mean"))
+  if (isTRUE(aon[[id]]) && isTRUE(opt_agg$use_doy_range)) {
+    ranges <- if (is.null(opt_agg$doy_ranges$periodicVWCmatric)) {
+      c(opt_agg$doy_ranges$default)
+    } else {
+      c(opt_agg$doy_ranges$periodicVWCmatric)
     }
+
+    temp <- c(
+      temp,
+      paste0(
+        "periodicVWCmatricMean_FirstLayer_doyRange", ranges[1], "to",
+        ranges[2], "_mean"
+      ),
+      paste0(
+        "periodicVWCmatricSum_FirstLayer_doyRange", ranges[1], "to",
+        ranges[2], "_mean"
+      )
+    )
   }
 
   list(aon = id, N = length(temp), fields = list(coerce_sqlNames(temp)))
@@ -1462,28 +1489,48 @@ fields_dailyRegeneration_GISSM <- function(aon, opt_agg, ...) {
 
     SlingMortality_ByYear_cnames <- paste0(
       "Seedlings1stSeason.Mortality.",
-      c("UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax",
+      c(
+        "UnderneathSnowCover", "ByTmin", "ByTmax", "ByChronicSWPMax",
         "ByChronicSWPMin", "ByAcuteSWPMin", "DuringStoppedGrowth.DueSnowCover",
-        "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"))
+        "DuringStoppedGrowth.DueTmin", "DuringStoppedGrowth.DueTmax"
+      )
+    )
     temp1 <- c("Germination", "Seedlings1stSeason")
 
     for (sp in seq_len(opt_agg[["GISSM_species_No"]])) {
-      fields.header1 <- c(paste0(temp1, ".SuitableYears_fraction_mean"),
-        paste0(rep(temp1, each = 3),
-          ".UnsuitableYears.Successive_years_quantile", rep(c(0.05, 0.5, 0.95),
-          times = 2)),
+      fields.header1 <- c(
+        paste0(temp1, ".SuitableYears_fraction_mean"),
+        paste0(
+          rep(temp1, each = 3),
+          ".UnsuitableYears.Successive_years_quantile",
+          rep(c(0.05, 0.5, 0.95), times = 2)
+        ),
         paste0(temp1, ".SuitableDaysPerYear_days_mean"),
-        paste0(paste0(rep(temp1, each = 3), ".", c("Start", "Middle", "End")),
-          "_doy_quantile", rep(c(0.9, 0.5, 0.9), times = 2)),
-        paste0("Germination.RestrictedDays.By", c("Tmax", "Tmin", "SWPmin",
-          "AnyCondition", "TimeToGerminate"), "_days_mean"),
+        paste0(
+          paste0(
+            rep(temp1, each = 3),
+            ".",
+            c("Start", "Middle", "End")),
+          "_doy_quantile",
+          rep(c(0.9, 0.5, 0.9), times = 2)
+        ),
+        paste0(
+          "Germination.RestrictedDays.By",
+          c("Tmax", "Tmin", "SWPmin", "AnyCondition", "TimeToGerminate"),
+          "_days_mean"
+        ),
         "Germination.TimeToGerminate_days_mean",
-        paste0(SlingMortality_ByYear_cnames, "_days_mean"))
+        paste0(SlingMortality_ByYear_cnames, "_days_mean")
+      )
 
-      temp <- c(temp, paste(colnames(opt_agg[["GISSM_params"]])[sp],
-        fields.header1, sep = "."))
+      temp <- c(
+        temp,
+        paste(
+          colnames(opt_agg[["GISSM_params"]])[sp], fields.header1, sep = "."
+        )
+      )
 
-      #Output for time series: not yet implemented for db
+#Output for time series: not yet implemented for db
     }
   }
 

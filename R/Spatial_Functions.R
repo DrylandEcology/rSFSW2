@@ -292,8 +292,9 @@ res_to_polygons <- function(x, y, ...) {
   stopifnot(requireNamespace("sp"))
   dots <- list(...)
 
-  if (!all(c("coords", "crs_data") %in% names(dots)))
+  if (!all(c("coords", "crs_data") %in% names(dots))) {
     stop("'res_to_polygons' requires arguments 'coords' and 'crds_data'")
+  }
 
   coords <- sp::coordinates(dots[["coords"]])
 
@@ -303,15 +304,28 @@ res_to_polygons <- function(x, y, ...) {
   stopifnot(is.matrix(y), nrow(y) == 1L || nrow(y) == nrow(coords))
 
   to_halfres <- y / 2
-  cxy <- cbind(coords[, 1] - to_halfres[, 1], coords[, 1] + to_halfres[, 1],
-         coords[, 2] - to_halfres[, 2], coords[, 2] + to_halfres[, 2])
+  cxy <- cbind(
+    coords[, 1] - to_halfres[, 1],
+    coords[, 1] + to_halfres[, 1],
+    coords[, 2] - to_halfres[, 2],
+    coords[, 2] + to_halfres[, 2]
+  )
 
-  ptemp0 <- lapply(seq_len(nrow(coords)), function(i)
-    matrix(c(cxy[i, 1], cxy[i, 3], cxy[i, 1], cxy[i, 4], cxy[i, 2], cxy[i, 4],
-      cxy[i, 2], cxy[i, 3]), ncol = 2, byrow = TRUE))
+  ptemp0 <- lapply(
+    seq_len(nrow(coords)),
+    function(i) {
+      matrix(
+        data = cxy[i, c(1L, 3L, 1L, 4L, 2L, 4L, 2L, 3L)],
+        ncol = 2L,
+        byrow = TRUE
+      )
+    }
+  )
   ptemp1 <- lapply(ptemp0, sp::Polygon)
-  ptemp2 <- lapply(seq_along(ptemp1), function(i)
-    sp::Polygons(ptemp1[i], ID = i))
+  ptemp2 <- lapply(
+    seq_along(ptemp1),
+    function(i) sp::Polygons(ptemp1[i], ID = i)
+  )
 
   sp::SpatialPolygons(ptemp2, proj4string = dots[["crs_data"]])
 }
@@ -416,17 +430,28 @@ extract_blocks <- function(x, y, weights = FALSE) {
   vtemp <- raster::extract(x, y = unique_cells)
 
   vals <- if (raster::nlayers(x) == 1) {
-        lapply(cell_blocks, function(block)
-          vtemp[fun_match(block, unique_cells, nomatch = NA)])
+        lapply(
+          cell_blocks,
+          function(block) vtemp[fun_match(block, unique_cells, nomatch = NA)]
+        )
       } else {
-        lapply(cell_blocks, function(block)
-          vtemp[fun_match(block, unique_cells, nomatch = NA), ])
+        lapply(
+          cell_blocks,
+          function(block) vtemp[fun_match(block, unique_cells, nomatch = NA), ]
+        )
       }
 
   if (weights) {
     halfres <- grid_res / 2
-    vals <- lapply(iseq, add_weights, vals = vals, x = x, cell_blocks,
-      halfres = halfres, exts = y)
+    vals <- lapply(
+      iseq,
+      add_weights,
+      vals = vals,
+      x = x,
+      cell_blocks,
+      halfres = halfres,
+      exts = y
+    )
   }
 
   vals
@@ -482,9 +507,11 @@ extract2_Raster_SpatialPolygons <- function(x, ...) {
 reaggregate_raster <- function(x, coords, to_res = c(0, 0), with_weights = NULL,
   method = c("raster", "raster_con", "block"), tol = 1e-2) {
 
-  stopifnot(requireNamespace("raster"))
-  stopifnot(requireNamespace("sp"))
-  stopifnot(inherits(x, "Raster"))
+  stopifnot(
+    requireNamespace("raster"),
+    requireNamespace("sp"),
+    inherits(x, "Raster")
+  )
 
   if (is.null(dim(coords)) && length(coords) == 2L) {
     coords <- matrix(coords, ncol = 2)
