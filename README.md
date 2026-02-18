@@ -1,24 +1,26 @@
 
-| Unix | Windows | Release | License | Coverage | Downloads |
-| :---- | :---- | :---- | :---- | :---- | :---- |
-[ ![Travis build status][1]][2] | [![Appveyor build status][3]][4] | [ ![github release][5]][6] | [![license][7]][8] | [![codecov status][9]][10] | [![github downloads][11]][12] |
+| Release | License | Coverage |
+| :---- | :---- | :---- | :---- |
+[ ![github release][5]][6] | [![license][7]][8] | [![codecov status][9]][10] |
 
-[1]: https://travis-ci.org/DrylandEcology/rSFSW2.svg?branch=master
-[2]: https://travis-ci.org/DrylandEcology/rSFSW2
-[3]: https://ci.appveyor.com/api/projects/status/die00t8rjjhrb8i0/branch/master?svg=true
-[4]: https://ci.appveyor.com/project/dschlaep/rSFSW2/branch/master
 [5]: https://img.shields.io/github/release/DrylandEcology/rSFSW2.svg?label=current+release
 [6]: https://github.com/DrylandEcology/rSFSW2/releases
 [7]: https://img.shields.io/github/license/DrylandEcology/rSFSW2.svg
 [8]: https://www.gnu.org/licenses/gpl.html
 [9]: https://codecov.io/gh/DrylandEcology/rSFSW2/branch/master/graph/badge.svg
 [10]: https://codecov.io/gh/DrylandEcology/rSFSW2
-[11]: https://img.shields.io/github/downloads/DrylandEcology/rSFSW2/total.svg
-[12]: https://github.com/DrylandEcology/rSFSW2
+
 
 <br>
 
 # `rSFSW2`: A R package to create soil water balance simulation experiment
+
+**Note**: `v5` may be the final version and is released as is.
+`rSFSW2 v5` should work with `rSOILWAT2` versions up and including `v6.6` but
+some parts are no longer functional and may fail without warning.
+Focus is moved to `SOILWAT2` and some data manipulation functionality is
+provided by `rSOILWAT2`.
+
 
 Please cite the package if you publish results based on simulations carried
 out with our package, see `citation("rSFSW2")`, and we would like to hear
