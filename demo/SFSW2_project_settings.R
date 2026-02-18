@@ -55,7 +55,7 @@ opt_behave <- list(
 
   # Utilize the six v2 vegetation types introduced with rSOILWAT2 v6.5.0
   # (if FALSE and rSOILWAT2 >= v6.5.0, then collapse to old v1)
-  useVegTypesV2 = FALSE
+  rSW2VegTypesV2 = FALSE
 )
 
 

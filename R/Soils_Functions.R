@@ -1,4 +1,70 @@
 
+
+namesSoils <- function(
+    namesTrCo, hasRSWv650, hasRSWv630, type = c("RSW", "RSFSW")
+) {
+  type <- match.arg(type)
+
+  if (isTRUE(hasRSWv650)) {
+    switch(
+      EXPR = type,
+      RSW = c(
+        "depth_cm",
+        "bulkDensity_g/cm^3",
+        "gravel_content",
+        "sand_frac",
+        "clay_frac",
+        "som_frac",
+        "impermeability_frac",
+        "soilTemp_c",
+        "EvapBareSoil_frac",
+        namesTrCo
+      ),
+      RSFSW = c(
+        NA_character_,
+        "Matricd",
+        "GravelContent",
+        "Sand",
+        "Clay",
+        "SOM",
+        "Imperm",
+        "SoilTemp",
+        "EvapCoeff",
+        namesTrCo
+      )
+    )
+
+  } else {
+    switch(
+      EXPR = type,
+      RSW = c(
+        "depth_cm",
+        "bulkDensity_g/cm^3",
+        "gravel_content",
+        "EvapBareSoil_frac",
+        namesTrCo,
+        "sand_frac",
+        "clay_frac",
+        "impermeability_frac",
+        "soilTemp_c",
+        if (isTRUE(hasRSWv630)) "som_frac"
+      ),
+      RSFSW = c(
+        NA_character_,
+        "Matricd",
+        "GravelContent",
+        "EvapCoeff",
+        namesTrCoRSFSW,
+        "Sand",
+        "Clay",
+        "Imperm",
+        "SoilTemp",
+        if (has_rSW2[["6.3.0"]]) "SOM"
+      )
+    )
+  }
+}
+
 #' The wrapper only handles 1-cm resolution of soil depths
 #' (mainly because of the \var{trco})
 adjustLayersDepth <- function(layers_depth, d) {
@@ -16,14 +82,14 @@ check_soil_data <- function(x, allowAllSandClayOrSilt = FALSE) {
       x[, "depth_cm"] > 0 &
       diff(c(0, x[, "depth_cm"])) > 0
 
-    check_soil[, "matricd"] <- check_soil[, "matricd"] &
-      x[, "matricd"] > 0.3 &
-      x[, "matricd"] - 2.65 <= SFSW2_glovars[["tol"]]
+    check_soil[, "bulkDensity_g/cm^3"] <- check_soil[, "bulkDensity_g/cm^3"] &
+      x[, "bulkDensity_g/cm^3"] > 0.3 &
+      x[, "bulkDensity_g/cm^3"] - 2.65 <= SFSW2_glovars[["tol"]]
 
     check_soil[, "gravel_content"] <- check_soil[, "gravel_content"] &
       x[, "gravel_content"] >= 0 & x[, "gravel_content"] < 1
 
-    itemp <- c("sand", "clay")
+    itemp <- c("sand_frac", "clay_frac")
     check_soil[, itemp] <- check_soil[, itemp] & x[, itemp] >= 0
     check_soil[, itemp] <- if (isTRUE(allowAllSandClayOrSilt)) {
       check_soil[, itemp] & x[, itemp] <= 1
@@ -38,7 +104,9 @@ check_soil_data <- function(x, allowAllSandClayOrSilt = FALSE) {
       paste0(c("Tree", "Shrub", "Forb", "Grass"), "_TranspCoeff")
     }
     itemp <- c(
-      "EvapBareSoil_frac", intersect(namesTrCo, colnames(check_soil)), "imperm"
+      "EvapBareSoil_frac",
+      intersect(namesTrCo, colnames(check_soil)),
+      "impermeability_frac"
     )
     check_soil[, itemp] <- check_soil[, itemp] &
       x[, itemp] >= 0 &
