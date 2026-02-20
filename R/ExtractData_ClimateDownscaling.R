@@ -408,7 +408,8 @@ unique_times <- function(timeSlices, slice) {
   for (it in seq_along(tmp)) {
     tmp1 <- union(tmp1, tmp[[it]])
   }
-  n <- 1 + length(tmp2 <- which(diff(tmp1) > 1))
+  tmp2 <- which(diff(tmp1) > 1)
+  n <- 1 + length(tmp2)
   tmp2 <- c(1, 1 + tmp2, length(tmp1) + 1)
   res <- matrix(NA, nrow = n, ncol = 2)
   for (it in seq_len(n)) {
@@ -3436,7 +3437,7 @@ calc_MonthlyScenarioWeather <- function(
   if (verbose) {
     print(paste0(
       i_tag, " extraction: ", shQuote(clim_source), " at ", Sys.time(),
-      " for ", gcm, " (", paste(reqRCPsPerGCM[[ig]], collapse = ", "), ") at ",
+      " for ", gcm, " (", toString(reqRCPsPerGCM[[ig]]), ") at ",
       lon, " / ", lat
     ))
   }
@@ -3465,7 +3466,7 @@ calc_MonthlyScenarioWeather <- function(
     stop(
       "Not all requested scenarios available ",
       "in the weather database scenario table:\n",
-      paste(shQuote(tmp1[tmp1[, "Scenario_id"], "Scenario"]), collapse = ", ")
+      toString(shQuote(tmp1[tmp1[, "Scenario_id"], "Scenario"]))
     )
   }
 

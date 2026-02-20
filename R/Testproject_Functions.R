@@ -191,7 +191,7 @@ run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
           if (verbose && length(tmp) > 0) {
             print(paste(
               "Will delete input files:",
-              paste0(basename(tmp), collapse = ", ")
+              toString(basename(tmp))
             ))
           }
 

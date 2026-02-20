@@ -84,7 +84,7 @@ setup_rSFSW2_project_infrastructure <- function(dir_prj, verbose = TRUE,
 
     print(paste0(
       "File(s) ",
-      paste(shQuote(fes), collapse = ", "),
+      toString(shQuote(fes)),
       "already existed in project ",
       shQuote(basename(dir_prj)),
       "; they were not replaced by default files."
@@ -761,7 +761,7 @@ gather_project_inputs <- function(
     if (any(ibad)) {
       stop(
         "elements of 'prj_todos' should not be 'NULL': ",
-        paste(shQuote(names(tmp)[ibad]), collapse = ", ")
+        toString(shQuote(names(tmp)[ibad]))
       )
     }
 

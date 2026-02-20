@@ -558,7 +558,7 @@ prepare_climatedata_netCDFs <- function(dir_code, dir_data, dir_duplicates,
               } else {
                 print(paste("Data for time-series suggested by filenames is",
                   "complete, but duplicated data between files is not equal:",
-                  paste(shQuote(f_suittimes), collapse = ", ")))
+                  toString(shQuote(f_suittimes))))
 
                 dir_scrutinize_to <- file.path(dir_scrutinize,
                   "duplicated-data-with-diffs")
@@ -596,7 +596,7 @@ prepare_climatedata_netCDFs <- function(dir_code, dir_data, dir_duplicates,
           } else {
             print(paste("Data for time-series suggested by filenames is",
               "complete, but some not-required files are incompatible:",
-              paste(shQuote(f_unsuittimes), collapse = ", ")))
+              toString(shQuote(f_unsuittimes))))
 
             # file destination
             fto[!is_alltimes_suitable] <- file.path(dir_delete, f_unsuittimes)

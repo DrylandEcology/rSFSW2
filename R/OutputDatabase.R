@@ -1223,8 +1223,8 @@ move_dbTempOut_to_dbOut <- function(SFSW2_prj_meta, t_job_start, opt_parallel,
         to_delete <- file.exists(theFileList)
         if (any(to_delete)) {
           print(paste("The temporary file(s)",
-            paste(shQuote(theFileList[to_delete]), collapse = ", ",
-            "was/were attempted to be deleted thrice but failed.")))
+            toString(shQuote(theFileList[to_delete])),
+            "was/were attempted to be deleted thrice but failed."))
         }
       }
     }
@@ -1840,8 +1840,8 @@ check_outputDB_completeness <- function(SFSW2_prj_meta, opt_parallel,
   if (runsN_todo > 0 || tempN_todo > 0) {
     if (opt_verbosity[["verbose"]] && tempN_todo) {
       print(paste("Unfinished temporary files:",
-        paste(shQuote(temp1_files), collapse = ", "),
-        paste(shQuote(temp2_files), collapse = ", ")))
+        toString(shQuote(temp1_files)),
+        toString(shQuote(temp2_files))))
     }
 
     msg <- paste(temp_call, "can only process `dbOutput` after all simulation",
@@ -3632,7 +3632,7 @@ dbOut_prepare1 <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
   not_temp <- !has_temp
   if (any(not_temp)) {
     print(paste("Requested tables not available:",
-      paste0(shQuote(req_tables[not_temp]), collapse = ", ")))
+      toString(shQuote(req_tables[not_temp]))))
   }
 
   tables <- req_tables[has_temp]
@@ -3674,7 +3674,7 @@ dbOut_prepare1 <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
     not_temp <- !has_temp
     if (any(not_temp)) {
       print(paste("Requested fields not available:",
-        paste0(shQuote(req_fields[not_temp]), collapse = ", ")))
+        toString(shQuote(req_fields[not_temp]))))
     }
 
     result_fields[[k]] <- req_fields[has_temp]
@@ -4138,7 +4138,7 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
   not_temp <- !has_temp
   if (any(not_temp)) {
     print(paste("Requested tables not available:",
-      paste0(shQuote(req_tables[not_temp]), collapse = ", ")))
+      toString(shQuote(req_tables[not_temp]))))
   }
 
   tables <- req_tables[has_temp]
@@ -4178,7 +4178,7 @@ dbOutput_subset <- function(dbOut_fname, dbNew_fname, fields_include = NULL,
     not_temp <- !has_temp
     if (any(not_temp)) {
       print(paste("Requested fields not available:",
-        paste0(shQuote(req_fields[not_temp]), collapse = ", ")))
+        toString(shQuote(req_fields[not_temp]))))
     }
 
     result_fields[[k]] <- req_fields[has_temp]

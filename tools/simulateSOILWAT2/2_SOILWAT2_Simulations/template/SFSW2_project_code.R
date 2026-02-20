@@ -34,15 +34,17 @@ t_job_start <- Sys.time()
 
 args <- commandArgs(trailingOnly = TRUE)
 
-nparallel <- if (any(ids <- grepl("-nparallel", args))) {
+ids <- grepl("-nparallel", args, fixed = TRUE)
+nparallel <- if (any()ids) {
   as.integer(sub("-nparallel=", "", args[ids]))
 }
 
-chunksims <- if (any(ids <- grepl("-chunksims", args))) {
+ids <- ids <- grepl("-chunksims", args, fixed = TRUE)
+chunksims <- if (any(ids)) {
   tmp <- as.integer(
-    strsplit(sub("-chunksims=", "", args[ids]), split = ",", fixed = TRUE)[[1]]
+    strsplit(sub("-chunksims=", "", args[ids]), split = ",", fixed = TRUE)[[1L]]
   )
-  if (length(tmp) == 2) tmp else NA
+  if (length(tmp) == 2L) tmp else NA
 }
 
 
