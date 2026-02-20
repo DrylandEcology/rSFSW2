@@ -29,7 +29,6 @@ Suggests:
     Rmpi (>= 0.6-3),
     parallel,
     terra,
-    rgeos (>= 0.3.19),
     raster (>= 2.5.8),
     sp (>= 1.2.3),
     ncdf4 (>= 1.15),

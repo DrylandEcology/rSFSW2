@@ -63,7 +63,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Daniel Schlaepfer \email{daniel.schlaepfer@alumni.ethz.ch} (\href{https://orcid.org/0000-0001-9973-2065}{ORCID})
+\strong{Maintainer}: Daniel Schlaepfer \email{danielrschlaepfer@gmail.com} (\href{https://orcid.org/0000-0001-9973-2065}{ORCID})
 
 Other contributors:
 \itemize{
