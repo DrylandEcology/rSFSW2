@@ -5,6 +5,7 @@
 \alias{calc_BareSoilEvapCoefs}
 \alias{crs_units}
 \alias{init_soiltemperature}
+\alias{reaggregate_shapefile_defunct}
 \title{Defunct functions in package \pkg{rSFSW2}}
 \usage{
 calc_BareSoilEvapCoefs(...)
@@ -12,6 +13,8 @@ calc_BareSoilEvapCoefs(...)
 crs_units(...)
 
 init_soiltemperature(...)
+
+reaggregate_shapefile_defunct(...)
 }
 \description{
 Executing a defunct function will fail and tell you which function

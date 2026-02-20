@@ -54,3 +54,10 @@ init_soiltemperature <- function(...) {
     )
   )
 }
+
+
+#' @rdname rSFSW2-defunct
+#' @export
+reaggregate_shapefile_defunct <- function(...) {
+  .Defunct(msg = "reaggregate_shapefile() must be re-written without 'rgeos'.")
+}

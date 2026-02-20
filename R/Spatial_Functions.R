@@ -717,11 +717,14 @@ extract_from_external_raster_old <- function(x, data, ...) {
 #'       \code{values} for each layer.}}
 #' @export
 reaggregate_shapefile <- function(x, by, fields = NULL, code = NULL) {
+
+  reaggregate_shapefile_defunct()
+
   # Code from sp:::aggregatePolyWeighted version 1.2.3
-  if (!requireNamespace("rgeos", quietly = TRUE)) stop("rgeos required")
+  #if (!requireNamespace("rgeos", quietly = TRUE)) stop("rgeos required")
 
   # TODO: replace `rgeos::gIntersection` with `sf::st_intersection`
-  i <- rgeos::gIntersection(x, by, byid = TRUE, drop_lower_td = TRUE)
+  #i <- rgeos::gIntersection(x, by, byid = TRUE, drop_lower_td = TRUE)
 
   # Modified code
   if (is.null(i))
