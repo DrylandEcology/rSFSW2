@@ -55,9 +55,15 @@ init_soiltemperature <- function(...) {
   )
 }
 
-
 #' @rdname rSFSW2-defunct
 #' @export
 reaggregate_shapefile_defunct <- function(...) {
   .Defunct(msg = "reaggregate_shapefile() must be re-written without 'rgeos'.")
 }
+
+#' @rdname rSFSW2-defunct
+#' @export
+downscale.wgen_package <- function(...) {
+  .Defunct(msg = "Package 'weathergen' is no longer maintained.")
+}
+
