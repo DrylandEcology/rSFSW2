@@ -22,6 +22,8 @@ jobs:
           use-public-rspm: true
 
       - uses: r-lib/actions/setup-r-dependencies@v2
+        env: 
+          PKG_GIT_SUBMODULES: true
         with:
           extra-packages: any::lintr, Rmpi=?ignore, local::.
           needs: lint
