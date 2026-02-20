@@ -53,6 +53,7 @@ Suggests:
 Remotes:
     github::DrylandEcology/rSW2utils,
     github::DrylandEcology/rSW2st,
+    github::DrylandEcology/rSW2exter,
     github::DrylandEcology/rSW2data,
     github::DrylandEcology/rSOILWAT2,
     github::DrylandEcology/rSW2funs,
