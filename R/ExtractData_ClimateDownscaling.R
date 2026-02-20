@@ -2289,206 +2289,206 @@ downscale.deltahybrid3mod <- function(
   )
 }
 
-
-downscale.wgen_package <- function(
-  obs.hist.daily,
-  obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
-  itime, years = NULL, sim_time = NULL,
-  opt_DS = list(
-   extrapol_type = "linear_Thermessl2012CC.QMv1b",
-   ppt_type = "detailed",
-   sigmaN = 6,
-   PPTratioCutoff = 10,
-   fix_spline = "attempt"
-  ),
-  dailyPPTceiling, monthly_extremes,
-  do_checks = TRUE,
-  ...
-) {
-  dots <- list(...)
-
-  if (isTRUE(dots[["verbose"]])) {
-    print(paste(
-      "downscale.wgen_package start(deltaFuture_yr =", sim_time[["future_yrs"]][itime, "delta"], "years",
-      paste(years, collapse = "-"), "DScur_startyear", sim_time[["DScur_startyr"]], "DScur_endyear",
-      sim_time[["DScur_endyr"]], "DSfut_startyear", sim_time[["future_yrs"]][itime, "DSfut_startyr"], "DSfut_endyear", sim_time[["future_yrs"]][itime, "DSfut_endyr"]
-    ))
-  }
-
-  stopifnot(
-    requireNamespace("zoo"),
-    requireNamespace("weathergen"),
-    requireNamespace("dplyr"),
-    requireNamespace("lubridate")
-  )
-
-  # Time periods
-  tp <- downscale.periods(
-    obs.hist.daily,
-    obs.hist.monthly,
-    scen.hist.monthly = NULL,
-    scen.fut.monthly,
-    years,
-    sim_time[["DScur_startyr"]],
-    sim_time[["DScur_endyr"]],
-    sim_time[["future_yrs"]][itime, "DSfut_startyr"],
-    sim_time[["future_yrs"]][itime, "DSfut_endyr"]
-  )
-
-  if (any(!tp$iuse_obs_hist_d)) {
-    obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
-  }
-  if (any(!tp$iuse_obs_hist_m)) {
-    obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
-  }
-  if (any(!tp$iuse_scen_fut_m)) {
-    scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
-  }
-
-  day_data <- rSOILWAT2::dbW_weatherData_to_dataframe(obs.hist.daily)
-
-  dates <- as.Date(
-    day_data[, "DOY"] - 1,
-    origin = paste(day_data[, "Year"], "01", "01", sep = "-")
-  )
-
-  day_data <- data.frame(
-    WYEAR = weathergen::wyear(dates),
-    MONTH = format(dates, "%m"),
-    DATE = dates,
-    PRCP = day_data[, "PPT_cm"],
-    tmp = (day_data[, "Tmin_C"] + day_data[, "Tmax_C"]) / 2,
-    TMIN = day_data[, "Tmin_C"],
-    TMAX = day_data[, "Tmax_C"],
-    WIND = NA
-  )
-
-  # get water years, oct 1st to sep 30th... used if start_month should be 10
-  # day_data <- day_data[min(which(as.numeric(format(day_data$DATE, "%d")) == 1 & as.numeric(format(day_data$DATE, "%m")) == 10)):max(which(as.numeric(format(day_data$DATE, "%d")) == 30 & as.numeric(format(day_data$DATE, "%m")) == 9)), ]
-  start_month <- as.numeric(format(min(day_data$DATE), "%m"))
-
-  # silence warning: `Undefined global functions or variables`
-  DATE <- N <- PRCP <- TMAX <- TMIN <- tmp <- NULL
-
-  climwyear <- dplyr::summarise(
-    dplyr::group_by(
-      day_data,
-      WYEAR = weathergen::wyear(DATE, start_month = start_month)
-    ),
-    N = dplyr::n(),
-    PRCP = sum(PRCP),
-    TMAX = mean(TMAX),
-    TMIN = mean(TMIN),
-    tmp = mean(tmp)
-  )
-  complete_years <- climwyear$WYEAR[which(climwyear$N >= 365)]
-
-  wyear_list <- list(day_data$WYEAR)
-  wyr_data <- data.frame(
-    WYEAR = complete_years,
-    PRCP = climwyear$PRCP[which(climwyear$N >= 365)],
-    tmp = climwyear$tmp[which(climwyear$N >= 365)],
-    TMIN = climwyear$TMIN[which(climwyear$N >= 365)],
-    TMAX = climwyear$TMAX[which(climwyear$N >= 365)],
-    WIND = NA
-  )
-
-  obs_dat <- list(day = day_data, wyr = wyr_data)
-  zoo_day <- zoo::zoo(
-    x = obs_dat[["day"]][, c("PRCP", "tmp", "TMIN", "TMAX", "WIND")],
-    order.by = obs_dat[["day"]][["DATE"]]
-  )
-  start_yr <- as.integer(format(dates[1], "%Y")) ##
-  end_yr <- as.integer(format(max(dates), "%Y"))
-
-  dry_wet_threshold <- 0.3
-  wet_extreme_threshold <- 0.8
-
-  # can be one value or a vector of 12
-  dry_spell_changes <- if (
-    !is.null(dots[["add_params"]][["wgen_dry_spell_changes"]])
-  ) {
-    dots[["add_params"]][["wgen_dry_spell_changes"]]
-  } else {
-    1
-  }
-
-  wet_spell_changes <- if (
-    !is.null(dots[["add_params"]][["wgen_wet_spell_changes"]])
-  ) {
-    dots[["add_params"]][["wgen_wet_spell_changes"]]
-  } else {
-    1
-  }
-
-  prcp_cv_changes <- if (
-    !is.null(dots[["add_params"]][["wgen_prcp_cv_changes"]])
-  ) {
-    dots[["add_params"]][["wgen_prcp_cv_changes"]]
-  } else {
-    1
-  }
-
-  changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly, opt_DS)[[1]]
-
-  # replace with tapply()?
-  prcp_mean_changes <- sapply(
-    SFSW2_glovars[["st_mo"]],
-    function(x) mean(changes[changes[, "Month"] == x, "PPT_cm"])
-  )
-
-  temp_mean_changes <- sapply(
-    SFSW2_glovars[["st_mo"]],
-    function(x) {
-      mean(
-        changes[changes[, "Month"] == x, "Tmax_C"] + changes[changes[, "Month"] == x, "Tmin_C"]
-      )
-    }
-  ) / 2
-
-  # set.seed(1) # for testing
-  if (isTRUE(dots[["verbose"]])) {
-    print(paste(
-      "calling wgen_daily(zoo_day, n_year = ", end_yr - start_yr + 1,
-      ", start_water_year = ", start_yr, ", start_month =", start_month, "dry_wet_threshold = ", dry_wet_threshold,
-      "wet_extreme_threshold = ", wet_extreme_threshold, "dry_spell_changes = ", dry_spell_changes, "wet_spell_changes = ",
-      wet_spell_changes, "prcp_mean_changes = ", prcp_mean_changes, "prcp_cv_changes = ", prcp_cv_changes, "temp_mean_changes = ", temp_mean_changes, ")"
-    ))
-  }
-
-  # consider setting more parameters
-  # weathergens knn_annual may be worth a check, when testing I got surprisingly many leapyears. But maybe just coincidence
-  scen.fut.daily <- weathergen::wgen_daily(
-    zoo_day,
-    n_year = end_yr - start_yr + 1, # DScur_endyear - DScur_startyear,
-    start_water_year = start_yr, # DScur_startyear,
-    start_month = start_month,
-    dry_wet_threshold = dry_wet_threshold,
-    wet_extreme_quantile_threshold = wet_extreme_threshold,
-    include_leap_days = TRUE,
-    dry_spell_changes = dry_spell_changes,
-    wet_spell_changes = wet_spell_changes,
-    prcp_mean_changes = prcp_mean_changes,
-    prcp_cv_changes = 1,
-    temp_mean_changes = temp_mean_changes
-  )
-
-  scen.fut.daily <- data.frame(
-    Year = format(scen.fut.daily$out$DATE, "%Y"),
-    DOY = as.POSIXlt(scen.fut.daily$out$DATE, format = "%Y-%m-%d")$yday + 1,
-    Tmax_C = scen.fut.daily$out$TMAX,
-    Tmin_C = scen.fut.daily$out$TMIN,
-    PPT_cm = scen.fut.daily$out$PRCP
-  )
-
-  # year start back to 1/1, probably only needed when setting start_month != 1
-  # scen.fut.daily<- scen.fut.daily[min(which(scen.fut.daily$DOY == 1)):max(which(scen.fut.daily$DOY >= 365)), ]
-  scen.fut.daily <- rSOILWAT2::dbW_dataframe_to_weatherData(
-    scen.fut.daily,
-    round = FALSE
-  )
-  scen.fut.daily
-}
+# Package 'weathergen' is no longer maintained
+# downscale.wgen_package <- function(
+#   obs.hist.daily,
+#   obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
+#   itime, years = NULL, sim_time = NULL,
+#   opt_DS = list(
+#    extrapol_type = "linear_Thermessl2012CC.QMv1b",
+#    ppt_type = "detailed",
+#    sigmaN = 6,
+#    PPTratioCutoff = 10,
+#    fix_spline = "attempt"
+#   ),
+#   dailyPPTceiling, monthly_extremes,
+#   do_checks = TRUE,
+#   ...
+# ) {
+#   dots <- list(...)
+#
+#   if (isTRUE(dots[["verbose"]])) {
+#     print(paste(
+#       "downscale.wgen_package start(deltaFuture_yr =", sim_time[["future_yrs"]][itime, "delta"], "years",
+#       paste(years, collapse = "-"), "DScur_startyear", sim_time[["DScur_startyr"]], "DScur_endyear",
+#       sim_time[["DScur_endyr"]], "DSfut_startyear", sim_time[["future_yrs"]][itime, "DSfut_startyr"], "DSfut_endyear", sim_time[["future_yrs"]][itime, "DSfut_endyr"]
+#     ))
+#   }
+#
+#   stopifnot(
+#     requireNamespace("zoo"),
+#     requireNamespace("weathergen"),
+#     requireNamespace("dplyr"),
+#     requireNamespace("lubridate")
+#   )
+#
+#   # Time periods
+#   tp <- downscale.periods(
+#     obs.hist.daily,
+#     obs.hist.monthly,
+#     scen.hist.monthly = NULL,
+#     scen.fut.monthly,
+#     years,
+#     sim_time[["DScur_startyr"]],
+#     sim_time[["DScur_endyr"]],
+#     sim_time[["future_yrs"]][itime, "DSfut_startyr"],
+#     sim_time[["future_yrs"]][itime, "DSfut_endyr"]
+#   )
+#
+#   if (any(!tp$iuse_obs_hist_d)) {
+#     obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
+#   }
+#   if (any(!tp$iuse_obs_hist_m)) {
+#     obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
+#   }
+#   if (any(!tp$iuse_scen_fut_m)) {
+#     scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
+#   }
+#
+#   day_data <- rSOILWAT2::dbW_weatherData_to_dataframe(obs.hist.daily)
+#
+#   dates <- as.Date(
+#     day_data[, "DOY"] - 1,
+#     origin = paste(day_data[, "Year"], "01", "01", sep = "-")
+#   )
+#
+#   day_data <- data.frame(
+#     WYEAR = weathergen::wyear(dates),
+#     MONTH = format(dates, "%m"),
+#     DATE = dates,
+#     PRCP = day_data[, "PPT_cm"],
+#     tmp = (day_data[, "Tmin_C"] + day_data[, "Tmax_C"]) / 2,
+#     TMIN = day_data[, "Tmin_C"],
+#     TMAX = day_data[, "Tmax_C"],
+#     WIND = NA
+#   )
+#
+#   # get water years, oct 1st to sep 30th... used if start_month should be 10
+#   # day_data <- day_data[min(which(as.numeric(format(day_data$DATE, "%d")) == 1 & as.numeric(format(day_data$DATE, "%m")) == 10)):max(which(as.numeric(format(day_data$DATE, "%d")) == 30 & as.numeric(format(day_data$DATE, "%m")) == 9)), ]
+#   start_month <- as.numeric(format(min(day_data$DATE), "%m"))
+#
+#   # silence warning: `Undefined global functions or variables`
+#   DATE <- N <- PRCP <- TMAX <- TMIN <- tmp <- NULL
+#
+#   climwyear <- dplyr::summarise(
+#     dplyr::group_by(
+#       day_data,
+#       WYEAR = weathergen::wyear(DATE, start_month = start_month)
+#     ),
+#     N = dplyr::n(),
+#     PRCP = sum(PRCP),
+#     TMAX = mean(TMAX),
+#     TMIN = mean(TMIN),
+#     tmp = mean(tmp)
+#   )
+#   complete_years <- climwyear$WYEAR[which(climwyear$N >= 365)]
+#
+#   wyear_list <- list(day_data$WYEAR)
+#   wyr_data <- data.frame(
+#     WYEAR = complete_years,
+#     PRCP = climwyear$PRCP[which(climwyear$N >= 365)],
+#     tmp = climwyear$tmp[which(climwyear$N >= 365)],
+#     TMIN = climwyear$TMIN[which(climwyear$N >= 365)],
+#     TMAX = climwyear$TMAX[which(climwyear$N >= 365)],
+#     WIND = NA
+#   )
+#
+#   obs_dat <- list(day = day_data, wyr = wyr_data)
+#   zoo_day <- zoo::zoo(
+#     x = obs_dat[["day"]][, c("PRCP", "tmp", "TMIN", "TMAX", "WIND")],
+#     order.by = obs_dat[["day"]][["DATE"]]
+#   )
+#   start_yr <- as.integer(format(dates[1], "%Y")) ##
+#   end_yr <- as.integer(format(max(dates), "%Y"))
+#
+#   dry_wet_threshold <- 0.3
+#   wet_extreme_threshold <- 0.8
+#
+#   # can be one value or a vector of 12
+#   dry_spell_changes <- if (
+#     !is.null(dots[["add_params"]][["wgen_dry_spell_changes"]])
+#   ) {
+#     dots[["add_params"]][["wgen_dry_spell_changes"]]
+#   } else {
+#     1
+#   }
+#
+#   wet_spell_changes <- if (
+#     !is.null(dots[["add_params"]][["wgen_wet_spell_changes"]])
+#   ) {
+#     dots[["add_params"]][["wgen_wet_spell_changes"]]
+#   } else {
+#     1
+#   }
+#
+#   prcp_cv_changes <- if (
+#     !is.null(dots[["add_params"]][["wgen_prcp_cv_changes"]])
+#   ) {
+#     dots[["add_params"]][["wgen_prcp_cv_changes"]]
+#   } else {
+#     1
+#   }
+#
+#   changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly, opt_DS)[[1]]
+#
+#   # replace with tapply()?
+#   prcp_mean_changes <- sapply(
+#     SFSW2_glovars[["st_mo"]],
+#     function(x) mean(changes[changes[, "Month"] == x, "PPT_cm"])
+#   )
+#
+#   temp_mean_changes <- sapply(
+#     SFSW2_glovars[["st_mo"]],
+#     function(x) {
+#       mean(
+#         changes[changes[, "Month"] == x, "Tmax_C"] + changes[changes[, "Month"] == x, "Tmin_C"]
+#       )
+#     }
+#   ) / 2
+#
+#   # set.seed(1) # for testing
+#   if (isTRUE(dots[["verbose"]])) {
+#     print(paste(
+#       "calling wgen_daily(zoo_day, n_year = ", end_yr - start_yr + 1,
+#       ", start_water_year = ", start_yr, ", start_month =", start_month, "dry_wet_threshold = ", dry_wet_threshold,
+#       "wet_extreme_threshold = ", wet_extreme_threshold, "dry_spell_changes = ", dry_spell_changes, "wet_spell_changes = ",
+#       wet_spell_changes, "prcp_mean_changes = ", prcp_mean_changes, "prcp_cv_changes = ", prcp_cv_changes, "temp_mean_changes = ", temp_mean_changes, ")"
+#     ))
+#   }
+#
+#   # consider setting more parameters
+#   # weathergens knn_annual may be worth a check, when testing I got surprisingly many leapyears. But maybe just coincidence
+#   scen.fut.daily <- weathergen::wgen_daily(
+#     zoo_day,
+#     n_year = end_yr - start_yr + 1, # DScur_endyear - DScur_startyear,
+#     start_water_year = start_yr, # DScur_startyear,
+#     start_month = start_month,
+#     dry_wet_threshold = dry_wet_threshold,
+#     wet_extreme_quantile_threshold = wet_extreme_threshold,
+#     include_leap_days = TRUE,
+#     dry_spell_changes = dry_spell_changes,
+#     wet_spell_changes = wet_spell_changes,
+#     prcp_mean_changes = prcp_mean_changes,
+#     prcp_cv_changes = 1,
+#     temp_mean_changes = temp_mean_changes
+#   )
+#
+#   scen.fut.daily <- data.frame(
+#     Year = format(scen.fut.daily$out$DATE, "%Y"),
+#     DOY = as.POSIXlt(scen.fut.daily$out$DATE, format = "%Y-%m-%d")$yday + 1,
+#     Tmax_C = scen.fut.daily$out$TMAX,
+#     Tmin_C = scen.fut.daily$out$TMIN,
+#     PPT_cm = scen.fut.daily$out$PRCP
+#   )
+#
+#   # year start back to 1/1, probably only needed when setting start_month != 1
+#   # scen.fut.daily<- scen.fut.daily[min(which(scen.fut.daily$DOY == 1)):max(which(scen.fut.daily$DOY >= 365)), ]
+#   scen.fut.daily <- rSOILWAT2::dbW_dataframe_to_weatherData(
+#     scen.fut.daily,
+#     round = FALSE
+#   )
+#   scen.fut.daily
+# }
 
 
 
