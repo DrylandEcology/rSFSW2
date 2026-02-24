@@ -2665,7 +2665,7 @@ if (identical(methodSW, "SWNC")) {
       )
 
       if (
-        identical(grepl("silt", tmp_var, ignore.case = TRUE) &&
+        identical(grepl("silt", tmp_var, ignore.case = TRUE)) &&
           isTRUE(is.na(ncVars[[kv]]))
       ) {
         idSand <- grep("sand", colnames(tmpx), ignore.case = TRUE)

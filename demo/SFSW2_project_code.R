@@ -35,7 +35,7 @@ t_job_start <- Sys.time()
 args <- commandArgs(trailingOnly = TRUE)
 
 ids <- grepl("-nparallel", args, fixed = TRUE)
-nparallel <- if (any()ids) {
+nparallel <- if (any(ids)) {
   as.integer(sub("-nparallel=", "", args[ids]))
 }
 
