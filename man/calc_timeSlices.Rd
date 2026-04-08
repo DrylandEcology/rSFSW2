@@ -7,7 +7,7 @@
 calc_timeSlices(sim_time, tbox)
 }
 \arguments{
-\item{sim_time}{A list with elements \code{future_N}, \code{future_yrs},
+\item{sim_time}{A list with elements \code{future_yrs},
 \code{DScur_startyr}, and \code{DScur_endyr}.}
 
 \item{tbox}{A data.frame or matrix with two rows \code{start} and

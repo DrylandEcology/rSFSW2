@@ -4,7 +4,7 @@
 \alias{check_soilco}
 \title{Check that soil moisture extraction coefficients meet expectations}
 \usage{
-check_soilco(data)
+check_soilco(data, allowZeroSum = FALSE)
 }
 \arguments{
 \item{data}{A numeric vector. The coefficient of each soil layer.}
@@ -15,7 +15,7 @@ A logical value. \code{TRUE} if \code{data} meets expectations.
 \description{
 Expectations are: \itemize{
  \item Every coefficient must be equal or larger than 0,
- \item Their sum is strictly larger than 0,
+ \item Their sum is strictly larger than 0 (unless \code{allowZeroSum}),
  \item Their sum is equal or smaller than 1.
 }
 }

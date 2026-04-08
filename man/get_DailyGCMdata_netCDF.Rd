@@ -8,11 +8,14 @@ maximum temperature from each one \var{netCDF} file.}
 get_DailyGCMdata_netCDF(
   i_tag,
   climDB_meta,
+  is_sequential,
   ncFiles,
   startyear,
   endyear,
   lon,
-  lat
+  lat,
+  df_site_template,
+  var_map
 )
 }
 \value{

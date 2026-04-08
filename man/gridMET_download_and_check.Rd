@@ -4,13 +4,32 @@
 \alias{gridMET_download_and_check}
 \title{Prepare script to download all or missing files of the \var{gridMET} dataset}
 \usage{
-gridMET_download_and_check(dir_data, desc = gridMET_metadata())
+gridMET_download_and_check(
+  dir_data = "../data-raw/",
+  dir_script = ".",
+  scripts_by_variable = FALSE,
+  desc = gridMET_metadata(),
+  wget_options = "-N -c -nd -nv"
+)
 }
 \arguments{
 \item{dir_data}{A character string. Path to where the \var{gridMET} dataset
 is/will be stored on disk.}
 
+\item{dir_script}{A character string. Path to where the \var{wget} script
+will be saved to disk.}
+
+\item{scripts_by_variable}{A logical value. \code{TRUE} creates a separate
+\var{wget} script for each variable.}
+
 \item{desc}{A named list. Describing the \var{gridMET} dataset.}
+
+\item{wget_options}{A character string. \var{wget} options.
+The default includes
+   -N, only download files that are newer than the local copies;
+   -c, continue downloading a partially downloaded file;
+   -nd, prevent creating directory structure (and use \var{dir_data});
+   -nv, less verbose but still display essential messages}
 }
 \value{
 If all files are available, then a message is printed to the

@@ -1,12 +1,65 @@
 #------------------------------------------------------------------------------#
 #------EXTRACT ELEVATION------
 
+
+#' Set default paths to elevation data sets unless already specified
+#' @noRd
+get_path_to_elevation_datasources <- function(
+  project_paths,
+  elevation_source
+) {
+  dir_ex_dat <- NULL
+
+  pp <- project_paths
+  ncs <- paste0("dir_", elevation_source)
+
+  dir_elev <- pp[["dir_ex_dem"]]
+
+  if (identical(elevation_source, "NED_USA")) {
+    dir_ex_dat <- if (has_elem_name(ncs, pp)) {
+      pp[[ncs]]
+    } else {
+      file.path(dir_elev, "NED_USA", "NED_1arcsec")
+    }
+  }
+
+  if (identical(elevation_source, "HWSD_Global")) {
+    dir_ex_dat <- if (has_elem_name(ncs, pp)) {
+      pp[[ncs]]
+    } else {
+      file.path(dir_elev, "HWSD")
+    }
+  }
+
+
+  dir_ex_dat
+}
+
+
+prepare_MeanMonthlyClimate <- function(SWRunInformation, sim_size,
+  field_sources, field_include, how_determine_sources, sw_input_cloud_use,
+  sw_input_cloud) {
+
+  sites_monthlyclim_source <- get_datasource_mainfield(SWRunInformation,
+    field_sources, sim_size, how_determine_sources)
+
+  dtemp <- array(NA, dim = c(sim_size[["runsN_sites"]], 3, 12),
+    dimnames = list(NULL, c("RH", "cover", "wind"), NULL))
+
+  do_include <- get_datasource_includefield(SWRunInformation, field_include,
+    sim_size)
+
+  list(source = sites_monthlyclim_source, data = dtemp, idone = vector(),
+    use = sw_input_cloud_use, input = sw_input_cloud, do_include = do_include)
+}
+
+
 prepare_ExtractData_Elevation <- function(SWRunInformation, sim_size,
   field_sources, field_include, how_determine_sources, scorp,
   elev_probs = c(0.025, 0.5, 0.975)
 ) {
 
-  sites_elevation_source <- get_datasource_masterfield(
+  sites_elevation_source <- get_datasource_mainfield(
     SWRunInformation,
     field_sources,
     sim_size,
@@ -64,7 +117,7 @@ update_elevation_input <- function(MMC, sim_size, digits = 0, fnames_in) {
 
   utils::write.csv(
     MMC[["input"]],
-    file = fnames_in[["fmaster"]],
+    file = fnames_in[["fmain"]],
     row.names = FALSE
   )
   unlink(fnames_in[["fpreprocin"]])
@@ -74,8 +127,10 @@ update_elevation_input <- function(MMC, sim_size, digits = 0, fnames_in) {
 
 
 #' @references National Elevation Dataset \url{ned.usgs.gov}
-do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem,
+do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, project_paths,
   fnames_in, resume, verbose) {
+
+  stopifnot(requireNamespace("terra"))
 
   if (verbose) {
     t1 <- Sys.time()
@@ -105,31 +160,45 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem,
       print(paste("'ExtractElevation_NED_USA' will be extracted for n =",
       n_extract, "sites"))
 
-    dir_ex_ned <- file.path(dir_ex_dem, "NED_USA", "NED_1arcsec")
+    dir_ex_ned <- get_path_to_elevation_datasources(
+      project_paths,
+      elevation_source = "NED_USA"
+    )
 
     # read raster data
-    g.elev <- raster::raster(file.path(dir_ex_ned,
-      "ned_1s_westernUS_GeogrNAD83.tif"))
-    crs_data <- raster::crs(g.elev)
+    g.elev <- terra::rast(
+      file.path(dir_ex_ned, "ned_1s_westernUS_GeogrNAD83.tif")
+    )
+    crs_data <- sf::st_crs(g.elev)
 
     # locations of simulation runs
     sites_ned <- sim_space[["run_sites"]][todos, ]
+
     # Align with data crs
-    if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
+    if (sf::st_crs(sim_space[["crs_sites"]]) != sf::st_crs(crs_data)) {
       # transform points to grid-coords
-      sites_ned <- sp::spTransform(sites_ned, CRS = crs_data)
+      sites_ned <- sf::st_transform(sites_ned, crs = crs_data)
     }
 
     if (sim_space[["scorp"]] == "point") {
       args_extract <- list(y = sites_ned, type = sim_space[["scorp"]])
 
     } else if (sim_space[["scorp"]] == "cell") {
-      cell_res_ned <- align_with_target_res(res_from = sim_space[["sim_res"]],
+      cell_res_ned <- align_with_target_res(
+        res_from = sim_space[["sim_res"]],
         crs_from = sim_space[["sim_crs"]],
         sp = sim_space[["run_sites"]][todos, ],
-        crs_sp = sim_space[["crs_sites"]], crs_to = crs_data)
-      args_extract <- list(y = cell_res_ned, coords = sites_ned,
-        method = "block", probs = MMC[["probs"]], type = sim_space[["scorp"]])
+        crs_sp = sim_space[["crs_sites"]],
+        crs_to = crs_data
+      )
+
+      args_extract <- list(
+        y = cell_res_ned,
+        coords = sites_ned,
+        method = "block",
+        probs = MMC[["probs"]],
+        type = sim_space[["scorp"]]
+      )
     }
 
     # extract data for locations:  elevation in m a.s.l.
@@ -169,7 +238,9 @@ do_ExtractElevation_NED_USA <- function(MMC, sim_size, sim_space, dir_ex_dem,
 
 #' @references Harmonized World Soil Database
 do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space,
-  dir_ex_dem, fnames_in, resume, verbose) {
+  project_paths, fnames_in, resume, verbose) {
+
+  stopifnot(requireNamespace("terra"))
 
   if (verbose) {
     t1 <- Sys.time()
@@ -199,30 +270,43 @@ do_ExtractElevation_HWSD_Global <- function(MMC, sim_size, sim_space,
       print(paste("'ExtractElevation_HWSD_Global' will be extracted for n =",
         n_extract, "sites"))
 
-    dir_ex_hwsd <- file.path(dir_ex_dem, "HWSD")
+    dir_ex_hwsd <- get_path_to_elevation_datasources(
+      project_paths,
+      elevation_source = "HWSD_Global"
+    )
 
     # read raster data
-    g.elev <- raster::raster(file.path(dir_ex_hwsd, "GloElev_30as.asc"))
-    crs_data <- raster::crs(g.elev)
+    g.elev <- terra::rast(file.path(dir_ex_hwsd, "GloElev_30as.asc"))
+    crs_data <- sf::st_crs(g.elev)
 
     # locations of simulation runs
     sites_hwsd <- sim_space[["run_sites"]][todos, ]
+
     # Align with data crs
-    if (!raster::compareCRS(sim_space[["crs_sites"]], crs_data)) {
+    if (sf::st_crs(sim_space[["crs_sites"]]) != sf::st_crs(crs_data)) {
       # transform points to grid-coords
-      sites_hwsd <- sp::spTransform(sites_hwsd, CRS = crs_data)
+      sites_hwsd <- sf::st_transform(sites_hwsd, crs = crs_data)
     }
 
     if (sim_space[["scorp"]] == "point") {
       args_extract <- list(y = sites_hwsd, type = sim_space[["scorp"]])
 
     } else if (sim_space[["scorp"]] == "cell") {
-      cell_res_hwsd <- align_with_target_res(res_from = sim_space[["sim_res"]],
+      cell_res_hwsd <- align_with_target_res(
+        res_from = sim_space[["sim_res"]],
         crs_from = sim_space[["sim_crs"]],
         sp = sim_space[["run_sites"]][todos, ],
-        crs_sp = sim_space[["crs_sites"]], crs_to = crs_data)
-      args_extract <- list(y = cell_res_hwsd, coords = sites_hwsd,
-        method = "block", probs = MMC[["probs"]], type = sim_space[["scorp"]])
+        crs_sp = sim_space[["crs_sites"]],
+        crs_to = crs_data
+      )
+
+      args_extract <- list(
+        y = cell_res_hwsd,
+        coords = sites_hwsd,
+        method = "block",
+        probs = MMC[["probs"]],
+        type = sim_space[["scorp"]]
+      )
     }
 
     #extract data for locations: elevation in m a.s.l.
@@ -284,7 +368,7 @@ ExtractData_Elevation <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
       MMC,
       sim_size = SFSW2_prj_meta[["sim_size"]],
       sim_space = SFSW2_prj_meta[["sim_space"]],
-      dir_ex_dem = SFSW2_prj_meta[["project_paths"]][["dir_ex_dem"]],
+      project_paths = SFSW2_prj_meta[["project_paths"]],
       fnames_in = SFSW2_prj_meta[["fnames_in"]],
       resume,
       verbose
@@ -296,7 +380,7 @@ ExtractData_Elevation <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
       MMC,
       sim_size = SFSW2_prj_meta[["sim_size"]],
       sim_space = SFSW2_prj_meta[["sim_space"]],
-      dir_ex_dem = SFSW2_prj_meta[["project_paths"]][["dir_ex_dem"]],
+      project_paths = SFSW2_prj_meta[["project_paths"]],
       fnames_in = SFSW2_prj_meta[["fnames_in"]],
       resume,
       verbose
@@ -305,7 +389,7 @@ ExtractData_Elevation <- function(exinfo, SFSW2_prj_meta, SFSW2_prj_inputs,
 
   SFSW2_prj_inputs[["SWRunInformation"]] <- MMC[["input"]]
 
-  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_masterfield(
+  SFSW2_prj_inputs[["SWRunInformation"]] <- update_datasource_mainfield(
     MMC,
     sim_size = SFSW2_prj_meta[["sim_size"]],
     SWRunInformation = SFSW2_prj_inputs[["SWRunInformation"]],

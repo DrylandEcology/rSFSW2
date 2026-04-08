@@ -13,10 +13,12 @@ do_OneSite(
   i_sw_input_prod,
   i_sw_input_site,
   i_sw_input_soils,
+  i_sw_input_swrcp,
   i_sw_input_weather,
   i_sw_input_climscen,
   i_sw_input_climscen_values,
-  SimParams
+  SimParams,
+  fdbWeather_by_scen
 )
 }
 \description{

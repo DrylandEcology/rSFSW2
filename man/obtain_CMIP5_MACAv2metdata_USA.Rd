@@ -2,7 +2,7 @@
 % Please edit documentation in R/ExtractData_ClimateDownscaling.R
 \name{obtain_CMIP5_MACAv2metdata_USA}
 \alias{obtain_CMIP5_MACAv2metdata_USA}
-\title{Check and prepare local copy of \var{CMIP5_MACAv2metdata} dataset}
+\title{Check and prepare local copy of aggregated \var{CMIP5_MACAv2metdata} dataset}
 \usage{
 obtain_CMIP5_MACAv2metdata_USA(locations, dir_ex_fut)
 }
@@ -22,7 +22,7 @@ If all files are available, then a message is printed to the
  separately to download the missing files.
 }
 \description{
-Check and prepare local copy of \var{CMIP5_MACAv2metdata} dataset
+Check and prepare local copy of aggregated \var{CMIP5_MACAv2metdata} dataset
 }
 \section{Notes}{
  The download scripts use \var{wget}, i.e., it must be

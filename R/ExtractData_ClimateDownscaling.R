@@ -1,15 +1,64 @@
 #---Downscaling/bias-correction functions
 
+
+#' Set default paths to projected climate data sets unless already specified
+#' @noRd
+get_path_to_projectedclimate_datasources <- function(
+  project_paths,
+  clim_source
+) {
+  dir_ex_dat <- NULL
+
+  pp <- project_paths
+  dir_clim <- file.path(pp[["dir_ex_fut"]], "ClimateScenarios")
+  ncs <- paste0("dir_", clim_source)
+
+  if (identical(clim_source, "CMIP3_ClimateWizardEnsembles_Global")) {
+    dir_ex_dat <- if (has_elem_name(ncs, pp)) {
+      pp[[ncs]]
+    } else {
+      file.path(dir_clim, "ClimateWizardEnsembles_Global")
+    }
+
+  } else if (identical(clim_source, "CMIP3_ClimateWizardEnsembles_USA")) {
+    dir_ex_dat <- if (has_elem_name(ncs, pp)) {
+      pp[[ncs]]
+    } else {
+      file.path(dir_clim, "ClimateWizardEnsembles_USA")
+    }
+
+  } else {
+    dir_ex_dat <- if (has_elem_name(ncs, pp)) {
+      pp[[ncs]]
+    } else {
+      tmp <- strsplit(clim_source, split = "_", fixed = TRUE)[[1]]
+      file.path(
+        dir_clim,
+        tmp[1],
+        paste(tmp[-1], collapse = "_")
+      )
+    }
+  }
+
+  dir_ex_dat
+}
+
+
+
 #' Meta data for climate scenarios
 #' @export
 climscen_metadata <- function() {
   #--- Meta information of climate datasets
-  template_bbox <- data.frame(matrix(NA, nrow = 2, ncol = 2,
-    dimnames = list(NULL, c("lat", "lon"))
-  ))
-  template_tbox <- data.frame(matrix(NA, nrow = 2, ncol = 2,
-    dimnames = list(c("start", "end"), c("first", "second"))
-  ))
+  template_bbox <- data.frame(
+    matrix(nrow = 2, ncol = 2, dimnames = list(NULL, c("lat", "lon")))
+  )
+  template_tbox <- data.frame(
+    matrix(
+      nrow = 2,
+      ncol = 2,
+      dimnames = list(c("start", "end"), c("first", "second"))
+    )
+  )
 
 
   # SOILWAT2 required units are c("cm/day", "C", "C")
@@ -19,131 +68,274 @@ climscen_metadata <- function() {
     CMIP3_ClimateWizardEnsembles_Global = list(
       convention = "ClimateWizardEnsembles",
       tres = "monthly",
-      bbox = fill_bounding_box(template_bbox, list(y = c(-55, 84), x = c(-180, 180))),
-      tbox = fill_bounding_box(template_tbox, list(t1 = c(NA, NA), t2 = c(2070, 2099))),
+      bbox = fill_bounding_box(
+        template_bbox,
+        list(y = c(-55, 84), x = c(-180, 180))
+      ),
+      tbox = fill_bounding_box(
+        template_tbox,
+        list(t1 = c(NA, NA), t2 = c(2070, 2099))
+      ),
       units = c(prcp = "%", tmin = "C", tmax = "C", tmean = "C"),
-      var_desc = data.frame(varname = NA, tag = NA, fileVarTags = NA, unit_given = NA,
-        unit_real = NA)[0, ],
-      sep_fname = NULL, str_fname = NULL
+      var_desc = data.frame(
+        varname = NA,
+        tag = NA,
+        fileVarTags = NA,
+        unit_given = NA,
+        unit_real = NA
+      )[0, ],
+      sep_fname = NULL,
+      str_fname = NULL
     ),
 
     CMIP3_ClimateWizardEnsembles_USA = list(
       convention = "ClimateWizardEnsembles",
       tres = "monthly",
-      bbox = fill_bounding_box(template_bbox, list(y = c(25.125, 49.375), x = c(-124.75, -67))),
-      tbox = fill_bounding_box(template_tbox, list(t1 = c(NA, NA), t2 = c(2070, 2099))),
+      bbox = fill_bounding_box(
+        template_bbox,
+        list(y = c(25.125, 49.375), x = c(-124.75, -67))
+      ),
+      tbox = fill_bounding_box(
+        template_tbox,
+        list(t1 = c(NA, NA), t2 = c(2070, 2099))
+      ),
       units = c(prcp = "%", tmin = "C", tmax = "C", tmean = "C"),
-      var_desc = data.frame(varname = NA, tag = NA, fileVarTags = NA, unit_given = NA,
-        unit_real = NA)[0, ],
-      sep_fname = NULL, str_fname = NULL
+      var_desc = data.frame(
+        varname = NA,
+        tag = NA,
+        fileVarTags = NA,
+        unit_given = NA,
+        unit_real = NA
+      )[0, ],
+      sep_fname = NULL,
+      str_fname = NULL
     ),
 
     CMIP3_BCSD_GDODCPUCLLNL_Global = list(
       convention = "CF",
       tres = "monthly",
-      bbox = fill_bounding_box(template_bbox, list(y = c(-55.25-0.25, 83.25+0.25), x = c(-179.75-0.25, 179.75+0.25))),
-      tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 1999), t2 = c(2000, 2099))),
-      var_desc = data.frame(tag = temp <- c("Prcp", "Tmin", "Tmax", "Tavg"),
-                          fileVarTags = paste("monthly", temp, sep = "."),
-                          varname = temp,
-                          unit_given = temp <- c("mm/d", "C", "C", "C"), unit_real = temp,
-                          row.names = var_names_fixed, stringsAsFactors = FALSE),
+      bbox = fill_bounding_box(
+        template_bbox,
+        list(
+          y = c(-55.25 - 0.25, 83.25 + 0.25),
+          x = c(-179.75 - 0.25, 179.75 + 0.25)
+        )
+      ),
+      tbox = fill_bounding_box(
+        template_tbox,
+        list(t1 = c(1950, 1999), t2 = c(2000, 2099))
+      ),
+      var_desc = data.frame(
+        tag = tmp <- c("Prcp", "Tmin", "Tmax", "Tavg"),
+        fileVarTags = paste("monthly", tmp, sep = "."),
+        varname = tmp,
+        unit_given = tmp <- c("mm/d", "C", "C", "C"),
+        unit_real = tmp,
+        row.names = var_names_fixed,
+        stringsAsFactors = FALSE
+      ),
       sep_fname = ".",
-      str_fname = c(id_var = 5, id_gcm = 2, id_scen = 1, id_run = 3, id_time = 6)
+      str_fname = c(
+        id_var = 5,
+        id_gcm = 2,
+        id_scen = 1,
+        id_run = 3,
+        id_timestart = 6,
+        id_timeend = 6
+      )
     ),
 
     CMIP5_BCSD_GDODCPUCLLNL_Global = list(
       convention = "CF",
       tres = "monthly",
-      bbox = fill_bounding_box(template_bbox, list(y = c(-55.25-0.25, 83.25+0.25), x = c(-179.75-0.25, 179.75+0.25))),
-      tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 2005), t2 = c(2006, 2099))),
-      var_desc = data.frame(tag = temp <- c("pr", "tasmin", "tasmax", "tas"),
-                          fileVarTags = paste0("_", temp, "_"),
-                          varname = temp,
-                          unit_given = temp <- c("mm/d", "C", "C", "C"), unit_real = temp,
-                          row.names = var_names_fixed, stringsAsFactors = FALSE),
+      bbox = fill_bounding_box(
+        template_bbox,
+        list(
+          y = c(-55.25 - 0.25, 83.25 + 0.25),
+          x = c(-179.75 - 0.25, 179.75 + 0.25)
+        )
+      ),
+      tbox = fill_bounding_box(
+        template_tbox,
+        list(t1 = c(1950, 2005), t2 = c(2006, 2099))
+      ),
+      var_desc = data.frame(
+        tag = tmp <- c("pr", "tasmin", "tasmax", "tas"),
+        fileVarTags = paste0("_", tmp, "_"),
+        varname = tmp,
+        unit_given = tmp <- c("mm/d", "C", "C", "C"),
+        unit_real = tmp,
+        row.names = var_names_fixed,
+        stringsAsFactors = FALSE
+      ),
       sep_fname = "_",
-      str_fname = c(id_var = 3, id_gcm = 5, id_scen = 6, id_run = 7, id_time = 8)
+      str_fname = c(
+        id_var = 3,
+        id_gcm = 5,
+        id_scen = 6,
+        id_run = 7,
+        id_timestart = 8,
+        id_timeend = 8
+      )
     ),
 
     CMIP3_BCSD_GDODCPUCLLNL_USA = list(
       convention = "CF",
       tres = "monthly",
-      bbox = fill_bounding_box(template_bbox, list(y = c(25.125, 52.875), x = c(-124.625, -67))),
-      tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 1999), t2 = c(2000, 2099))),
-      var_desc = data.frame(tag = temp <- c("Prcp", "Tmin", "Tmax", "Tavg"),
-                          fileVarTags = paste("monthly", temp, sep = "."),
-                          varname = temp,
-                          unit_given = temp <- c("mm/d", "C", "C", "C"), unit_real = temp,
-                          row.names = var_names_fixed, stringsAsFactors = FALSE),
+      bbox = fill_bounding_box(
+        template_bbox,
+        list(y = c(25.125, 52.875), x = c(-124.625, -67))
+      ),
+      tbox = fill_bounding_box(
+        template_tbox,
+        list(t1 = c(1950, 1999), t2 = c(2000, 2099))
+      ),
+      var_desc = data.frame(
+        tag = tmp <- c("Prcp", "Tmin", "Tmax", "Tavg"),
+        fileVarTags = paste("monthly", tmp, sep = "."),
+        varname = tmp,
+        unit_given = tmp <- c("mm/d", "C", "C", "C"),
+        unit_real = tmp,
+        row.names = var_names_fixed,
+        stringsAsFactors = FALSE
+      ),
       sep_fname = ".",
-      str_fname = c(id_var = 5, id_gcm = 2, id_scen = 1, id_run = 3, id_time = 6)
+      str_fname = c(
+        id_var = 5,
+        id_gcm = 2,
+        id_scen = 1,
+        id_run = 3,
+        id_timestart = 6,
+        id_timeend = 6
+      )
     ),
 
     CMIP5_BCSD_GDODCPUCLLNL_USA = list(
       convention = "CF",
       tres = "monthly",
-      bbox = fill_bounding_box(template_bbox, list(y = c(25.125, 52.875), x = c(-124.625, -67))),
-      tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 2005), t2 = c(2006, 2099))),
-      var_desc = data.frame(tag = temp <- c("pr", "tasmin", "tasmax", "tas"),
-                          fileVarTags = paste0("_", temp, "_"),
-                          varname = temp,
-                          unit_given = temp <- c("mm/d", "C", "C", "C"), unit_real = temp,
-                          row.names = var_names_fixed, stringsAsFactors = FALSE),
+      bbox = fill_bounding_box(
+        template_bbox,
+        list(y = c(25.125, 52.875), x = c(-124.625, -67))
+      ),
+      tbox = fill_bounding_box(
+        template_tbox,
+        list(t1 = c(1950, 2005), t2 = c(2006, 2099))
+      ),
+      var_desc = data.frame(
+        tag = tmp <- c("pr", "tasmin", "tasmax", "tas"),
+        fileVarTags = paste0("_", tmp, "_"),
+        varname = tmp,
+        unit_given = tmp <- c("mm/d", "C", "C", "C"),
+        unit_real = tmp,
+        row.names = var_names_fixed,
+        stringsAsFactors = FALSE
+      ),
       sep_fname = "_",
-      str_fname = c(id_var = 3, id_gcm = 5, id_scen = 6, id_run = 7, id_time = 8)
+      str_fname = c(
+        id_var = 3,
+        id_gcm = 5,
+        id_scen = 6,
+        id_run = 7,
+        id_timestart = 8,
+        id_timeend = 8
+      )
     ),
 
     CMIP5_BCSD_NEX_USA = list(
       convention = "NEX",
       tres = "monthly",
-      bbox = fill_bounding_box(template_bbox, list(y = c(24.0625, 49.9375), x = c(-125.02083333, -66.47916667))),
-      tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 2005), t2 = c(2006, 2099))),
-      var_desc = data.frame(tag = temp <- c("pr", "tasmin", "tasmax", "tas"),
-                          fileVarTags = paste0("_", temp, "_"),
-                          varname = temp,
-                          unit_given = temp <- c("kg/m2/s", "K", "K", "K"), unit_real = temp,
-                          row.names = var_names_fixed, stringsAsFactors = FALSE),
-      sep_fname = NULL, str_fname = NULL
+      bbox = fill_bounding_box(
+        template_bbox,
+        list(y = c(24.0625, 49.9375), x = c(-125.02083333, -66.47916667))
+      ),
+      tbox = fill_bounding_box(
+        template_tbox,
+        list(t1 = c(1950, 2005), t2 = c(2006, 2099))
+      ),
+      var_desc = data.frame(
+        tag = tmp <- c("pr", "tasmin", "tasmax", "tas"),
+        fileVarTags = paste0("_", tmp, "_"),
+        varname = tmp,
+        unit_given = tmp <- c("kg/m2/s", "K", "K", "K"),
+        unit_real = tmp,
+        row.names = var_names_fixed,
+        stringsAsFactors = FALSE
+      ),
+      sep_fname = NULL,
+      str_fname = NULL
     ), # online access, i.e., no file names to parse
 
     CMIP5_BCSD_SageSeer_USA = list(
       convention = "CF",
       tres = "monthly",
-      bbox = fill_bounding_box(template_bbox, list(y = c(31.75333, 49.00701), x = c(-124.2542, -102.2534))),
-      tbox = fill_bounding_box(template_tbox, list(t1 = c(1980, 1999), t2 = c(2070, 2099))),
-      var_desc = data.frame(tag = temp <- c("pr", "tasmin", "tasmax", "tas"),
-                          varname = temp,
-                          fileVarTags = paste0("_", temp, "_"),
-                          unit_given = c("kg m-2 s-1", "K", "K", "K"),
-                          unit_real = c("mm/month", "C", "C", "C"),
-                          row.names = var_names_fixed, stringsAsFactors = FALSE),
+      bbox = fill_bounding_box(
+        template_bbox,
+        list(y = c(31.75333, 49.00701), x = c(-124.2542, -102.2534))
+      ),
+      tbox = fill_bounding_box(
+        template_tbox,
+        list(t1 = c(1980, 1999), t2 = c(2070, 2099))
+      ),
+      var_desc = data.frame(
+        tag = tmp <- c("pr", "tasmin", "tasmax", "tas"),
+        varname = tmp,
+        fileVarTags = paste0("_", tmp, "_"),
+        unit_given = c("kg m-2 s-1", "K", "K", "K"),
+        unit_real = c("mm/month", "C", "C", "C"),
+        row.names = var_names_fixed,
+        stringsAsFactors = FALSE
+      ),
       sep_fname = "_",
-      str_fname = c(id_var = 2, id_gcm = 4, id_scen = 5, id_run = 6, id_time = 7)
+      str_fname = c(
+        id_var = 2,
+        id_gcm = 4,
+        id_scen = 5,
+        id_run = 6,
+        id_timestart = 7,
+        id_timeend = 7
+      )
     ),
 
     CMIP5_ESGF_Global = list(
       convention = "CF",
       tres = "monthly",
-      bbox = fill_bounding_box(template_bbox, list(y = c(-90, 90), x = c(-180-0.25, 180+0.25))),
-      tbox = fill_bounding_box(template_tbox, list(t1 = c(1950, 2005), t2 = c(2006, 2100))),
-      var_desc = data.frame(tag = temp <- c("pr", "tasmin", "tasmax", "tas"),
-                          fileVarTags = paste0(temp, "_"),
-                          varname = temp,
-                          unit_given = temp <- c("kg m-2 s-1", "K", "K", "K"),
-                          unit_real = temp,
-                          row.names = var_names_fixed, stringsAsFactors = FALSE),
+      bbox = fill_bounding_box(
+        template_bbox,
+        list(y = c(-90, 90), x = c(-180 - 0.25, 180 + 0.25))
+      ),
+      tbox = fill_bounding_box(
+        template_tbox,
+        list(t1 = c(1950, 2005), t2 = c(2006, 2100))
+      ),
+      var_desc = data.frame(
+        tag = tmp <- c("pr", "tasmin", "tasmax", "tas"),
+        fileVarTags = paste0(tmp, "_"),
+        varname = tmp,
+        unit_given = tmp <- c("kg m-2 s-1", "K", "K", "K"),
+        unit_real = tmp,
+        row.names = var_names_fixed,
+        stringsAsFactors = FALSE
+      ),
       sep_fname = "_",
-      str_fname = c(id_var = 1, id_gcm = 3, id_scen = 4, id_run = 5, id_time = 6)
+      str_fname = c(
+        id_var = 1,
+        id_gcm = 3,
+        id_scen = 4,
+        id_run = 5,
+        id_timestart = 6,
+        id_timeend = 6
+      )
     ),
 
-    CMIP5_MACAv2metdata_USA = list(
+    CMIP5_MACAv2metdataAgg_USA = list(
       convention = "CF",
       tres = "daily",
-      bbox = fill_bounding_box(template_bbox,
-        list(y = c(25.063, 49.396), x = -360 + c(235.228, 292.935))
+      bbox = fill_bounding_box(
+        template_bbox,
+        list(y = c(25.06308, 49.39602), x = c(-124.77216, -67.06476))
       ),
-      tbox = fill_bounding_box(template_tbox,
+      tbox = fill_bounding_box(
+        template_tbox,
         list(t1 = c(1950, 2005), t2 = c(2006, 2099))
       ),
       var_desc = data.frame(
@@ -158,11 +350,44 @@ climscen_metadata <- function() {
       sep_fname = "_",
       str_fname = c(
         id_var = 3,
-        id_gcm = 4, id_scen = 6, id_run = 5,
-        id_time = 7
+        id_gcm = 4,
+        id_scen = 6,
+        id_run = 5,
+        id_timestart = 7,
+        id_timeend = 8
+      )
+    ),
+
+    CMIP5_MACAv2metdata_USA = list(
+      convention = "CF",
+      tres = "daily",
+      bbox = fill_bounding_box(
+        template_bbox,
+        list(y = c(25.06308, 49.39602), x = c(-124.77216, -67.06476))
+      ),
+      tbox = fill_bounding_box(
+        template_tbox,
+        list(t1 = c(1950, 2005), t2 = c(2006, 2099))
+      ),
+      var_desc = data.frame(
+        varname = c("precipitation", "air_temperature", "air_temperature", NA),
+        tag = tmp <- c("pr", "tasmin", "tasmax", "tas"),
+        fileVarTags = paste0("_", tmp, "_"),
+        unit_given = c("mm", "K", "K", "K"),
+        unit_real = c("mm/d", "K", "K", "K"),
+        row.names = var_names_fixed,
+        stringsAsFactors = FALSE
+      ),
+      sep_fname = "_",
+      str_fname = c(
+        id_var = 2,
+        id_gcm = 3,
+        id_scen = 5,
+        id_run = 4,
+        id_timestart = 6,
+        id_timeend = 7
       )
     )
-
   )
 
   climDB_metas
@@ -172,15 +397,24 @@ climscen_metadata <- function() {
 #------Helper functions
 
 unique_times <- function(timeSlices, slice) {
-  starts <- stats::na.exclude(timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "start"])
-  ends <- stats::na.exclude(timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "end"])
-  temp <- lapply(seq_along(starts), function(x) starts[x]:ends[x])
-  temp1 <- vector("integer", length = 0)
-  for (it in seq_along(temp)) temp1 <- union(temp1, temp[[it]])
-  n <- 1 + length(temp2 <- which(diff(temp1) > 1))
-  temp2 <- c(1, 1 + temp2, length(temp1) + 1)
+  starts <- stats::na.exclude(
+    timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "start"]
+  )
+  ends <- stats::na.exclude(
+    timeSlices$Year[timeSlices$Slice == slice & timeSlices$Time == "end"]
+  )
+  tmp <- lapply(seq_along(starts), function(x) starts[x]:ends[x])
+  tmp1 <- vector("integer", length = 0)
+  for (it in seq_along(tmp)) {
+    tmp1 <- union(tmp1, tmp[[it]])
+  }
+  tmp2 <- which(diff(tmp1) > 1)
+  n <- 1 + length(tmp2)
+  tmp2 <- c(1, 1 + tmp2, length(tmp1) + 1)
   res <- matrix(NA, nrow = n, ncol = 2)
-  for (it in 1:n) res[it, ] <- c(temp1[temp2[it]], temp1[temp2[it+1] - 1])
+  for (it in seq_len(n)) {
+    res[it, ] <- c(tmp1[tmp2[it]], tmp1[tmp2[it + 1] - 1])
+  }
 
   res
 }
@@ -188,15 +422,17 @@ unique_times <- function(timeSlices, slice) {
 useSlices <- function(getYears, timeSlices, run, slice) {
   res <- rep(FALSE, length = nrow(getYears[[slice]]))
 
-  temp <- timeSlices$Year[timeSlices$Run == run & timeSlices$Slice == slice]
+  tmp <- timeSlices$Year[timeSlices$Run == run & timeSlices$Slice == slice]
 
-  if (!anyNA(temp)) {
-    istart <- findInterval(temp[1],
+  if (!anyNA(tmp)) {
+    istart <- findInterval(
+      tmp[1],
       getYears[[slice]][, 1],
       rightmost.closed = FALSE,
       all.inside = FALSE
     )
-    iend <- findInterval(temp[2],
+    iend <- findInterval(
+      tmp[2],
       getYears[[slice]][, 2],
       rightmost.closed = FALSE,
       all.inside = FALSE
@@ -241,19 +477,30 @@ fill_bounding_box <- function(box, vals) {
 #'    \item{PPT_to_remove}{The total amount of precipitation that could not be removed
 #'      from \code{data} due to lack of precipitation.}
 #'  }
-add_delta_to_PPT <- function(data, ind_events = NULL, addDelta = NULL, deltaPerEvent = NULL) {
+add_delta_to_PPT <- function(
+  data,
+  ind_events = NULL,
+  addDelta = NULL,
+  deltaPerEvent = NULL
+) {
   stopifnot(xor(is.null(deltaPerEvent), is.null(addDelta)))
 
   if (is.null(ind_events)) ind_events <- data > 0
   if (!is.null(addDelta)) {
-    elems_N <- if (is.logical(ind_events)) sum(ind_events) else length(ind_events)
+    elems_N <- if (is.logical(ind_events)) {
+      sum(ind_events)
+    } else {
+      length(ind_events)
+    }
     deltaPerEvent <- rep(addDelta[1] / elems_N, elems_N)
   }
   StillToSubtract <- 0
 
-  if (all(deltaPerEvent > 0)) { # All deltas are additions -> no problem
+  if (all(deltaPerEvent > 0)) {
+    # All deltas are additions -> no problem
     data[ind_events] <- data[ind_events] + deltaPerEvent
-  } else { # There are subtractions -> check that all adjusted precipitation days > 0
+  } else {
+    # There are subtractions -> check that all adjusted precipitation days > 0
     newRainyValues <- data[ind_events] + deltaPerEvent
     posRainyDays <- newRainyValues >= 0
 
@@ -265,14 +512,20 @@ add_delta_to_PPT <- function(data, ind_events = NULL, addDelta = NULL, deltaPerE
       negRainyDays <- !posRainyDays
       data[ind_events][posRainyDays] <- newRainyValues[posRainyDays]
       data[ind_events][negRainyDays] <- 0
-      StillToSubtract <- sum(newRainyValues[negRainyDays]) # 'StillToSubtract' is negative
+      # 'StillToSubtract' is negative
+      StillToSubtract <- sum(newRainyValues[negRainyDays])
       ppt_avail <- sum(data[ind_events])
 
       if (ppt_avail > 0) {
-        # There is precipitation of the already adjusted rainy days from which to subtract
-        temp <- Recall(data = data, ind_events = data > 0, addDelta = StillToSubtract)
-        data <- temp$data
-        StillToSubtract <- temp$PPT_to_remove
+        # There is precipitation of the already adjusted rainy days from which
+        # to subtract
+        tmp <- Recall(
+          data = data,
+          ind_events = data > 0,
+          addDelta = StillToSubtract
+        )
+        data <- tmp$data
+        StillToSubtract <- tmp$PPT_to_remove
       }
     }
   }
@@ -313,10 +566,10 @@ fix_PPTdata_length <- function(data, targetLength, seed = NA) {
       # Imputation
       # add random days with randomly sampled precipitation
       ids <- sample(x = targetLength, size = absNdiff, replace = FALSE)
-      temp <- rep(0, targetLength)
-      temp[-ids] <- data
-      temp[ids] <- sample(x = data, size = absNdiff, replace = TRUE)
-      data <- temp
+      tmp <- rep(0, targetLength)
+      tmp[-ids] <- data
+      tmp[ids] <- sample(x = data, size = absNdiff, replace = TRUE)
+      data <- tmp
     }
   }
 
@@ -338,27 +591,32 @@ fix_PPTdata_length <- function(data, targetLength, seed = NA) {
 #' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
 #'  the state of the \acronym{RNG}; \code{NULL} will re-initialize the \acronym{RNG};
 #'  and all other values are passed to \code{\link{set.seed}}.
-calc_Days_withLoweredPPT <- function(data_N, this_newPPTevent_N, sigmaN, this_i_extreme,
-  this_pptToDistribute, seed = NA) {
-
+calc_Days_withLoweredPPT <- function(
+  data_N,
+  this_newPPTevent_N,
+  sigmaN,
+  this_i_extreme,
+  this_pptToDistribute,
+  seed = NA
+) {
   this_newPPTevent_N <- max(0L, as.integer(this_newPPTevent_N))
   if (!is.na(seed)) set.seed(seed)
 
-  #Randomly select days within plus/minus sigmaN days from a normal distribution
-  temp <- (-sigmaN * this_newPPTevent_N):(sigmaN * this_newPPTevent_N)
-  xt <- temp[this_i_extreme + temp > 0]
+  # Randomly select days within plus/minus sigmaN days from a normal distribution
+  tmp <- (-sigmaN * this_newPPTevent_N):(sigmaN * this_newPPTevent_N)
+  xt <- tmp[this_i_extreme + tmp > 0]
   this_xt <- this_i_extreme + xt
-  xt <- xt[1 <= this_xt & this_xt <= data_N] #do not select days from previous or next year
+  xt <- xt[1 <= this_xt & this_xt <= data_N] # do not select days from previous or next year
   probs <- stats::dnorm(x = xt, mean = 0, sd = this_newPPTevent_N)
   probs[which.max(probs)] <- 0
-  temp <- sample(x = xt, size = this_newPPTevent_N, replace = FALSE, prob = probs)
-  # dayDelta <- temp[.Internal(order(na.last = TRUE, decreasing = FALSE, abs(temp)))] # .Internal() is not allowed in packages
-  dayDelta <- temp[(order(abs(temp), na.last = TRUE, decreasing = FALSE))]
+  tmp <- sample(x = xt, size = this_newPPTevent_N, replace = FALSE, prob = probs)
+  # dayDelta <- tmp[.Internal(order(na.last = TRUE, decreasing = FALSE, abs(tmp)))] # .Internal() is not allowed in packages
+  dayDelta <- tmp[(order(abs(tmp), na.last = TRUE, decreasing = FALSE))]
 
-  #Distribute PPT to add among the selected days with a linear decay function
+  # Distribute PPT to add among the selected days with a linear decay function
   newDays <- this_i_extreme + dayDelta
-  temp <- 1 / abs(dayDelta)
-  newPPT <- this_pptToDistribute * temp / sum(temp)
+  tmp <- 1 / abs(dayDelta)
+  newPPT <- this_pptToDistribute * tmp / sum(tmp)
 
   list(newDays = newDays, newPPT = newPPT)
 }
@@ -378,11 +636,21 @@ calc_Days_withLoweredPPT <- function(data_N, this_newPPTevent_N, sigmaN, this_i_
 #'
 #' @details If \code{do_check == TRUE} and any daily precipitation is equal or larger than
 #'  \code{mfact * dailyPPTceiling}, then the code will error out.
-controlExtremePPTevents <- function(data, dailyPPTceiling, sigmaN, do_checks = FALSE,
-  mfact = 10, seed = NA) {
-
-  if (do_checks)
-    stopifnot(data < mfact * dailyPPTceiling) #something went wrong, e.g., GCM data is off; (10 / 1.5 * dailyPPTceiling) -> dailyPPTtoExtremeToBeReal  #if more than 1000% of observed value then assume that something went wrong and error out
+controlExtremePPTevents <- function(
+  data,
+  dailyPPTceiling,
+  sigmaN,
+  do_checks = FALSE,
+  mfact = 10,
+  seed = NA
+) {
+  if (do_checks) {
+    # something went wrong, e.g., GCM data is off;
+    # (10 / 1.5 * dailyPPTceiling) -> dailyPPTtoExtremeToBeReal
+    # if more than 1000% of observed value then assume that
+    # something went wrong and error out
+    stopifnot(data < mfact * dailyPPTceiling)
+  }
 
   data_N <- length(data)
   i_extreme <- which(data > dailyPPTceiling)
@@ -391,19 +659,30 @@ controlExtremePPTevents <- function(data, dailyPPTceiling, sigmaN, do_checks = F
   if (!is.na(seed)) set.seed(seed)
 
   while (length(i_extreme) > 0 && irep < 30) {
-    # limit calls: if too many wet days, then not possible to distribute all the water!
-    newValues <- dailyPPTceiling * stats::runif(n = length(i_extreme), min = 0.9, max = 1)
+    # limit calls: if too many wet days,
+    # then not possible to distribute all the water!
+    newValues <-
+      dailyPPTceiling *
+        stats::runif(n = length(i_extreme), min = 0.9, max = 1)
     pptToDistribute <- data[i_extreme] - newValues
     data[i_extreme] <- newValues
     newPPTevent_N <- ceiling(pptToDistribute / dailyPPTceiling)
-    stopifnot(sum(newPPTevent_N) <= data_N)   # more days with dailyPPTceiling precipitation would be necessary than are available
+
+    # more days with dailyPPTceiling precipitation would be necessary
+    # than are available
+    stopifnot(sum(newPPTevent_N) <= data_N)
 
     for (i in seq_along(i_extreme)) {
       newPPTevents <- calc_Days_withLoweredPPT(
-        data_N = data_N, this_newPPTevent_N = newPPTevent_N[i], sigmaN = sigmaN,
-        this_i_extreme = i_extreme[i], this_pptToDistribute = pptToDistribute[i])
+        data_N = data_N,
+        this_newPPTevent_N = newPPTevent_N[i],
+        sigmaN = sigmaN,
+        this_i_extreme = i_extreme[i],
+        this_pptToDistribute = pptToDistribute[i]
+      )
 
-      data[newPPTevents$newDays] <- data[newPPTevents$newDays] + newPPTevents$newPPT
+      data[newPPTevents$newDays] <-
+        data[newPPTevents$newDays] + newPPTevents$newPPT
     }
 
     # prepare for next iteration in case a day with previous ppt got too much ppt
@@ -420,67 +699,91 @@ controlExtremePPTevents <- function(data, dailyPPTceiling, sigmaN, do_checks = F
 #' \pkg{rSOILWAT2}-formatted weather.
 #'
 #' Used by \code{downscale.raw}, \code{downscale.delta}, and \code{downscale.deltahybrid}
-applyDeltas <- function(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, sigmaN = 6, do_checks = FALSE) {
-  dailyPPTceiling <- 1.5 * max(sapply(obs.hist.daily, FUN = function(obs) max(obs@data[, 4]))) #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum precipitation value for each cell is also imposed by "spreading out" very large daily precipitation values into one or more adjacent days"
+applyDeltas <- function(
+  obs.hist.daily,
+  obs.hist.monthly,
+  delta_ts,
+  ppt_fun,
+  sigmaN = 6,
+  do_checks = FALSE
+) {
+  # Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum
+  # precipitation value for each cell is also imposed by
+  # "spreading out" very large daily precipitation values into one or more
+  # adjacent days"
+  dailyPPTceiling <-
+    1.5 * max(sapply(obs.hist.daily, FUN = function(obs) max(obs@data[, 4])))
 
-  res <- lapply(obs.hist.daily, function(obs) {
-        month <- as.POSIXlt(paste(obs@year, obs@data[, "DOY"], sep = "-"), format = "%Y-%j", tz = "UTC")$mon + 1
-        ydelta <- delta_ts[delta_ts[, "Year"] == obs@year, -(1:2)]
-        tmax <- obs@data[, "Tmax_C"] + ydelta[month, "Tmax_C"]
+  res <- lapply(
+    obs.hist.daily,
+    function(obs) {
+      month <- as.POSIXlt(paste(obs@year, obs@data[, "DOY"], sep = "-"), format = "%Y-%j", tz = "UTC")$mon + 1
+      ydelta <- delta_ts[delta_ts[, "Year"] == obs@year, -(1:2)]
+      tmax <- obs@data[, "Tmax_C"] + ydelta[month, "Tmax_C"]
 
-        if (do_checks) rSW2utils::test_sigmaNormal(data = tmax, sigmaN)
+      if (do_checks) rSW2utils::test_sigmaNormal(data = tmax, sigmaN)
 
-        tmin <- obs@data[, "Tmin_C"] + ydelta[month, "Tmin_C"]
-        if (do_checks) rSW2utils::test_sigmaNormal(data = tmin, sigmaN)
+      tmin <- obs@data[, "Tmin_C"] + ydelta[month, "Tmin_C"]
+      if (do_checks) rSW2utils::test_sigmaNormal(data = tmin, sigmaN)
 
-        ppt_data <- unlist(lapply(1:12, function(m) {
-                          im_month <- month == m
-                          m_ydelta <- ydelta[m, 3]
-                          m_data <- obs@data[im_month, "PPT_cm"]
-                          if (ppt_fun[m] == "*") {# multiply ppt
-                            res <- m_data * m_ydelta
-                          } else if (m_ydelta == 0) { #add ppt here and below: nothing to add
-                            res <- m_data
-                          } else if (any(i_rainyDays <- m_data > 0)) { #there are rainy days in the historic record: add to those
-                            res <- add_delta_to_PPT(data = m_data, ind_events = i_rainyDays, addDelta = m_ydelta)$data
-                          } else { #there are no rainy days in the historic record
-                            if (m_ydelta > 0) { #we need rainy days in the historic record to add precipitation
-                              if (any(i_rainyMYears <- obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"] > 0)) {
-                                # sample from the same historic month in an other with rainy days instead
-                                #Locate data of same month in other year
-                                i_newYear <- which(i_rainyMYears)[which.min(abs(obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"][i_rainyMYears] - m_ydelta))]
-                                newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep = "-"), format = "%Y-%j", tz = "UTC")$mon + 1
-                                newMonthData <- newObs@data[, "PPT_cm"][newMonth == m]
-                                #Adjust data
-                                newMonthData <- fix_PPTdata_length(data = newMonthData, targetLength = sum(im_month)) #adjust number of days in case we got a leap year February issue
-                                res <- add_delta_to_PPT(newMonthData, newMonthData > 0, addDelta = m_ydelta)$data
-                              } else if (any(i_rainyMonth <- obs.hist.monthly[, "PPT_cm"] > 0)) { #no rainy day for this month in historic record: locate rainy days in any months from other years
-                                #Locate data of any month in any year
-                                i_newMYear <- which(i_rainyMonth)[which.min(abs(obs.hist.monthly[i_rainyMonth, "PPT_cm"] - m_ydelta))]
-                                i_newYear <- which(obs.hist.monthly[i_newMYear, "Year"] == sort(unique(obs.hist.monthly[, "Year"])))
-                                newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep = "-"), format = "%Y-%j", tz = "UTC")$mon + 1
-                                newMonthData <- newObs@data[, "PPT_cm"][newMonth == obs.hist.monthly[i_newMYear, "Month"]]
-                                #Adjust data
-                                newMonthData <- fix_PPTdata_length(data = newMonthData, targetLength = sum(im_month)) #adjust number of days in case we got a month with a different number of days
-                                res <- add_delta_to_PPT(newMonthData, newMonthData > 0, addDelta = m_ydelta)$data
-                              } else {
-                                stop(paste("no rainy day in historic record, but requested for the future prediction"))
-                              }
-                            } else {#there is no rain in the historic record, so we cannot remove any
-                              res <- rep(0, length(m_data))
-                            }
-                          }
-                          return(res)
-                        }))
+      ppt_data <- unlist(lapply(1:12, function(m) {
+        im_month <- month == m
+        m_ydelta <- ydelta[m, 3]
+        m_data <- obs@data[im_month, "PPT_cm"]
+        if (ppt_fun[m] == "*") { # multiply ppt
+          res <- m_data * m_ydelta
+        } else if (m_ydelta == 0) { # add ppt here and below: nothing to add
+          res <- m_data
+        } else if (any(i_rainyDays <- m_data > 0)) { # there are rainy days in the historic record: add to those
+          res <- add_delta_to_PPT(data = m_data, ind_events = i_rainyDays, addDelta = m_ydelta)$data
+        } else { # there are no rainy days in the historic record
+          if (m_ydelta > 0) { # we need rainy days in the historic record to add precipitation
+            if (any(i_rainyMYears <- obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"] > 0)) {
+              # sample from the same historic month in an other with rainy days instead
+              # Locate data of same month in other year
+              i_newYear <- which(i_rainyMYears)[which.min(abs(obs.hist.monthly[obs.hist.monthly[, "Month"] == m, "PPT_cm"][i_rainyMYears] - m_ydelta))]
+              newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep = "-"), format = "%Y-%j", tz = "UTC")$mon + 1
+              newMonthData <- newObs@data[, "PPT_cm"][newMonth == m]
+              # Adjust data
+              newMonthData <- fix_PPTdata_length(data = newMonthData, targetLength = sum(im_month)) # adjust number of days in case we got a leap year February issue
+              res <- add_delta_to_PPT(newMonthData, newMonthData > 0, addDelta = m_ydelta)$data
+            } else if (any(i_rainyMonth <- obs.hist.monthly[, "PPT_cm"] > 0)) { # no rainy day for this month in historic record: locate rainy days in any months from other years
+              # Locate data of any month in any year
+              i_newMYear <- which(i_rainyMonth)[which.min(abs(obs.hist.monthly[i_rainyMonth, "PPT_cm"] - m_ydelta))]
+              i_newYear <- which(obs.hist.monthly[i_newMYear, "Year"] == sort(unique(obs.hist.monthly[, "Year"])))
+              newMonth <- as.POSIXlt(paste((newObs <- obs.hist.daily[i_newYear][[1]])@year, newObs@data[, "DOY"], sep = "-"), format = "%Y-%j", tz = "UTC")$mon + 1
+              newMonthData <- newObs@data[, "PPT_cm"][newMonth == obs.hist.monthly[i_newMYear, "Month"]]
+              # Adjust data
+              newMonthData <- fix_PPTdata_length(data = newMonthData, targetLength = sum(im_month)) # adjust number of days in case we got a month with a different number of days
+              res <- add_delta_to_PPT(newMonthData, newMonthData > 0, addDelta = m_ydelta)$data
+            } else {
+              stop(paste("no rainy day in historic record, but requested for the future prediction"))
+            }
+          } else { # there is no rain in the historic record, so we cannot remove any
+            res <- rep(0, length(m_data))
+          }
+        }
+        return(res)
+      }))
 
-        ppt <- controlExtremePPTevents(data = ppt_data, dailyPPTceiling,
-          do_checks = do_checks, sigmaN = sigmaN)
+      ppt <- controlExtremePPTevents(
+        data = ppt_data, dailyPPTceiling,
+        do_checks = do_checks, sigmaN = sigmaN
+      )
 
-        new("swWeatherData", data =
-          round(data.matrix(cbind(obs@data[, "DOY"], tmax, tmin, ppt),
-                              rownames.force = FALSE), 2),
-          year = obs@year)
-      })
+      new(
+        "swWeatherData",
+        data = round(
+          data.matrix(
+            cbind(obs@data[, "DOY"], tmax, tmin, ppt),
+            rownames.force = FALSE
+          ),
+          2
+        ),
+        year = obs@year
+      )
+    }
+  )
 
   res
 }
@@ -504,9 +807,14 @@ applyDeltas <- function(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, sig
 #'  resulting negative values of precipitation to 0 -- thereby introducing a positive bias.
 #'
 #' @return A copy of \code{data} with adjusted values.
-applyPPTdelta_simple <- function(m, data, ydelta, add_days, mult_days,
-  set_negPPT_to0 = TRUE) {
-
+applyPPTdelta_simple <- function(
+  m,
+  data,
+  ydelta,
+  add_days,
+  mult_days,
+  set_negPPT_to0 = TRUE
+) {
   ppt <- rep(0, length(data))
   ievents <- data > 0
 
@@ -514,21 +822,23 @@ applyPPTdelta_simple <- function(m, data, ydelta, add_days, mult_days,
   if (any(add_days)) {
     # Spread monthly 'delta' amount of PPT to each daily precip event
     events_per_month <- tapply(as.integer(ievents), m, sum)[m]
-    itemp <- add_days & ievents
-    ppt[itemp] <- data[itemp] + ydelta[itemp] / events_per_month[itemp]
+    itmp <- add_days & ievents
+    ppt[itmp] <- data[itmp] + ydelta[itmp] / events_per_month[itmp]
 
-    # Simple correction for negative precipitation that can arise from subtractive deltas
+    # Simple correction for negative precipitation that can arise from
+    # subtractive deltas
     if (set_negPPT_to0) {
-      negppt <- ppt[itemp] < 0
-      if (any(negppt))
-        ppt[itemp][negppt] <- 0
+      negppt <- ppt[itmp] < 0
+      if (any(negppt)) {
+        ppt[itmp][negppt] <- 0
+      }
     }
   }
 
   # multiplicative delta
   if (any(mult_days)) {
-    itemp <- mult_days & ievents
-    ppt[itemp] <- data[itemp] * ydelta[itemp]
+    itmp <- mult_days & ievents
+    ppt[itmp] <- data[itmp] * ydelta[itmp]
   }
 
   ppt
@@ -545,7 +855,15 @@ applyPPTdelta_simple <- function(m, data, ydelta, add_days, mult_days,
 #'    \item{PPT_to_remove}{The total amount of precipitation that could not be removed
 #'      from \code{data} due to lack of precipitation.}
 #'  }
-applyPPTdelta_detailed <- function(m, data, ydelta, add_days, mult_days, daily, monthly) {
+applyPPTdelta_detailed <- function(
+  m,
+  data,
+  ydelta,
+  add_days,
+  mult_days,
+  daily,
+  monthly
+) {
   ppt <- rep(0, length(data))
   PPT_to_remove <- 0
 
@@ -562,18 +880,22 @@ applyPPTdelta_detailed <- function(m, data, ydelta, add_days, mult_days, daily, 
     if (any(ievents_add)) {
       # there is precipitation among the days with additive delta: add to/subtract from those
       eventsN_add_per_month <- tapply(as.integer(ievents_add), m, sum)[m]
-      temp <- add_delta_to_PPT(data = data[add_days],
-                ind_events = ievents_add[add_days],
-                deltaPerEvent = (ydelta / eventsN_add_per_month)[ievents_add])
-      ppt[add_days] <- temp[["data"]]
+      tmp <- add_delta_to_PPT(
+        data = data[add_days],
+        ind_events = ievents_add[add_days],
+        deltaPerEvent = (ydelta / eventsN_add_per_month)[ievents_add]
+      )
+      ppt[add_days] <- tmp[["data"]]
 
-      if (temp[["PPT_to_remove"]] < 0) {
+      if (tmp[["PPT_to_remove"]] < 0) {
         # there was not enough precipitation among the additive days; attempt to remove precipitation from all days
-        temp <- add_delta_to_PPT(data = ppt,
-                  ind_events = ievents,
-                  addDelta = temp[["PPT_to_remove"]])
-        ppt <- temp[["data"]]
-        PPT_to_remove <- PPT_to_remove + temp[["PPT_to_remove"]]
+        tmp <- add_delta_to_PPT(
+          data = ppt,
+          ind_events = ievents,
+          addDelta = tmp[["PPT_to_remove"]]
+        )
+        ppt <- tmp[["data"]]
+        PPT_to_remove <- PPT_to_remove + tmp[["PPT_to_remove"]]
       }
     } else {
       # there are no precip days in the data with additive delta
@@ -588,31 +910,41 @@ applyPPTdelta_detailed <- function(m, data, ydelta, add_days, mult_days, daily, 
           this_month_im <- monthly[, "Month"] == im
           month_precip <- monthly[, "PPT_cm"] > 0
           this_month_precip <- month_precip & this_month_im
-          precip_target <- (temp <- ydelta[idelta_pos][ipos_months == im])[1] / length(temp)
+          precip_target <- (tmp <- ydelta[idelta_pos][ipos_months == im])[1] / length(tmp)
 
           if (any(this_month_precip)) {
             # locate data from the same historic month 'im' from a different year with the most similar monthly PPT
-            itemp <- this_month_precip
+            itmp <- this_month_precip
           } else {
             # this month 'im' has no precipitation in all years
             if (any(month_precip)) {
               # locate data from any month from any year with the most similar monthly PPT
-              itemp <- month_precip
+              itmp <- month_precip
             } else {
-              stop(paste("Historic record has no days with precipitation, but requested for the future."))
+              stop(paste(
+                "Historic record has no days with precipitation,",
+                "but requested for the future."
+              ))
             }
           }
 
-          i_newYear <- monthly[itemp, "Year"][which.min(abs(monthly[itemp, "PPT_cm"] - precip_target))]
+          i_newYear <- monthly[itmp, "Year"][which.min(abs(monthly[itmp, "PPT_cm"] - precip_target))]
           newMonthData <- daily[[as.character(i_newYear)]]@data[m == im, "PPT_cm"]
 
           # Adjust data for this month
           these_days <- m == im
-          newMonthData <- fix_PPTdata_length(data = newMonthData, targetLength = sum(these_days)) #adjust number of days in case we got a leap year February issue
-          temp <- add_delta_to_PPT(data = newMonthData, ind_events = newMonthData > 0,
-                addDelta = precip_target - sum(newMonthData))
-          ppt[these_days] <- temp[["data"]]
-          PPT_to_remove <- PPT_to_remove + temp[["PPT_to_remove"]]
+          # adjust number of days in case we got a leap year February issue
+          newMonthData <- fix_PPTdata_length(
+            data = newMonthData,
+            targetLength = sum(these_days)
+          )
+          tmp <- add_delta_to_PPT(
+            data = newMonthData,
+            ind_events = newMonthData > 0,
+            addDelta = precip_target - sum(newMonthData)
+          )
+          ppt[these_days] <- tmp[["data"]]
+          PPT_to_remove <- PPT_to_remove + tmp[["PPT_to_remove"]]
         }
       }
 
@@ -621,11 +953,13 @@ applyPPTdelta_detailed <- function(m, data, ydelta, add_days, mult_days, daily, 
         StillToSubtract <- sum(ydelta[idelta_neg]) # 'StillToSubtract' is negative
 
         # attempt to remove precipitation from all days
-        temp <- add_delta_to_PPT(data = ppt,
-                  ind_events = ievents,
-                  addDelta = StillToSubtract)
-        ppt <- temp[["data"]]
-        PPT_to_remove <- PPT_to_remove + temp[["PPT_to_remove"]]
+        tmp <- add_delta_to_PPT(
+          data = ppt,
+          ind_events = ievents,
+          addDelta = StillToSubtract
+        )
+        ppt <- tmp[["data"]]
+        PPT_to_remove <- PPT_to_remove + tmp[["PPT_to_remove"]]
       }
     }
   }
@@ -634,9 +968,17 @@ applyPPTdelta_detailed <- function(m, data, ydelta, add_days, mult_days, daily, 
 }
 
 
-applyDelta_oneYear <- function(obs, delta_ts, ppt_fun, daily, monthly,
-                      ppt_type = NULL, dailyPPTceiling, sigmaN, do_checks) {
-
+applyDelta_oneYear <- function(
+  obs,
+  delta_ts,
+  ppt_fun,
+  daily,
+  monthly,
+  ppt_type = NULL,
+  dailyPPTceiling,
+  sigmaN,
+  do_checks
+) {
   ppt_type <- match.arg(ppt_type, c(NA, "detailed", "simple"))
 
   month <- 1 + as.POSIXlt(rSW2utils::days_in_years(obs@year, obs@year))$mon
@@ -652,53 +994,85 @@ applyDelta_oneYear <- function(obs, delta_ts, ppt_fun, daily, monthly,
   if (do_checks) rSW2utils::test_sigmaNormal(data = tmin, sigmaN)
 
   if (isTRUE(ppt_type == "simple")) {
-    ppt <- applyPPTdelta_simple(m = month,
-          data = obs@data[, "PPT_cm"],
-          ydelta = ydeltas[month, "PPT_cm"],
-          add_days = add_days, mult_days = mult_days)
-
+    ppt <- applyPPTdelta_simple(
+      m = month,
+      data = obs@data[, "PPT_cm"],
+      ydelta = ydeltas[month, "PPT_cm"],
+      add_days = add_days, mult_days = mult_days
+    )
   } else if (isTRUE(ppt_type == "detailed")) {
-    temp <- applyPPTdelta_detailed(m = month,
-          data = obs@data[, "PPT_cm"],
-          ydelta = ydeltas[month, "PPT_cm"],
-          add_days = add_days, mult_days = mult_days,
-          daily = daily, monthly = monthly)
-    ppt <- temp[["data"]]
-    PPT_to_remove <- temp[["PPT_to_remove"]]
+    tmp <- applyPPTdelta_detailed(
+      m = month,
+      data = obs@data[, "PPT_cm"],
+      ydelta = ydeltas[month, "PPT_cm"],
+      add_days = add_days,
+      mult_days = mult_days,
+      daily = daily, monthly = monthly
+    )
+    ppt <- tmp[["data"]]
+    PPT_to_remove <- tmp[["PPT_to_remove"]]
 
-    if (dailyPPTceiling > 0)
-      ppt <- controlExtremePPTevents(data = ppt,
-            do_checks = do_checks,
-            dailyPPTceiling = dailyPPTceiling,
-            sigmaN = sigmaN)
+    if (dailyPPTceiling > 0) {
+      ppt <- controlExtremePPTevents(
+        data = ppt,
+        do_checks = do_checks,
+        dailyPPTceiling = dailyPPTceiling,
+        sigmaN = sigmaN
+      )
+    }
   } else {
-    stop(paste("'applyDelta_oneYear': argument not recognized: ppt_type =", ppt_type))
+    stop(paste(
+      "'applyDelta_oneYear': argument not recognized: ppt_type =",
+      ppt_type
+    ))
   }
 
 
-  sw <- new("swWeatherData",
-      data = round(data.matrix(cbind(obs@data[, "DOY"], tmax, tmin, ppt),
-                  rownames.force = FALSE),
-            2),
-      year = obs@year)
+  sw <- new(
+    "swWeatherData",
+    data = round(
+      data.matrix(
+        cbind(obs@data[, "DOY"], tmax, tmin, ppt),
+        rownames.force = FALSE
+      ),
+      2
+    ),
+    year = obs@year
+  )
   list(sw = sw, PPT_to_remove = PPT_to_remove)
 }
 
 
-applyDeltas2 <- function(daily, monthly, years, delta_ts, ppt_fun,
-                ppt_type = NULL, dailyPPTceiling, sigmaN, do_checks = FALSE) {
-
+applyDeltas2 <- function(
+  daily,
+  monthly,
+  years,
+  delta_ts,
+  ppt_fun,
+  ppt_type = NULL,
+  dailyPPTceiling,
+  sigmaN,
+  dbW_digits = 4L,
+  do_checks = FALSE
+) {
   sw_list <- list()
   totalPPT_to_remove <- 0
 
   for (i in seq_along(daily)) {
-    temp <- applyDelta_oneYear(obs = daily[[i]],
-          delta_ts = delta_ts, ppt_fun = ppt_fun, daily = daily, monthly = monthly,
-          ppt_type = ppt_type, dailyPPTceiling = dailyPPTceiling, sigmaN = sigmaN,
-          do_checks = do_checks)
+    tmp <- applyDelta_oneYear(
+      obs = daily[[i]],
+      delta_ts = delta_ts,
+      ppt_fun = ppt_fun,
+      daily = daily,
+      monthly = monthly,
+      ppt_type = ppt_type,
+      dailyPPTceiling = dailyPPTceiling,
+      sigmaN = sigmaN,
+      do_checks = do_checks
+    )
 
-    sw_list[[i]] <- temp[["sw"]]
-    totalPPT_to_remove <- totalPPT_to_remove + temp[["PPT_to_remove"]]
+    sw_list[[i]] <- tmp[["sw"]]
+    totalPPT_to_remove <- totalPPT_to_remove + tmp[["PPT_to_remove"]]
   }
 
   if (totalPPT_to_remove < 0) {
@@ -711,14 +1085,20 @@ applyDeltas2 <- function(daily, monthly, years, delta_ts, ppt_fun,
     if (totalPPT > abs(totalPPT_to_remove)) {
       daily2[, "PPT_cm"] <- daily2[, "PPT_cm"] * (1 - abs(totalPPT_to_remove) / totalPPT)
     } else {
-      print(paste("Total site precipitation should be reduced on average by a further",
-              round((abs(totalPPT_to_remove) - totalPPT) / length(daily), 2), "cm / year"))
+      print(paste(
+        "Total site precipitation should be reduced on average by a further",
+        round((abs(totalPPT_to_remove) - totalPPT) / length(daily), 2), "cm / year"
+      ))
       daily2[, "PPT_cm"] <- 0
     }
 
-    sw_list <- rSOILWAT2::dbW_dataframe_to_weatherData(daily2, years)
+    sw_list <- rSOILWAT2::dbW_dataframe_to_weatherData(
+      daily2,
+      years,
+      round = dbW_digits
+    )
   }
-    names(sw_list) <- years
+  names(sw_list) <- years
 
   sw_list
 }
@@ -738,10 +1118,8 @@ applyDeltas2 <- function(daily, monthly, years, delta_ts, ppt_fun,
 rbind_2cols_nonoverlapping <- function(x1, x2) {
   if (is.null(x1) || nrow(x1) == 0) {
     res <- x2
-
   } else if (is.null(x2) || nrow(x2) == 0) {
     res <- x1
-
   } else {
     # Check whether there is a year-month overlap
     ids1 <- apply(x1[, 1:2], 1, paste, collapse = "-")
@@ -755,10 +1133,8 @@ rbind_2cols_nonoverlapping <- function(x1, x2) {
       # Check whether there is one uniquely non-NA set
       if (all(is.na(x1[idso1, -(1:2)]))) {
         res <- rbind(x1[!idso1, ], x2)
-
       } else if (all(is.na(x2[idso2, -(1:2)]))) {
         res <- rbind(x1, x2[!idso2, ])
-
       } else {
         # both sets have values for overlap: take mean
         tmp <- x1
@@ -766,7 +1142,6 @@ rbind_2cols_nonoverlapping <- function(x1, x2) {
           (x1[idso1, -(1:2)] + x2[idso2, -(1:2)]) / 2
         res <- rbind(tmp, x2[!idso2, -(1:2)])
       }
-
     } else {
       # there is no overlap
       res <- rbind(x1, x2)
@@ -806,10 +1181,17 @@ NULL
 
 #' Time periods for downscaling functions
 #' @inheritParams downscale
-downscale.periods <- function(obs.hist.daily, obs.hist.monthly,
-                      scen.hist.monthly = NULL, scen.fut.monthly = NULL, years = NULL,
-                      DScur_startyear = NULL, DScur_endyear = NULL,
-                      DSfut_startyear = NULL, DSfut_endyear = NULL) {
+downscale.periods <- function(
+  obs.hist.daily,
+  obs.hist.monthly,
+  scen.hist.monthly = NULL,
+  scen.fut.monthly = NULL,
+  years = NULL,
+  DScur_startyear = NULL,
+  DScur_endyear = NULL,
+  DSfut_startyear = NULL,
+  DSfut_endyear = NULL
+) {
 
   # Time periods
   #  - historic observed period: simstartyr:endyr
@@ -823,28 +1205,39 @@ downscale.periods <- function(obs.hist.daily, obs.hist.monthly,
 
   #  - historic training period: DScur_startyear:DScur_endyear
   if (!is.null(scen.hist.monthly)) {
-    if (is.null(DScur_startyear)) DScur_startyear <- scen.hist.monthly[1, 1]
-    if (is.null(DScur_endyear)) DScur_endyear <- scen.hist.monthly[nrow(scen.hist.monthly), 1]
+    if (is.null(DScur_startyear)) {
+      DScur_startyear <- scen.hist.monthly[1, 1]
+    }
+    if (is.null(DScur_endyear)) {
+      DScur_endyear <- scen.hist.monthly[nrow(scen.hist.monthly), 1]
+    }
     iuse_scen_hist_m <- scen.hist.monthly[, 1] >= DScur_startyear & scen.hist.monthly[, 1] <= DScur_endyear
     if (!(sum(iuse_scen_hist_m) == (DScur_endyear - DScur_startyear + 1) * 12)) {
-      print(paste0("downscale.periods: resulting record of 'scen.hist.monthly' covers only the years ",
-                  paste(range(scen.hist.monthly[iuse_scen_hist_m, 1]), collapse = "-"),
-                  " instead of the requested ", DScur_startyear, "-", DScur_endyear))
+      print(paste0(
+        "downscale.periods: resulting record of 'scen.hist.monthly' covers only the years ",
+        paste(range(scen.hist.monthly[iuse_scen_hist_m, 1]), collapse = "-"),
+        " instead of the requested ", DScur_startyear, "-", DScur_endyear
+      ))
     }
-
   } else {
     DScur_startyear <- DScur_endyear <- iuse_scen_hist_m <- NULL
   }
 
   #  - future training period: DSfut_startyear:DSfut_endyear
   if (!is.null(scen.fut.monthly)) {
-    if (is.null(DSfut_startyear)) DSfut_startyear <- scen.fut.monthly[1, 1]
-    if (is.null(DSfut_endyear)) DSfut_endyear <- scen.fut.monthly[nrow(scen.fut.monthly), 1]
+    if (is.null(DSfut_startyear)) {
+      DSfut_startyear <- scen.fut.monthly[1, 1]
+    }
+    if (is.null(DSfut_endyear)) {
+      DSfut_endyear <- scen.fut.monthly[nrow(scen.fut.monthly), 1]
+    }
     iuse_scen_fut_m <- scen.fut.monthly[, 1] >= DSfut_startyear & scen.fut.monthly[, 1] <= DSfut_endyear
     if (!(sum(iuse_scen_fut_m) == (DSfut_endyear - DSfut_startyear + 1) * 12)) {
-      print(paste0("downscale.periods: resulting record of 'scen.fut.monthly' covers only the years ",
-                  paste(range(scen.fut.monthly[iuse_scen_fut_m, 1]), collapse = "-"),
-                  " instead of the requested ", DSfut_startyear, "-", DSfut_endyear))
+      print(paste0(
+        "downscale.periods: resulting record of 'scen.fut.monthly' covers only the years ",
+        paste(range(scen.fut.monthly[iuse_scen_fut_m, 1]), collapse = "-"),
+        " instead of the requested ", DSfut_startyear, "-", DSfut_endyear
+      ))
     }
   } else {
     DSfut_startyear <- DSfut_endyear <- iuse_scen_fut_m <- NULL
@@ -852,11 +1245,19 @@ downscale.periods <- function(obs.hist.daily, obs.hist.monthly,
 
 
   # Return
-  list(years = years, startyear = startyear, endyear = endyear,
-    DScur_startyear = DScur_startyear, DScur_endyear = DScur_endyear,
-    DSfut_startyear = DSfut_startyear, DSfut_endyear = DSfut_endyear,
-    iuse_obs_hist_d = iuse_obs_hist_d, iuse_obs_hist_m = iuse_obs_hist_m,
-    iuse_scen_hist_m = iuse_scen_hist_m, iuse_scen_fut_m = iuse_scen_fut_m)
+  list(
+    years = years,
+    startyear = startyear,
+    endyear = endyear,
+    DScur_startyear = DScur_startyear,
+    DScur_endyear = DScur_endyear,
+    DSfut_startyear = DSfut_startyear,
+    DSfut_endyear = DSfut_endyear,
+    iuse_obs_hist_d = iuse_obs_hist_d,
+    iuse_obs_hist_m = iuse_obs_hist_m,
+    iuse_scen_hist_m = iuse_scen_hist_m,
+    iuse_scen_fut_m = iuse_scen_fut_m
+  )
 }
 
 
@@ -865,26 +1266,56 @@ downscale.periods <- function(obs.hist.daily, obs.hist.monthly,
 calcDeltas <- function(obs.hist.monthly, scen.fut.monthly, opt_DS) {
 
   # 1. Calculate mean monthly values in historic and future scenario values
-  scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], scen.fut.monthly[, "month"],
-    mean, na.rm = TRUE)
-  scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], scen.fut.monthly[, "month"],
-    mean, na.rm = TRUE)
-  scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], scen.fut.monthly[, "month"],
-    sum, na.rm = TRUE)
+  scen.fut.mean_tmax <- tapply(
+    scen.fut.monthly[, "tmax"],
+    scen.fut.monthly[, "month"],
+    mean,
+    na.rm = TRUE
+  )
+  scen.fut.mean_tmin <- tapply(
+    scen.fut.monthly[, "tmin"],
+    scen.fut.monthly[, "month"],
+    mean,
+    na.rm = TRUE
+  )
+  scen.fut.mean_ppt <- tapply(
+    scen.fut.monthly[, "prcp"],
+    scen.fut.monthly[, "month"],
+    sum,
+    na.rm = TRUE
+  )
 
-  obs.hist.mean_tmax <- tapply(obs.hist.monthly[, "Tmax_C"], obs.hist.monthly[, "Month"],
-    mean, na.rm = TRUE)
-  obs.hist.mean_tmin <- tapply(obs.hist.monthly[, "Tmin_C"], obs.hist.monthly[, "Month"],
-    mean, na.rm = TRUE)
-  obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], obs.hist.monthly[, "Month"],
-    sum, na.rm = TRUE)
+  obs.hist.mean_tmax <- tapply(
+    obs.hist.monthly[, "Tmax_C"],
+    obs.hist.monthly[, "Month"],
+    mean,
+    na.rm = TRUE
+  )
+  obs.hist.mean_tmin <- tapply(
+    obs.hist.monthly[, "Tmin_C"],
+    obs.hist.monthly[, "Month"],
+    mean,
+    na.rm = TRUE
+  )
+  obs.hist.mean_ppt <- tapply(
+    obs.hist.monthly[, "PPT_cm"],
+    obs.hist.monthly[, "Month"],
+    sum,
+    na.rm = TRUE
+  )
 
   # 2. Calculate deltas between observed historic and future mean scenario values
-  #  - Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very
+  #  - Additive approach (Anandhi et al. 2011): tmp, close-to-zero PPT, small or very
   #     large PPT ratios
   #  - Multiplicative approach (Wang et al. 2014): PPT otherwise
-  delta_ts <- matrix(NA, nrow = nrow(obs.hist.monthly), ncol = 5, dimnames = list(NULL,
-    c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
+  delta_ts <- matrix(
+    nrow = nrow(obs.hist.monthly),
+    ncol = 5,
+    dimnames = list(
+      NULL,
+      c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")
+    )
+  )
   delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
   ppt_fun <- rep("*", 12)
 
@@ -892,13 +1323,14 @@ calcDeltas <- function(obs.hist.monthly, scen.fut.monthly, opt_DS) {
   delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
   delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
   delta_ppts <- scen.fut.mean_ppt / obs.hist.mean_ppt
-  temp_add <- obs.hist.mean_ppt < SFSW2_glovars[["tol"]] |
-    delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
-    delta_ppts > opt_DS[["PPTratioCutoff"]]
+  tmp_add <-
+    obs.hist.mean_ppt < SFSW2_glovars[["tol"]] |
+      delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
+      delta_ppts > opt_DS[["PPTratioCutoff"]]
 
-  if (any(temp_add)) {
-    ppt_fun[temp_add] <- "+"
-    delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
+  if (any(tmp_add)) {
+    ppt_fun[tmp_add] <- "+"
+    delta_ppts[tmp_add] <- scen.fut.mean_ppt[tmp_add] - obs.hist.mean_ppt[tmp_add]
   }
 
   delta_ts[, "PPT_cm"] <- delta_ppts
@@ -916,23 +1348,42 @@ calcDeltas <- function(obs.hist.monthly, scen.fut.monthly, opt_DS) {
 #'  discharges of the river Rhine using two scenario methodologies: direct versus delta
 #'  approach. Hydrology and Earth System Sciences 11:1145-1159.
 #' @export
-downscale.raw <- function(obs.hist.daily, obs.hist.monthly,
-                  scen.fut.monthly, itime, years = NULL, sim_time = NULL,
-                  opt_DS = list(ppt_type = "detailed", sigmaN = 6, PPTratioCutoff = 10),
-                  dailyPPTceiling, do_checks = TRUE, ...) {
+downscale.raw <- function(
+  obs.hist.daily,
+  obs.hist.monthly,
+  scen.fut.monthly,
+  itime,
+  years = NULL,
+  sim_time = NULL,
+  opt_DS = list(ppt_type = "detailed", sigmaN = 6, PPTratioCutoff = 10),
+  dailyPPTceiling,
+  dbW_digits = 4L,
+  do_checks = TRUE,
+  ...
+) {
 
   # Time periods
-  tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly = NULL,
-    scen.fut.monthly, years, sim_time[["DScur_startyr"]], sim_time[["DScur_endyr"]],
+  tp <- downscale.periods(
+    obs.hist.daily,
+    obs.hist.monthly,
+    scen.hist.monthly = NULL,
+    scen.fut.monthly,
+    years,
+    sim_time[["DScur_startyr"]],
+    sim_time[["DScur_endyr"]],
     sim_time[["future_yrs"]][itime, "DSfut_startyr"],
-    sim_time[["future_yrs"]][itime, "DSfut_endyr"])
+    sim_time[["future_yrs"]][itime, "DSfut_endyr"]
+  )
 
-  if (any(!tp$iuse_obs_hist_d))
+  if (any(!tp$iuse_obs_hist_d)) {
     obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
-  if (any(!tp$iuse_obs_hist_m))
+  }
+  if (any(!tp$iuse_obs_hist_m)) {
     obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
-  if (any(!tp$iuse_scen_fut_m))
+  }
+  if (any(!tp$iuse_scen_fut_m)) {
     scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
+  }
   # moved to calcDeltas
   # # 1. Calculate mean monthly values in historic and future scenario values
   # scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
@@ -944,7 +1395,7 @@ downscale.raw <- function(obs.hist.daily, obs.hist.monthly,
   # obs.hist.mean_ppt <- tapply(obs.hist.monthly[, "PPT_cm"], INDEX = obs.hist.monthly[, "Month"], sum, na.rm = TRUE)
   #
   # # 2. Calculate deltas between observed historic and future mean scenario values
-  #     #  - Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
+  #     #  - Additive approach (Anandhi et al. 2011): tmp, close-to-zero PPT, small or very large PPT ratios
   #     #  - Multiplicative approach (Wang et al. 2014): PPT otherwise
   # delta_ts <- matrix(NA, ncol = 5, nrow = nrow(obs.hist.monthly), dimnames = list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
   # delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
@@ -954,22 +1405,30 @@ downscale.raw <- function(obs.hist.daily, obs.hist.monthly,
   # delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - obs.hist.mean_tmax
   # delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - obs.hist.mean_tmin
   # delta_ppts <- scen.fut.mean_ppt / obs.hist.mean_ppt
-  # temp_add <- obs.hist.mean_ppt < SFSW2_glovars[["tol"]] |
+  # tmp_add <- obs.hist.mean_ppt < SFSW2_glovars[["tol"]] |
   #             delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
   #             delta_ppts > opt_DS[["PPTratioCutoff"]]
-  # if (any(temp_add)) {
-  #   ppt_fun[temp_add] <- "+"
-  #   delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - obs.hist.mean_ppt[temp_add]
+  # if (any(tmp_add)) {
+  #   ppt_fun[tmp_add] <- "+"
+  #   delta_ppts[tmp_add] <- scen.fut.mean_ppt[tmp_add] - obs.hist.mean_ppt[tmp_add]
   # }
   # delta_ts[, "PPT_cm"] <- delta_ppts
   delta_ts <- calcDeltas(obs.hist.monthly, scen.fut.monthly, opt_DS)
   ppt_fun <- delta_ts[[2]]
   delta_ts <- delta_ts[[1]]
   # 3. Apply deltas to historic daily weather
-  applyDeltas2(daily = obs.hist.daily, monthly = obs.hist.monthly,
-      years = tp$years, delta_ts = delta_ts, ppt_fun = ppt_fun,
-      ppt_type = opt_DS[["ppt_type"]], dailyPPTceiling = dailyPPTceiling,
-      sigmaN = opt_DS[["sigmaN"]], do_checks = do_checks)
+  applyDeltas2(
+    daily = obs.hist.daily,
+    monthly = obs.hist.monthly,
+    years = tp$years,
+    delta_ts = delta_ts,
+    ppt_fun = ppt_fun,
+    ppt_type = opt_DS[["ppt_type"]],
+    dailyPPTceiling = dailyPPTceiling,
+    sigmaN = opt_DS[["sigmaN"]],
+    dbW_digits = dbW_digits,
+    do_checks = do_checks
+  )
 }
 
 #' Downscale with the 'delta approach'
@@ -986,39 +1445,94 @@ downscale.raw <- function(obs.hist.daily, obs.hist.monthly,
 #'  Center for Science in the Earth System, Joint Institute for the Study of the
 #'  Atmosphere and Ocean, University of Washington, Seattle, WA.
 #' @export
-downscale.delta <- function(obs.hist.daily, obs.hist.monthly,
-                    scen.hist.monthly, scen.fut.monthly, itime, years = NULL, sim_time = NULL,
-                    opt_DS = list(ppt_type = "detailed", sigmaN = 6, PPTratioCutoff = 10),
-                    dailyPPTceiling, do_checks = TRUE, ...) {
+downscale.delta <- function(
+  obs.hist.daily,
+  obs.hist.monthly,
+  scen.hist.monthly,
+  scen.fut.monthly,
+  itime,
+  years = NULL,
+  sim_time = NULL,
+  opt_DS = list(ppt_type = "detailed", sigmaN = 6, PPTratioCutoff = 10),
+  dailyPPTceiling,
+  dbW_digits = 4L,
+  do_checks = TRUE,
+  ...
+) {
   # Time periods
-  tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly,
-    scen.fut.monthly, years, sim_time[["DScur_startyr"]], sim_time[["DScur_endyr"]],
+  tp <- downscale.periods(
+    obs.hist.daily,
+    obs.hist.monthly,
+    scen.hist.monthly,
+    scen.fut.monthly,
+    years,
+    sim_time[["DScur_startyr"]],
+    sim_time[["DScur_endyr"]],
     sim_time[["future_yrs"]][itime, "DSfut_startyr"],
-    sim_time[["future_yrs"]][itime, "DSfut_endyr"])
+    sim_time[["future_yrs"]][itime, "DSfut_endyr"]
+  )
 
-  if (any(!tp$iuse_obs_hist_d))
+  if (any(!tp$iuse_obs_hist_d)) {
     obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
-  if (any(!tp$iuse_obs_hist_m))
+  }
+  if (any(!tp$iuse_obs_hist_m)) {
     obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
-  if (any(!tp$iuse_scen_hist_m))
+  }
+  if (any(!tp$iuse_scen_hist_m)) {
     scen.hist.monthly <- scen.hist.monthly[tp$iuse_scen_hist_m, ]
-  if (any(!tp$iuse_scen_fut_m))
+  }
+  if (any(!tp$iuse_scen_fut_m)) {
     scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
+  }
 
   # 1. Calculate mean monthly values in historic and future scenario values
-  scen.fut.mean_tmax <- tapply(scen.fut.monthly[, "tmax"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
-  scen.fut.mean_tmin <- tapply(scen.fut.monthly[, "tmin"], INDEX = scen.fut.monthly[, "month"], mean, na.rm = TRUE)
-  scen.fut.mean_ppt <- tapply(scen.fut.monthly[, "prcp"], INDEX = scen.fut.monthly[, "month"], sum, na.rm = TRUE)
+  scen.fut.mean_tmax <- tapply(
+    scen.fut.monthly[, "tmax"],
+    INDEX = scen.fut.monthly[, "month"],
+    mean,
+    na.rm = TRUE
+  )
+  scen.fut.mean_tmin <- tapply(
+    scen.fut.monthly[, "tmin"],
+    INDEX = scen.fut.monthly[, "month"],
+    mean,
+    na.rm = TRUE
+  )
+  scen.fut.mean_ppt <- tapply(
+    scen.fut.monthly[, "prcp"],
+    INDEX = scen.fut.monthly[, "month"],
+    sum,
+    na.rm = TRUE
+  )
 
-  scen.hist.mean_tmax <- tapply(scen.hist.monthly[, "tmax"], INDEX = scen.hist.monthly[, "month"], mean, na.rm = TRUE)
-  scen.hist.mean_tmin <- tapply(scen.hist.monthly[, "tmin"], INDEX = scen.hist.monthly[, "month"], mean, na.rm = TRUE)
-  scen.hist.mean_ppt <- tapply(scen.hist.monthly[, "prcp"], INDEX = scen.hist.monthly[, "month"], sum, na.rm = TRUE)
+  scen.hist.mean_tmax <- tapply(
+    scen.hist.monthly[, "tmax"],
+    INDEX = scen.hist.monthly[, "month"],
+    mean,
+    na.rm = TRUE
+  )
+  scen.hist.mean_tmin <- tapply(
+    scen.hist.monthly[, "tmin"],
+    INDEX = scen.hist.monthly[, "month"],
+    mean,
+    na.rm = TRUE
+  )
+  scen.hist.mean_ppt <- tapply(
+    scen.hist.monthly[, "prcp"],
+    INDEX = scen.hist.monthly[, "month"],
+    sum,
+    na.rm = TRUE
+  )
 
 
   # 2. Calculate deltas between historic and future mean scenario values
-      #  - Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
-      #  - Multiplicative approach (Wang et al. 2014): PPT otherwise
-  delta_ts <- matrix(NA, ncol = 5, nrow = nrow(obs.hist.monthly), dimnames = list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
+  #  - Additive approach (Anandhi et al. 2011): tmp, close-to-zero PPT, small or very large PPT ratios
+  #  - Multiplicative approach (Wang et al. 2014): PPT otherwise
+  delta_ts <- matrix(
+    ncol = 5,
+    nrow = nrow(obs.hist.monthly),
+    dimnames = list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm"))
+  )
   delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
   ppt_fun <- rep("*", 12)
 
@@ -1026,22 +1540,31 @@ downscale.delta <- function(obs.hist.daily, obs.hist.monthly,
   delta_ts[, "Tmax_C"] <- scen.fut.mean_tmax - scen.hist.mean_tmax
   delta_ts[, "Tmin_C"] <- scen.fut.mean_tmin - scen.hist.mean_tmin
   delta_ppts <- scen.fut.mean_ppt / scen.hist.mean_ppt
-  temp_add <- scen.hist.mean_ppt < SFSW2_glovars[["tol"]] |
-              delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
-              delta_ppts > opt_DS[["PPTratioCutoff"]]
+  tmp_add <-
+    scen.hist.mean_ppt < SFSW2_glovars[["tol"]] |
+      delta_ppts < 1 / (10 * opt_DS[["PPTratioCutoff"]]) |
+      delta_ppts > opt_DS[["PPTratioCutoff"]]
 
-  if (any(temp_add)) {
-    ppt_fun[temp_add] <- "+"
-    delta_ppts[temp_add] <- scen.fut.mean_ppt[temp_add] - scen.hist.mean_ppt[temp_add]
+  if (any(tmp_add)) {
+    ppt_fun[tmp_add] <- "+"
+    delta_ppts[tmp_add] <- scen.fut.mean_ppt[tmp_add] - scen.hist.mean_ppt[tmp_add]
   }
   delta_ts[, "PPT_cm"] <- delta_ppts
 
 
   # 3. Apply deltas to historic daily weather
-  applyDeltas2(daily = obs.hist.daily, monthly = obs.hist.monthly,
-      years = tp$years, delta_ts = delta_ts, ppt_fun = ppt_fun,
-      ppt_type = opt_DS[["ppt_type"]], dailyPPTceiling = dailyPPTceiling,
-      sigmaN = opt_DS[["sigmaN"]], do_checks = do_checks)
+  applyDeltas2(
+    daily = obs.hist.daily,
+    monthly = obs.hist.monthly,
+    years = tp$years,
+    delta_ts = delta_ts,
+    ppt_fun = ppt_fun,
+    ppt_type = opt_DS[["ppt_type"]],
+    dailyPPTceiling = dailyPPTceiling,
+    sigmaN = opt_DS[["sigmaN"]],
+    dbW_digits = dbW_digits,
+    do_checks = do_checks
+  )
 }
 
 #' Downscale with the 'delta-hybrid approach' old version (prior to May 2016)
@@ -1065,44 +1588,72 @@ downscale.delta <- function(obs.hist.daily, obs.hist.monthly,
 #'  climate change impact assessment. Water Resources Research 47:W03501.
 #' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of
 #'  climate change projections on streamflow in the Nooksack River basin, Northwest
-#'  Washington. Hydrological Processes: \url{http://dx.doi.org/10.1002/hyp.10012}.
+#'  Washington. Hydrological Processes: \doi{10.1002/hyp.10012}.
 #' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
 #'  matching as an improvement to the equidistant approach in bias correction of
 #'  precipitation. Atmospheric Science Letters 15:1-6.
 #'
 #' @export
-downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly,
-                          scen.hist.monthly, scen.fut.monthly, itime, years = NULL, sim_time = NULL,
-                          opt_DS = list(sigmaN = 6, PPTratioCutoff = 10),
-                          do_checks = TRUE, ...) {
-  #Functions
+downscale.deltahybrid <- function(
+  obs.hist.daily,
+  obs.hist.monthly,
+  scen.hist.monthly,
+  scen.fut.monthly,
+  itime,
+  years = NULL,
+  sim_time = NULL,
+  opt_DS = list(sigmaN = 6, PPTratioCutoff = 10),
+  do_checks = TRUE,
+  ...
+) {
+  # Functions
   eCDF.Cunnane <- function(x) {
     na_N <- sum(is.na(x))
     x <- sort(x, na.last = NA)
-    if (na_N > 0) {#if there are NAs in the data, add them in the middle assuming missing values represent median conditions
-      i_center <- ceiling(length(x)/2)
-      x <- c(x[1:i_center], rep(NA, na_N), x[(i_center+1):length(x)])
+    if (na_N > 0) {
+      # if there are NAs in the data, add them in the middle assuming missing values represent median conditions
+      i_center <- ceiling(length(x) / 2)
+      x <- c(x[1:i_center], rep(NA, na_N), x[(i_center + 1):length(x)])
     }
     n <- length(x)
-    q <- (1:n - 0.4) / (n + 0.2) #Cunnane (1978)
-    f <- stats::splinefun(x = q, y = x, method = "monoH.FC", ties = mean) #'hyman' produces too extreme large values
+    q <- (1:n - 0.4) / (n + 0.2) # Cunnane (1978)
+    f <- stats::splinefun(x = q, y = x, method = "monoH.FC", ties = mean) #' hyman' produces too extreme large values
 
     list(x = x, q = q, fun = f)
   }
 
   # Time periods
-  tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly,
-    scen.fut.monthly, years, sim_time[["DScur_startyr"]], sim_time[["DScur_endyr"]],
+  tp <- downscale.periods(
+    obs.hist.daily,
+    obs.hist.monthly,
+    scen.hist.monthly,
+    scen.fut.monthly,
+    years,
+    sim_time[["DScur_startyr"]],
+    sim_time[["DScur_endyr"]],
     sim_time[["future_yrs"]][itime, "DSfut_startyr"],
-    sim_time[["future_yrs"]][itime, "DSfut_endyr"])
+    sim_time[["future_yrs"]][itime, "DSfut_endyr"]
+  )
 
-  if (any(!tp$iuse_obs_hist_d)) obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
-  if (any(!tp$iuse_obs_hist_m)) obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
-  if (any(!tp$iuse_scen_hist_m)) scen.hist.monthly <- scen.hist.monthly[tp$iuse_scen_hist_m, ]
-  if (any(!tp$iuse_scen_fut_m)) scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
+  if (any(!tp$iuse_obs_hist_d)) {
+    obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
+  }
+  if (any(!tp$iuse_obs_hist_m)) {
+    obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
+  }
+  if (any(!tp$iuse_scen_hist_m)) {
+    scen.hist.monthly <- scen.hist.monthly[tp$iuse_scen_hist_m, ]
+  }
+  if (any(!tp$iuse_scen_fut_m)) {
+    scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
+  }
 
-  #Delta time series values
-  delta_ts <- matrix(NA, ncol = 5, nrow = nrow(obs.hist.monthly), dimnames = list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm")))
+  # Delta time series values
+  delta_ts <- matrix(
+    ncol = 5,
+    nrow = nrow(obs.hist.monthly),
+    dimnames = list(NULL, c("Year", "Month", "Tmax_C", "Tmin_C", "PPT_cm"))
+  )
   delta_ts[, 1:2] <- obs.hist.monthly[, 1:2]
   ppt_fun <- rep("*", 12)
   for (iv in 1:3) {
@@ -1113,70 +1664,101 @@ downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly,
       scen.hist.x <- scen.hist.monthly[rep(1:12, times = nrow(scen.hist.monthly) / 12) == m, 2 + iv]
       scen.fut.x <- scen.fut.monthly[rep(1:12, times = nrow(scen.fut.monthly) / 12) == m, 2 + iv]
 
-      #NA values are assumed to represent median conditions
-      if (any(i_na <- is.na(obs.hist.x))) obs.hist.x[i_na] <- stats::median(obs.hist.x, na.rm = TRUE)
-      if (any(i_na <- is.na(scen.hist.x))) scen.hist.x[i_na] <- stats::median(scen.hist.x, na.rm = TRUE)
-      if (any(i_na <- is.na(scen.fut.x))) scen.fut.x[i_na] <- stats::median(scen.fut.x, na.rm = TRUE)
+      # NA values are assumed to represent median conditions
+      if (any(i_na <- is.na(obs.hist.x))) {
+        obs.hist.x[i_na] <- stats::median(obs.hist.x, na.rm = TRUE)
+      }
+      if (any(i_na <- is.na(scen.hist.x))) {
+        scen.hist.x[i_na] <- stats::median(scen.hist.x, na.rm = TRUE)
+      }
+      if (any(i_na <- is.na(scen.fut.x))) {
+        scen.fut.x[i_na] <- stats::median(scen.fut.x, na.rm = TRUE)
+      }
 
-      #eCDFs
+      # eCDFs
       obs.hist.ecdf <- eCDF.Cunnane(obs.hist.x)
       scen.hist.ecdf <- eCDF.Cunnane(scen.hist.x)
       scen.fut.ecdf <- eCDF.Cunnane(scen.fut.x)
 
       # 2. Adjust future scenario with quantile-based deltas from historic comparison for future scenario values with linear extrapolation
-      #  - Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
+      #  - Additive approach (Anandhi et al. 2011): tmp, close-to-zero PPT, small or very large PPT ratios
       #  - Multiplicative approach (Wang et al. 2014): PPT otherwise
       scHistToFut <- scen.hist.ecdf$fun(scen.fut.ecdf$q, extrapol = "linear")
       scHistToFutRatio <- obs.hist.ecdf$fun(scen.fut.ecdf$q, extrapol = "linear") / scHistToFut
 
-      if (any(iv <= 2,
-              scHistToFut < 1 / (10 * opt_DS[["PPTratioCutoff"]]),
-              scHistToFutRatio > opt_DS[["PPTratioCutoff"]],
-              scHistToFutRatio < 1 / opt_DS[["PPTratioCutoff"]])) {
-        scen.fut.xadj <- scen.fut.x + obs.hist.ecdf$fun(scen.fut.ecdf$q, extrapol = "linear") - scHistToFut
+      if (any(
+        iv <= 2,
+        scHistToFut < 1 / (10 * opt_DS[["PPTratioCutoff"]]),
+        scHistToFutRatio > opt_DS[["PPTratioCutoff"]],
+        scHistToFutRatio < 1 / opt_DS[["PPTratioCutoff"]]
+      )) {
+        scen.fut.xadj <-
+          scen.fut.x +
+          obs.hist.ecdf$fun(
+            scen.fut.ecdf$q,
+            extrapol = "linear"
+          ) - scHistToFut
 
-        if (all(iv == 3, sum(temp0 <- (scen.fut.xadj < 0)) > 0))
-          scen.fut.xadj[temp0] <- 0
-
+        if (all(iv == 3, sum(tmp0 <- (scen.fut.xadj < 0)) > 0)) {
+          scen.fut.xadj[tmp0] <- 0
+        }
       } else {
         scen.fut.xadj <- scen.fut.x * scHistToFutRatio
       }
 
       stopifnot(is.finite(scen.fut.xadj))
       if (do_checks) {
-        if (iv <= 2)
+        if (iv <= 2) {
           rSW2utils::test_sigmaNormal(data = scen.fut.xadj, opt_DS[["sigmaN"]])
-        if (iv == 3)
+        }
+        if (iv == 3) {
           rSW2utils::test_sigmaGamma(data = scen.fut.xadj, opt_DS[["sigmaN"]])
+        }
       }
 
       # 3. Calculate eCDF of future adjusted scenario
       scen.fut2.ecdf <- eCDF.Cunnane(scen.fut.xadj)
 
       # 5. Quantile map observed historic to adjusted future scenario
-      #  - Additive approach (Anandhi et al. 2011): Temp, close-to-zero PPT, small or very large PPT ratios
+      #  - Additive approach (Anandhi et al. 2011): tmp, close-to-zero PPT, small or very large PPT ratios
       #  - Multiplicative approach (Wang et al. 2014): PPT otherwise
       scHistToHist <- obs.hist.ecdf$fun(obs.hist.ecdf$q, extrapol = "linear")
-      scHistToFutRatio <- scen.fut2.ecdf$fun(obs.hist.ecdf$q, extrapol = "linear") / scHistToHist
+      scHistToFutRatio <- scen.fut2.ecdf$fun(
+        obs.hist.ecdf$q,
+        extrapol = "linear"
+      ) / scHistToHist
 
-      if (any(iv <= 2,
-              scHistToHist < 1 / (10 * opt_DS[["PPTratioCutoff"]]),
-              scHistToFutRatio > opt_DS[["PPTratioCutoff"]],
-              scHistToFutRatio < 1 / opt_DS[["PPTratioCutoff"]])) {
-        mapFut <- scen.fut2.ecdf$fun(obs.hist.ecdf$q, extrapol = "linear") - scHistToHist
-        if (iv == 3)
+      if (any(
+        iv <= 2,
+        scHistToHist < 1 / (10 * opt_DS[["PPTratioCutoff"]]),
+        scHistToFutRatio > opt_DS[["PPTratioCutoff"]],
+        scHistToFutRatio < 1 / opt_DS[["PPTratioCutoff"]]
+      )) {
+        mapFut <- scen.fut2.ecdf$fun(
+          obs.hist.ecdf$q,
+          extrapol = "linear"
+        ) - scHistToHist
+
+        if (iv == 3) {
           ppt_fun[m] <- "+"
-
+        }
       } else {
         mapFut <- scHistToFutRatio
-        stopifnot(all(!is.infinite(mapFut)), all(!is.nan(mapFut))) #if (sum(temp <- is.nan(mapFut)) > 0) mapFut[temp] <- 0
+        stopifnot(all(!is.infinite(mapFut)), all(!is.nan(mapFut))) # if (sum(tmp <- is.nan(mapFut)) > 0) mapFut[tmp] <- 0
       }
       delta_ts[delta_ts[, "Month"] == m, 2 + iv] <- mapFut[rank(obs.hist.x, ties.method = "random")]
     }
   }
 
   # 6. Apply deltas to historic daily weather
-  applyDeltas(obs.hist.daily, obs.hist.monthly, delta_ts, ppt_fun, opt_DS[["sigmaN"]], do_checks = do_checks)
+  applyDeltas(
+    obs.hist.daily,
+    obs.hist.monthly,
+    delta_ts,
+    ppt_fun,
+    opt_DS[["sigmaN"]],
+    do_checks = do_checks
+  )
 }
 
 #------------------------
@@ -1256,12 +1838,21 @@ downscale.deltahybrid <- function(obs.hist.daily, obs.hist.monthly,
 #'  \code{monthly_extremes}.
 #'
 #' @name doQmapQUANT
-doQmapQUANT.default_drs <- function(x, fobj, type = NULL, lin_extrapol = NULL,
-  spline_method = NULL, monthly_extremes = NULL, fix_spline = NULL, ...) {
-
+doQmapQUANT.default_drs <- function(
+  x,
+  fobj,
+  type = NULL,
+  lin_extrapol = NULL,
+  spline_method = NULL,
+  monthly_extremes = NULL,
+  fix_spline = NULL,
+  ...
+) {
   type <- match.arg(type, c(NA, "linear", "tricub"))
-  lin_extrapol <- match.arg(lin_extrapol,
-    c(NA, "Boe", "Thermessl2012CC.QMv1b", "none"))
+  lin_extrapol <- match.arg(
+    lin_extrapol,
+    c(NA, "Boe", "Thermessl2012CC.QMv1b", "none")
+  )
   spline_method <- match.arg(spline_method, c(NA, "monoH.FC", "fmm", "natural"))
   fix_spline <- match.arg(fix_spline, c(NA, "fail", "none", "attempt"))
 
@@ -1276,14 +1867,21 @@ doQmapQUANT.default_drs <- function(x, fobj, type = NULL, lin_extrapol = NULL,
     # All values of 'fobj[["par"]]$modq[, 1]' are identical
     # ==> stats::approx() and stats::splinefun() [unless method = "fmm"] will fail
     # ==> use result from stats::splinefun(method = "fmm"), i.e., mean(y)
-    message("'doQmapQUANT.default_drs': interpolation is not possible because all ",
-      "'modq' values are identical; will return mean of 'fitq' for each 'x'.")
+    message(
+      "'doQmapQUANT.default_drs': interpolation is not possible because all ",
+      "'modq' values are identical; will return mean of 'fitq' for each 'x'."
+    )
     out[wet] <- mean(fobj[["par"]]$fitq[, 1])
-
   } else {
     if (identical(type, "linear")) {
-      out[wet] <- stats::approx(x = fobj[["par"]]$modq[, 1], y = fobj[["par"]]$fitq[, 1],
-        xout = x[wet], method = "linear", rule = 2, ties = mean)$y
+      out[wet] <- stats::approx(
+        x = fobj[["par"]]$modq[, 1],
+        y = fobj[["par"]]$fitq[, 1],
+        xout = x[wet],
+        method = "linear",
+        rule = 2,
+        ties = mean
+      )$y
 
       if (!identical(lin_extrapol, "none")) {
         qid <- switch(lin_extrapol, Boe = 0, Thermessl2012CC.QMv1b = 3)
@@ -1300,33 +1898,42 @@ doQmapQUANT.default_drs <- function(x, fobj, type = NULL, lin_extrapol = NULL,
         }
       }
     } else if (identical(type, "tricub")) {
-      sfun <- stats::splinefun(x = fobj[["par"]]$modq[, 1], y = fobj[["par"]]$fitq[, 1],
-        method = spline_method, ties = mean)
-      temp <- sfun(x[wet])
+      sfun <- stats::splinefun(
+        x = fobj[["par"]]$modq[, 1],
+        y = fobj[["par"]]$fitq[, 1],
+        method = spline_method,
+        ties = mean
+      )
+      tmp <- sfun(x[wet])
 
       if (!is.null(monthly_extremes) && !identical(fix_spline, "none")) {
         # version previous to 20150705 didn't catch several bad cases
         icount <- 1
-        while ((itemp <- sum((temp < monthly_extremes[1]) | (temp > monthly_extremes[2]))) > 0 &&
-          icount < 10) {
-
+        while (
+          (itmp <- sum((tmp < monthly_extremes[1]) | (tmp > monthly_extremes[2]))) > 0 &&
+            icount < 10
+        ) {
           if (fix_spline == "fail") {
             stop("Out-of-range splinefun values and 'fix_spline' set to fail")
           }
-          sfun <- stats::splinefun(x = jitter(fobj[["par"]]$modq[, 1]),
-            y = jitter(fobj[["par"]]$fitq[, 1]), method = spline_method,
-            ties = mean)
-          temp <- sfun(x[wet])
+          sfun <- stats::splinefun(
+            x = jitter(fobj[["par"]]$modq[, 1]),
+            y = jitter(fobj[["par"]]$fitq[, 1]),
+            method = spline_method,
+            ties = mean
+          )
+          tmp <- sfun(x[wet])
           icount <- icount + 1
         }
-        if (itemp > 0) {
-          stop("'doQmapQUANT.default_drs': jitter failed to fix out-of-range splinefun ",
-            "values")
+        if (itmp > 0) {
+          stop(
+            "'doQmapQUANT.default_drs': ",
+            "jitter failed to fix out-of-range splinefun values"
+          )
         }
       }
 
-      out[wet] <- temp
-
+      out[wet] <- tmp
     } else {
       stop(paste("'doQmapQUANT.default_drs': unkown type", shQuote(type)))
     }
@@ -1361,29 +1968,67 @@ doQmapQUANT.default_drs <- function(x, fobj, type = NULL, lin_extrapol = NULL,
 #'  America. Journal of the American Water Resources Association 50:1461-1476.
 #'
 #' @export
-doQmapQUANT_drs <- function(x, fobj, type_map = NULL, monthly_obs_base = NULL,
-                    monthly_extremes = NULL, fix_spline = NULL, ...) {
-
+doQmapQUANT_drs <- function(
+  x,
+  fobj,
+  type_map = NULL,
+  monthly_obs_base = NULL,
+  monthly_extremes = NULL,
+  fix_spline = NULL,
+  ...
+) {
   fix_spline <- match.arg(fix_spline, c(NA, "fail", "none", "attempt"))
-  type_map <- match.arg(type_map, c("NA_NA", "linear_Boe", "linear_Thermessl2012CC.QMv1b",
-    "linear_none", "tricub_fmm", "tricub_monoH.FC", "tricub_natural", "normal_anomalies"))
-  temp <- strsplit(type_map, "_", fixed = TRUE)[[1]]
-  type <- temp[1]
-  type_mod <- temp[2]
+  type_map <- match.arg(
+    type_map,
+    c(
+      "NA_NA",
+      "linear_Boe",
+      "linear_Thermessl2012CC.QMv1b",
+      "linear_none",
+      "tricub_fmm",
+      "tricub_monoH.FC",
+      "tricub_natural",
+      "normal_anomalies"
+    )
+  )
+  tmp <- strsplit(type_map, "_", fixed = TRUE)[[1]]
+  type <- tmp[1]
+  type_mod <- tmp[2]
 
   if (identical(type, "linear")) {
-    out <- doQmapQUANT.default_drs(x, fobj, type = type, lin_extrapol = type_mod, ...)
-
+    out <- doQmapQUANT.default_drs(
+      x,
+      fobj,
+      type = type,
+      lin_extrapol = type_mod,
+      ...
+    )
   } else if (identical(type, "tricub")) {
-    out <- doQmapQUANT.default_drs(x, fobj, type = type, spline_method = type_mod,
-      monthly_extremes = monthly_extremes, fix_spline = fix_spline, ...)
-
+    out <- doQmapQUANT.default_drs(
+      x,
+      fobj,
+      type = type,
+      spline_method = type_mod,
+      monthly_extremes = monthly_extremes,
+      fix_spline = fix_spline,
+      ...
+    )
   } else if (identical(type, "normal")) {
-    out <- doQmapQUANT.default_drs(x, fobj, type = "linear", lin_extrapol = "Boe", ...)
+    out <- doQmapQUANT.default_drs(
+      x,
+      fobj,
+      type = "linear",
+      lin_extrapol = "Boe",
+      ...
+    )
 
     # -Inf, smallest observed value, largest observed value, Inf
-    target_range <- c(-Inf, fobj[["par"]]$modq[1, 1] -  SFSW2_glovars[["tol"]],
-      max(fobj[["par"]]$modq[, 1]) + SFSW2_glovars[["tol"]], Inf)
+    target_range <- c(
+      -Inf,
+      fobj[["par"]]$modq[1, 1] - SFSW2_glovars[["tol"]],
+      max(fobj[["par"]]$modq[, 1]) + SFSW2_glovars[["tol"]],
+      Inf
+    )
     out_of_range <- !(findInterval(x, target_range) == 2)
     in_range <- !out_of_range
 
@@ -1394,13 +2039,16 @@ doQmapQUANT_drs <- function(x, fobj, type_map = NULL, monthly_obs_base = NULL,
         out[out_of_range] <- mean(out[in_range]) + stats::sd(out[in_range]) * tscore_x
       }
     } else {
-      message("'doQmapQUANT_drs': type 'normal_anomalies' requires sufficient values ",
+      message(
+        "'doQmapQUANT_drs': type 'normal_anomalies' requires sufficient values ",
         "in 'monthly_obs_base' and at least two mapped values that are not out of ",
-        "the target range")
+        "the target range"
+      )
     }
-
   } else {
-    stop(paste("'doQmapQUANT_drs': unkown type", shQuote(type), shQuote(type_mod)))
+    stop(paste(
+      "'doQmapQUANT_drs': unkown type", shQuote(type), shQuote(type_mod)
+    ))
   }
 
   out
@@ -1432,7 +2080,7 @@ doQmapQUANT_drs <- function(x, fobj, type_map = NULL, monthly_obs_base = NULL,
 #'  climate change impact assessment. Water Resources Research 47:W03501.
 #' @references Dickerson-Lange, S. E., and R. Mitchell. 2014. Modeling the effects of
 #'  climate change projections on streamflow in the Nooksack River basin, Northwest
-#'  Washington. Hydrological Processes: \url{http://dx.doi.org/10.1002/hyp.10012}.
+#'  Washington. Hydrological Processes: \doi{10.1002/hyp.10012}.
 #' @references Wang, L., and W. Chen. 2014. Equiratio cumulative distribution function
 #'  matching as an improvement to the equidistant approach in bias correction of
 #'  precipitation. Atmospheric Science Letters 15:1-6.
@@ -1443,7 +2091,10 @@ doQmapQUANT_drs <- function(x, fobj, type_map = NULL, monthly_obs_base = NULL,
 #'
 #' @export
 downscale.deltahybrid3mod <- function(
-  obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
+  obs.hist.daily,
+  obs.hist.monthly,
+  scen.hist.monthly,
+  scen.fut.monthly,
   itime,
   years = NULL,
   sim_time = NULL,
@@ -1456,17 +2107,20 @@ downscale.deltahybrid3mod <- function(
   ),
   dailyPPTceiling,
   monthly_extremes,
+  dbW_digits = 4L,
   do_checks = TRUE,
   ...
 ) {
-
   stopifnot(requireNamespace("qmap"))
   qstep <- 0.01
   nboot <- 1
 
   # Time periods
   tp <- downscale.periods(
-    obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
+    obs.hist.daily,
+    obs.hist.monthly,
+    scen.hist.monthly,
+    scen.fut.monthly,
     years,
     sim_time[["DScur_startyr"]],
     sim_time[["DScur_endyr"]],
@@ -1492,7 +2146,6 @@ downscale.deltahybrid3mod <- function(
 
   # Data objects
   sbc.hist.monthly <- matrix(
-    NA,
     nrow = nrow(scen.hist.monthly),
     ncol = 5,
     dimnames = list(NULL, colnames(obs.hist.monthly))
@@ -1500,7 +2153,6 @@ downscale.deltahybrid3mod <- function(
   sbc.hist.monthly[, 1:2] <- as.matrix(scen.hist.monthly[, 1:2])
 
   sbc.fut.monthly <- matrix(
-    NA,
     nrow = nrow(scen.fut.monthly),
     ncol = 5,
     dimnames = list(NULL, colnames(obs.hist.monthly))
@@ -1509,17 +2161,19 @@ downscale.deltahybrid3mod <- function(
 
   #  future simulation years = delta + simstartyr:endyr
   hd.fut.monthly <- delta_ts <- matrix(
-    NA,
     nrow = nrow(obs.hist.monthly),
     ncol = 5,
     dimnames = list(NULL, colnames(obs.hist.monthly))
   )
   hd.fut.monthly[, 1:2] <- delta_ts[, 1:2] <- as.matrix(obs.hist.monthly[, 1:2])
-  hd.fut.monthly[, 1] <- hd.fut.monthly[, 1] + sim_time[["future_yrs"]][itime, "delta"]
+  hd.fut.monthly[, 1] <-
+    hd.fut.monthly[, 1] +
+    sim_time[["future_yrs"]][itime, "delta"]
 
 
   #------STEPS 1-4 based on the appendix of Tohver et al. 2014
-  for (iv in 1:3) {  # for each variable separately: Tmax, Tmin, PPT
+  for (iv in 1:3) {
+    # for each variable separately: Tmax, Tmin, PPT
     # NAs in scenario data: impute with median conditions
     # TODO(drs): implement a more sophisticated imputation scheme; this one biases variation downwards
     if (anyNA(scen.hist.monthly[, 2 + iv])) {
@@ -1577,7 +2231,7 @@ downscale.deltahybrid3mod <- function(
 
     for (im in 1:12) { # for each month separately
       #---STEP 3: Remapping the Historical Record to Interpolated GCM data
-      id_sim_months <- obs.hist.monthly[, "Month"] == im  #identical(obs.hist.monthly[, 2], hd.fut.monthly[, 2])
+      id_sim_months <- obs.hist.monthly[, "Month"] == im # identical(obs.hist.monthly[, 2], hd.fut.monthly[, 2])
 
       qm_fitm <- qmap::fitQmapQUANT.default(
         obs = sbc.fut.monthly[sbc.fut.monthly[, 2] == im, 2 + iv],
@@ -1598,21 +2252,24 @@ downscale.deltahybrid3mod <- function(
   }
 
   #---STEP 4: Daily Time Step Disaggregation of Monthly Data
-  delta_ts[, c("Tmax_C", "Tmin_C")] <- hd.fut.monthly[, c("Tmax_C", "Tmin_C")] -
+  delta_ts[, c("Tmax_C", "Tmin_C")] <-
+    hd.fut.monthly[, c("Tmax_C", "Tmin_C")] -
     obs.hist.monthly[, c("Tmax_C", "Tmin_C")] # equation 8
 
   ppt_fun <- rep("*", 12)
   delta_ppts <- hd.fut.monthly[, "PPT_cm"] / obs.hist.monthly[, "PPT_cm"] # equation 7
 
-  temp_add <- is.infinite(delta_ppts) | is.nan(delta_ppts) |
-    delta_ppts > opt_DS[["PPTratioCutoff"]] |
-    delta_ppts < 1 / opt_DS[["PPTratioCutoff"]]
+  tmp_add <-
+    is.infinite(delta_ppts) | is.nan(delta_ppts) |
+      delta_ppts > opt_DS[["PPTratioCutoff"]] |
+      delta_ppts < 1 / opt_DS[["PPTratioCutoff"]]
 
-  if (any(temp_add)) {
-    ids_m <- unique(delta_ts[temp_add, "Month"])
+  if (any(tmp_add)) {
+    ids_m <- unique(delta_ts[tmp_add, "Month"])
     ppt_fun[ids_m] <- "+"
-    temp_m <- delta_ts[, "Month"] %in% ids_m # all calendar month for which at least one instance qualifies for additive PPT
-    delta_ppts[temp_m] <- hd.fut.monthly[temp_m, "PPT_cm"] - obs.hist.monthly[temp_m, "PPT_cm"]
+    tmp_m <- delta_ts[, "Month"] %in% ids_m # all calendar month for which at least one instance qualifies for additive PPT
+    delta_ppts[tmp_m] <-
+      hd.fut.monthly[tmp_m, "PPT_cm"] - obs.hist.monthly[tmp_m, "PPT_cm"]
   }
   delta_ts[, "PPT_cm"] <- delta_ppts
 
@@ -1627,178 +2284,277 @@ downscale.deltahybrid3mod <- function(
     ppt_type = opt_DS[["ppt_type"]],
     dailyPPTceiling,
     sigmaN = opt_DS[["sigmaN"]],
+    dbW_digits = dbW_digits,
     do_checks = do_checks
   )
 }
 
-
-downscale.wgen_package <- function(
-              obs.hist.daily, obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
-              itime, years = NULL, sim_time = NULL,
-              opt_DS = list(
-                extrapol_type = "linear_Thermessl2012CC.QMv1b",
-                ppt_type = "detailed",
-                sigmaN = 6,
-                PPTratioCutoff = 10,
-                fix_spline = "attempt"),
-              dailyPPTceiling, monthly_extremes,
-              do_checks = TRUE, ...) {
-
-  dots <- list(...)
-
-  if (isTRUE(dots[["verbose"]]))
-    print(paste("downscale.wgen_package start(deltaFuture_yr =", sim_time[["future_yrs"]][itime, "delta"], "years",
-      paste(years, collapse = "-"), "DScur_startyear", sim_time[["DScur_startyr"]], "DScur_endyear",
-      sim_time[["DScur_endyr"]], "DSfut_startyear", sim_time[["future_yrs"]][itime, "DSfut_startyr"], "DSfut_endyear", sim_time[["future_yrs"]][itime, "DSfut_endyr"]))
-
-  stopifnot(requireNamespace("zoo"), requireNamespace("weathergen"),
-    requireNamespace("dplyr"), requireNamespace("lubridate"))
-
-  # Time periods
-  tp <- downscale.periods(obs.hist.daily, obs.hist.monthly, scen.hist.monthly = NULL,
-    scen.fut.monthly, years, sim_time[["DScur_startyr"]], sim_time[["DScur_endyr"]],
-    sim_time[["future_yrs"]][itime, "DSfut_startyr"],
-    sim_time[["future_yrs"]][itime, "DSfut_endyr"])
-
-  if (any(!tp$iuse_obs_hist_d))
-    obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
-  if (any(!tp$iuse_obs_hist_m))
-    obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
-  if (any(!tp$iuse_scen_fut_m))
-    scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
-
-  day_data <- rSOILWAT2::dbW_weatherData_to_dataframe(obs.hist.daily)
-
-  dates <- as.Date(day_data[, 'DOY'] -1, origin = paste(day_data[, 'Year'], "01", "01", sep = "-"))
-
-  day_data <- data.frame(WYEAR = weathergen::wyear(dates),
-                         MONTH = format(dates, "%m"),
-                         DATE  = dates,
-                         PRCP  = day_data[, 'PPT_cm'],
-                         TEMP  = (day_data[, 'Tmin_C'] + day_data[, 'Tmax_C']) / 2,
-                         TMIN  = day_data[, 'Tmin_C'],
-                         TMAX  = day_data[, 'Tmax_C'],
-                         WIND  = NA)
-
-  # get water years, oct 1st to sep 30th... used if start_month should be 10
-  #day_data <- day_data[min(which(as.numeric(format(day_data$DATE, "%d")) == 1 & as.numeric(format(day_data$DATE, "%m")) == 10)):max(which(as.numeric(format(day_data$DATE, "%d")) == 30 & as.numeric(format(day_data$DATE, "%m")) == 9)), ]
-  start_month <- as.numeric(format(min(day_data$DATE), "%m"))
-
-  climwyear <- dplyr::group_by(day_data, WYEAR = weathergen::wyear(DATE, start_month = start_month)) %>%
-    dplyr::summarise(N    = n(),
-              PRCP = sum(PRCP),
-              TMAX = mean(TMAX),
-              TMIN = mean(TMIN),
-              TEMP = mean(TEMP))
-  complete_years <- climwyear$WYEAR[which(climwyear$N >= 365)]
-
-  wyear_list <- list(day_data$WYEAR)
-  wyr_data <- data.frame(WYEAR =  complete_years,
-                         PRCP  =  climwyear$PRCP[which(climwyear$N >= 365)],
-                         TEMP  =  climwyear$TEMP[which(climwyear$N >= 365)],
-                         TMIN  =  climwyear$TMIN[which(climwyear$N >= 365)],
-                         TMAX  =  climwyear$TMAX[which(climwyear$N >= 365)],
-                         WIND  =  NA
-  )
-
-  obs_dat <- list(day = day_data, wyr = wyr_data)
-  zoo_day <- zoo::zoo(x = obs_dat[['day']][, c('PRCP', 'TEMP', 'TMIN', 'TMAX', 'WIND')],
-                 order.by = obs_dat[['day']][['DATE']])
-  start_yr <- as.integer(format(dates[1], "%Y")) ##
-  end_yr <- as.integer(format(max(dates), "%Y"))
-
-  dry_wet_threshold <- 0.3
-  wet_extreme_threshold <- 0.8
-
-  # can be one value or a vector of 12
-  dry_spell_changes <- if (!is.null(dots[["add_params"]][["wgen_dry_spell_changes"]])) {
-      dots[["add_params"]][["wgen_dry_spell_changes"]]
-    } else 1
-
-  wet_spell_changes <- if (!is.null(dots[["add_params"]][["wgen_wet_spell_changes"]])) {
-      dots[["add_params"]][["wgen_wet_spell_changes"]]
-    } else 1
-
-  prcp_cv_changes <- if (!is.null(dots[["add_params"]][["wgen_prcp_cv_changes"]])) {
-      dots[["add_params"]][["wgen_prcp_cv_changes"]]
-    } else 1
-
-  changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly, opt_DS)[[1]]
-
-  # replace with tapply()?
-  prcp_mean_changes <- sapply(SFSW2_glovars[["st_mo"]], function(x)
-    mean(changes[ changes[, "Month"] == x, "PPT_cm"]))
-
-  temp_mean_changes <- sapply(SFSW2_glovars[["st_mo"]], function(x)
-    mean(changes[ changes[, "Month"] == x, "Tmax_C"] + changes[ changes[, "Month"] == x, "Tmin_C"])) / 2
-
-  # set.seed(1) # for testing
-  if (isTRUE(dots[["verbose"]]))
-    print(paste("calling wgen_daily(zoo_day, n_year = ", end_yr - start_yr + 1,
-      ", start_water_year = ", start_yr, ", start_month =", start_month, "dry_wet_threshold = ", dry_wet_threshold,
-      "wet_extreme_threshold = ", wet_extreme_threshold, "dry_spell_changes = ", dry_spell_changes, "wet_spell_changes = ",
-      wet_spell_changes, "prcp_mean_changes = ", prcp_mean_changes, "prcp_cv_changes = ", prcp_cv_changes, "temp_mean_changes = ", temp_mean_changes, ")"))
-
-  # consider setting more parameters
-  # weathergens knn_annual may be worth a check, when testing I got surprisingly many leapyears. But maybe just coincidence
-  scen.fut.daily <- weathergen::wgen_daily(zoo_day,
-    n_year =  end_yr - start_yr + 1, #DScur_endyear - DScur_startyear,
-    start_water_year = start_yr, #DScur_startyear,
-    start_month = start_month,
-    dry_wet_threshold = dry_wet_threshold,
-    wet_extreme_quantile_threshold = wet_extreme_threshold,
-    include_leap_days = TRUE,
-    dry_spell_changes = dry_spell_changes, wet_spell_changes = wet_spell_changes,
-    prcp_mean_changes = prcp_mean_changes, prcp_cv_changes = 1, temp_mean_changes = temp_mean_changes
-  )
-
-  scen.fut.daily <- data.frame(Year   = format(scen.fut.daily$out$DATE, "%Y"),
-                               DOY    = as.POSIXlt(scen.fut.daily$out$DATE, format = "%Y-%m-%d")$yday+1,
-                               Tmax_C = scen.fut.daily$out$TMAX,
-                               Tmin_C = scen.fut.daily$out$TMIN,
-                               PPT_cm = scen.fut.daily$out$PRCP)
-
-  # year start back to 1/1, probably only needed when setting start_month != 1
-  # scen.fut.daily<- scen.fut.daily[min(which(scen.fut.daily$DOY == 1)):max(which(scen.fut.daily$DOY >= 365)), ]
-  scen.fut.daily <- rSOILWAT2::dbW_dataframe_to_weatherData(scen.fut.daily, round = FALSE)
-  scen.fut.daily
-}
+# Package 'weathergen' is no longer maintained
+# downscale.wgen_package <- function(
+#   obs.hist.daily,
+#   obs.hist.monthly, scen.hist.monthly, scen.fut.monthly,
+#   itime, years = NULL, sim_time = NULL,
+#   opt_DS = list(
+#    extrapol_type = "linear_Thermessl2012CC.QMv1b",
+#    ppt_type = "detailed",
+#    sigmaN = 6,
+#    PPTratioCutoff = 10,
+#    fix_spline = "attempt"
+#   ),
+#   dailyPPTceiling, monthly_extremes,
+#   do_checks = TRUE,
+#   ...
+# ) {
+#   dots <- list(...)
+#
+#   if (isTRUE(dots[["verbose"]])) {
+#     print(paste(
+#       "downscale.wgen_package start(deltaFuture_yr =", sim_time[["future_yrs"]][itime, "delta"], "years",
+#       paste(years, collapse = "-"), "DScur_startyear", sim_time[["DScur_startyr"]], "DScur_endyear",
+#       sim_time[["DScur_endyr"]], "DSfut_startyear", sim_time[["future_yrs"]][itime, "DSfut_startyr"], "DSfut_endyear", sim_time[["future_yrs"]][itime, "DSfut_endyr"]
+#     ))
+#   }
+#
+#   stopifnot(
+#     requireNamespace("zoo"),
+#     requireNamespace("weathergen"),
+#     requireNamespace("dplyr"),
+#     requireNamespace("lubridate")
+#   )
+#
+#   # Time periods
+#   tp <- downscale.periods(
+#     obs.hist.daily,
+#     obs.hist.monthly,
+#     scen.hist.monthly = NULL,
+#     scen.fut.monthly,
+#     years,
+#     sim_time[["DScur_startyr"]],
+#     sim_time[["DScur_endyr"]],
+#     sim_time[["future_yrs"]][itime, "DSfut_startyr"],
+#     sim_time[["future_yrs"]][itime, "DSfut_endyr"]
+#   )
+#
+#   if (any(!tp$iuse_obs_hist_d)) {
+#     obs.hist.daily <- obs.hist.daily[tp$iuse_obs_hist_d]
+#   }
+#   if (any(!tp$iuse_obs_hist_m)) {
+#     obs.hist.monthly <- obs.hist.monthly[tp$iuse_obs_hist_m, ]
+#   }
+#   if (any(!tp$iuse_scen_fut_m)) {
+#     scen.fut.monthly <- scen.fut.monthly[tp$iuse_scen_fut_m, ]
+#   }
+#
+#   day_data <- rSOILWAT2::dbW_weatherData_to_dataframe(obs.hist.daily)
+#
+#   dates <- as.Date(
+#     day_data[, "DOY"] - 1,
+#     origin = paste(day_data[, "Year"], "01", "01", sep = "-")
+#   )
+#
+#   day_data <- data.frame(
+#     WYEAR = weathergen::wyear(dates),
+#     MONTH = format(dates, "%m"),
+#     DATE = dates,
+#     PRCP = day_data[, "PPT_cm"],
+#     tmp = (day_data[, "Tmin_C"] + day_data[, "Tmax_C"]) / 2,
+#     TMIN = day_data[, "Tmin_C"],
+#     TMAX = day_data[, "Tmax_C"],
+#     WIND = NA
+#   )
+#
+#   # get water years, oct 1st to sep 30th... used if start_month should be 10
+#   # day_data <- day_data[min(which(as.numeric(format(day_data$DATE, "%d")) == 1 & as.numeric(format(day_data$DATE, "%m")) == 10)):max(which(as.numeric(format(day_data$DATE, "%d")) == 30 & as.numeric(format(day_data$DATE, "%m")) == 9)), ]
+#   start_month <- as.numeric(format(min(day_data$DATE), "%m"))
+#
+#   # silence warning: `Undefined global functions or variables`
+#   DATE <- N <- PRCP <- TMAX <- TMIN <- tmp <- NULL
+#
+#   climwyear <- dplyr::summarise(
+#     dplyr::group_by(
+#       day_data,
+#       WYEAR = weathergen::wyear(DATE, start_month = start_month)
+#     ),
+#     N = dplyr::n(),
+#     PRCP = sum(PRCP),
+#     TMAX = mean(TMAX),
+#     TMIN = mean(TMIN),
+#     tmp = mean(tmp)
+#   )
+#   complete_years <- climwyear$WYEAR[which(climwyear$N >= 365)]
+#
+#   wyear_list <- list(day_data$WYEAR)
+#   wyr_data <- data.frame(
+#     WYEAR = complete_years,
+#     PRCP = climwyear$PRCP[which(climwyear$N >= 365)],
+#     tmp = climwyear$tmp[which(climwyear$N >= 365)],
+#     TMIN = climwyear$TMIN[which(climwyear$N >= 365)],
+#     TMAX = climwyear$TMAX[which(climwyear$N >= 365)],
+#     WIND = NA
+#   )
+#
+#   obs_dat <- list(day = day_data, wyr = wyr_data)
+#   zoo_day <- zoo::zoo(
+#     x = obs_dat[["day"]][, c("PRCP", "tmp", "TMIN", "TMAX", "WIND")],
+#     order.by = obs_dat[["day"]][["DATE"]]
+#   )
+#   start_yr <- as.integer(format(dates[1], "%Y")) ##
+#   end_yr <- as.integer(format(max(dates), "%Y"))
+#
+#   dry_wet_threshold <- 0.3
+#   wet_extreme_threshold <- 0.8
+#
+#   # can be one value or a vector of 12
+#   dry_spell_changes <- if (
+#     !is.null(dots[["add_params"]][["wgen_dry_spell_changes"]])
+#   ) {
+#     dots[["add_params"]][["wgen_dry_spell_changes"]]
+#   } else {
+#     1
+#   }
+#
+#   wet_spell_changes <- if (
+#     !is.null(dots[["add_params"]][["wgen_wet_spell_changes"]])
+#   ) {
+#     dots[["add_params"]][["wgen_wet_spell_changes"]]
+#   } else {
+#     1
+#   }
+#
+#   prcp_cv_changes <- if (
+#     !is.null(dots[["add_params"]][["wgen_prcp_cv_changes"]])
+#   ) {
+#     dots[["add_params"]][["wgen_prcp_cv_changes"]]
+#   } else {
+#     1
+#   }
+#
+#   changes <- calcDeltas(obs.hist.monthly, scen.fut.monthly, opt_DS)[[1]]
+#
+#   # replace with tapply()?
+#   prcp_mean_changes <- sapply(
+#     SFSW2_glovars[["st_mo"]],
+#     function(x) mean(changes[changes[, "Month"] == x, "PPT_cm"])
+#   )
+#
+#   temp_mean_changes <- sapply(
+#     SFSW2_glovars[["st_mo"]],
+#     function(x) {
+#       mean(
+#         changes[changes[, "Month"] == x, "Tmax_C"] + changes[changes[, "Month"] == x, "Tmin_C"]
+#       )
+#     }
+#   ) / 2
+#
+#   # set.seed(1) # for testing
+#   if (isTRUE(dots[["verbose"]])) {
+#     print(paste(
+#       "calling wgen_daily(zoo_day, n_year = ", end_yr - start_yr + 1,
+#       ", start_water_year = ", start_yr, ", start_month =", start_month, "dry_wet_threshold = ", dry_wet_threshold,
+#       "wet_extreme_threshold = ", wet_extreme_threshold, "dry_spell_changes = ", dry_spell_changes, "wet_spell_changes = ",
+#       wet_spell_changes, "prcp_mean_changes = ", prcp_mean_changes, "prcp_cv_changes = ", prcp_cv_changes, "temp_mean_changes = ", temp_mean_changes, ")"
+#     ))
+#   }
+#
+#   # consider setting more parameters
+#   # weathergens knn_annual may be worth a check, when testing I got surprisingly many leapyears. But maybe just coincidence
+#   scen.fut.daily <- weathergen::wgen_daily(
+#     zoo_day,
+#     n_year = end_yr - start_yr + 1, # DScur_endyear - DScur_startyear,
+#     start_water_year = start_yr, # DScur_startyear,
+#     start_month = start_month,
+#     dry_wet_threshold = dry_wet_threshold,
+#     wet_extreme_quantile_threshold = wet_extreme_threshold,
+#     include_leap_days = TRUE,
+#     dry_spell_changes = dry_spell_changes,
+#     wet_spell_changes = wet_spell_changes,
+#     prcp_mean_changes = prcp_mean_changes,
+#     prcp_cv_changes = 1,
+#     temp_mean_changes = temp_mean_changes
+#   )
+#
+#   scen.fut.daily <- data.frame(
+#     Year = format(scen.fut.daily$out$DATE, "%Y"),
+#     DOY = as.POSIXlt(scen.fut.daily$out$DATE, format = "%Y-%m-%d")$yday + 1,
+#     Tmax_C = scen.fut.daily$out$TMAX,
+#     Tmin_C = scen.fut.daily$out$TMIN,
+#     PPT_cm = scen.fut.daily$out$PRCP
+#   )
+#
+#   # year start back to 1/1, probably only needed when setting start_month != 1
+#   # scen.fut.daily<- scen.fut.daily[min(which(scen.fut.daily$DOY == 1)):max(which(scen.fut.daily$DOY >= 365)), ]
+#   scen.fut.daily <- rSOILWAT2::dbW_dataframe_to_weatherData(
+#     scen.fut.daily,
+#     round = FALSE
+#   )
+#   scen.fut.daily
+# }
 
 
 
 #------Monthly NEX extractions------
-get_request_NEX <- function(service, request, i_tag, variable, scen, gcm, rip, lon, lat,
-  startyear, endyear, dir_out_temp) {
-
+get_request_NEX <- function(
+  service,
+  request,
+  i_tag,
+  variable,
+  scen,
+  gcm,
+  rip,
+  lon,
+  lat,
+  startyear,
+  endyear,
+  dir_out_tmp
+) {
   if (requireNamespace("RCurl")) {
-    success <- try(RCurl::getURL(request, .opts = list(timeout = 5 * 60,
-      connecttimeout = 60)))
+    success <- try(RCurl::getURL(
+      request,
+      .opts = list(
+        timeout = 5 * 60,
+        connecttimeout = 60
+      )
+    ))
 
     if (!inherits(success, "try-error")) {
       if (isTRUE(grepl("Not Found", success, ignore.case = TRUE))) {
         class(success) <- "try-error"
-
       } else {
         if (service == "ncss") {
-          ftemp <- textConnection(success)
-
+          ftmp <- textConnection(success)
         } else if (service == "opendap") {
-          temp <- strsplit(success, split = "\n\n", fixed = TRUE)
-          ftemp <- textConnection(temp[[1]][3])
-          ttemp <- as.POSIXlt("1950-01-01", tz = "UTC") +
-            86400 * as.numeric(scan(text = sub("\n", ", ", temp[[1]][4], fixed = TRUE),
-            what = "character", sep = ",", quiet = TRUE)[-1])
+          tmp <- strsplit(success, split = "\n\n", fixed = TRUE)
+          ftmp <- textConnection(tmp[[1]][3])
+          ttmp <-
+            as.POSIXlt("1950-01-01", tz = "UTC") +
+            86400 * as.numeric(scan(
+              text = sub("\n", ", ", tmp[[1]][4], fixed = TRUE),
+              what = "character",
+              sep = ",",
+              quiet = TRUE
+            )[-1])
         }
         success <- 0
       }
     }
-
   } else {
-    if (service == "opendap")
-      stop("Curl must be present to access NEX-DCP30 data via thredds/dodsC (opendap)")
-    ftemp <- file.path(dir_out_temp, paste0("NEX_", gcm, "_", scen, "_", rip, "_",
-      variable, "_", round(lat, 5), "&", round(lon, 5), ".csv"))
-    success <- try(utils::download.file(url = request, destfile = ftemp, quiet = TRUE))
+    if (service == "opendap") {
+      stop(
+        "Curl must be present to access NEX-DCP30 data via thredds/dodsC (opendap)"
+      )
+    }
+    ftmp <- file.path(
+      dir_out_tmp,
+      paste0(
+        "NEX_", gcm, "_", scen, "_", rip, "_",
+        variable, "_", round(lat, 5), "&", round(lon, 5), ".csv"
+      )
+    )
+    success <- try(utils::download.file(
+      url = request,
+      destfile = ftmp,
+      quiet = TRUE
+    ))
   }
 
   yearsN <- endyear - startyear + 1
@@ -1806,50 +2562,100 @@ get_request_NEX <- function(service, request, i_tag, variable, scen, gcm, rip, l
 
   if (!inherits(success, "try-error") && success == 0) {
     if (service == "ncss") {
-      temp <- utils::read.csv(ftemp, colClasses = c("POSIXct", "NULL", "NULL", "numeric")) #colnames = Time, Lat, Long, Variable
-      vtemp <- temp[, 2]
-      ttemp <- as.POSIXlt(temp[, 1], tz = "UTC")
-
+      tmp <- utils::read.csv(
+        ftmp,
+        colClasses = c("POSIXct", "NULL", "NULL", "numeric")
+      ) # colnames = Time, Lat, Long, Variable
+      vtmp <- tmp[, 2]
+      ttmp <- as.POSIXlt(tmp[, 1], tz = "UTC")
     } else if (service == "opendap") {
-      vtemp <- utils::read.csv(ftemp, colClasses = c("NULL", "numeric"), header = FALSE)[-1, ] #columns = Index, Variable
+      vtmp <- utils::read.csv(
+        ftmp,
+        colClasses = c("NULL", "numeric"),
+        header = FALSE
+      )[-1, ] # columns = Index, Variable
     }
 
-    if (file.exists(ftemp)) {
-      unlink(ftemp)
+    if (file.exists(ftmp)) {
+      unlink(ftmp)
     }
 
-    if (length(vtemp) < 12*yearsN) { #some GCMs only have values up to Nov 2099
-      tempYearMonth <- paste(ttemp$year + 1900, ttemp$mo + 1, sep = "_")
-      targetYearMonth <- paste(rep(startyear:endyear, each = 12), rep(1:12, times = yearsN), sep = "_")
-      iavail <- match(targetYearMonth, tempYearMonth, nomatch = 0)
-      dat[iavail > 0] <- vtemp[iavail]
-
+    if (length(vtmp) < 12 * yearsN) {
+      # some GCMs only have values up to Nov 2099
+      tmpYearMonth <- paste(ttmp$year + 1900, ttmp$mo + 1, sep = "_")
+      targetYearMonth <- paste(
+        rep(startyear:endyear, each = 12),
+        rep(1:12, times = yearsN),
+        sep = "_"
+      )
+      iavail <- match(targetYearMonth, tmpYearMonth, nomatch = 0)
+      dat[iavail > 0] <- vtmp[iavail]
     } else {
-      dat <- vtemp
+      dat <- vtmp
     }
   } else {
-    stop(paste(i_tag, " extraction from NEX at", Sys.time(), "for", gcm, scen, rip, "at",
-      lon, lat, ": not successful"))
+    stop(paste(
+      i_tag, " extraction from NEX at", Sys.time(), "for", gcm, scen, rip, "at",
+      lon, lat, ": not successful"
+    ))
   }
 
   dat
 }
 
 
-extract_variable_NEX <- function(i_tag, variable, scen, gcm, rip, lon, lat, bbox,
-  tbox, startyear, endyear, dir_out_temp) {
-
+extract_variable_NEX <- function(
+  i_tag,
+  variable,
+  scen,
+  gcm,
+  rip,
+  lon,
+  lat,
+  bbox,
+  tbox,
+  startyear,
+  endyear,
+  dir_out_tmp
+) {
   gcmrun <- "r1i1p1"
-  #1st attempt: TRHEDDS ncss/netCDF subsetting service
-  request <- paste0(paste("http://dataserver.nccs.nasa.gov",
-    "thredds/ncss/grid/bypass/NEX-DCP30/bcsd", scen, gcmrun, paste0(gcm, "_",
-    variable, ".ncml"), sep = "/"), "?var=", paste0(gcm, "_", variable), "&latitude=",
-    lat, "&longitude=", ifelse(lon > 180, lon - 360, lon), paste0("&time_start=",
-    startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear,
-    "-12-31T23%3A59%3A59Z&timeStride=1"), "&accept=csv")
+  # 1st attempt: TRHEDDS ncss/netCDF subsetting service
+  request <- paste0(
+    paste(
+      "http://dataserver.nccs.nasa.gov",
+      "thredds/ncss/grid/bypass/NEX-DCP30/bcsd", scen, gcmrun,
+      paste0(
+        gcm, "_",
+        variable, ".ncml"
+      ),
+      sep = "/"
+    ),
+    "?var=",
+    paste0(gcm, "_", variable),
+    "&latitude=", lat,
+    "&longitude=", ifelse(lon > 180, lon - 360, lon),
+    paste0(
+      "&time_start=",
+      startyear, "-01-01T00%3A00%3A00Z&time_end=", endyear,
+      "-12-31T23%3A59%3A59Z&timeStride=1"
+    ),
+    "&accept=csv"
+  )
 
-  dat <- get_request_NEX(service = "ncss", request, i_tag, variable, scen, gcm, rip,
-    lon, lat, startyear, endyear, dir_out_temp)
+  dat <- get_request_NEX(
+    service = "ncss",
+    request,
+    i_tag,
+    variable,
+    scen,
+    gcm,
+    rip,
+    lon,
+    lat,
+    startyear,
+    endyear,
+    dir_out_tmp
+  )
 
   if (inherits(dat, "try-error") || any(dat > 1e5 | dat < -1e5, na.rm = TRUE)) {
     # thredds/ncss/ returns for some GCMs/RCPs/locations unrealistic large values,
@@ -1863,22 +2669,47 @@ extract_variable_NEX <- function(i_tag, variable, scen, gcm, rip, lon, lat, bbox
     if (startyear < 2006 && scen == "historical") {
       index.time.start <- (startyear - tbox["start", "first"]) * 12
       index.time.end <- (endyear + 1 - tbox["start", "first"]) * 12 - 1
-
     } else {
       index.time.start <- (startyear - tbox["start", "second"]) * 12
       index.time.end <- (endyear + 1 - tbox["start", "second"]) * 12 - 1
     }
 
-    request <- paste0(paste("http://dataserver.nccs.nasa.gov",
-      "thredds/dodsC/bypass/NEX-DCP30/bcsd", scen, gcmrun, paste0(gcm, "_", variable,
-      ".ncml.ascii"), sep = "/"), "?lat[", lat.index, "], lon[", lon.index, "], ", gcm,
-      "_", variable, "[", index.time.start, ":1:", index.time.end, "][", lat.index, "][",
-      lon.index, "]")
+    request <- paste0(
+      paste(
+        "http://dataserver.nccs.nasa.gov",
+        "thredds/dodsC/bypass/NEX-DCP30/bcsd", scen, gcmrun,
+        paste0(
+          gcm, "_", variable,
+          ".ncml.ascii"
+        ),
+        sep = "/"
+      ),
+      "?lat[", lat.index, "], lon[", lon.index, "], ",
+      gcm,
+      "_",
+      variable, "[", index.time.start, ":1:", index.time.end, "][", lat.index, "][",
+      lon.index, "]"
+    )
 
-    dat <- get_request_NEX(service = "opendap", request, i_tag, variable, scen, gcm, rip,
-      lon, lat, startyear, endyear, dir_out_temp)
+    dat <- get_request_NEX(
+      service = "opendap",
+      request,
+      i_tag,
+      variable,
+      scen,
+      gcm,
+      rip,
+      lon,
+      lat,
+      startyear,
+      endyear,
+      dir_out_tmp
+    )
 
-    stopifnot(!inherits(dat, "try-error"), all(dat < 1e5 & dat > -1e5, na.rm = TRUE))
+    stopifnot(
+      !inherits(dat, "try-error"),
+      all(dat < 1e5 & dat > -1e5, na.rm = TRUE)
+    )
   }
 
   dat
@@ -1891,9 +2722,21 @@ extract_variable_NEX <- function(i_tag, variable, scen, gcm, rip, lon, lat, bbox
 #'   and \var{\dQuote{prcp}}. Each row is one day.
 #' Units are [degree Celsius] for temperature and [cm / day] and [cm / month],
 #' respectively, for precipitation.
-get_GCMdata_NEX <- function(i_tag, time, dpm, gcm, scen, rip, lon, lat,
-  startyear, endyear, climDB_meta, ...) {
-  dots <- list(...) # dir_out_temp
+get_GCMdata_NEX <- function(
+  i_tag,
+  time,
+  dpm,
+  gcm,
+  scen,
+  rip,
+  lon,
+  lat,
+  startyear,
+  endyear,
+  climDB_meta,
+  ...
+) {
+  dots <- list(...) # dir_out_tmp
 
   n_var <- 3
   clim <- vector("list", length = n_var)
@@ -1902,15 +2745,17 @@ get_GCMdata_NEX <- function(i_tag, time, dpm, gcm, scen, rip, lon, lat,
   for (iv in seq_len(n_var)) {
     varname <- climDB_meta[["var_desc"]][iv, "varname"]
 
-    #Extract data
-    clim[[iv]] <- extract_variable_NEX(i_tag, variable = varname,
+    # Extract data
+    clim[[iv]] <- extract_variable_NEX(
+      i_tag,
+      variable = varname,
       scen = scen, gcm = gcm, rip = rip, lon = lon, lat = lat,
       bbox = climDB_meta[["bbox"]], tbox = climDB_meta[["tbox"]],
       startyear = startyear, endyear = endyear,
-      dir_out_temp = dots[["dir_out_temp"]]
+      dir_out_tmp = dots[["dir_out_temp"]]
     )
 
-    #Adjust units
+    # Adjust units
     if (varname == "pr") {
       clim[[iv]] <- rSW2utils::convert_precipitation(
         x = clim[[iv]],
@@ -1918,7 +2763,6 @@ get_GCMdata_NEX <- function(i_tag, time, dpm, gcm, scen, rip, lon, lat,
         unit_from = climDB_meta[["var_desc"]][iv, "unit_real"],
         unit_to = "cm/month"
       )
-
     } else if (grepl("tas", varname, ignore.case = TRUE)) {
       clim[[iv]] <- rSW2utils::convert_temperature(
         x = clim[[iv]],
@@ -1928,13 +2772,13 @@ get_GCMdata_NEX <- function(i_tag, time, dpm, gcm, scen, rip, lon, lat,
     }
   }
 
-  #Monthly weather time-series (var names as in 'var_names_fixed')
+  # Monthly weather time-series (var names as in 'var_names_fixed')
   list(data.frame(
     time,
     tmax = clim[["tmax"]],
     tmin = clim[["tmin"]],
-    prcp = clim[["prcp"]])
-  )
+    prcp = clim[["prcp"]]
+  ))
 }
 #--- end NEX
 
@@ -1958,11 +2802,15 @@ get_SpatialIndices_netCDF <- function(filename, lon, lat) {
   # they are the same for each CMIP x extent
   #  - these are used to get the correct indices in the whereNearest function
   tmp <- names(nc$dim)
-  dim_lat <- grep("(\\lat\\b)|(\\blatitude\\b)", tmp,
+  dim_lat <- grep(
+    "(\\lat\\b)|(\\blatitude\\b)",
+    tmp,
     value = TRUE,
     ignore.case = TRUE
   )
-  dim_lon <- grep("(\\lon\\b)|(\\blongitude\\b)", tmp,
+  dim_lon <- grep(
+    "(\\lon\\b)|(\\blongitude\\b)",
+    tmp,
     value = TRUE,
     ignore.case = TRUE
   )
@@ -1976,15 +2824,17 @@ get_SpatialIndices_netCDF <- function(filename, lon, lat) {
   }
 
   # Calculate the spatial indices
-  #TODO: make sure that CRS agree
+  # TODO: make sure that CRS agree
 
   ncg <- list()
   ncg[["longitude"]] <- lons
   ncg[["latitude"]] <- lats
-  ncg[["ix"]] <- sapply(lon,
+  ncg[["ix"]] <- sapply(
+    lon,
     function(x) whereNearest(val = x, matrix = lons)
   )
-  ncg[["iy"]] <- sapply(lat,
+  ncg[["iy"]] <- sapply(
+    lat,
     function(x) whereNearest(val = x, matrix = lats)
   )
 
@@ -2030,7 +2880,6 @@ get_time_unit <- function(tunit) {
 #'
 #' @export
 read_time_netCDF <- function(filename, tres = c("monthly", "daily")) {
-
   tres <- match.arg(tres)
   stopifnot(requireNamespace("ncdf4"))
 
@@ -2046,12 +2895,15 @@ read_time_netCDF <- function(filename, tres = c("monthly", "daily")) {
     ncdf4::nc_close(nc)
   }
 
-  dim_time <- grep("(\\btime\\b)|(\\bt\\b)", names(nc$dim),
+  dim_time <- grep(
+    "(\\btime\\b)|(\\bt\\b)",
+    names(nc$dim),
     value = TRUE,
     ignore.case = TRUE
   )
   stopifnot(length(dim_time) > 0)
-  utemp <- nc$dim[[dim_time]]$units
+
+  utmp <- nc$dim[[dim_time]]$units
   tvals <- nc$dim[[dim_time]]$vals
   calendar <- tolower(nc$dim[[dim_time]]$calendar)
 
@@ -2060,13 +2912,13 @@ read_time_netCDF <- function(filename, tres = c("monthly", "daily")) {
     tvals <- tvals[c(1, N)]
   }
 
-  utemp <- strsplit(utemp, split = " ", fixed = TRUE)[[1]]
-  tunit <- get_time_unit(utemp[1])
+  utmp <- strsplit(utmp, split = " ", fixed = TRUE)[[1]]
+  tunit <- get_time_unit(utmp[1])
 
-  if ("as" %in% utemp) {
+  if ("as" %in% utmp) {
     # for instance: "day as %Y%m%d.%f" used
     # by 'pr_Amon_EC-EARTH-DMI_1pctCO2_r1i1p1_185001-198912.nc'
-    iformat <- grep("%Y", utemp, value = TRUE)[1]
+    iformat <- grep("%Y", utmp, value = TRUE)[1]
 
     if (is.na(as.Date(as.character(tvals[1]), format = iformat))) {
       iformat <- sub(".%f", "", iformat)
@@ -2074,17 +2926,17 @@ read_time_netCDF <- function(filename, tres = c("monthly", "daily")) {
 
     time <- strptime(tvals, format = iformat, tz = "UTC")
     tbase <- time[[1]]
-
-  } else if ("since" %in% utemp) {
+  } else if ("since" %in% utmp) {
     # for instance: "days since 1765-12-01 00:00:00" used
     # by 'pr_Amon_HadCM3_1pctCO2_r1i1p1_000101-010012.nc'
-    temp <- lapply(utemp, function(x) as.Date(x, format = "%Y-%m-%d"))
-    tbase <- temp[sapply(temp, function(x) !is.na(x))][[1]]
+    tmp <- lapply(utmp, function(x) as.Date(x, format = "%Y-%m-%d"))
+    tbase <- tmp[sapply(tmp, function(x) !is.na(x))][[1]]
     stopifnot(length(tbase) == 1)
 
     #--- http://cfconventions.org/cf-conventions/v1.6.0/cf-conventions.html#calendar
     # days per calendar year
-    cdays <- switch(calendar,
+    cdays <- switch(
+      EXPR = calendar,
       noleap = 365,
       `365_day` = 365,
       `all_leap` = 366,
@@ -2095,34 +2947,38 @@ read_time_netCDF <- function(filename, tres = c("monthly", "daily")) {
       -1
     )
 
-    if (identical(calendar, "proleptic_gregorian") ||
+    if (
+      identical(calendar, "proleptic_gregorian") ||
         identical(calendar, "gregorian") ||
         identical(calendar, "standard") ||
         identical(calendar, "julian") ||
-        is.null(calendar)) {
+        is.null(calendar)
+    ) {
 
       # TODO: this doesn't seem to work perfectly well for Julian calendars,
       # but should be ok-ish for a few hundred years around 'origin = tbase'
-      temp <- if (identical(calendar, "julian")) {
-           365.2425 / 365.25 # gregorian / julian days per year
-        } else 1
-      day_scaler <- 86400 * temp / tunit
+      tmp <- if (identical(calendar, "julian")) {
+        365.2425 / 365.25 # gregorian / julian days per year
+      } else {
+        1
+      }
+      day_scaler <- 86400 * tmp / tunit
 
       time <- as.POSIXlt(tvals * day_scaler, origin = tbase, tz = "UTC")
-
     } else if (cdays > 0) {
       if (identical(tres, "daily")) {
-        #TODO
+        # TODO
         stop(
           "Calendars with fixed duration of years are not yet implemented ",
-          "for daily netCDF files.")
+          "for daily netCDF files."
+        )
       }
 
       # all years are of a constant fixed duration
       tbase_utc <- as.POSIXlt(tbase, tz = "UTC")
-      temp <- tvals / tunit
-      to_add_years <- temp %/% cdays
-      to_add_days <- temp %% cdays # base0
+      tmp <- tvals / tunit
+      to_add_years <- tmp %/% cdays
+      to_add_days <- tmp %% cdays # base0
 
       # Convert to base1
       iday_less_base <- to_add_days == 0
@@ -2143,32 +2999,42 @@ read_time_netCDF <- function(filename, tres = c("monthly", "daily")) {
           format = "%Y-%j",
           tz = "UTC"
         )
-
       } else if (cdays == 360) {
         # all years are 360 days divided into 30-day months
         to_add_months <- floor(to_add_days / 30)
 
         # POSIXlt element 'mon' is base0: 0-11 months after the first of year
-        temp_yr <- tbase_utc$year + 1900 + to_add_years
-        temp_mon <-  tbase_utc$mon + 1 + to_add_months
-        mons_next_yr <- temp_mon - 12
+        tmp_yr <- tbase_utc$year + 1900 + to_add_years
+        tmp_mon <- tbase_utc$mon + 1 + to_add_months
+        mons_next_yr <- tmp_mon - 12
         imon_next_yr <- mons_next_yr > 0
         if (any(imon_next_yr)) {
-          temp_yr[imon_next_yr] <- temp_yr[imon_next_yr] + 1
-          temp_mon[imon_next_yr] <- mons_next_yr[imon_next_yr]
+          tmp_yr[imon_next_yr] <- tmp_yr[imon_next_yr] + 1
+          tmp_mon[imon_next_yr] <- mons_next_yr[imon_next_yr]
         }
 
-        time <- lapply(seq_along(tvals), function(k)
-          c(year = temp_yr[k], month = temp_mon[k])
+        time <- lapply(
+          seq_along(tvals),
+          function(k) c(year = tmp_yr[k], month = tmp_mon[k])
         )
       }
+    } else {
+      stop("calendar of netCDF not recognized")
+    }
+  } else {
+    stop("time unit of netCDF not recognized")
+  }
 
-    } else stop("calendar of netCDF not recognized")
-  } else stop("time unit of netCDF not recognized")
-
-  time12 <- lapply(time, function(x) {
-    if (inherits(x, "POSIXt")) c(year = x$year + 1900, month = x$mon + 1) else x
-  })
+  time12 <- lapply(
+    time,
+    function(x) {
+      if (inherits(x, "POSIXt")) {
+        c(year = x$year + 1900, month = x$mon + 1)
+      } else {
+        x
+      }
+    }
+  )
 
   list(
     calendar = calendar,
@@ -2182,9 +3048,12 @@ read_time_netCDF <- function(filename, tres = c("monthly", "daily")) {
 }
 
 
-get_TimeIndices_netCDF <- function(filename, startyear, endyear,
-  tres = c("monthly", "daily")) {
-
+get_TimeIndices_netCDF <- function(
+  filename,
+  startyear,
+  endyear,
+  tres = c("monthly", "daily")
+) {
   tres <- match.arg(tres)
 
   nct <- read_time_netCDF(filename, tres = tres)
@@ -2192,14 +3061,13 @@ get_TimeIndices_netCDF <- function(filename, startyear, endyear,
   # we only extract full years and require data from the start["year"] on
   stopifnot(
     nct[["start"]]["year"] <= startyear ||
-    (nct[["start"]]["month"] == 1 && nct[["start"]]["year"] == startyear)
+      (nct[["start"]]["month"] == 1 && nct[["start"]]["year"] == startyear)
   )
 
   # we extract beginning with January (1) of start["year"]
   timeStartIndex <- if (identical(tres, "monthly")) {
-    temp <- startyear - nct[["start"]]["year"]
-    temp * 12 + 2 - nct[["start"]]["month"]
-
+    tmp <- startyear - nct[["start"]]["year"]
+    tmp * 12 + 2 - nct[["start"]]["month"]
   } else if (identical(tres, "daily")) {
     tmp <- as.POSIXlt(ISOdate(startyear, 1, 1, tz = "UTC"))
     which.min(abs(nct[["time"]] - tmp))
@@ -2213,7 +3081,6 @@ get_TimeIndices_netCDF <- function(filename, startyear, endyear,
   # e.g., to extract two values at 1:2, use timeStartIndex = 1 and timeCount = 2
   timeCount_should <- if (identical(tres, "monthly")) {
     (endyear - startyear + 1) * 12
-
   } else if (identical(tres, "daily")) {
     tmp <- as.POSIXlt(ISOdate(endyear, 12, 31, tz = "UTC"))
     which.min(abs(nct[["time"]] - tmp)) - timeStartIndex + 1
@@ -2247,32 +3114,41 @@ do_ncvar_netCDF <- function(nc, nc_perm, variable, ncg, nct) {
 
   if (index == 3L) {
     # if file is in order of (lat, lon, time)
-    ncdf4::ncvar_get(nc,
+    ncdf4::ncvar_get(
+      nc,
       varid = variable,
       start = c(ncg$ix, ncg$iy, nct$timeStartIndex),
       count = c(1, 1, nct$timeCount)
     )
-
   } else if (index == 1L) {
     # if file is optimized for time series extraction and permutated to order
     # (time, lat, lon)
-    ncdf4::ncvar_get(nc,
+    ncdf4::ncvar_get(
+      nc,
       varid = variable,
       start = c(nct$timeStartIndex, ncg$ix, ncg$iy),
       count = c(nct$timeCount, 1, 1)
     )
-
   } else {
-    stop("do_ncvar_netCDF: dimension 'time' must be either in ",
+    stop(
+      "do_ncvar_netCDF: dimension 'time' must be either in ",
       "first or third place, but is instead at ", index
     )
   }
 }
 
 
-extract_monthly_variable_netCDF <- function(filename, variable, unit, ncg, nct,
-  lon = NA, lat = NA, startyear = NA, endyear = NA) {
-
+extract_monthly_variable_netCDF <- function(
+  filename,
+  variable,
+  unit,
+  ncg,
+  nct,
+  lon = NA,
+  lat = NA,
+  startyear = NA,
+  endyear = NA
+) {
   stopifnot(requireNamespace("ncdf4"))
   # the 'raster' package (version <= '2.5.2') cannot handle non-equally
   # spaced cells
@@ -2284,7 +3160,9 @@ extract_monthly_variable_netCDF <- function(filename, variable, unit, ncg, nct,
   )
   on.exit(ncdf4::nc_close(nc))
 
-  nc_var <- grep(paste0("\\b", variable, "\\b"), names(nc$var),
+  nc_var <- grep(
+    paste0("\\b", variable, "\\b"),
+    names(nc$var),
     value = TRUE,
     ignore.case = TRUE
   )
@@ -2313,8 +3191,9 @@ extract_monthly_variable_netCDF <- function(filename, variable, unit, ncg, nct,
   }
 
   # adjust for missing time
-  if (nct$addMissingTimeAtEnd > 0)
+  if (nct$addMissingTimeAtEnd > 0) {
     res <- c(res, rep(NA, times = nct$addMissingTimeAtEnd))
+  }
 
   if (all(is.na(res)) || inherits(res, "try-error")) {
     stop(
@@ -2336,20 +3215,35 @@ extract_monthly_variable_netCDF <- function(filename, variable, unit, ncg, nct,
 #' Each row represents one month.
 #' Units are [degree Celsius] for temperature and [cm / month]
 #' for precipitation.
-get_MonthlyGCMdata_netCDF <- function(i_tag, time, dpm, gcm, scen, rip, lon, lat,
-  startyear, endyear, climDB_meta, ncg, nct, ncFiles) {
-
-  ctemp <- paste(c(i_tag, gcm, scen, rip), collapse = " * ")
+get_MonthlyGCMdata_netCDF <- function(
+  i_tag,
+  time,
+  dpm,
+  gcm,
+  scen,
+  rip,
+  lon,
+  lat,
+  startyear,
+  endyear,
+  climDB_meta,
+  ncg,
+  nct,
+  ncFiles
+) {
+  ctmp <- paste(c(i_tag, gcm, scen, rip), collapse = " * ")
 
   #--- Extract precipitation data
-  ftemp1 <- grep(climDB_meta[["var_desc"]]["prcp", "fileVarTags"], ncFiles,
+  ftmp1 <- grep(
+    climDB_meta[["var_desc"]]["prcp", "fileVarTags"],
+    ncFiles,
     ignore.case = TRUE,
     value = TRUE
   )
 
-  if (length(ftemp1) == 1) {
+  if (length(ftmp1) == 1) {
     prcp <- extract_monthly_variable_netCDF(
-      filename = ftemp1,
+      filename = ftmp1,
       variable = climDB_meta[["var_desc"]]["prcp", "varname"],
       unit = climDB_meta[["var_desc"]]["prcp", "unit_given"],
       ncg = ncg,
@@ -2359,34 +3253,35 @@ get_MonthlyGCMdata_netCDF <- function(i_tag, time, dpm, gcm, scen, rip, lon, lat
       startyear = startyear,
       endyear = endyear
     )
-
   } else {
-    if (length(ftemp1) > 1) {
-      stop("More than one netCDF file with precipitation data ",
-        "available for combination ", ctemp,
-        " with files = ", paste(shQuote(basename(ftemp1)), collapse = "/")
+    if (length(ftmp1) > 1) {
+      stop(
+        "More than one netCDF file with precipitation data ",
+        "available for combination ", ctmp,
+        " with files = ", paste(shQuote(basename(ftmp1)), collapse = "/")
       )
     } else {
-      stop("No suitable netCDF file with precipitation data ",
-        "available for combination ", ctemp
+      stop(
+        "No suitable netCDF file with precipitation data ",
+        "available for combination ", ctmp
       )
     }
   }
 
   #--- Extract temperature data
-  ftemp3 <- grep(climDB_meta[["var_desc"]]["tmin", "fileVarTags"], ncFiles,
+  ftmp3 <- grep(climDB_meta[["var_desc"]]["tmin", "fileVarTags"], ncFiles,
     ignore.case = TRUE,
     value = TRUE
   )
-  ftemp4 <- grep(climDB_meta[["var_desc"]]["tmax", "fileVarTags"], ncFiles,
+  ftmp4 <- grep(climDB_meta[["var_desc"]]["tmax", "fileVarTags"], ncFiles,
     ignore.case = TRUE,
     value = TRUE
   )
 
-  if (length(ftemp3) > 0 && length(ftemp4) > 0) {
-    if (length(ftemp3) == 1 && length(ftemp4) == 1) {
+  if (length(ftmp3) > 0 && length(ftmp4) > 0) {
+    if (length(ftmp3) == 1 && length(ftmp4) == 1) {
       tmin <- extract_monthly_variable_netCDF(
-        filename = ftemp3,
+        filename = ftmp3,
         variable = climDB_meta[["var_desc"]]["tmin", "varname"],
         unit = climDB_meta[["var_desc"]]["tmin", "unit_given"],
         ncg = ncg,
@@ -2398,7 +3293,7 @@ get_MonthlyGCMdata_netCDF <- function(i_tag, time, dpm, gcm, scen, rip, lon, lat
       )
 
       tmax <- extract_monthly_variable_netCDF(
-        filename = ftemp4,
+        filename = ftmp4,
         variable = climDB_meta[["var_desc"]]["tmax", "varname"],
         unit = climDB_meta[["var_desc"]]["tmax", "unit_given"],
         ncg = ncg,
@@ -2408,25 +3303,24 @@ get_MonthlyGCMdata_netCDF <- function(i_tag, time, dpm, gcm, scen, rip, lon, lat
         startyear = startyear,
         endyear = endyear
       )
-
     } else {
-      stop("More than one netCDF file with tmin/tmax data ",
-        "available for combination ", ctemp,
-        " with files = ", paste(shQuote(basename(ftemp3)), collapse = "/"),
+      stop(
+        "More than one netCDF file with tmin/tmax data ",
+        "available for combination ", ctmp,
+        " with files = ", paste(shQuote(basename(ftmp3)), collapse = "/"),
         " or ",
-        paste(shQuote(basename(ftemp4)), collapse = "/")
+        paste(shQuote(basename(ftmp4)), collapse = "/")
       )
     }
-
   } else {
-    ftemp2 <- grep(climDB_meta[["var_desc"]]["tmean", "fileVarTags"], ncFiles,
+    ftmp2 <- grep(climDB_meta[["var_desc"]]["tmean", "fileVarTags"], ncFiles,
       ignore.case = TRUE,
       value = TRUE
     )
 
-    if (length(ftemp2) == 1) {
+    if (length(ftmp2) == 1) {
       tmean <- extract_monthly_variable_netCDF(
-        filename = ftemp2,
+        filename = ftmp2,
         variable = climDB_meta[["var_desc"]]["tmean", "varname"],
         unit = climDB_meta[["var_desc"]]["tmean", "unit_given"],
         ncg = ncg,
@@ -2441,17 +3335,17 @@ get_MonthlyGCMdata_netCDF <- function(i_tag, time, dpm, gcm, scen, rip, lon, lat
       vars <- c("tmin", "tmax", "tmean")
       unit_from <- climDB_meta[["var_desc"]][vars, "unit_real"]
       stopifnot(unit_from[1] == unit_from[2], unit_from[1] == unit_from[3])
-
-
     } else {
-      if (length(ftemp2) > 1) {
-        stop("More than one netCDF file with tmean data ",
-          "available for combination ", ctemp,
-          " with files = ", paste(shQuote(basename(ftemp2)), collapse = "/")
+      if (length(ftmp2) > 1) {
+        stop(
+          "More than one netCDF file with tmean data ",
+          "available for combination ", ctmp,
+          " with files = ", paste(shQuote(basename(ftmp2)), collapse = "/")
         )
       } else {
-        stop("No suitable netCDF file with tmean data ",
-          "available for combination ", ctemp
+        stop(
+          "No suitable netCDF file with tmean data ",
+          "available for combination ", ctmp
         )
       }
     }
@@ -2489,19 +3383,45 @@ get_MonthlyGCMdata_netCDF <- function(i_tag, time, dpm, gcm, scen, rip, lon, lat
 #' Extract monthly climate scenario data and downscale to daily weather data
 #' @seealso \code{\link{calc_DailyScenarioWeather}}
 #'
-calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
-  clim_source, use_CF, use_NEX, climDB_meta, climDB_files, reqGCMs,
-  reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient, locations,
-  compression_type, getYears, assocYears, sim_time, task_seed, opt_DS,
-  project_paths, dir_failed, resume, verbose, print.debug) {
+calc_MonthlyScenarioWeather <- function(
+  i,
+  ig,
+  il,
+  gcm,
+  site_id,
+  i_tag,
+  clim_source,
+  use_CF,
+  use_NEX,
+  climDB_meta,
+  climDB_files,
+  reqGCMs,
+  reqRCPsPerGCM,
+  reqDownscalingsPerGCM,
+  climate.ambient,
+  locations,
+  compression_type,
+  dbW_digits,
+  getYears,
+  assocYears,
+  sim_time,
+  task_seed,
+  opt_DS,
+  project_paths,
+  dir_failed,
+  verbose,
+  print.debug
+) {
 
-  on.exit({save(
-    list = ls(),
-    file = file.path(
-      dir_failed,
-      paste0("ClimScen_failed_", i_tag, "_l2.RData")
+  on.exit({
+    save(
+      list = ls(),
+      file = file.path(
+        dir_failed,
+        paste0("ClimScen_failed_", i_tag, "_l2.RData")
+      )
     )
-  )})
+  })
 
   # Set RNG seed for random number use by functions
   #   - fix_PPTdata_length
@@ -2517,36 +3437,36 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
   if (verbose) {
     print(paste0(
       i_tag, " extraction: ", shQuote(clim_source), " at ", Sys.time(),
-      " for ", gcm, " (", paste(reqRCPsPerGCM[[ig]], collapse = ", "), ") at ",
+      " for ", gcm, " (", toString(reqRCPsPerGCM[[ig]]), ") at ",
       lon, " / ", lat
     ))
   }
 
   #--- Output container for downscaled scenario weather data
-  temp1 <- expand.grid(
+  tmp1 <- expand.grid(
     downscaling = reqDownscalingsPerGCM[[ig]],
     futures = rownames(sim_time[["future_yrs"]]),
-    rcps = reqRCPsPerGCM[[ig]]
-    , stringsAsFactors = FALSE
+    rcps = reqRCPsPerGCM[[ig]],
+    stringsAsFactors = FALSE
   )[, 3:1]
-  n <- dim(temp1)[1]
-  temp1[, "tag"] <- paste0(temp1[, "futures"], ".", temp1[, "rcps"])
-  temp1[, "Scenario"] <- paste(
-    temp1[, "downscaling"],
-    temp1[, "tag"],
+  n <- dim(tmp1)[1]
+  tmp1[, "tag"] <- paste0(tmp1[, "futures"], ".", tmp1[, "rcps"])
+  tmp1[, "Scenario"] <- paste(
+    tmp1[, "downscaling"],
+    tmp1[, "tag"],
     gcm,
     sep = "."
   )
-  temp1[, "Scenario_id"] <- rSOILWAT2::dbW_getScenarioId(
-    temp1[, "Scenario"],
+  tmp1[, "Scenario_id"] <- rSOILWAT2::dbW_getScenarioId(
+    tmp1[, "Scenario"],
     ignore.case = TRUE
   )
 
-  if (anyNA(temp1[, "Scenario_id"])) {
+  if (anyNA(tmp1[, "Scenario_id"])) {
     stop(
       "Not all requested scenarios available ",
       "in the weather database scenario table:\n",
-      paste(shQuote(temp1[temp1[, "Scenario_id"], "Scenario"]), collapse = ", ")
+      toString(shQuote(tmp1[tmp1[, "Scenario_id"], "Scenario"]))
     )
   }
 
@@ -2556,27 +3476,24 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
       "database scenario table:\n",
       paste("*", shQuote(locations[il, ]), collapse = "\n")
     )
-
   } else {
-    temp1[, "Site_id_by_dbW"] <-  rep(Site_id_by_dbW, n)
+    tmp1[, "Site_id_by_dbW"] <- rep(Site_id_by_dbW, n)
   }
 
-  temp <- rep(NA, n)
-  temp <- list(
+  tmp <- rep(NA, n)
+  tmp <- list(
     todo = rep(TRUE, n),
-    StartYear = temp,
-    EndYear = temp,
-    weatherData = temp
+    StartYear = tmp,
+    EndYear = tmp,
+    weatherData = tmp
   )
-  df_wdataOut <- c(temp, as.list(temp1))
+  df_wdataOut <- c(tmp, as.list(tmp1))
 
   #--- Determine if any are already downscaled and stored in weather database
-  if (resume) {
-    df_wdataOut[["todo"]] <- !rSOILWAT2::dbW_has_weatherData(
-      Site_ids = Site_id_by_dbW,
-      Scenario_ids = df_wdataOut[["Scenario_id"]]
-    )[1, ]
-  }
+  df_wdataOut[["todo"]] <- !rSOILWAT2::dbW_has_weatherData(
+    Site_ids = Site_id_by_dbW,
+    Scenario_ids = df_wdataOut[["Scenario_id"]]
+  )[1, ]
   ids_down <- which(df_wdataOut[["todo"]])
 
   if (length(ids_down) > 0) {
@@ -2587,7 +3504,6 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
 
     if (use_NEX) {
       rip <- "r1i1p1"
-
     } else if (use_CF) {
       #--- Select netCDF files for this 'gcm', scenarios, and variables
       tmp <- select_suitable_CFs(
@@ -2598,15 +3514,16 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
         scenario_names = all_scens
       )
 
+      stopifnot(!tmp[["is_sequential"]])
       fnc_gcmXscens <- tmp[["files"]]
       rip <- tmp[["rip"]]
     }
 
     #---Scenario monthly weather time-series:
     # Get GCM data for each scenario and time slice
-    temp <- vector("list", (getYears$n_first + getYears$n_second) * n_scens)
+    tmp <- vector("list", (getYears$n_first + getYears$n_second) * n_scens)
     scen.monthly <- matrix(
-      temp,
+      tmp,
       ncol = getYears$n_first + getYears$n_second,
       dimnames = list(
         all_scens,
@@ -2658,7 +3575,7 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
     if (use_NEX) {
       args_extract1 <- c(
         args_extract1,
-        dir_out_temp = project_paths[["dir_out_temp"]]
+        dir_out_tmp = project_paths[["dir_out_temp"]]
       )
     }
 
@@ -2692,7 +3609,9 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
         do.call(get_MonthlyGCMdata_netCDF, args = args_first)
       } else if (use_NEX) {
         do.call(get_GCMdata_NEX, args = args_first)
-      } else NULL
+      } else {
+        NULL
+      }
     }
 
     if (print.debug) {
@@ -2723,10 +3642,10 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
           rcps[1],
           climDB_meta[["sep_fname"]]
         )
-        temp <- grep(tag, fnc_gcmXscens, ignore.case = TRUE, value = TRUE)[1]
+        tmp <- grep(tag, fnc_gcmXscens, ignore.case = TRUE, value = TRUE)[1]
 
         args_extract2[["nct"]] <- get_TimeIndices_netCDF(
-          filename = temp,
+          filename = tmp,
           startyear = getYears$second[it, 1],
           endyear = getYears$second[it, 2],
           tres = climDB_meta[["tres"]]
@@ -2738,8 +3657,10 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
         args_second[["scen"]] <- rcps[isc - 1]
 
         if (use_CF) {
-          tag <- paste0(climDB_meta[["sep_fname"]], args_second[["scen"]],
-            climDB_meta[["sep_fname"]])
+          tag <- paste0(
+            climDB_meta[["sep_fname"]], args_second[["scen"]],
+            climDB_meta[["sep_fname"]]
+          )
           args_second[["ncFiles"]] <- grep(
             tag,
             fnc_gcmXscens,
@@ -2752,16 +3673,19 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
           do.call(get_MonthlyGCMdata_netCDF, args = args_second)
         } else if (use_NEX) {
           do.call(get_GCMdata_NEX, args = args_second)
-        } else NULL
+        } else {
+          NULL
+        }
       }
     }
 
-    #Observed historic daily weather from weather database
-    if (print.debug)
+    # Observed historic daily weather from weather database
+    if (print.debug) {
       print(paste0(
         i_tag, " extraction: observed historic daily weather from weather DB: ",
         sim_time[["simstartyr"]], "-", sim_time[["endyr"]]
       ))
+    }
 
     obs.hist.daily <- rSOILWAT2::dbW_getWeatherData(
       Site_id = Site_id_by_dbW,
@@ -2771,22 +3695,24 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
     )
 
     if (obs.hist.daily[[1]]@year < 1950) {
-      #TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't
+      # TODO(drs): I don't know where the hard coded value of 1950 comes from; it doesn't
       # make sense to me
       print("Note: subsetting years 'obs.hist.daily' because 'simstartyr < 1950'")
       start_yr <- obs.hist.daily[[length(obs.hist.daily)]]@year - 1950
-      obs.hist.daily <- obs.hist.daily[(length(obs.hist.daily)-start_yr):length(obs.hist.daily)]
+      obs.hist.daily <- obs.hist.daily[(length(obs.hist.daily) - start_yr):length(obs.hist.daily)]
     }
 
     sim_years <- as.integer(names(obs.hist.daily))
     obs.hist.monthly <- rSOILWAT2::dbW_weatherData_to_monthly(obs.hist.daily)
 
     if (print.debug) {
-      obs.hist.monthly_mean <- stats::aggregate(obs.hist.monthly[, -(1:2)],
-        list(obs.hist.monthly[, "Month"]), mean)
+      obs.hist.monthly_mean <- stats::aggregate(
+        obs.hist.monthly[, -(1:2)],
+        list(obs.hist.monthly[, "Month"]), mean
+      )
     }
 
-    #Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum
+    # Hamlet et al. 2010: "an arbitrary ceiling of 150% of the observed maximum
     # precipitation value for each cell is also imposed by ???spreading out??? very large
     # daily precipitation values into one or more adjacent days"
     dailyPPTceiling <- opt_DS[["daily_ppt_limit"]] *
@@ -2797,17 +3723,17 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
 
     # Monthly extremes are used to cut the most extreme spline oscillations; these limits
     # are ad hoc; monthly temperature extremes based on expanded daily extremes
-    temp <- rSW2utils::stretch_values(
+    tmp <- rSW2utils::stretch_values(
       x = range(sapply(
         obs.hist.daily,
-        function(obs) obs@data[, c("Tmax_C", "Tmin_C")])
-      ),
+        function(obs) obs@data[, c("Tmax_C", "Tmin_C")]
+      )),
       lambda = opt_DS[["monthly_limit"]]
     )
 
     monthly_extremes <- list(
-      Tmax = temp,
-      Tmin = temp,
+      Tmax = tmp,
+      Tmin = tmp,
       PPT = c(
         0,
         opt_DS[["monthly_limit"]] *
@@ -2828,7 +3754,7 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
       )
 
       # Put historical data together
-      #NOTE: both scen.hist.monthly and scen.fut.monthly may have NAs
+      # NOTE: both scen.hist.monthly and scen.fut.monthly may have NAs
       # because some GCMs do not provide data for the last month of a time slice
       # (e.g. December 2005 may be NA)
       scen.hist.monthly <- NULL
@@ -2856,7 +3782,7 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
           na.rm = TRUE
         )
 
-        temp <- apply(
+        tmp <- apply(
           scen.hist.monthly_mean[, -1] - obs.hist.monthly_mean[, -1],
           2,
           mean
@@ -2866,7 +3792,7 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
           paste(
             colnames(obs.hist.monthly[, -(1:2)]),
             "=",
-            round(temp, 2),
+            round(tmp, 2),
             collapse = ", "
           )
         ))
@@ -2906,13 +3832,14 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
       # Units are [degree Celsius] for temperature and [cm / day] and [cm / month],
       #   respectively, for precipitation
 
-      #Apply downscaling
-      if (print.debug)
+      # Apply downscaling
+      if (print.debug) {
         print(paste0(
           i_tag, " extraction: ", df_wdataOut[["tag"]][k],
           " downscaling with method ",
           shQuote(df_wdataOut[["downscaling"]][k])
         ))
+      }
 
       dm_fun <- switch(
         df_wdataOut[["downscaling"]][k],
@@ -2933,12 +3860,23 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
         `hybrid-delta-3mod` = NULL,
         `wgen-package` = list(
           wgen_dry_spell_changes = if ("wgen_dry_spell_changes" %in% colnames(locations)) {
-            locations[il, "wgen_dry_spell_changes"]} else {1},
+            locations[il, "wgen_dry_spell_changes"]
+          } else {
+            1
+          },
           wgen_wet_spell_changes = if ("wgen_wet_spell_changes" %in% colnames(locations)) {
-            locations[il, "wgen_wet_spell_changes"]} else {1},
-          wgen_prcp_cv_changes   = if ("wgen_prcp_cv_changes" %in% colnames(locations)) {
-            locations[il, "wgen_prcp_cv_changes"  ]} else {1}),
-        stop)
+            locations[il, "wgen_wet_spell_changes"]
+          } else {
+            1
+          },
+          wgen_prcp_cv_changes = if ("wgen_prcp_cv_changes" %in% colnames(locations)) {
+            locations[il, "wgen_prcp_cv_changes"]
+          } else {
+            1
+          }
+        ),
+        stop
+      )
 
       for (do_checks in c(TRUE, FALSE)) {
         scen.fut.daily <- try(dm_fun(
@@ -2952,33 +3890,36 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
           opt_DS = opt_DS,
           dailyPPTceiling = dailyPPTceiling,
           monthly_extremes = monthly_extremes,
+          dbW_digits = dbW_digits,
           do_checks = do_checks,
           add_params = dm_add_params
         ))
 
         if (!inherits(scen.fut.daily, "try-error")) {
-          if (!do_checks)
+          if (!do_checks) {
             print(paste0(
               i_tag, " extraction: ", df_wdataOut[["tag"]][k], ": ",
               shQuote(df_wdataOut[["downscaling"]][k]),
               " quality checks turned off"
             ))
+          }
           break
         }
       }
 
-      if (inherits(scen.fut.daily, "try-error"))
+      if (inherits(scen.fut.daily, "try-error")) {
         stop(scen.fut.daily)
+      }
 
       if (print.debug) {
-        temp <- rSOILWAT2::dbW_weatherData_to_monthly(scen.fut.daily)
+        tmp <- rSOILWAT2::dbW_weatherData_to_monthly(scen.fut.daily)
         scen.fut.down_mean <- stats::aggregate(
-          temp[, -(1:2)],
-          list(temp[, "Month"]),
+          tmp[, -(1:2)],
+          list(tmp[, "Month"]),
           mean
         )
 
-        temp <- apply(
+        tmp <- apply(
           scen.fut.down_mean[, -1] - obs.hist.monthly_mean[, -1],
           2,
           mean
@@ -2991,14 +3932,14 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
           paste(
             colnames(obs.hist.monthly[, -(1:2)]),
             "=",
-            round(temp, 2),
+            round(tmp, 2),
             collapse = ", "
           )
         ))
 
         if (exists("scen.hist.monthly_mean")) {
           # this doesn't exist, e.g., for 'raw' DSing
-          temp <- apply(
+          tmp <- apply(
             scen.fut.down_mean[, -1] - scen.hist.monthly_mean[, -1],
             2,
             mean
@@ -3011,7 +3952,7 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
             paste(
               colnames(obs.hist.monthly[, -(1:2)]),
               "=",
-              round(temp, 2),
+              round(tmp, 2),
               collapse = ", "
             )
           ))
@@ -3046,11 +3987,31 @@ calc_MonthlyScenarioWeather <- function(i, ig, il, gcm, site_id, i_tag,
 #' A wrapper function for \code{calc_MonthlyScenarioWeather} with error control.
 #'
 #' @inheritParams calc_MonthlyScenarioWeather
-try_MonthlyScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
-  climDB_meta, climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-  climate.ambient, locations, compression_type, getYears, assocYears, sim_time,
-  seeds_DS, opt_DS, project_paths, dir_failed, fdbWeather, resume, verbose,
-  print.debug) {
+try_MonthlyScenarioWeather <- function(
+  i,
+  clim_source,
+  use_CF,
+  use_NEX,
+  climDB_meta,
+  climDB_files,
+  reqGCMs,
+  reqRCPsPerGCM,
+  reqDownscalingsPerGCM,
+  climate.ambient,
+  locations,
+  compression_type,
+  dbW_digits,
+  getYears,
+  assocYears,
+  sim_time,
+  seeds_DS,
+  opt_DS,
+  project_paths,
+  dir_failed,
+  fdbWeather,
+  verbose,
+  print.debug
+) {
 
   # Identify index for site and scenario
   # Let ids be 1 to length(req_GCMs)
@@ -3072,38 +4033,52 @@ try_MonthlyScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
 
   res <- NULL
   if (!rSOILWAT2::dbW_IsValid()) {
-    print(paste("'try_MonthlyScenarioWeather':", shQuote(i_tag),
+    print(paste(
+      "'try_MonthlyScenarioWeather':", shQuote(i_tag),
       "failed because weather database cannot be accessed."
     ))
-
   } else {
-
-    temp <- try(calc_MonthlyScenarioWeather(i = i,
-      ig = ig, il = il, gcm = gcm, site_id = site_id, i_tag = i_tag,
-      clim_source = clim_source, use_CF = use_CF, use_NEX = use_NEX,
-      climDB_meta = climDB_meta, climDB_files = climDB_files,
-      reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
+    tmp <- try(calc_MonthlyScenarioWeather(
+      i = i,
+      ig = ig,
+      il = il,
+      gcm = gcm,
+      site_id = site_id,
+      i_tag = i_tag,
+      clim_source = clim_source,
+      use_CF = use_CF,
+      use_NEX = use_NEX,
+      climDB_meta = climDB_meta,
+      climDB_files = climDB_files,
+      reqGCMs = reqGCMs,
+      reqRCPsPerGCM = reqRCPsPerGCM,
       reqDownscalingsPerGCM = reqDownscalingsPerGCM,
       climate.ambient = climate.ambient,
       locations = locations,
       compression_type = compression_type,
+      dbW_digits = dbW_digits,
       getYears = getYears, assocYears = assocYears,
       sim_time = sim_time,
       task_seed = seeds_DS[[i]],
       opt_DS = opt_DS,
-      project_paths = project_paths, dir_failed = dir_failed,
-      resume = resume,
-      verbose = verbose, print.debug = print.debug))
+      project_paths = project_paths,
+      dir_failed = dir_failed,
+      verbose = verbose,
+      print.debug = print.debug
+    ))
 
-    if (inherits(temp, "try-error")) {
-      print(paste(Sys.time(), temp))
-      save(i, ig, il, gcm, site_id, i_tag, temp, clim_source, use_CF, use_NEX, climDB_meta,
+    if (inherits(tmp, "try-error")) {
+      print(paste(Sys.time(), tmp))
+      save(
+        i, ig, il, gcm, site_id, i_tag, tmp, clim_source, use_CF, use_NEX, climDB_meta,
         climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, climate.ambient,
         locations, compression_type, getYears, assocYears, sim_time, opt_DS,
         project_paths, verbose,
-        file = file.path(dir_failed,
-          paste0("ClimScenMonthly_failed_", i_tag, "_l1.RData"))
+        file = file.path(
+          dir_failed,
+          paste0("ClimScenMonthly_failed_", i_tag, "_l1.RData")
         )
+      )
     } else {
       res <- i
     }
@@ -3117,55 +4092,138 @@ try_MonthlyScenarioWeather <- function(i, clim_source, use_CF, use_NEX,
 
 #------Daily netCDF extractions------
 
-extract_daily_variable_netCDF <- function(filename, variable, unit,
-  tres = "daily", startyear, endyear, lon, lat) {
+extract_daily_variable_netCDF <- function(
+  filenames,
+  list_df_sites,
+  var_std,
+  variable,
+  unit,
+  unit_from,
+  var_rSW2,
+  unit_rSW2,
+  tres = "daily",
+  startyear,
+  endyear,
+  lon,
+  lat,
+  na_impute = c("if1missing", "no")
+) {
   stopifnot(requireNamespace("ncdf4"))
 
   tres <- match.arg(tres)
+  na_impute <- match.arg(na_impute)
 
-  nc <- ncdf4::nc_open(
-    filename = filename,
-    write = FALSE,
-    readunlim = TRUE,
-    verbose = FALSE
-  )
-  on.exit(ncdf4::nc_close(nc))
-
-  nc_var <- grep(paste0("\\b", variable, "\\b"), names(nc$var),
-    value = TRUE,
-    ignore.case = TRUE
+  rsw2_time <- as.Date(
+    apply(list_df_sites[[1]][, c("Year", "DOY")], 1, paste0, collapse = "-"),
+    "%Y-%j"
   )
 
-  stopifnot(length(nc_var) > 0)
-  stopifnot(isTRUE(tolower(unit) == tolower(nc$var[[nc_var]]$units)))
+  for (knc in seq_along(filenames)) {
+    nc <- ncdf4::nc_open(
+      filename = filenames[knc],
+      write = FALSE,
+      readunlim = TRUE,
+      verbose = FALSE
+    )
 
-  # dimnames
-  nc_perm <- sapply(nc$var[[nc_var]]$dim, function(x) x$name)
-  it <- grep("(\\btime\\b)|(\\bt\\b)", nc_perm, ignore.case = TRUE)
-  ilat <- grep("(\\lat\\b)|(\\blatitude\\b)", nc_perm, ignore.case = TRUE)
-  ilon <- grep("(\\lon\\b)|(\\blongitude\\b)", nc_perm, ignore.case = TRUE)
-  dimnames <- rep(NA, length = 3)
-  dimnames[it] <- "time"
-  dimnames[ilat] <- "latitude"
-  dimnames[ilon] <- "longitude"
+    nc_var <- grep(
+      paste0("\\b", variable, "\\b"),
+      names(nc$var),
+      value = TRUE,
+      ignore.case = TRUE
+    )
 
-  list(
-    nct = get_TimeIndices_netCDF(
-      filename = nc,
-      startyear = startyear,
-      endyear = endyear,
-      tres = tres
-    ),
+    stopifnot(length(nc_var) > 0)
+    stopifnot(isTRUE(tolower(unit) == tolower(nc$var[[nc_var]]$units)))
 
-    ncg = get_SpatialIndices_netCDF(
+    #--- Dimensions
+    nc_perm <- sapply(nc$var[[nc_var]]$dim, function(x) x$name)
+    it <- grep("(\\btime\\b)|(\\bt\\b)", nc_perm, ignore.case = TRUE)
+    ilat <- grep("(\\lat\\b)|(\\blatitude\\b)", nc_perm, ignore.case = TRUE)
+    ilon <- grep("(\\lon\\b)|(\\blongitude\\b)", nc_perm, ignore.case = TRUE)
+    dimnames <- rep(NA, length = 3)
+    dimnames[it] <- "time"
+    dimnames[ilat] <- "latitude"
+    dimnames[ilon] <- "longitude"
+
+    nct <- read_time_netCDF(nc, tres = tres)
+    ids_nct <- match(rsw2_time, as.Date(nct[["time"]]), nomatch = 0)
+    ids_nct2 <- ids_nct > 0
+
+    ncg <- get_SpatialIndices_netCDF(
       filename = nc,
       lon = lon,
       lat = lat
-    ),
+    )
 
-    dimnames = dimnames,
-    values = ncdf4::ncvar_get(nc, varid = variable)
-  )
+    ks_count <- ks_start <- rep(1, length = 3)
+    ks_start[it] <- min(ids_nct[ids_nct2])
+    ks_count[it] <- sum(ids_nct2)
+
+    for (ks in seq_along(list_df_sites)) {
+      ks_start[ilon] <- ncg[["ix"]][ks]
+      ks_start[ilat] <- ncg[["iy"]][ks]
+
+      tmp <- ncdf4::ncvar_get(
+        nc,
+        varid = variable,
+        start = ks_start,
+        count = ks_count
+      )
+
+      if (var_std == "prcp") {
+        tmp <- rSW2utils::convert_precipitation(
+          x = tmp,
+          unit_from = unit_from,
+          unit_to = unit_rSW2
+        )
+      } else if (var_std %in% c("tmin", "tmax", "tmean")) {
+        tmp <- rSW2utils::convert_temperature(
+          x = tmp,
+          unit_from = unit_from,
+          unit_to = unit_rSW2
+        )
+      }
+
+      tmp <- tmp[ids_nct]
+
+      #--- Check for missing values
+      if (na_impute != "no") {
+        # --> copy from previous/following day if only one day is missing
+        # for instance, MACAv2-gridmet RCP8.5 bcc-csm1-1 has 2099-Dec-31 missing
+        isna <- is.na(tmp)
+        nisna <- sum(isna)
+
+        if (nisna > 0) {
+          if (nisna == 1) {
+            message(
+              "One day missing (copied from adjacent value): ",
+              shQuote(basename(filenames[knc]))
+            )
+
+            idsna <- which(isna)
+            tmp[idsna] <- if (idsna == 1) {
+              tmp[idsna + 1]
+            } else {
+              tmp[idsna - 1]
+            }
+
+          } else {
+            stop(
+              "More than one day missing: ",
+              shQuote(basename(filenames[knc]))
+            )
+          }
+        }
+      }
+
+      list_df_sites[[ks]][ids_nct2, var_rSW2] <- tmp
+    }
+
+    ncdf4::nc_close(nc)
+  }
+
+  list_df_sites
 }
 
 #' Extract all daily \var{GCM} projection values for precipitation, minimum and
@@ -3174,22 +4232,106 @@ extract_daily_variable_netCDF <- function(filename, variable, unit,
 #' @return A list with three 3-dimensional arrays
 #' \var{\dQuote{tmax}}, \var{\dQuote{tmin}}, and \var{\dQuote{prcp}}.
 #' Units are [degree Celsius] for temperature and [cm / day] for precipitation.
-get_DailyGCMdata_netCDF <- function(i_tag, climDB_meta, ncFiles,
-  startyear, endyear, lon, lat) {
+get_DailyGCMdata_netCDF <- function(
+  i_tag,
+  climDB_meta,
+  is_sequential,
+  ncFiles,
+  startyear,
+  endyear,
+  lon,
+  lat,
+  df_site_template,
+  var_map
+) {
 
-  ctemp <- i_tag
+  ctmp <- i_tag
+
+  list_df_sites <- lapply(seq_along(lon), function(k) df_site_template)
+
 
   #--- Extract precipitation data
-  ftmp1 <- grep(climDB_meta[["var_desc"]]["prcp", "fileVarTags"], ncFiles,
+  ftmp1 <- grep(
+    climDB_meta[["var_desc"]]["prcp", "fileVarTags"],
+    ncFiles,
     ignore.case = TRUE,
     value = TRUE
   )
 
-  if (length(ftmp1) == 1) {
-    prcp <- extract_daily_variable_netCDF(
-      filename = ftmp1,
-      variable = climDB_meta[["var_desc"]]["prcp", "varname"],
-      unit = climDB_meta[["var_desc"]]["prcp", "unit_given"],
+  if (length(ftmp1) == 0) {
+    stop(
+      "No suitable netCDF file with precipitation data ",
+      "available for combination ", ctmp
+    )
+  } else {
+    if (!is_sequential && length(ftmp1) > 1) {
+      stop(
+        "More than one netCDF file with precipitation data ",
+        "available for combination ", ctmp,
+        " with files = ",
+        paste(shQuote(basename(ftmp1)), collapse = "/")
+      )
+    }
+  }
+
+  var <- "prcp"
+  itmp <- var_map[, "vars_get_DailyGCMdata_netCDF"] == var
+
+  list_df_sites <- extract_daily_variable_netCDF(
+    filenames = ftmp1,
+    list_df_sites = list_df_sites,
+    var_std = var,
+    variable = climDB_meta[["var_desc"]][var, "varname"],
+    unit = climDB_meta[["var_desc"]][var, "unit_given"],
+    unit_from = climDB_meta[["var_desc"]][var, "unit_real"],
+    var_rSW2 = var_map[itmp, "vars_rSW2"],
+    unit_rSW2 = var_map[itmp, "units_rSW2"],
+    tres = climDB_meta[["tres"]],
+    startyear = startyear,
+    endyear = endyear,
+    lon = lon,
+    lat = lat
+  )
+
+
+  #--- Extract temperature data
+  ftmp3 <- grep(
+    climDB_meta[["var_desc"]]["tmin", "fileVarTags"],
+    ncFiles,
+    ignore.case = TRUE,
+    value = TRUE
+  )
+  ftmp4 <- grep(
+    climDB_meta[["var_desc"]]["tmax", "fileVarTags"],
+    ncFiles,
+    ignore.case = TRUE,
+    value = TRUE
+  )
+
+  if (length(ftmp3) > 0 && length(ftmp4) > 0) {
+    if (!is_sequential && (length(ftmp3) > 1 || length(ftmp4) > 1)) {
+      stop(
+        "More than one netCDF file with tmin/tmax data ",
+        "available for combination ", ctmp,
+        " with files = ",
+        paste(shQuote(basename(ftmp3)), collapse = "/"),
+        " or ",
+        paste(shQuote(basename(ftmp4)), collapse = "/")
+      )
+    }
+
+    var <- "tmin"
+    itmp <- var_map[, "vars_get_DailyGCMdata_netCDF"] == var
+
+    list_df_sites <- extract_daily_variable_netCDF(
+      filenames = ftmp3,
+      list_df_sites = list_df_sites,
+      var_std = var,
+      variable = climDB_meta[["var_desc"]][var, "varname"],
+      unit = climDB_meta[["var_desc"]][var, "unit_given"],
+      unit_from = climDB_meta[["var_desc"]][var, "unit_real"],
+      var_rSW2 = var_map[itmp, "vars_rSW2"],
+      unit_rSW2 = var_map[itmp, "units_rSW2"],
       tres = climDB_meta[["tres"]],
       startyear = startyear,
       endyear = endyear,
@@ -3197,133 +4339,111 @@ get_DailyGCMdata_netCDF <- function(i_tag, climDB_meta, ncFiles,
       lat = lat
     )
 
-  } else {
-    if (length(ftmp1) > 1) {
-      stop("More than one netCDF file with precipitation data ",
-        "available for combination ", ctemp,
-        " with files = ", paste(shQuote(basename(ftmp1)), collapse = "/")
-      )
-    } else {
-      stop("No suitable netCDF file with precipitation data ",
-        "available for combination ", ctemp
-      )
-    }
-  }
+    var <- "tmax"
+    itmp <- var_map[, "vars_get_DailyGCMdata_netCDF"] == var
 
-  #--- Extract temperature data
-  ftmp3 <- grep(climDB_meta[["var_desc"]]["tmin", "fileVarTags"], ncFiles,
-    ignore.case = TRUE,
-    value = TRUE
-  )
-  ftmp4 <- grep(climDB_meta[["var_desc"]]["tmax", "fileVarTags"], ncFiles,
-    ignore.case = TRUE,
-    value = TRUE
-  )
+    list_df_sites <- extract_daily_variable_netCDF(
+      filenames = ftmp4,
+      list_df_sites = list_df_sites,
+      var_std = var,
+      variable = climDB_meta[["var_desc"]][var, "varname"],
+      unit = climDB_meta[["var_desc"]][var, "unit_given"],
+      unit_from = climDB_meta[["var_desc"]][var, "unit_real"],
+      var_rSW2 = var_map[itmp, "vars_rSW2"],
+      unit_rSW2 = var_map[itmp, "units_rSW2"],
+      tres = climDB_meta[["tres"]],
+      startyear = startyear,
+      endyear = endyear,
+      lon = lon,
+      lat = lat
+    )
 
-  if (length(ftmp3) > 0 && length(ftmp4) > 0) {
-    if (length(ftmp3) == 1 && length(ftmp4) == 1) {
-      tmin <- extract_daily_variable_netCDF(
-        filename = ftmp3,
-        variable = climDB_meta[["var_desc"]]["tmin", "varname"],
-        unit = climDB_meta[["var_desc"]]["tmin", "unit_given"],
-        tres = climDB_meta[["tres"]],
-        startyear = startyear,
-        endyear = endyear,
-        lon = lon,
-        lat = lat
-      )
-
-      tmax <- extract_daily_variable_netCDF(
-        filename = ftmp4,
-        variable = climDB_meta[["var_desc"]]["tmax", "varname"],
-        unit = climDB_meta[["var_desc"]]["tmax", "unit_given"],
-        tres = climDB_meta[["tres"]],
-        startyear = startyear,
-        endyear = endyear,
-        lon = lon,
-        lat = lat
-      )
-
-    } else {
-      stop("More than one netCDF file with tmin/tmax data ",
-        "available for combination ", ctemp,
-        " with files = ", paste(shQuote(basename(ftmp3)), collapse = "/"),
-        " or ",
-        paste(shQuote(basename(ftmp4)), collapse = "/")
-      )
-    }
 
   } else {
-    ftmp2 <- grep(climDB_meta[["var_desc"]]["tmean", "fileVarTags"], ncFiles,
+    vars <- c("tmin", "tmax", "tmean")
+    unit_from <- climDB_meta[["var_desc"]][vars, "unit_real"]
+    stopifnot(unit_from[1] == unit_from[2], unit_from[1] == unit_from[3])
+
+    ftmp2 <- grep(
+      climDB_meta[["var_desc"]]["tmean", "fileVarTags"],
+      ncFiles,
       ignore.case = TRUE,
       value = TRUE
     )
 
-    if (length(ftmp2) == 1) {
-      tmean <- extract_daily_variable_netCDF(
-        filename = ftmp2,
-        variable = climDB_meta[["var_desc"]]["tmean", "varname"],
-        unit = climDB_meta[["var_desc"]]["tmean", "unit_given"],
-        tres = climDB_meta[["tres"]],
-        startyear = startyear,
-        endyear = endyear,
-        lon = lon,
-        lat = lat
+    if (length(ftmp2) == 0) {
+      stop(
+        "No suitable netCDF file with mean temperature data ",
+        "available for combination ", ctmp
       )
-
-      tmin <- tmax <- tmean
-      vars <- c("tmin", "tmax", "tmean")
-      unit_from <- climDB_meta[["var_desc"]][vars, "unit_real"]
-      stopifnot(unit_from[1] == unit_from[2], unit_from[1] == unit_from[3])
-
     } else {
-      if (length(ftmp2) > 1) {
-        stop("More than one netCDF file with tmean data ",
-          "available for combination ", ctemp,
-          " with files = ", paste(shQuote(basename(ftmp2)), collapse = "/")
-        )
-      } else {
-        stop("No suitable netCDF file with temperature data ",
-          "available for combination ", ctemp
+      if (!is_sequential && length(ftmp2) > 1) {
+        stop(
+          "More than one netCDF file with mean temperature data ",
+          "available for combination ", ctmp,
+          " with files = ",
+          paste(shQuote(basename(ftmp2)), collapse = "/")
         )
       }
     }
+
+    var <- "tmin"
+    itmp <- var_map[, "vars_get_DailyGCMdata_netCDF"] == var
+
+    list_df_sites <- extract_daily_variable_netCDF(
+      filenames = ftmp1,
+      list_df_sites = list_df_sites,
+      var_std = var,
+      variable = climDB_meta[["var_desc"]]["tmean", "varname"],
+      unit = climDB_meta[["var_desc"]]["tmean", "unit_given"],
+      unit_from = climDB_meta[["var_desc"]]["tmean", "unit_real"],
+      var_rSW2 = var_map[itmp, "vars_rSW2"],
+      unit_rSW2 = var_map[itmp, "units_rSW2"],
+      tres = climDB_meta[["tres"]],
+      startyear = startyear,
+      endyear = endyear,
+      lon = lon,
+      lat = lat
+    )
+
+    # Copy tmean to both tmin/tmax
+    var_rSW2 <- var_map[itmp, "vars_rSW2"]
+    var <- "tmax"
+    itmp2 <- var_map[, "vars_get_DailyGCMdata_netCDF"] == var
+    var2_rSW2 <- var_map[itmp2, "vars_rSW2"]
+
+    for (ks in seq_along(list_df_sites)) {
+      list_df_sites[[ks]][, var2_rSW2] <- list_df_sites[[ks]][, var_rSW2]
+    }
   }
 
-  #--- Convert units
-  prcp[["values"]] <- rSW2utils::convert_precipitation(
-    x = prcp[["values"]],
-    dpm = NA,
-    unit_from = climDB_meta[["var_desc"]]["prcp", "unit_real"],
-    unit_to = "cm/day"
-  )
 
-  tmin[["values"]] <- rSW2utils::convert_temperature(
-    x = tmin[["values"]],
-    unit_from = climDB_meta[["var_desc"]]["tmin", "unit_real"],
-    unit_to = "C"
-  )
-
-  tmax[["values"]] <- rSW2utils::convert_temperature(
-    x = tmax[["values"]],
-    unit_from = climDB_meta[["var_desc"]]["tmax", "unit_real"],
-    unit_to = "C"
-  )
-
-  list(
-    tmax = tmax,
-    tmin = tmin,
-    prcp = prcp
-  )
+  list_df_sites
 }
 
 
 
-get_DailyScenarioData_netCDF <- function(id_sim_scen,
-  sim_scen_ids1, sim_scen_ids1_by_dbW, reqGCMs, reqRCPsPerGCM,
-  clim_source, climDB_meta, climDB_files, locations, getYears,
-  fdbWeather, compression_type, write_tmp_to_disk,
-  dir_out_temp, dir_failed, resume, verbose) {
+get_DailyScenarioData_netCDF <- function(
+  id_sim_scen,
+  sim_scen_ids1,
+  sim_scen_ids1_by_dbW,
+  reqGCMs,
+  reqRCPsPerGCM,
+  clim_source,
+  climDB_meta,
+  climDB_files,
+  locations,
+  meta_locations = list(N = nrow(locations), offset = 0),
+  getYears,
+  fdbWeather,
+  compression_type,
+  dbW_digits,
+  write_tmp_to_disk,
+  dir_out_tmp,
+  dir_failed,
+  chunk_size = 500L,
+  verbose = FALSE
+) {
 
   if (!rSOILWAT2::dbW_IsValid()) {
     rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather)
@@ -3331,52 +4451,59 @@ get_DailyScenarioData_netCDF <- function(id_sim_scen,
 
   ids_Done <- NULL
 
-  #--- Determine RCP x GCM
-  sim_scen <- sim_scen_ids1[id_sim_scen]
-  id <- strsplit(sim_scen, split = ".", fixed = TRUE)[[1]]
-  gcm <- id[4]
-  igcm <- which(tolower(gcm) == tolower(reqGCMs))
-  stopifnot(length(igcm) == 1)
-  scen <- id[3]
-  isc <- which(tolower(scen) == tolower(reqRCPsPerGCM[[igcm]]))
-  stopifnot(length(isc) == 1)
-  slice <- if (tolower(scen) == "historical") "first" else "second"
-
 
   #--- Determine which sites still need data
   # `ids_todo_sites` is an index for `locations`
-  if (resume) {
-    ids_todo_sites <- which(!as.vector(rSOILWAT2::dbW_has_weatherData(
-      Site_ids = locations[, "Site_id_by_dbW"],
-      Scenario_ids = sim_scen_ids1_by_dbW[id_sim_scen]
-    )))
-
-  } else {
-    ids_todo_sites <- seq_len(nrow(locations))
-  }
+  ids_todo_sites <- which(!as.vector(rSOILWAT2::dbW_has_weatherData(
+    Site_ids = locations[, "Site_id_by_dbW"],
+    Scenario_ids = sim_scen_ids1_by_dbW[id_sim_scen]
+  )))
+  #ids_todo_sites <- seq_len(nrow(locations))
 
   n_todo_sites <- length(ids_todo_sites)
 
-  if (length(ids_todo_sites) > 0) {
+  if (n_todo_sites > 0) {
+    # Create chunked index over sites:
     # `ids_seq_todo_sites is indexing objects subset by `ids_todo_sites`,
     # e.g., `x`
-    ids_seq_todo_sites <- seq_along(ids_todo_sites)
+    ids_seq_todo_sites <- rSW2utils::make_chunks(
+      n_todo_sites,
+      chunk_size = chunk_size
+    )
+    n_chunks <- length(ids_seq_todo_sites)
+
+    #--- Determine RCP x GCM
+    sim_scen <- sim_scen_ids1[id_sim_scen]
+    id <- strsplit(sim_scen, split = ".", fixed = TRUE)[[1]]
+    gcm <- id[4]
+    igcm <- which(tolower(gcm) == tolower(reqGCMs))
+    stopifnot(length(igcm) == 1)
+    scen <- id[3]
+    isc <- which(tolower(scen) == tolower(reqRCPsPerGCM[[igcm]]))
+    stopifnot(length(isc) == 1)
+    slice <- if (tolower(scen) == "historical") "first" else "second"
+
 
     if (verbose) {
-      print(paste("'get_DailyScenarioData_netCDF':", Sys.time(),
-        "extracting data from", shQuote(sim_scen),
-        "for sites n =", n_todo_sites
-      ))
+      print(
+        paste(
+          "'get_DailyScenarioData_netCDF':", Sys.time(),
+          "extracting data from", shQuote(sim_scen),
+          "for sites n =", n_todo_sites,
+          "distributed in chunks k =", n_chunks
+        )
+      )
     }
 
     var_map <- data.frame(
-      vars_rSOILWAT2 = c("Tmax_C", "Tmin_C", "PPT_cm"),
+      vars_rSW2 = c("Tmax_C", "Tmin_C", "PPT_cm"),
+      units_rSW2 = c("C", "C", "cm/day"),
       vars_get_DailyGCMdata_netCDF = c("tmax", "tmin", "prcp"),
       stringsAsFactors = FALSE
     )
 
 
-    #--- Select netCDF files for this 'gcm', scenarios, and variables
+    #--- Select netCDF files for this 'gcm', scenario, and variables
     tmp <- select_suitable_CFs(
       climDB_files = climDB_files,
       climDB_meta = climDB_meta,
@@ -3387,68 +4514,84 @@ get_DailyScenarioData_netCDF <- function(id_sim_scen,
 
     fnc_gcmXscens <- tmp[["files"]]
     rip <- tmp[["rip"]]
+    is_sequential = tmp[["is_sequential"]]
 
 
-    #--- Extract data (for all sites at once)
-    x <- try(
-      get_DailyGCMdata_netCDF(
-        i_tag = paste(c(gcm, scen, rip), collapse = " * "),
-        climDB_meta = climDB_meta,
-        ncFiles = fnc_gcmXscens,
-        startyear = getYears[[slice]][1, 1],
-        endyear = getYears[[slice]][1, 2],
-        lon = locations[ids_todo_sites, "X_WGS84"],
-        lat = locations[ids_todo_sites, "Y_WGS84"]
-      ),
-      silent = TRUE
+    #--- Prepare template for daily weather data
+    tmp <- getYears[[paste0(slice, "_dates")]][[1]]
+
+    df_site_template <- data.frame(
+      Year = 1900 + tmp$year,
+      DOY = 1 + tmp$yday,
+      Tmax_C = NA,
+      Tmin_C = NA,
+      PPT_cm = NA
     )
 
-    if (!inherits(x, "try-error")) {
-      df_time <- x[["prcp"]][["nct"]][["time"]]
 
-      df_site_template <- data.frame(
-        Year = 1900 + df_time$year,
-        DOY = 1 + df_time$yday,
-        Tmax_C = NA,
-        Tmin_C = NA,
-        PPT_cm = NA
-      )
+    #--- Extract data (for chunk of sites)
+    for (k in seq_len(n_chunks)) {
+      ids_todo_chunk <- ids_todo_sites[ids_seq_todo_sites[[k]]]
+      locations_chunk <- locations[ids_todo_chunk, , drop = FALSE]
 
-      #--- Convert array into rSOILWAT2 weather objects for each site
-      tmp_ids <- lapply(
-        X = ids_seq_todo_sites,
-        FUN = try_prepare_site_with_daily_scenario_weather,
-        data = x,
-        rcp = scen,
-        scenario = sim_scen,
-        scenario_id_by_dbW = sim_scen_ids1_by_dbW[id_sim_scen],
-        site_ids_by_dbW = locations[ids_todo_sites, "Site_id_by_dbW"],
-        var_map = var_map,
-        df_time = df_time,
-        df_site_template = df_site_template,
-        compression_type = compression_type,
-        write_tmp_to_disk = write_tmp_to_disk,
-        path = file.path(dir_out_temp, tolower(gcm)),
-        filenames = paste0(
-          clim_source,
-          "_SiteID", locations[ids_todo_sites, "site_id"], "-",
-          gcm, "-", scen, ".rds"
+      x <- try(
+        get_DailyGCMdata_netCDF(
+          i_tag = paste(c(gcm, scen, rip), collapse = " * "),
+          climDB_meta = climDB_meta,
+          is_sequential = is_sequential,
+          ncFiles = fnc_gcmXscens,
+          startyear = getYears[[slice]][1, 1],
+          endyear = getYears[[slice]][1, 2],
+          lon = locations_chunk[, "X_WGS84"],
+          lat = locations_chunk[, "Y_WGS84"],
+          df_site_template = df_site_template,
+          var_map = var_map
         ),
-        dir_failed = dir_failed
+        silent = TRUE
       )
 
-      tmp_ids <- as.vector(stats::na.omit(unlist(tmp_ids)))
+      if (!inherits(x, "try-error")) {
+        #--- Convert list into rSOILWAT2 weather objects for each site
+        tmp_ids <- try_prepare_site_with_daily_scenario_weather(
+          x,
+          rcp = scen,
+          scenario = sim_scen,
+          scenario_id_by_dbW = sim_scen_ids1_by_dbW[id_sim_scen],
+          site_ids_by_dbW = locations_chunk[, "Site_id_by_dbW"],
+          compression_type = compression_type,
+          dbW_digits = dbW_digits,
+          write_tmp_to_disk = write_tmp_to_disk,
+          path = file.path(dir_out_tmp, tolower(gcm)),
+          filenames = paste0(
+            clim_source,
+            "_SiteID", locations_chunk[, "site_id"], "-",
+            gcm, "-", scen,
+            ".rds"
+          ),
+          dir_failed = dir_failed
+        )
 
-      if (length(tmp_ids) > 0) {
-        ids_Done <- (ids_todo_sites[tmp_ids] - 1) * length(reqGCMs) + igcm
+        tmp_ids <- as.vector(stats::na.omit(unlist(tmp_ids)))
+
+        if (length(tmp_ids) > 0) {
+          #--- Translate `tmp_ids` into values for `ids_ToDo`/`ids_AllToDo`,
+          # i.e., length(reqGCMs) x nrow(locations_all)
+          # `meta_locations` corrects for chunking of `locations` by
+          # function `tryToGet_ClimDB()`
+          ids_Done <- c(
+            ids_Done,
+            (igcm - 1) * meta_locations[["N"]] +
+              meta_locations[["offset"]] + ids_todo_chunk[tmp_ids]
+          )
+        }
+
+      } else {
+        print(paste(
+          "'get_DailyScenarioData_netCDF': ",
+          "call to 'get_DailyGCMdata_netCDF' failed with error message:",
+          shQuote(attr(x, "condition")[["message"]])
+        ))
       }
-
-    } else {
-      print(paste(
-        "'get_DailyScenarioData_netCDF': ",
-        "call to 'get_DailyGCMdata_netCDF' failed with error message:",
-        shQuote(attr(x, "condition")[["message"]])
-      ))
     }
   }
 
@@ -3456,47 +4599,53 @@ get_DailyScenarioData_netCDF <- function(id_sim_scen,
 }
 
 
-prepare_site_with_daily_scenario_weather <- function(i,
-  data, rcp, scenario, scenario_id_by_dbW, site_id_by_dbW, var_map,
-  df_time, df_site_template, compression_type, write_tmp_to_disk, filename) {
+prepare_site_with_daily_scenario_weather <- function(
+  x,
+  rcp,
+  scenario,
+  scenario_id_by_dbW,
+  site_id_by_dbW,
+  compression_type,
+  dbW_digits,
+  write_tmp_to_disk,
+  filename
+) {
 
-  df_site <- df_site_template
+  years <- range(x[, "Year"], na.rm = TRUE)
 
-  years <- range(df_site[, "Year"], na.rm = TRUE)
+  rownames(x) <- NULL
 
-  for (iv in seq_len(nrow(var_map))) {
-    v1 <- var_map[iv, "vars_get_DailyGCMdata_netCDF"]
-    v2 <- var_map[iv, "vars_rSOILWAT2"]
-
-    ix <- data[[v1]][["ncg"]][["ix"]][i]
-    iy <- data[[v1]][["ncg"]][["iy"]][i]
-
-    ids <- rep(NA, 3)
-    ilon <- which("longitude" == data[[v1]][["dimnames"]])
-    ids[ilon] <- ix
-    ilat <- which("latitude" == data[[v1]][["dimnames"]])
-    ids[ilat] <- iy
-
-    tmp <- eval(expr = str2expression(paste0(
-      "data[['", v1, "']][['values']][",
-      paste(ifelse(is.na(ids), "", ids), collapse = ","),
-      "]"
-    )))
-
-    idt <- match(df_time, data[[v1]][["nct"]][["time"]], nomatch = 0)
-
-    df_site[idt > 0, v2] <- tmp[idt]
-  }
-
-  scen_fut_daily <- rSOILWAT2::dbW_dataframe_to_weatherData(
-    weatherDF = df_site,
-    weatherDF_dataColumns = colnames(df_site)[-1]
-  )
 
   blob_scen_fut_daily <- rSOILWAT2::dbW_weatherData_to_blob(
-    weatherData = scen_fut_daily,
+    weatherData = rSOILWAT2::dbW_dataframe_to_weatherData(
+      weatherDF = x,
+      weatherDF_dataColumns = colnames(x)[-1],
+      round = dbW_digits
+    ),
     type = compression_type
   )
+
+  if (!write_tmp_to_disk) {
+    # Insert into weather database directly:
+    # Faster than writing to disk and then importing into dbWeather by
+    # `copy_tempdata_to_dbW`
+    # (but parallel concurrent writing to dbW requires to catch errors and
+    # ideally wal-mode so that writers don't block readers)
+    tmp <- try(
+      rSOILWAT2:::dbW_addWeatherDataNoCheck(
+        Site_id = site_id_by_dbW,
+        Scenario_id = scenario_id_by_dbW,
+        StartYear = years[1],
+        EndYear = years[2],
+        weather_blob = blob_scen_fut_daily
+      ),
+      silent = TRUE
+    )
+
+    # Write to disk instead if inserting to dbW failed
+    write_tmp_to_disk <- inherits(tmp, "try-error")
+  }
+
 
   if (write_tmp_to_disk) {
     # Prepare object for later insertion into weather database
@@ -3518,60 +4667,69 @@ prepare_site_with_daily_scenario_weather <- function(i,
     df_wdataOut[["weatherData"]] <- list(blob_scen_fut_daily)
 
     saveRDS(object = df_wdataOut, file = filename)
-
-  } else {
-    # Insert into weather database directly:
-    # Faster than writing to disk and then importing into dbWeather by
-    # `copy_tempdata_to_dbW` -- but only possible if not working in parallel
-    # mode
-    rSOILWAT2:::dbW_addWeatherDataNoCheck(
-      Site_id = site_id_by_dbW,
-      Scenario_id = scenario_id_by_dbW,
-      StartYear = years[1],
-      EndYear = years[2],
-      weather_blob = blob_scen_fut_daily
-    )
   }
 
-  i
+  invisible(NULL)
 }
 
-try_prepare_site_with_daily_scenario_weather <- function(i,
-  data, rcp, scenario, scenario_id_by_dbW, site_ids_by_dbW, var_map, df_time,
-  df_site_template, compression_type, write_tmp_to_disk, path, filenames,
-  dir_failed) {
+try_prepare_site_with_daily_scenario_weather <- function(
+  x,
+  rcp,
+  scenario,
+  scenario_id_by_dbW,
+  site_ids_by_dbW,
+  compression_type,
+  dbW_digits,
+  write_tmp_to_disk,
+  path,
+  filenames,
+  dir_failed
+) {
 
-  tmp <- try(
-    prepare_site_with_daily_scenario_weather(
-      i = i,
-      data = data,
-      rcp = rcp,
-      scenario = scenario,
-      scenario_id_by_dbW = scenario_id_by_dbW,
-      site_id_by_dbW = site_ids_by_dbW[i],
-      var_map = var_map,
-      df_time = df_time,
-      df_site_template = df_site_template,
-      compression_type = compression_type,
-      write_tmp_to_disk = write_tmp_to_disk,
-      filename = file.path(path, filenames[i])
-    )
-  )
+  res <- rep(NA, length(x))
 
-  if (inherits(tmp, "try-error")) {
-    print(paste(Sys.time(), tmp))
-
-    save(
-      list = ls(),
-      file = file.path(dir_failed,
-        paste0("ClimScenDaily_failed_", filenames[i], ".RData")
+  for (i in seq_along(x)) {
+    tmp <- try(
+      prepare_site_with_daily_scenario_weather(
+        x[[i]],
+        rcp = rcp,
+        scenario = scenario,
+        scenario_id_by_dbW = scenario_id_by_dbW,
+        site_id_by_dbW = site_ids_by_dbW[i],
+        compression_type = compression_type,
+        dbW_digits = dbW_digits,
+        write_tmp_to_disk = write_tmp_to_disk,
+        filename = file.path(path, filenames[i])
       )
     )
 
-    res <- NA
+    if (inherits(tmp, "try-error")) {
+      print(paste(Sys.time(), tmp))
 
-  } else {
-    res <- i
+      save(
+        list = ls(),
+        file = file.path(
+          dir_failed,
+          paste0(
+            "ClimScenDaily_failed_",
+            # remove file extension
+            paste0(
+              # nolint start
+              {
+                tmp <- strsplit(filenames[i], split = ".", fixed = TRUE)[[1]]
+                tmp[seq_len(length(tmp) - 1)]
+              },
+              # nolint end
+              collapse = "."
+            ),
+            ".RData"
+          )
+        )
+      )
+
+    } else {
+      res[i] <- i
+    }
   }
 
   res
@@ -3597,14 +4755,28 @@ try_prepare_site_with_daily_scenario_weather <- function(i,
 #'
 #' @seealso \code{\link{calc_MonthlyScenarioWeather}}
 #'
-calc_DailyScenarioWeather <- function(ids_ToDo, clim_source, climDB_meta,
-  climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM,
-  locations, compression_type, getYears, sim_scen_ids,
-  dir_out_temp, dir_failed, fdbWeather, resume, verbose) {
+calc_DailyScenarioWeather <- function(
+  clim_source,
+  climDB_meta,
+  climDB_files,
+  reqGCMs,
+  reqRCPsPerGCM,
+  reqDownscalingsPerGCM,
+  locations,
+  meta_locations,
+  compression_type,
+  dbW_digits,
+  getYears,
+  sim_scen_ids,
+  dir_out_tmp,
+  dir_failed,
+  fdbWeather,
+  dbW_mode,
+  chunk_size = 500L,
+  verbose = FALSE
+) {
 
-  #--- ids_ToDo based on length(reqGCMs) x nrow(locations)
-  #TODO: this should also consider reqRCPs
-  ids_Done <- NULL
+  ids_Done <- NULL # values of `ids_ToDo` that are completed
 
   stopifnot(all(unlist(reqDownscalingsPerGCM) == "idem"))
 
@@ -3622,6 +4794,32 @@ calc_DailyScenarioWeather <- function(ids_ToDo, clim_source, climDB_meta,
 
     ids_seq_scens <- seq_along(sim_scen_ids1_by_dbW)
 
+
+    # Write data directly to dbW
+    # (instead of indirectly via temporary disk files):
+    # if not parallel or
+    # if `concurrent_RW_dbW` exists and is set to TRUE
+    # and "rSOILWAT2" is capable of handling it (starting with v5.0.2)
+    # and if dbW is in WAL mode (so that writers don't block readers)
+    write_tmp_to_dbW <-
+      !SFSW2_glovars[["p_has"]] ||
+      isTRUE(
+        opt_parallel[["concurrent_RW_dbW"]] &&
+        getNamespaceVersion("rSOILWAT2") >= numeric_version("5.0.2") &&
+        identical(dbW_mode, "wal")
+      )
+
+    cat(
+      "Projected daily weather data objects are",
+      if (write_tmp_to_dbW) {
+        "directly inserted to the weather database."
+      } else {
+        "written to disk as temporary files and later added to the database."
+      },
+      "\n"
+    )
+
+
     #--- Extract and loop over GCM x RCP combinations (in parallel)
     if (SFSW2_glovars[["p_has"]]) {
       if (identical(SFSW2_glovars[["p_type"]], "mpi")) {
@@ -3635,6 +4833,7 @@ calc_DailyScenarioWeather <- function(ids_ToDo, clim_source, climDB_meta,
           ids_seq_scens,
           get_DailyScenarioData_netCDF,
           locations = locations,
+          meta_locations = meta_locations,
           sim_scen_ids1 = sim_scen_ids[-1],
           sim_scen_ids1_by_dbW = sim_scen_ids1_by_dbW,
           reqGCMs = reqGCMs,
@@ -3645,10 +4844,11 @@ calc_DailyScenarioWeather <- function(ids_ToDo, clim_source, climDB_meta,
           getYears = getYears,
           fdbWeather = fdbWeather,
           compression_type = compression_type,
-          write_tmp_to_disk = SFSW2_glovars[["p_has"]],
-          dir_out_temp = dir_out_temp,
+          dbW_digits = dbW_digits,
+          write_tmp_to_disk = !write_tmp_to_dbW,
+          dir_out_tmp = dir_out_tmp,
           dir_failed = dir_failed,
-          resume = resume,
+          chunk_size = chunk_size,
           verbose = verbose
         )
 
@@ -3671,6 +4871,7 @@ calc_DailyScenarioWeather <- function(ids_ToDo, clim_source, climDB_meta,
           x = ids_seq_scens,
           fun = get_DailyScenarioData_netCDF,
           locations = locations,
+          meta_locations = meta_locations,
           sim_scen_ids1 = sim_scen_ids[-1],
           sim_scen_ids1_by_dbW = sim_scen_ids1_by_dbW,
           reqGCMs = reqGCMs,
@@ -3681,10 +4882,11 @@ calc_DailyScenarioWeather <- function(ids_ToDo, clim_source, climDB_meta,
           getYears = getYears,
           fdbWeather = fdbWeather,
           compression_type = compression_type,
-          write_tmp_to_disk = SFSW2_glovars[["p_has"]],
-          dir_out_temp = dir_out_temp,
+          dbW_digits = dbW_digits,
+          write_tmp_to_disk = !write_tmp_to_dbW,
+          dir_out_tmp = dir_out_tmp,
           dir_failed = dir_failed,
-          resume = resume,
+          chunk_size = chunk_size,
           verbose = verbose
         )
 
@@ -3693,11 +4895,12 @@ calc_DailyScenarioWeather <- function(ids_ToDo, clim_source, climDB_meta,
       }
 
       clean_SFSW2_cluster()
-
     } else {
-      ids_Done <- lapply(ids_seq_scens,
+      ids_Done <- lapply(
+        ids_seq_scens,
         FUN = get_DailyScenarioData_netCDF,
         locations = locations,
+        meta_locations = meta_locations,
         sim_scen_ids1 = sim_scen_ids[-1],
         sim_scen_ids1_by_dbW = sim_scen_ids1_by_dbW,
         reqGCMs = reqGCMs,
@@ -3708,10 +4911,11 @@ calc_DailyScenarioWeather <- function(ids_ToDo, clim_source, climDB_meta,
         getYears = getYears,
         fdbWeather = fdbWeather,
         compression_type = compression_type,
-        write_tmp_to_disk = SFSW2_glovars[["p_has"]],
-        dir_out_temp = dir_out_temp,
+        dbW_digits = dbW_digits,
+        write_tmp_to_disk = !write_tmp_to_dbW,
+        dir_out_tmp = dir_out_tmp,
         dir_failed = dir_failed,
-        resume = resume,
+        chunk_size = chunk_size,
         verbose = verbose
       )
     }
@@ -3734,8 +4938,13 @@ calc_DailyScenarioWeather <- function(ids_ToDo, clim_source, climDB_meta,
 
 #' Subset a list of netCDF CF file names to specific models, scenarios,
 #' and variables
-select_suitable_CFs <- function(climDB_files, climDB_meta, getYears,
-  model_name, scenario_names) {
+select_suitable_CFs <- function(
+  climDB_files,
+  climDB_meta,
+  getYears,
+  model_name,
+  scenario_names
+) {
 
   files <- climDB_files
   n_scens <- length(scenario_names)
@@ -3764,8 +4973,8 @@ select_suitable_CFs <- function(climDB_files, climDB_meta, getYears,
   )
 
   #--- Determine most suitable 'ensemble member' rip that is available
-  temp <- climDB_meta[["str_fname"]][c("id_scen", "id_var", "id_run")]
-  ptemp <- sapply(fnc_parts, function(x) x[temp])
+  tmp <- climDB_meta[["str_fname"]][c("id_scen", "id_var", "id_run")]
+  ptmp <- sapply(fnc_parts, function(x) x[tmp])
 
   # Number of netCDF files per scenario, variable, and rip
   # 'pnc_count' should be
@@ -3773,37 +4982,47 @@ select_suitable_CFs <- function(climDB_files, climDB_meta, getYears,
   #   * > 1 if multiple time periods are available
   #   * = 0 if files are missing
   #         (yet 'tas' is allowed to replace missing 'tasmax'+'tasmin')
-  pnc_count <- table(ptemp[1, ], ptemp[2, ], ptemp[3, ])
+  pnc_count <- table(ptmp[1, ], ptmp[2, ], ptmp[3, ])
   pnc_avail <- apply(pnc_count, 2:3, function(x) sum(x >= 1) >= n_scens)
-  temp <- apply(pnc_avail, 2, function(x) {
-    x[climDB_meta[["var_desc"]]["prcp", "tag"]] && (
-      x[climDB_meta[["var_desc"]]["tmean", "tag"]] || (
-        x[climDB_meta[["var_desc"]]["tmax", "tag"]] &&
-          x[climDB_meta[["var_desc"]]["tmin", "tag"]]))
-  })
-  rips <- names(temp)
+  tmp <- apply(
+    pnc_avail,
+    MARGIN = 2,
+    FUN = function(x) {
+      x[climDB_meta[["var_desc"]]["prcp", "tag"]] && (
+        x[climDB_meta[["var_desc"]]["tmean", "tag"]] || (
+          x[climDB_meta[["var_desc"]]["tmax", "tag"]] &&
+            x[climDB_meta[["var_desc"]]["tmin", "tag"]]))
+    }
+  )
+  rips <- names(tmp)
   rip <- if (length(rips) > 1) sort(rips)[1] else rips
 
   if (length(rip) == 0) {
-    stop("Input file(s) ",
+    stop(
+      "Input file(s) ",
       "for model ", shQuote(model_name),
       " and scenario(s) ", paste(shQuote(scenario_names), collapse = "/"),
       " not available: ",
-      paste0(colnames(pnc_avail), ": ",
-        apply(pnc_avail, 2,
-          function(x)
-            paste(rownames(pnc_avail), "=", x, collapse = "/")
+      paste0(
+        colnames(pnc_avail), ": ",
+        apply(
+          pnc_avail,
+          2,
+          function(x) paste(rownames(pnc_avail), "=", x, collapse = "/")
         ),
         collapse = " - "
       )
     )
   }
 
-  # Double check what time period to choose (the one with the most overlap to
-  # requested years) if multiple netCDF files for selected combination of
-  # scen x var x rip are present
+  #--- Presence of multiple netCDFs per `scen x var x rip` combination
+  # Determine cause of multiple netCDFS:
+  # * (partially) duplicate files one of which covers the requested time period
+  # * multiple sequential files that combined cover the requested time period
+  is_sequential <- FALSE
+
   pnc_count_rip <- array(
-    pnc_count[,, rip],
+    pnc_count[, , rip],
     dim = dim(pnc_count)[1:2],
     dimnames = dimnames(pnc_count)[1:2]
   )
@@ -3811,30 +5030,78 @@ select_suitable_CFs <- function(climDB_files, climDB_meta, getYears,
   fnc_parts2 <- fnc_parts # information that is used to index/subset files
   req_years <- c(
     seq.int(getYears[["first"]][1, 1], getYears[["first"]][1, 2]),
-    unlist(lapply(seq_len(nrow(getYears[["second"]])),
-      function(k)
+    unlist(lapply(
+      seq_len(nrow(getYears[["second"]])),
+      function(k) {
         seq.int(getYears[["second"]][k, 1], getYears[["second"]][k, 2])
+      }
     ))
   )
 
   for (k in seq_len(nrow(i_count_rip))) {
-    temp_var <- colnames(pnc_count_rip)[i_count_rip[k, "col"]]
-    temp_scen <- rownames(pnc_count_rip)[i_count_rip[k, "row"]]
+    itmp_remove <- NULL
+    tmp_var <- colnames(pnc_count_rip)[i_count_rip[k, "col"]]
+    tmp_scen <- rownames(pnc_count_rip)[i_count_rip[k, "row"]]
 
-    ids_fnc <- which(sapply(fnc_parts2, function(x)
-      any(x == rip) && any(x == temp_var) && any(x == temp_scen)
+    ids_fnc <- which(sapply(
+      fnc_parts2,
+      function(x) any(x == rip) && any(x == tmp_var) && any(x == tmp_scen)
     ))
-    temp_times <- lapply(fnc_parts2[ids_fnc], function(x) {
-      temp <- x[climDB_meta[["str_fname"]]["id_time"]]
-      seq.int(as.integer(substr(temp, 1, 4)), as.integer(substr(temp, 8, 11)))
-    })
 
-    temp_overlap <- sapply(temp_times, function(x) sum(x %in% req_years))
-    imax_overlap <- which.max(temp_overlap) # the one to keep
-    itemp_remove <- ids_fnc[-imax_overlap]
+    tmp_times <- lapply(
+      fnc_parts2[ids_fnc],
+      function(x) {
+        startyear <- substr(x[climDB_meta[["str_fname"]]["id_timestart"]], 1, 4)
+        tmp_end <- if (
+          climDB_meta[["str_fname"]]["id_timestart"] ==
+          climDB_meta[["str_fname"]]["id_timeend"]
+        ) {
+          strsplit(
+            x[climDB_meta[["str_fname"]]["id_timestart"]],
+            split = "-",
+            fixed = TRUE
+          )[[1]][2]
+        } else {
+          substr(x[climDB_meta[["str_fname"]]["id_timeend"]], 1, 4)
+        }
+        endyear <- substr(tmp_end, 1, 4)
 
-    files <- files[-itemp_remove]
-    fnc_parts2 <- fnc_parts2[-itemp_remove]
+        seq.int(from = as.integer(startyear), to = as.integer(endyear))
+      }
+    )
+
+    # Temporal overlap with requested years (remove files without overlap)
+    has_overlap1 <- sapply(tmp_times, function(x) sum(x %in% req_years))
+    itmp_remove <- c(itmp_remove, ids_fnc[has_overlap1 == 0])
+
+    # Temporal overlap among netCDFs or sequential?
+    tmp_overlap2 <- outer(
+      tmp_times,
+      tmp_times,
+      FUN = function(x, y) {
+        sapply(
+          seq_along(x),
+          function(k) any(intersect(x[[k]], y[[k]]))
+        )
+      }
+    )
+    tmp_overlap2[lower.tri(tmp_overlap2, diag = TRUE)] <- NA
+
+    if (any(tmp_overlap2, na.rm = TRUE)) {
+      # Duplicate files that (partially) cover the requested time period
+      # --> select the one with the longest coverage
+      itmp_remove <- c(itmp_remove, ids_fnc[-which.max(has_overlap1)])
+
+    } else {
+      # Multiple sequential files that combined cover the requested time period
+      # --> keep the ones that (partially) cover the requested time period
+      is_sequential <- TRUE
+    }
+
+    if (length(itmp_remove) > 0) {
+      files <- files[-itmp_remove]
+      fnc_parts2 <- fnc_parts2[-itmp_remove]
+    }
   }
 
   # Subset files to selected rip
@@ -3845,28 +5112,54 @@ select_suitable_CFs <- function(climDB_files, climDB_meta, getYears,
 
   # Check that selected netCDF-files are available for requested variables:
   #   'prcp' and ('tmean' or ('tmax' and 'tmin'))
-  fnc_parts <- strsplit(basename(files), split = climDB_meta[["sep_fname"]],
+  fnc_parts <- strsplit(
+    basename(files),
+    split = climDB_meta[["sep_fname"]],
     fixed = TRUE
   )
-  ptemp <- sapply(fnc_parts,
+  ptmp <- sapply(
+    fnc_parts,
     function(x) x[climDB_meta[["str_fname"]][c("id_scen", "id_var")]]
   )
-  pnc_count <- table(ptemp[1, ], ptemp[2, ])
-  pnc_temp <- apply(pnc_count, 2, function(x) sum(x == 1) >= n_scens)
+  pnc_count <- table(ptmp[1, ], ptmp[2, ])
+  pnc_tmp <- apply(
+    pnc_count,
+    MARGIN = 2,
+    FUN = function(x) {
+      tmp <- if (is_sequential) sum(x >= 1) else sum(x == 1)
+      tmp >= n_scens
+    }
+  )
 
-  pnc_avail <- pnc_temp[climDB_meta[["var_desc"]]["prcp", "tag"]] && (
-    pnc_temp[climDB_meta[["var_desc"]]["tmean", "tag"]] ||
-      all(pnc_temp[climDB_meta[["var_desc"]][c("tmin", "tmax"), "tag"]]))
+  pnc_avail <- stats::setNames(
+    rep(FALSE, length(climDB_meta[["var_desc"]][, "tag"])),
+    climDB_meta[["var_desc"]][, "tag"]
+  )
 
-  if (!pnc_avail) {
-    stop("File(s) for model ", shQuote(model_name),
+  pnc_avail[climDB_meta[["var_desc"]]["prcp", "tag"]] <-
+    climDB_meta[["var_desc"]]["prcp", "tag"] %in% names(pnc_tmp) &&
+      pnc_tmp[climDB_meta[["var_desc"]]["prcp", "tag"]]
+
+  pnc_avail[climDB_meta[["var_desc"]][c("tmean", "tmin", "tmax"), "tag"]] <-
+    (
+      climDB_meta[["var_desc"]]["tmean", "tag"] %in% names(pnc_tmp) &&
+        pnc_tmp[climDB_meta[["var_desc"]]["tmean", "tag"]]
+    ) ||
+    all(
+      climDB_meta[["var_desc"]][c("tmin", "tmax"), "tag"] %in% names(pnc_tmp) &
+        pnc_tmp[climDB_meta[["var_desc"]][c("tmin", "tmax"), "tag"]]
+    )
+
+  if (!all(pnc_avail)) {
+    stop(
+      "File(s) for model ", shQuote(model_name),
       " and scenario(s) ", paste(shQuote(scenario_names), collapse = "/"),
       " not available for required variables: ",
-      paste(shQuote(names(pnc_temp)[!pnc_temp]), collapse = "/")
+      paste(shQuote(names(pnc_avail)[!pnc_avail]), collapse = "/")
     )
   }
 
-  list(rip = rip, files = files)
+  list(rip = rip, files = files, is_sequential = is_sequential)
 }
 
 #' Organizes the calls (in parallel) which obtain specified scenario weather
@@ -3877,9 +5170,9 @@ select_suitable_CFs <- function(climDB_files, climDB_meta, getYears,
 #'
 #' @section Details:
 #' The daily extractions parallelize over \var{GCM} x \var{scenario}
-#' combinations, i.e., data for all \var{locations} are extracted for
+#' combinations, i.e., data for chunks of \var{locations} are extracted for
 #' one value of \var{GCM} x \var{scenario} at a time. This is good if
-#' file handling is slow and memory is not limiting.
+#' file handling is slow and chunk size is adjusted to fit available memory.
 #'
 #' The monthly extractions parallelize over \var{GCM} x \var{locations}
 #' combinations, i.e., data for one \var{location} is extracted for
@@ -3889,48 +5182,129 @@ select_suitable_CFs <- function(climDB_files, climDB_meta, getYears,
 #' @param seed A seed set, \code{NULL}, or \code{NA}. \code{NA} will not affect
 #'  the state of the \acronym{RNG}; \code{NULL} will re-initialize the
 #'  \acronym{RNG}; and all other values are passed to \code{\link{set.seed}}.
-tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
-  climDB_files, reqGCMs, reqRCPsPerGCM, reqDownscalingsPerGCM, locations,
-  getYears, assocYears, project_paths, dir_failed, fdbWeather, climate.ambient,
-  dbW_compression_type, sim_time, seeds_DS, sim_scens, resume, verbose,
-  print.debug, seed = NA) {
+tryToGet_ClimDB <- function(
+  ids_ToDo,
+  clim_source,
+  use_CF,
+  use_NEX,
+  climDB_meta,
+  climDB_files,
+  reqGCMs,
+  reqRCPsPerGCM,
+  reqDownscalingsPerGCM,
+  locations0,
+  is_idem,
+  getYears,
+  assocYears,
+  project_paths,
+  dir_failed,
+  fdbWeather,
+  climate.ambient,
+  dbW_compression_type,
+  dbW_digits = 4L,
+  sim_time,
+  seeds_DS,
+  sim_scens,
+  chunk_size = 500L,
+  verbose = FALSE,
+  print.debug = FALSE,
+  seed = NA
+) {
 
-  #requests ids_ToDo: fastest if nc file is
+  #--- ids_ToDo based on length(reqGCMs) x nrow(locations0)
+
+  # Query mode of dbWeather
+  con <- DBI::dbConnect(RSQLite::SQLite(), fdbWeather)
+  dbW_mode <- tolower(DBI::dbGetQuery(con, "PRAGMA journal_mode")[1, 1])
+  DBI::dbDisconnect(con)
+
+  if (!identical(dbW_mode, "wal")) {
+    cat(
+      "Weather database is not in WAL mode:",
+      "WAL mode is recommended when adding data in parallel, i.e.,\n",
+      "    ```DBI::dbExecute(con, 'PRAGMA journal_mode = wal')```\n\n",
+      "Reset to default `delete` mode once weather database is complete,",
+      "i.e.,\n",
+      "    ```DBI::dbExecute(con, 'PRAGMA journal_mode = delete')```\n\n"
+    )
+  }
+
+  # requests ids_ToDo: fastest if nc file is
   #  - DONE: permutated to (lat, lon, time) instead (time, lat, lon)
   #  - TODO: many sites are extracted from one nc-read instead of one site
   #          per nc-read (see benchmarking_GDODCPUCLLNL_extractions.R)
-  #TODO: create chunks for ids_ToDo of size sites_per_chunk_N that use the
-  #      same access to a nc file and distribute among workersN
+  #          (DONE for `is_idem`)
 
-  do_idem <-
-    "dall" %in% rownames(sim_time[["future_yrs"]]) &&
-    "idem" %in% unlist(reqDownscalingsPerGCM) &&
-    "daily" %in% climDB_meta[["tres"]] &&
-    use_CF
 
-  if (do_idem) {
-    ids_Done <- calc_DailyScenarioWeather(
-      ids_ToDo = ids_ToDo,
-      clim_source = clim_source,
-      climDB_meta = climDB_meta,
-      climDB_files = climDB_files,
-      reqGCMs = reqGCMs,
-      reqRCPsPerGCM = reqRCPsPerGCM,
-      reqDownscalingsPerGCM = reqDownscalingsPerGCM,
-      locations = locations,
-      compression_type = dbW_compression_type,
-      getYears = getYears,
-      sim_scen_ids = sim_scens[["id"]],
-      dir_out_temp = project_paths[["dir_out_temp"]],
-      dir_failed = dir_failed,
-      fdbWeather = fdbWeather,
-      resume = resume,
-      verbose = verbose
+  if (is_idem) {
+    #--- Create chunked index over locations0
+    # `ids_todo_sites` is an index for `locations0`
+    n_sites <- nrow(locations0)
+    ids_seq_todo_sites <- rSW2utils::make_chunks(
+      n_sites,
+      chunk_size = chunk_size
     )
+    n_chunks <- length(ids_seq_todo_sites)
 
+    if (verbose) {
+      print(
+        paste(
+          "'tryToGet_ClimDB':", Sys.time(),
+          "extracting daily data for sites n =", n_sites,
+          "distributed in chunks k =", n_chunks
+        )
+      )
+    }
+
+    #--- Loop over chunks
+    for (k in seq_len(n_chunks)) {
+      if (verbose) {
+        print(
+          paste(
+            "'tryToGet_ClimDB':", Sys.time(),
+            "working on chunk", k, "out of k =", n_chunks, "chunks"
+          )
+        )
+      }
+
+      #--- Extract data
+      ids_Done <- calc_DailyScenarioWeather(
+        clim_source = clim_source,
+        climDB_meta = climDB_meta,
+        climDB_files = climDB_files,
+        reqGCMs = reqGCMs,
+        reqRCPsPerGCM = reqRCPsPerGCM,
+        reqDownscalingsPerGCM = reqDownscalingsPerGCM,
+        locations = locations0[ids_seq_todo_sites[[k]], , drop = FALSE],
+        meta_locations = list(
+          N = n_sites,
+          offset = min(ids_seq_todo_sites[[k]]) - 1
+        ),
+        compression_type = dbW_compression_type,
+        dbW_digits = dbW_digits,
+        getYears = getYears,
+        sim_scen_ids = unique(sim_scens[["df"]][, "id_to_dbW"]),
+        dir_out_tmp = project_paths[["dir_out_temp"]],
+        dir_failed = dir_failed,
+        fdbWeather = fdbWeather,
+        dbW_mode = dbW_mode,
+        chunk_size = chunk_size,
+        verbose = verbose
+      )
+
+      #--- Process any temporary datafile
+      # (in sequential call so to not waste parallel core-time)
+      if (!SFSW2_glovars[["p_has"]]) {
+        copy_tempdata_to_dbW(
+          fdbWeather = fdbWeather,
+          clim_source = clim_source,
+          dir_out_tmp = project_paths[["dir_out_temp"]],
+          verbose = verbose
+        )
+      }
+    }
 
   } else {
-
     stopifnot("daily" != climDB_meta[["tres"]])
 
     if (SFSW2_glovars[["p_has"]]) {
@@ -3947,79 +5321,104 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
         )
         on.exit(Rmpi::mpi.bcast.cmd(dbW_disconnectConnection_local), add = TRUE)
 
-        ids_Done <- Rmpi::mpi.applyLB(ids_ToDo,
+        ids_Done <- Rmpi::mpi.applyLB(
+          ids_ToDo,
           try_MonthlyScenarioWeather,
-          clim_source = clim_source, use_CF = use_CF, use_NEX = use_NEX,
-          climDB_meta = climDB_meta, climDB_files = climDB_files,
-          reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
+          clim_source = clim_source,
+          use_CF = use_CF,
+          use_NEX = use_NEX,
+          climDB_meta = climDB_meta,
+          climDB_files = climDB_files,
+          reqGCMs = reqGCMs,
+          reqRCPsPerGCM = reqRCPsPerGCM,
           reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
-          locations = locations,
+          locations = locations0,
           compression_type = dbW_compression_type,
-          getYears = getYears, assocYears = assocYears,
+          dbW_digits = dbW_digits,
+          getYears = getYears,
+          assocYears = assocYears,
           sim_time = sim_time,
           seeds_DS = seeds_DS,
           opt_DS = sim_scens[["opt_DS"]],
           project_paths = project_paths,
           dir_failed = dir_failed,
           fdbWeather = fdbWeather,
-          resume = resume,
           verbose = verbose, print.debug = print.debug
         )
-
       } else if (identical(SFSW2_glovars[["p_type"]], "socket")) {
-        parallel::clusterCall(SFSW2_glovars[["p_cl"]],
-          fun = rSOILWAT2::dbW_setConnection, dbFilePath = fdbWeather)
-        on.exit(parallel::clusterEvalQ(SFSW2_glovars[["p_cl"]],
-          rSOILWAT2::dbW_disconnectConnection()), add = TRUE)
+        parallel::clusterCall(
+          SFSW2_glovars[["p_cl"]],
+          fun = rSOILWAT2::dbW_setConnection,
+          dbFilePath = fdbWeather
+        )
+        on.exit(
+          parallel::clusterEvalQ(
+            SFSW2_glovars[["p_cl"]],
+            rSOILWAT2::dbW_disconnectConnection()
+          ),
+          add = TRUE
+        )
 
-        ids_Done <- parallel::clusterApplyLB(SFSW2_glovars[["p_cl"]],
-          x = ids_ToDo, fun = try_MonthlyScenarioWeather,
-          clim_source = clim_source, use_CF = use_CF, use_NEX = use_NEX,
-          climDB_meta = climDB_meta, climDB_files = climDB_files,
-          reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
+        ids_Done <- parallel::clusterApplyLB(
+          SFSW2_glovars[["p_cl"]],
+          x = ids_ToDo,
+          fun = try_MonthlyScenarioWeather,
+          clim_source = clim_source,
+          use_CF = use_CF,
+          use_NEX = use_NEX,
+          climDB_meta = climDB_meta,
+          climDB_files = climDB_files,
+          reqGCMs = reqGCMs,
+          reqRCPsPerGCM = reqRCPsPerGCM,
           reqDownscalingsPerGCM = reqDownscalingsPerGCM,
           climate.ambient = climate.ambient,
-          locations = locations,
+          locations = locations0,
           compression_type = dbW_compression_type,
-          getYears = getYears, assocYears = assocYears,
+          dbW_digits = dbW_digits,
+          getYears = getYears,
+          assocYears = assocYears,
           sim_time = sim_time,
           seeds_DS = seeds_DS,
           opt_DS = sim_scens[["opt_DS"]],
           project_paths = project_paths,
           dir_failed = dir_failed,
           fdbWeather = fdbWeather,
-          resume = resume,
-          verbose = verbose, print.debug = print.debug
+          verbose = verbose,
+          print.debug = print.debug
         )
-
       } else {
         ids_Done <- NULL
       }
 
       clean_SFSW2_cluster()
-
     } else {
       rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather)
       on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
-      ids_Done <- lapply(ids_ToDo,
+      ids_Done <- lapply(
+        ids_ToDo,
         FUN = try_MonthlyScenarioWeather,
-        clim_source = clim_source, use_CF = use_CF, use_NEX = use_NEX,
-        climDB_meta = climDB_meta, climDB_files = climDB_files,
-        reqGCMs = reqGCMs, reqRCPsPerGCM = reqRCPsPerGCM,
+        clim_source = clim_source,
+        use_CF = use_CF,
+        use_NEX = use_NEX,
+        climDB_meta = climDB_meta,
+        climDB_files = climDB_files,
+        reqGCMs = reqGCMs,
+        reqRCPsPerGCM = reqRCPsPerGCM,
         reqDownscalingsPerGCM = reqDownscalingsPerGCM,
         climate.ambient = climate.ambient,
-        locations = locations,
+        locations = locations0,
         compression_type = dbW_compression_type,
-        getYears = getYears, assocYears = assocYears,
+        dbW_digits = dbW_digits,
+        getYears = getYears,
+        assocYears = assocYears,
         sim_time = sim_time,
         seeds_DS = seeds_DS,
         opt_DS = sim_scens[["opt_DS"]],
         project_paths = project_paths,
         dir_failed = dir_failed,
         fdbWeather = fdbWeather,
-        resume = resume,
         verbose = verbose,
         print.debug = print.debug
       )
@@ -4032,144 +5431,208 @@ tryToGet_ClimDB <- function(ids_ToDo, clim_source, use_CF, use_NEX, climDB_meta,
 }
 
 
-copy_tempdata_to_dbW <- function(fdbWeather, clim_source, dir_out_temp,
-  verbose = FALSE) {
+copy_tempdata_to_dbW <- function(
+  fdbWeather,
+  clim_source,
+  dir_out_tmp,
+  exclude_patterns = "failed",
+  verbose = FALSE
+) {
 
   if (verbose) {
     t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
+    tmp_call <- shQuote(match.call()[1])
   }
 
   rSOILWAT2::dbW_setConnection(dbFilePath = fdbWeather)
   on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
-  dir_failed <- file.path(dir_out_temp, "failed_copy_tempdata_to_dbW")
+  dir_failed <- file.path(dir_out_tmp, "failed_copy_tempdata_to_dbW")
   dir.create2(dir_failed, showWarnings = FALSE)
 
-  temp_files <- list.files(
-    path = dir_out_temp,
+  tmp_files <- list.files(
+    path = dir_out_tmp,
     pattern = clim_source,
     recursive = TRUE,
     include.dirs = FALSE,
     no.. = TRUE
   )
 
-  if (length(temp_files) > 0) {
+  # Remove data files from "failed" attempts
+  ids_remove <- if (!anyNA(exclude_patterns)) {
+    tmp <- file.path(dirname(tmp_files), basename(tmp_files))
+    unique(unlist(lapply(exclude_patterns, function(x) grep(x, tmp))))
+  }
+  if (length(ids_remove) > 0) {
+    tmp_files <- tmp_files[-ids_remove]
+  }
+
+  # Make sure that we only process "rds" files (e.g., exclude rda/RData files)
+  tmp_files <- grep(".rds\\>", tmp_files, value = TRUE)
+
+
+  if (length(tmp_files) > 0) {
     if (verbose) {
-      print(paste0("rSFSW2's ", temp_call, ": started at ", t1,
-        " with adding temporary files (", length(temp_files),
+      print(paste0(
+        "rSFSW2's ", tmp_call, ": started at ", t1,
+        " with adding temporary files (", length(tmp_files),
         ") into database for ", shQuote(clim_source)
       ))
 
-      on.exit({
-        print(paste0("rSFSW2's ", temp_call, ": ended after ",
-          round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))},
-        add = TRUE)
+      on.exit(
+        {
+          print(
+            paste0(
+              "rSFSW2's ", tmp_call, ": ended after ",
+              round(difftime(Sys.time(), t1, units = "secs"), 2), " s"
+            )
+          )
+        },
+        add = TRUE
+      )
     }
 
-    req_wdata_fields <- c("todo", "rcps", "futures", "downscaling", "tag",
+    req_wdata_fields <- c(
+      "todo", "rcps", "futures", "downscaling", "tag",
       "Scenario", "Scenario_id", "Site_id_by_dbW", "StartYear", "EndYear",
-      "weatherData")
+      "weatherData"
+    )
 
-    for (f in temp_files) {
+    for (f in tmp_files) {
       ok <- 0
       fail <- FALSE
-      ftemp <- file.path(dir_out_temp, f)
-      df_wdataOut <- try(readRDS(file = ftemp))
+      ftmp <- file.path(dir_out_tmp, f)
 
-      if (!inherits(df_wdataOut, "try-error") &&
-        all(req_wdata_fields %in% names(df_wdataOut))) {
+      if (file.exists(ftmp)) {
+        df_wdataOut <- try(readRDS(file = ftmp), silent = !verbose)
 
-        for (k in which(df_wdataOut[["todo"]])) {
-          if (!is.na(df_wdataOut[["weatherData"]][k])) {
-            res <- try(rSOILWAT2:::dbW_addWeatherDataNoCheck(
-              Site_id = df_wdataOut[["Site_id_by_dbW"]][k],
-              Scenario_id = df_wdataOut[["Scenario_id"]][k],
-              StartYear = df_wdataOut[["StartYear"]][k],
-              EndYear = df_wdataOut[["EndYear"]][k],
-              weather_blob = df_wdataOut[["weatherData"]][k][[1]]
-            ))
+        if (
+          !inherits(df_wdataOut, "try-error") &&
+            all(req_wdata_fields %in% names(df_wdataOut))
+        ) {
+          for (k in which(df_wdataOut[["todo"]])) {
+            if (!is.na(df_wdataOut[["weatherData"]][k])) {
+              res <- try(rSOILWAT2:::dbW_addWeatherDataNoCheck(
+                Site_id = df_wdataOut[["Site_id_by_dbW"]][k],
+                Scenario_id = df_wdataOut[["Scenario_id"]][k],
+                StartYear = df_wdataOut[["StartYear"]][k],
+                EndYear = df_wdataOut[["EndYear"]][k],
+                weather_blob = df_wdataOut[["weatherData"]][k][[1]]
+              ))
 
-            if (!inherits(res, "try-error")) {
-              ok <- ok + 1
-            } else {
-              fail <- TRUE
+              if (!inherits(res, "try-error")) {
+                ok <- ok + 1
+              } else {
+                fail <- TRUE
+              }
             }
           }
+
+          if (verbose) {
+            print(paste0(
+              Sys.time(), ": temporary scenario file ", shQuote(f),
+              " successfully added n = ", ok,
+              " out of t = ", sum(df_wdataOut[["todo"]]),
+              " records to weather database",
+              if (fail) " and some failed to add"
+            ))
+          }
+
+        } else {
+          cat(
+            "Temporary scenario file", shQuote(f), "cannot be read,",
+            "likely because it is corrupted, already processed,",
+            "or contains malformed data.",
+            fill = TRUE
+          )
+          fail <- TRUE
         }
 
+        if (fail) {
+          ftmp_to <- file.path(dir_failed, f)
+          if (!dir.exists(dirname(ftmp_to))) {
+            dir.create(dirname(ftmp_to), recursive = TRUE, showWarnings = FALSE)
+          }
+          file.rename(from = ftmp, to = ftmp_to)
+        } else {
+          unlink(ftmp)
+        }
+
+      } else {
         if (verbose) {
-          print(paste0(Sys.time(), ": temporary scenario file ", shQuote(f),
-            " successfully added n = ", ok,
-            " out of t = ", sum(df_wdataOut[["todo"]]),
-            " records to weather database",
-            if (fail) " and some failed to add"
-          ))
+          cat(
+            "Temporary scenario file", shQuote(f), "does not exist anymore.",
+            fill = TRUE
+          )
         }
-
-      } else {
-        print(paste("Temporary scenario file", shQuote(f),
-          "cannot be read, likely because it is corrupted",
-          "or contains malformed data."
-        ))
-        fail <- TRUE
-      }
-
-      if (fail) {
-        file.rename(from = ftemp, to = file.path(dir_failed, f))
-      } else {
-        unlink(ftemp)
       }
     }
   }
 
-  invisible(temp_files)
+  invisible(tmp_files)
 }
 
 #' Determine climate scenario data sources
 #'
 #' Allow for multiple data sources among sites but not multiple sources per site
-#' (for that you need a new row in the \var{\sQuote{MasterInput}} spreadsheet)
-climscen_determine_sources <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs) {
+#' (for that you need a new row in the \var{\sQuote{InputMain}} spreadsheet)
+climscen_determine_sources <- function(
+  climDB_metas,
+  xmain,
+  runIDs_sites,
+  runsN_sites,
+  how_determine_sources = c("SWRunInformation", "order"),
+  scen_sources,
+  fmain,
+  fpreprocin
+) {
+  how_determine_sources <- match.arg(how_determine_sources)
 
-  xy <- SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], c("X_WGS84", "Y_WGS84")]
+  xy <- xmain[runIDs_sites, c("X_WGS84", "Y_WGS84")]
 
-  update_SWRunInformation <- FALSE
+  if (
+    how_determine_sources == "SWRunInformation" &&
+      "GCM_sources" %in% colnames(xmain)
+  ) {
+    sites_GCM_source <- prev_sites_GCM_source <-
+      xmain[runIDs_sites, "GCM_sources"]
+  } else if (
+    how_determine_sources == "order" || !("GCM_sources" %in% colnames(xmain))
+  ) {
+    sites_GCM_source <- rep(NA, times = runsN_sites)
+    prev_sites_GCM_source <- NULL
+  }
 
-  sites_GCM_source <- if (SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]] == "SWRunInformation" &&
-      "GCM_sources" %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]])) {
-      sites_GCM_source <- SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"]
-
-    } else if (SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]] == "order" ||
-      !("GCM_sources" %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]]))) {
-      rep(NA, times = SFSW2_prj_meta[["sim_size"]][["runsN_sites"]])
-
-    } else {
-      stop("'climscen_determine_sources': does not recognize source ",
-        shQuote(SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]]))
-    }
-
-  # determine which data product to use for each site based on bounding boxes of datasets
-  i_use <- rep(FALSE, times = SFSW2_prj_meta[["sim_size"]][["runsN_sites"]])
-  for (ds in SFSW2_prj_meta[["sim_scens"]][["sources"]]) {
-    i_use <- in_box(xy, climDB_metas[[ds]][["bbox"]]$lon,
-      climDB_metas[[ds]][["bbox"]]$lat, i_use)
+  # determine which data product to use for each site
+  # based on bounding boxes of datasets
+  i_use <- rep(FALSE, times = runsN_sites)
+  for (ds in scen_sources) {
+    i_use <- in_box(
+      xy,
+      climDB_metas[[ds]][["bbox"]]$lon,
+      climDB_metas[[ds]][["bbox"]]$lat,
+      i_use
+    )
 
     sites_GCM_source[i_use] <- ds
   }
 
-  if (anyNA(sites_GCM_source))
-    print(paste("No climate change data available for", sum(is.na(sites_GCM_source)),
-      "sites"))
+  if (anyNA(sites_GCM_source)) {
+    print(paste(
+      "No climate change data available for",
+      sum(is.na(sites_GCM_source)),
+      "sites"
+    ))
+  }
 
-  #write data to disk
-  SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "GCM_sources"] <-
-    as.character(sites_GCM_source)
-  utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]],
-    file = SFSW2_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
-  unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
+  # write data to disk
+  if (!isTRUE(all.equal(sites_GCM_source, prev_sites_GCM_source))) {
+    xmain[runIDs_sites, "GCM_sources"] <- as.character(sites_GCM_source)
+    utils::write.csv(xmain, file = fmain, row.names = FALSE)
+    unlink(fpreprocin)
+  }
 
-  SFSW2_prj_inputs[["SWRunInformation"]]
+  xmain
 }
 
 
@@ -4185,7 +5648,7 @@ is_NEX <- function(climDB_meta) {
 
 #' Calculate historical and future simulation time slices
 #'
-#' @param sim_time A list with elements \code{future_N}, \code{future_yrs},
+#' @param sim_time A list with elements \code{future_yrs},
 #'  \code{DScur_startyr}, and \code{DScur_endyr}.
 #' @param tbox A data.frame or matrix with two rows \code{start} and
 #'  \code{end} and two columns \code{first} and \code{second} describing years
@@ -4204,11 +5667,11 @@ calc_timeSlices <- function(sim_time, tbox) {
     future_N <- 0
     runs <- "dall"
   } else {
-    future_N <- sim_time[["future_N"]]
+    future_N <- length(deltas)
     runs <- c("historical", deltas)
   }
 
-  timeSlices <- data.frame(matrix(NA,
+  timeSlices <- data.frame(matrix(
     nrow = 4 + 4 * future_N,
     ncol = 4,
     dimnames = list(NULL, c("Run", "Slice", "Time", "Year"))
@@ -4222,7 +5685,6 @@ calc_timeSlices <- function(sim_time, tbox) {
 
   if ("dall" %in% deltas) {
     timeSlices[, "Year"] <- unlist(tbox)
-
   } else {
 
     # historic conditions for downscaling
@@ -4235,7 +5697,7 @@ calc_timeSlices <- function(sim_time, tbox) {
     }
 
     # future conditions for downscaling
-    for (it in seq_len(sim_time[["future_N"]])) {
+    for (it in seq_len(future_N)) {
       it4 <- 4L * it
       timeSlices[3 + it4, 4] <- max(
         tbox["start", "second"],
@@ -4244,7 +5706,7 @@ calc_timeSlices <- function(sim_time, tbox) {
       timeSlices[4 + it4, 4] <- min(
         tbox["end", "second"],
         sim_time[["future_yrs"]][it, "DSfut_endyr"]
-      )  #limits timeSlices to 2099
+      ) # limits timeSlices to 2099
 
       if (sim_time[["DScur_startyr"]] < 1950) {
         # TODO(drs): I don't know where the hard coded value of 1950 comes from;
@@ -4252,13 +5714,13 @@ calc_timeSlices <- function(sim_time, tbox) {
         print("Note: adjustment to 'timeSlices' because 'DScur_startyr < 1950'")
         timeSlices[4 + it4, 4] <- min(
           timeSlices[4 + it4, 4],
-          timeSlices[4 + 3*it, 4] + (timeSlices[4, 4]-timeSlices[1, 4])
+          timeSlices[4 + 3 * it, 4] + (timeSlices[4, 4] - timeSlices[1, 4])
         )
       }
 
       if (
-        sim_time[["future_yrs"]][it, "DSfut_startyr"] < tbox["start", "second"]) {
-
+        sim_time[["future_yrs"]][it, "DSfut_startyr"] < tbox["start", "second"]
+      ) {
         timeSlices[1 + it4, 4] <- max(
           tbox["start", "first"],
           sim_time[["future_yrs"]][it, "DSfut_startyr"]
@@ -4271,79 +5733,125 @@ calc_timeSlices <- function(sim_time, tbox) {
   timeSlices
 }
 
-calc_getYears <- function(timeSlices) {
+calc_getYears <- function(timeSlices, is_idem = FALSE) {
   # get unique time slices
-  temp1 <- unique_times(timeSlices, slice = "first")
-  temp2 <- unique_times(timeSlices, slice = "second")
+  tmp1 <- unique_times(timeSlices, slice = "first")
+  tmp2 <- unique_times(timeSlices, slice = "second")
 
   x <- list(
-    n_first = nrow(temp1), first = temp1,
-    n_second = nrow(temp2), second = temp2
+    n_first = nrow(tmp1),
+    first = tmp1,
+    n_second = nrow(tmp2),
+    second = tmp2
   )
 
-  # Monthly time-series
-  temp1 <- list(
+  # Monthly/daily time-series
+  tmp1 <- list(
     ISOdate(x[["first"]][, 1], 1, 1, tz = "UTC"),
     ISOdate(x[["first"]][, 2], 12, 31, tz = "UTC")
   )
-  temp2 <- list(
+  tmp2 <- list(
     ISOdate(x[["second"]][, 1], 1, 1, tz = "UTC"),
     ISOdate(x[["second"]][, 2], 12, 31, tz = "UTC")
   )
 
-  x[["first_dates"]] <- lapply(seq_len(x[["n_first"]]), function(it) {
-    as.POSIXlt(seq(from = temp1[[1]][it], to = temp1[[2]][it], by = "1 month"))
-  })
-  x[["second_dates"]] <- lapply(seq_len(x[["n_second"]]), function(it) {
-    as.POSIXlt(seq(from = temp2[[1]][it], to = temp2[[2]][it], by = "1 month"))
-  })
+  daily_dates_first <- lapply(
+    seq_len(x[["n_first"]]),
+    function(it) {
+      as.POSIXlt(seq(
+        from = tmp1[[1]][it],
+        to = tmp1[[2]][it],
+        by = "1 day"
+      ))
+    }
+  )
+
+  daily_dates_second <- lapply(
+    seq_len(x[["n_second"]]),
+    function(it) {
+      as.POSIXlt(seq(
+        from = tmp2[[1]][it],
+        to = tmp2[[2]][it],
+        by = "1 day"
+      ))
+    }
+  )
+
+  x[["first_dates"]] <- if (is_idem) {
+    daily_dates_first
+  } else {
+    lapply(
+      seq_len(x[["n_first"]]),
+      function(it) {
+        as.POSIXlt(seq(
+          from = tmp1[[1]][it],
+          to = tmp1[[2]][it],
+          by = "1 month"
+        ))
+      }
+    )
+  }
+
+  x[["second_dates"]] <- if (is_idem) {
+    daily_dates_second
+  } else {
+    lapply(
+      seq_len(x[["n_second"]]),
+      function(it) {
+        as.POSIXlt(seq(
+          from = tmp2[[1]][it],
+          to = tmp2[[2]][it],
+          by = "1 month"
+        ))
+      }
+    )
+  }
 
   # Days per month
-  x[["first_dpm"]] <- lapply(seq_len(x[["n_first"]]), function(it) {
-    temp <- as.POSIXlt(seq(
-      from = temp1[[1]][it],
-      to = temp1[[2]][it],
-      by = "1 day"
-    ))
-    rle(temp$mon)$lengths
-  })
-  x[["second_dpm"]] <- lapply(seq_len(x[["n_second"]]), function(it) {
-    temp <- as.POSIXlt(seq(
-      from = temp2[[1]][it],
-      to = temp2[[2]][it],
-      by = "1 day"
-    ))
-    rle(temp$mon)$lengths
-  })
+  x[["first_dpm"]] <- lapply(
+    daily_dates_first,
+    function(tmp) {
+      rle(tmp$mon)$lengths
+    }
+  )
+  x[["second_dpm"]] <- lapply(
+    daily_dates_second,
+    function(tmp) {
+      rle(tmp$mon)$lengths
+    }
+  )
 
   x
 }
 
 
-calc_assocYears <- function(sim_time, reqRCPs, getYears, timeSlices) {
-
+calc_assocYears <- function(
+  sim_time,
+  reqRCPs,
+  getYears,
+  timeSlices,
+  is_idem = FALSE
+) {
   deltas <- rownames(sim_time[["future_yrs"]])
 
-  if ("dall" %in% deltas) {
+  if (is_idem && "dall" %in% deltas) {
     future_N <- 0
     names_assocYears <- "dall"
-
   } else {
-    future_N <- sim_time[["future_N"]]
+    future_N <- length(deltas)
     names_assocYears <- c(
       "historical",
       paste0(deltas, ".", rep(reqRCPs, each = future_N))
     )
-
   }
 
   x <- vector("list", length = 1 + length(reqRCPs) * future_N)
 
   for (it in seq_along(x)) {
-    temp <- strsplit(names_assocYears[it], ".", fixed = TRUE)[[1]][[1]]
+    tmp <- strsplit(names_assocYears[it], ".", fixed = TRUE)[[1]][[1]]
     x[[it]] <- list(
-      first = useSlices(getYears, timeSlices, run = temp, slice = "first"),
-      second = useSlices(getYears, timeSlices, run = temp, slice = "second")
+      first = useSlices(getYears, timeSlices, run = tmp, slice = "first"),
+      second = useSlices(getYears, timeSlices, run = tmp, slice = "second")
     )
   }
 
@@ -4362,24 +5870,32 @@ calc_ids_ToDo <- function(ids_AllToDo, ids_Done) {
 }
 
 
-#access climate change data
-get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
-  SFSW2_prj_meta, locations, climDB_meta, dbW_compression_type, resume,
-  verbose = FALSE, print.debug = FALSE) {
+# access climate change data
+get_climatechange_data <- function(
+  clim_source,
+  SFSW2_prj_inputs,
+  SFSW2_prj_meta,
+  locations,
+  climDB_meta,
+  dbW_compression_type,
+  dbW_digits = 4L,
+  chunk_size = 500L,
+  verbose = FALSE,
+  print.debug = FALSE
+) {
 
   if (verbose) {
     print(paste("Started", shQuote(clim_source), "at", Sys.time()))
   }
 
-  #Global flags
+  # Global flags
   repeatN_max <- 3
-  temp <- strsplit(clim_source, split = "_", fixed = TRUE)[[1]]
-  dir_ex_dat <- file.path(
-    SFSW2_prj_meta[["project_paths"]][["dir_ex_fut"]],
-    "ClimateScenarios",
-    temp[1],
-    paste(temp[-1], collapse = "_")
+
+  dir_ex_dat <- get_path_to_projectedclimate_datasources(
+    project_paths = SFSW2_prj_meta[["project_paths"]],
+    clim_source = clim_source
   )
+
   dir_failed <- file.path(
     SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
     "failed_get_climatechange_data"
@@ -4389,14 +5905,14 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
   use_CF <- is_ClimateForecastConvention(climDB_meta)
   use_NEX <- is_NEX(climDB_meta)
 
-  #Specific flags
+  # Specific flags
   if (use_CF) {
 
-    #CMIP3 Global and USA
+    # CMIP3 Global and USA
     #  - obs: 1950 Jan to 1999 Dec
     #  - SRES: 1950 Jan to 2099 Dec
     #  - all same time + spatial coordinates
-    #CMIP5 Global and USA
+    # CMIP5 Global and USA
     #  - historical: 1950 Jan to 2005 Dec (except: HadGEM2-CC and HadGEM2-ES, to 2005 Nov)
     #  - RCPs:
     #    - in general: 2006 Jan to 2099 Dec or 2100 Dec
@@ -4408,25 +5924,48 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
     #  - all same spatial coordinates
 
     # get netCDF files
-    temp <- list.files(dir_ex_dat, full.names = TRUE, recursive = TRUE)
-    ext <- sapply(strsplit(basename(temp), split = ".", fixed = TRUE), function(x)
-      x[length(x)])
-    climDB_files <- temp[tolower(ext) %in% c("nc", "nc4", "ncdf", "netcdf")]
-    if (length(climDB_files) == 0)
+    tmp <- list.files(dir_ex_dat, full.names = TRUE, recursive = TRUE)
+    ext <- sapply(
+      strsplit(basename(tmp), split = ".", fixed = TRUE),
+      function(x) x[length(x)]
+    )
+    climDB_files <- tmp[tolower(ext) %in% c("nc", "nc4", "ncdf", "netcdf")]
+    if (length(climDB_files) == 0) {
       stop("Could find no files for ", shQuote(clim_source), " in ", dir_ex_dat)
+    }
 
-    climDB_fname_meta <- strsplit(basename(climDB_files),
-      split = climDB_meta[["sep_fname"]], fixed = TRUE)
+    # Fix `climDB_meta` in case files represent time-combined MACA data
+    if (isTRUE(identical(clim_source, "CMIP5_MACAv2metdata_USA"))) {
+      tmp <- unique(sapply(
+        strsplit(basename(climDB_files), split = "_", fixed = TRUE),
+        function(x) paste0(x[1:2], collapse = "_")
+      ))
+
+      if (isTRUE(identical(tmp, "agg_macav2metdata"))) {
+        climDB_meta <- climscen_metadata()[["CMIP5_MACAv2metdataAgg_USA"]]
+      }
+    }
+
+
+    # Extract metadata from file names
+    climDB_fname_meta <- strsplit(
+      basename(climDB_files),
+      split = climDB_meta[["sep_fname"]],
+      fixed = TRUE
+    )
     stopifnot(diff(lengths(climDB_fname_meta)) == 0L)
 
-    temp <- matrix(unlist(climDB_fname_meta), ncol = length(climDB_fname_meta))
-    climDB_struct <- lapply(climDB_meta[["str_fname"]], function(id) unique(temp[id, ]))
+    tmp <- matrix(unlist(climDB_fname_meta), ncol = length(climDB_fname_meta))
+    climDB_struct <- lapply(
+      climDB_meta[["str_fname"]],
+      function(id) unique(tmp[id, ])
+    )
   }
 
   if (use_NEX) {
-    ##https://portal.nccs.nasa.gov/portal_home/published/NEX.html
+    ## https://portal.nccs.nasa.gov/portal_home/published/NEX.html
     opt <- options("timeout")
-    options(timeout = 5*60)
+    options(timeout = 5 * 60)
 
     if (requireNamespace("RCurl")) {
       if (!RCurl::url.exists("https://portal.nccs.nasa.gov/portal_home/published/NEX.html")) {
@@ -4439,45 +5978,50 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
 
     climDB_struct <- list(
       id_var = NULL,
-      id_gcm = c("inmcm4", "bcc-csm1-1", "bcc-csm1-1-m", "NorESM1-M", "MRI-CGCM3",
-                "MPI-ESM-MR", "MPI-ESM-LR", "MIROC5", "MIROC-ESM", "MIROC-ESM-CHEM",
-                "IPSL-CM5B-LR", "IPSL-CM5A-MR", "IPSL-CM5A-LR", "HadGEM2-ES",
-                "HadGEM2-CC", "HadGEM2-AO", "GISS-E2-R", "GFDL-ESM2M", "GFDL-ESM2G",
-                "GFDL-CM3", "FIO-ESM", "FGOALS-g2", "CanESM2", "CSIRO-Mk3-6-0",
-                "CNRM-CM5", "CMCC-CM", "CESM1-CAM5", "CESM1-BGC", "CCSM4", "BNU-ESM",
-                "ACCESS1-0"),
+      id_gcm = c(
+        "inmcm4", "bcc-csm1-1", "bcc-csm1-1-m", "NorESM1-M", "MRI-CGCM3",
+        "MPI-ESM-MR", "MPI-ESM-LR", "MIROC5", "MIROC-ESM", "MIROC-ESM-CHEM",
+        "IPSL-CM5B-LR", "IPSL-CM5A-MR", "IPSL-CM5A-LR", "HadGEM2-ES",
+        "HadGEM2-CC", "HadGEM2-AO", "GISS-E2-R", "GFDL-ESM2M", "GFDL-ESM2G",
+        "GFDL-CM3", "FIO-ESM", "FGOALS-g2", "CanESM2", "CSIRO-Mk3-6-0",
+        "CNRM-CM5", "CMCC-CM", "CESM1-CAM5", "CESM1-BGC", "CCSM4", "BNU-ESM",
+        "ACCESS1-0"
+      ),
       id_scen = c("historical", "rcp26", "rcp45", "rcp60", "rcp85"),
       id_run = NULL,
-      id_time = NULL
+      id_timestart = NULL,
+      id_timeend = NULL
     )
     climDB_files <- NULL
   }
 
   # Force dataset specific lower/uper case for GCMs and RCPs,
   # i.e., use values from 'climbDB_struct' and not reqGCMs and reqRCPs
-  temp <- match(
+  tmp <- match(
     tolower(SFSW2_prj_meta[["sim_scens"]][["reqMs"]]),
     tolower(climDB_struct[["id_gcm"]]),
     nomatch = 0
   )
-  reqGCMs <- as.character(climDB_struct[["id_gcm"]][temp])
-  temp <- match(
+  reqGCMs <- as.character(climDB_struct[["id_gcm"]][tmp])
+  tmp <- match(
     tolower(SFSW2_prj_meta[["sim_scens"]][["reqCSs"]]),
     tolower(climDB_struct[["id_scen"]]),
     nomatch = 0
   )
-  reqRCPs <- as.character(climDB_struct[["id_scen"]][temp])
-  reqRCPsPerGCM <- lapply(SFSW2_prj_meta[["sim_scens"]][["reqCSsPerM"]],
+  reqRCPs <- as.character(climDB_struct[["id_scen"]][tmp])
+  reqRCPsPerGCM <- lapply(
+    SFSW2_prj_meta[["sim_scens"]][["reqCSsPerM"]],
     function(r) {
-      temp <- match(
+      tmp <- match(
         tolower(r),
         tolower(climDB_struct[["id_scen"]]),
         nomatch = 0
       )
-      as.character(climDB_struct[["id_scen"]][temp])
-    })
+      as.character(climDB_struct[["id_scen"]][tmp])
+    }
+  )
 
-  #Tests that all requested conditions will be extracted
+  # Tests that all requested conditions will be extracted
   stopifnot(length(reqGCMs) > 0, all(!is.na(reqGCMs)))
   stopifnot(
     length(reqRCPs) > 0,
@@ -4485,18 +6029,34 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
     any(grepl("historic", climDB_struct[["id_scen"]], ignore.case = TRUE))
   )
 
+
   #--- put requests together
-  #TODO: problably better to include scenarios as well, e.g.,
+  # TODO: probably better to include scenarios as well, e.g.,
   # consider requestN <- length(reqRCPs) * length(reqGCMs) * nrow(locations)
   requestN <- length(reqGCMs) * nrow(locations)
   if (verbose) {
     print(paste(shQuote(clim_source), "will run", requestN, "times"))
   }
 
-  if (any("wgen-package" %in% unlist(SFSW2_prj_meta[["sim_scens"]][["reqDSsPerM"]]))) {
-    icols <- c("wgen_dry_spell_changes", "wgen_wet_spell_changes", "wgen_prcp_cv_changes")
-    locations <- cbind(locations, SFSW2_prj_inputs[["sw_input_treatments"]][, icols])
+  if (
+    any("wgen-package" %in% unlist(SFSW2_prj_meta[["sim_scens"]][["reqDSsPerM"]]))
+  ) {
+    icols <- c(
+      "wgen_dry_spell_changes",
+      "wgen_wet_spell_changes",
+      "wgen_prcp_cv_changes"
+    )
+    locations <- cbind(
+      locations,
+      SFSW2_prj_inputs[["sw_input_treatments"]][, icols]
+    )
   }
+
+  is_idem <-
+    "dall" %in% rownames(SFSW2_prj_meta[["sim_time"]][["future_yrs"]]) &&
+    "idem" %in% unlist(SFSW2_prj_meta[["sim_scens"]][["reqDSsPerM"]]) &&
+    "daily" %in% climDB_meta[["tres"]] &&
+    use_CF
 
   # calculate time slices
   timeSlices <- calc_timeSlices(
@@ -4505,14 +6065,18 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
   )
 
   # calculate 'getYears' object
-  getYears <- calc_getYears(timeSlices)
+  getYears <- calc_getYears(
+    timeSlices,
+    is_idem = is_idem
+  )
 
-  #Logical on how to select from getYears
+  # Logical on how to select from getYears
   assocYears <- calc_assocYears(
     sim_time = SFSW2_prj_meta[["sim_time"]],
     reqRCPs = reqRCPs,
     getYears = getYears,
-    timeSlices = timeSlices
+    timeSlices = timeSlices,
+    is_idem = is_idem
   )
 
 
@@ -4532,6 +6096,8 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
   # the object `locations` may change), i.e., they should be used locally,
   # but not for files, logs, etc. across repeated calls --
   # for those, use instead `locations[i, "site_id"]` and GCM.
+
+  #--- ids_AllToDo is length(reqGCMs) x nrow(locations)
   ids_AllToDo <- seq_len(requestN)
   ids_Done <- NULL
 
@@ -4540,18 +6106,18 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
     repeatN_max > repeatN &&
       length(ids_ToDo <- calc_ids_ToDo(ids_AllToDo, ids_Done)) > 0
   ) {
-
     repeatN <- repeatN + 1
     if (verbose) {
       print(paste(
         shQuote(clim_source), "will run", repeatN, "out of", repeatN_max,
-       "repeats to extract n =", length(ids_ToDo), "requests"
+        "repeats to extract n =", length(ids_ToDo), "requests"
       ))
     }
 
     ids_seeds <- as.vector(outer(
-        seq_along(reqGCMs),
-        (locations[, "site_id"] - 1) * length(reqGCMs), FUN = "+"
+      seq_along(reqGCMs),
+      (locations[, "site_id"] - 1) * length(reqGCMs),
+      FUN = "+"
     ))
 
     out <- tryToGet_ClimDB(
@@ -4564,18 +6130,20 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
       reqGCMs = reqGCMs,
       reqRCPsPerGCM = reqRCPsPerGCM,
       reqDownscalingsPerGCM = SFSW2_prj_meta[["sim_scens"]][["reqDSsPerM"]],
-      locations = locations,
+      locations0 = locations,
+      is_idem = is_idem,
       getYears = getYears,
       assocYears = assocYears,
       project_paths = SFSW2_prj_meta[["project_paths"]],
       dir_failed = dir_failed,
-      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
+      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]],
       climate.ambient = SFSW2_prj_meta[["sim_scens"]][["ambient"]],
       dbW_compression_type = dbW_compression_type,
+      dbW_digits = dbW_digits,
       sim_time = SFSW2_prj_meta[["sim_time"]],
       seeds_DS = SFSW2_prj_meta[["rng_specs"]][["seeds_DS"]][ids_seeds],
       sim_scens = SFSW2_prj_meta[["sim_scens"]],
-      resume = resume,
+      chunk_size = chunk_size,
       verbose = verbose,
       print.debug = print.debug
     )
@@ -4583,31 +6151,31 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
     ids_Done <- sort(unique(c(ids_Done, out)))
   }
 
-  # Process any temporary datafile from a current run
+  #--- Process any temporary datafile from a current run
   copy_tempdata_to_dbW(
-    fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-    clim_source,
-    dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-    verbose
+    fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]],
+    clim_source = clim_source,
+    dir_out_tmp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+    verbose = verbose
   )
 
-  # Determine progress
+  #--- Determine progress
   if (length(ids_Done) > 0) {
-    if (verbose)
+    if (verbose) {
       print(paste(
         clim_source, "was extracted for n =", length(ids_Done), "out of",
         length(ids_AllToDo), "downscaling requests"
       ))
+    }
 
     ils_done <- unique((ids_Done - 1) %/% length(reqGCMs) + 1)
 
     ids_ToDo <- ids_AllToDo[-ids_Done]
-
   } else {
     ids_ToDo <- ids_AllToDo
   }
 
-  #Clean up: report unfinished locations, etc.
+  #--- Clean up: report unfinished locations, etc.
   if (length(ids_ToDo) > 0) {
     print(paste(
       length(ids_ToDo),
@@ -4619,9 +6187,14 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
     failedLocations_DB <- locations[ils_notdone, ]
 
     save(
-      failedLocations_DB, ids_ToDo, ils_notdone, reqGCMs, locations,
+      failedLocations_DB,
+      ids_ToDo,
+      ils_notdone,
+      reqGCMs,
+      locations,
       ids_AllToDo,
-      file = file.path(SFSW2_prj_meta[["project_paths"]][["dir_out"]],
+      file = file.path(
+        SFSW2_prj_meta[["project_paths"]][["dir_out"]],
         paste0("ClimDB_failedLocations_", clim_source, ".RData")
       )
     )
@@ -4637,41 +6210,63 @@ get_climatechange_data <- function(clim_source, SFSW2_prj_inputs,
 
 #' Extract climate scenarios
 #'
-#' @param todos A logical vector of length \code{runsN_master}. Element locations with
+#' @param todos A logical vector of length \code{runsN_main}. Element locations with
 #'  \code{TRUE} indicate to extract climate data for said 'run'. The \code{TRUE} elements
 #'  should be a subset of the \code{TRUE}s of \code{SFSW2_prj_inputs[["include_YN"]]}.
 #'
 #' @export
-ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta,
-  SFSW2_prj_inputs, todos, opt_parallel, opt_chunks, resume,
-  verbose = FALSE, print.debug = FALSE) {
+ExtractClimateChangeScenarios <- function(
+  climDB_metas,
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs,
+  todos,
+  opt_parallel,
+  opt_chunks,
+  verbose = FALSE,
+  print.debug = FALSE
+) {
 
   if (verbose) {
     t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+    tmp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", tmp_call, ": started at ", t1))
 
-    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-      cat("\n")}, add = TRUE)
+    on.exit(
+      {
+        print(paste0(
+          "rSFSW2's ", tmp_call, ": ended after ",
+          round(difftime(Sys.time(), t1, units = "secs"), 2), " s"
+        ))
+        cat("\n")
+      },
+      add = TRUE
+    )
   }
 
   #--- SET UP PARALLELIZATION
   # used in:
   #   - GriddedDailyWeatherFromNCEPCFSR_Global
-  setup_SFSW2_cluster(opt_parallel,
-    dir_out = SFSW2_prj_meta[["project_paths"]][["dir_prj"]],
+  setup_SFSW2_cluster(
+    opt_parallel,
+    dir_out = SFSW2_prj_meta[["project_paths"]][["dir_log"]],
     verbose = opt_verbosity[["verbose"]],
-    print.debug = opt_verbosity[["print.debug"]])
-  on.exit(exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
-    add = TRUE)
-  on.exit(set_full_RNG(SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
-    kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
-    normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]),
-    add = TRUE)
+    print.debug = opt_verbosity[["print.debug"]]
+  )
+  on.exit(
+    exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]]),
+    add = TRUE
+  )
+  on.exit(
+    set_full_RNG(
+      SFSW2_prj_meta[["rng_specs"]][["seed_prev"]],
+      kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][1],
+      normal.kind = SFSW2_prj_meta[["rng_specs"]][["RNGkind_prev"]][2]
+    ),
+    add = TRUE
+  )
 
   rSOILWAT2::dbW_setConnection(
-    dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]]
+    dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]]
   )
   on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
@@ -4691,8 +6286,9 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta,
 
   # Generate seeds for climate change downscaling
   SFSW2_prj_meta[["rng_specs"]][["seeds_DS"]] <- generate_RNG_streams(
-    N = length(SFSW2_prj_meta[["sim_scens"]][["reqMs"]]) *
-      SFSW2_prj_meta[["sim_size"]][["runsN_master"]],
+    N =
+      length(SFSW2_prj_meta[["sim_scens"]][["reqMs"]]) *
+        SFSW2_prj_meta[["sim_size"]][["runsN_main"]],
     seed = SFSW2_prj_meta[["rng_specs"]][["global_seed"]],
     reproducible = SFSW2_prj_meta[["opt_sim"]][["reproducible"]]
   )
@@ -4703,18 +6299,22 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta,
   # loop through data sources
   sites_GCM_source <- SFSW2_prj_inputs[["SWRunInformation"]][todos, "GCM_sources"]
   clim_sources <- stats::na.exclude(unique(sites_GCM_source))
+  if ("NA" %in% clim_sources) {
+    clim_sources <- clim_sources[!(clim_sources %in% "NA")]
+  }
   icols <- c("X_WGS84", "Y_WGS84", "site_id", "WeatherFolder")
 
   for (clim_source in clim_sources) {
-    iDS_runIDs_sites <- todos_siteIDs[sites_GCM_source == clim_source]
+    iDS_runIDs_sites <- todos_siteIDs[sites_GCM_source %in% clim_source]
 
     if (length(iDS_runIDs_sites) > 0) {
       # locations of simulation runs
       locations <- SFSW2_prj_inputs[["SWRunInformation"]][iDS_runIDs_sites, icols]
       stopifnot(identical(iDS_runIDs_sites, locations[, "site_id"]))
 
-      temp <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]] %in% iDS_runIDs_sites
-      locations[, "Site_id_by_dbW"] <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW"]][temp]
+      tmp <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]] %in% iDS_runIDs_sites
+      locations[, "Site_id_by_dbW"] <-
+        SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]][tmp]
 
       if (anyNA(locations[, "Site_id_by_dbW"])) {
         stop("Not all sites (labels) available in weather database.")
@@ -4728,7 +6328,8 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta,
         locations = locations,
         climDB_meta = climDB_metas[[clim_source]],
         dbW_compression_type = dbW_compression_type,
-        resume = resume,
+        dbW_digits = SFSW2_prj_meta[["opt_sim"]][["dbW_digits"]],
+        chunk_size = opt_chunks[["ensembleCollectSize"]],
         verbose = verbose,
         print.debug = print.debug
       )
@@ -4736,19 +6337,29 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta,
   }
 
   # Prepare 'include_YN_climscen'
-  include_YN_climscen <- rep(0L, SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
+  include_YN_climscen <- rep(0L, SFSW2_prj_meta[["sim_size"]][["runsN_main"]])
 
-  temp <- find_sites_with_bad_weather(
-    fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-    site_labels = SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "WeatherFolder"],
-    scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
-    chunk_size = opt_chunks[["ensembleCollectSize"]],
-    verbose = verbose)
-  include_YN_climscen[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]] <- ifelse(temp, 0L, 1L)
+  tmp_ids <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]
+
+  tmp <- !rSOILWAT2::dbW_have_sites_all_weatherData(
+    site_labels =
+      SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
+    site_ids =
+      SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]],
+    scen_labels = unique(
+      SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
+    ),
+    verbose = verbose
+  )
+
+  include_YN_climscen[tmp_ids] <- ifelse(tmp, 0L, 1L)
 
   SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
-  utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]],
-    file = SFSW2_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
+  utils::write.csv(
+    SFSW2_prj_inputs[["SWRunInformation"]],
+    file = SFSW2_prj_meta[["fnames_in"]][["fmain"]],
+    row.names = FALSE
+  )
   unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
 
@@ -4763,132 +6374,217 @@ ExtractClimateChangeScenarios <- function(climDB_metas, SFSW2_prj_meta,
 
 #' Extract climate scenarios from downloaded \url{ClimateWizard.org} data
 #' @export
-ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs, todos,
-  verbose = FALSE) {
+ExtractClimateWizard <- function(
+  climDB_metas,
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs,
+  todos,
+  verbose = FALSE
+) {
 
   if (verbose) {
     t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+    tmp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", tmp_call, ": started at ", t1))
 
-    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-      cat("\n")}, add = TRUE)
+    on.exit(
+      {
+        print(paste0(
+          "rSFSW2's ", tmp_call, ": ended after ",
+          round(difftime(Sys.time(), t1, units = "secs"), 2), " s"
+        ))
+        cat("\n")
+      },
+      add = TRUE
+    )
   }
 
-  if (SFSW2_prj_meta[["sim_scens"]][["N"]] > 1) {
+  id_dbW <- unique(
+    SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
+  )
 
+  if (length(id_dbW) > 0) {
     if (any("CMIP3_ClimateWizardEnsembles_Global" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]])) {
-      #Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
-      #accessed via climatewizard.org on July 10, 2012
-      dir_ex_dat <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_ex_fut"]], "ClimateScenarios", "ClimateWizardEnsembles_Global")
+      # Maurer EP, Adam JC, Wood AW (2009) Climate model based consensus on the hydrologic impacts of climate change to the Rio Lempa basin of Central America. Hydrology and Earth System Sciences, 13, 183-194.
+      # accessed via climatewizard.org on July 10, 2012
+      dir_ex_dat <- get_path_to_projectedclimate_datasources(
+        SFSW2_prj_meta[["project_paths"]],
+        "CMIP3_ClimateWizardEnsembles_Global"
+      )
     }
+
     if (any("CMIP3_ClimateWizardEnsembles_USA" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]])) {
-      #Maurer, E. P., L. Brekke, T. Pruitt, and P. B. Duffy. 2007. Fine-resolution climate projections enhance regional climate change impact studies. Eos Transactions AGU 88:504.
-      #accessed via climatewizard.org
-      dir_ex_dat <- file.path(SFSW2_prj_meta[["project_paths"]][["dir_ex_fut"]], "ClimateScenarios", "ClimateWizardEnsembles_USA")
+      # Maurer, E. P., L. Brekke, T. Pruitt, and P. B. Duffy. 2007. Fine-resolution climate projections enhance regional climate change impact studies. Eos Transactions AGU 88:504.
+      # accessed via climatewizard.org
+      dir_ex_dat <- get_path_to_projectedclimate_datasources(
+        SFSW2_prj_meta[["project_paths"]],
+        "CMIP3_ClimateWizardEnsembles_USA"
+      )
     }
 
-    list.scenarios.external <- basename(list.dirs2(path = dir_ex_dat, full.names = FALSE,
-      recursive = FALSE))
+    list.scenarios.external <- basename(list.dirs2(
+      path = dir_ex_dat,
+      full.names = FALSE,
+      recursive = FALSE
+    ))
 
-    if (all(SFSW2_prj_meta[["sim_scens"]][["id"]][-1] %in% list.scenarios.external)) {
-      #locations of simulation runs
-      locations <- sp::SpatialPoints(coords = SFSW2_prj_inputs[["SWRunInformation"]][todos, c("X_WGS84", "Y_WGS84")],
-        proj4string = sp::CRS("+proj=longlat +datum=WGS84"))
+    id_dbW <- unique(
+      SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
+    )
+
+    if (all(id_dbW %in% list.scenarios.external)) {
+      # locations of simulation runs
+      locations <- sf::st_as_sf(
+        SFSW2_prj_inputs[["SWRunInformation"]][todos, c("X_WGS84", "Y_WGS84")],
+        coords = c("X_WGS84", "Y_WGS84"),
+        crs = 4326
+      )
 
       # keep track of successful/unsuccessful climate scenarios
-      include_YN_climscen <- rep(FALSE, SFSW2_prj_meta[["sim_size"]][["runsN_master"]])
+      include_YN_climscen <- rep(FALSE, SFSW2_prj_meta[["sim_size"]][["runsN_main"]])
 
-      for (sc in seq_len(SFSW2_prj_meta[["sim_scens"]][["N"]] - 1)) {
-        dir_ex_dat.sc <- file.path(dir_ex_dat, SFSW2_prj_meta[["sim_scens"]][["id"]][1 + sc])
-        temp <- basename(list.dirs2(path = dir_ex_dat.sc, full.names = FALSE,
-          recursive = FALSE))
+      id_dbW <- unique(
+        SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
+      )
+
+      for (sc in seq_along(id_dbW)) {
+        dir_ex_dat.sc <- file.path(dir_ex_dat, id_dbW[sc])
+
+        tmp <- basename(list.dirs2(
+          path = dir_ex_dat.sc,
+          full.names = FALSE,
+          recursive = FALSE
+        ))
 
         if ("CMIP3_ClimateWizardEnsembles_Global" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]]) {
-          dir_ex_dat.sc.ppt <- file.path(dir_ex_dat.sc, grep("Precipitation_Value", temp,
-            value = TRUE))
-          dir_ex_dat.sc.temp <- file.path(dir_ex_dat.sc, grep("Tmean_Value", temp,
-            value = TRUE))
+          dir_ex_dat.sc.ppt <- file.path(
+            dir_ex_dat.sc,
+            grep("Precipitation_Value", tmp, value = TRUE)
+          )
+          dir_ex_dat.sc.tmp <- file.path(
+            dir_ex_dat.sc,
+            grep("Tmean_Value", tmp, value = TRUE)
+          )
         }
         if ("CMIP3_ClimateWizardEnsembles_USA" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]]) {
-          dir_ex_dat.sc.ppt <- file.path(dir_ex_dat.sc, grep("Precipitation_Change", temp,
-            value = TRUE))
-          dir_ex_dat.sc.temp <- file.path(dir_ex_dat.sc, grep("Tmean_Change", temp,
-            value = TRUE))
+          dir_ex_dat.sc.ppt <- file.path(
+            dir_ex_dat.sc,
+            grep("Precipitation_Change", tmp, value = TRUE)
+          )
+          dir_ex_dat.sc.tmp <- file.path(
+            dir_ex_dat.sc,
+            grep("Tmean_Change", tmp, value = TRUE)
+          )
         }
-        list.temp.asc <- list.files(dir_ex_dat.sc.temp, pattern = ".asc")
+        list.tmp.asc <- list.files(dir_ex_dat.sc.tmp, pattern = ".asc")
         list.ppt.asc <- list.files(dir_ex_dat.sc.ppt, pattern = ".asc")
 
-        #extract data
+        # extract data
         get.month <- function(path, grid, locations) {
-          g <- raster::raster(file.path(path, grid))
-          locations.CoordG <- sp::spTransform(locations, CRS = raster::crs(g))  #transform graphics::points to grid-coords
-          vals <- raster::extract(g, locations.CoordG)
+          stopifnot(requireNamespace("terra"))
+          g <- terra::rast(file.path(path, grid))
+          locations.CoordG <- sf::st_transform(
+            locations,
+            CRS = sf::st_crs(g)
+          )
+          vals <- terra::extract(g, locations.CoordG, ID = FALSE)[, 1L]
         }
-        sc.temp <- sapply(SFSW2_glovars[["st_mo"]], function(m) {
-            temp <- grep(paste0("_", m, "_"), list.temp.asc, value = TRUE)
-            get.month(path = dir_ex_dat.sc.temp, grid = temp, locations)
-          })
-        sc.ppt <- sapply(SFSW2_glovars[["st_mo"]], function(m) {
-            temp <- grep(paste0("_", m, "_"), list.ppt.asc, value = TRUE)
-            get.month(path = dir_ex_dat.sc.ppt, grid = temp, locations)
-          })
+        sc.tmp <- sapply(
+          SFSW2_glovars[["st_mo"]],
+          function(m) {
+            tmp <- grep(paste0("_", m, "_"), list.tmp.asc, value = TRUE)
+            get.month(path = dir_ex_dat.sc.tmp, grid = tmp, locations)
+          }
+        )
+        sc.ppt <- sapply(
+          SFSW2_glovars[["st_mo"]],
+          function(m) {
+            tmp <- grep(paste0("_", m, "_"), list.ppt.asc, value = TRUE)
+            get.month(path = dir_ex_dat.sc.ppt, grid = tmp, locations)
+          }
+        )
 
         if ("CMIP3_ClimateWizardEnsembles_Global" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]]) {
-          #temp value in C
-          #ppt value in mm
-          #add data to sw_input_climscen and set the use flags
-          itemp1 <- paste0("PPTmm_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width = 2, format = "d", flag = "0"))
-          SFSW2_prj_inputs[["sw_input_climscen_values_use"]][itemp1] <- TRUE
-          SFSW2_prj_inputs[["sw_input_climscen_values"]][todos, itemp1] <- sc.ppt
-          itemp2 <- paste0("TempC_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width = 2, format = "d", flag = "0"))
-          SFSW2_prj_inputs[["sw_input_climscen_values_use"]][itemp2] <- TRUE
-          SFSW2_prj_inputs[["sw_input_climscen_values"]][todos, itemp2] <- sc.temp
+          # tmp value in C
+          # ppt value in mm
+          # add data to sw_input_climscen and set the use flags
+          itmp1 <- paste0("PPTmm_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width = 2, format = "d", flag = "0"))
+          SFSW2_prj_inputs[["sw_input_climscen_values_use"]][itmp1] <- TRUE
+          SFSW2_prj_inputs[["sw_input_climscen_values"]][todos, itmp1] <- sc.ppt
+          itmp2 <- paste0("TempC_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width = 2, format = "d", flag = "0"))
+          SFSW2_prj_inputs[["sw_input_climscen_values_use"]][itmp2] <- TRUE
+          SFSW2_prj_inputs[["sw_input_climscen_values"]][todos, itmp2] <- sc.tmp
 
           include_YN_climscen[todos] <- include_YN_climscen[todos] &
-            stats::complete.cases(SFSW2_prj_inputs[["sw_input_climscen_values"]][todos, c(itemp1, itemp2)])
+            stats::complete.cases(SFSW2_prj_inputs[["sw_input_climscen_values"]][todos, c(itmp1, itmp2)])
         }
 
         if ("CMIP3_ClimateWizardEnsembles_USA" %in% SFSW2_prj_meta[["sim_scens"]][["sources"]]) {
-          sc.temp <- sc.temp * 5/9  #temp addand in C
-          sc.ppt <- 1 + sc.ppt/100  #ppt change as factor
-          #add data to sw_input_climscen and set the use flags
-          itemp1 <- paste0("PPTfactor_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width = 2, format = "d", flag = "0"))
-          SFSW2_prj_inputs[["sw_input_climscen_use"]][itemp1] <- TRUE
-          SFSW2_prj_inputs[["sw_input_climscen"]][todos, itemp1] <- sc.ppt
-          itemp2 <- paste0("deltaTempC_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width = 2, format = "d", flag = "0"))
-          SFSW2_prj_inputs[["sw_input_climscen_use"]][itemp2] <- TRUE
-          SFSW2_prj_inputs[["sw_input_climscen"]][todos, itemp2] <- sc.temp
+          sc.tmp <- sc.tmp * 5 / 9 # tmp addand in C
+          sc.ppt <- 1 + sc.ppt / 100 # ppt change as factor
+          # add data to sw_input_climscen and set the use flags
+          itmp1 <- paste0("PPTfactor_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width = 2, format = "d", flag = "0"))
+          SFSW2_prj_inputs[["sw_input_climscen_use"]][itmp1] <- TRUE
+          SFSW2_prj_inputs[["sw_input_climscen"]][todos, itmp1] <- sc.ppt
+          itmp2 <- paste0("deltaTempC_m", SFSW2_glovars[["st_mo"]], "_sc", formatC(sc, width = 2, format = "d", flag = "0"))
+          SFSW2_prj_inputs[["sw_input_climscen_use"]][itmp2] <- TRUE
+          SFSW2_prj_inputs[["sw_input_climscen"]][todos, itmp2] <- sc.tmp
 
           include_YN_climscen[todos] <- include_YN_climscen[todos] &
-            stats::complete.cases(SFSW2_prj_inputs[["sw_input_climscen_values"]][todos, c(itemp1, itemp2)])
+            stats::complete.cases(SFSW2_prj_inputs[["sw_input_climscen_values"]][todos, c(itmp1, itmp2)])
         }
       }
 
 
-      #write data to disk
-      utils::write.csv(reconstitute_inputfile(SFSW2_prj_inputs[["sw_input_climscen_values_use"]], SFSW2_prj_inputs[["sw_input_climscen_values"]]),
-        file = file.path(SFSW2_prj_meta[["fnames_in"]][["fclimscen_values"]]), row.names = FALSE)
+      # write data to disk
+      utils::write.csv(
+        reconstitute_inputfile(
+          SFSW2_prj_inputs[["sw_input_climscen_values_use"]],
+          SFSW2_prj_inputs[["sw_input_climscen_values"]]
+        ),
+        file = file.path(
+          SFSW2_prj_meta[["fnames_in"]][["fclimscen_values"]]
+        ),
+        row.names = FALSE
+      )
       unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
-      utils::write.csv(reconstitute_inputfile(SFSW2_prj_inputs[["sw_input_climscen_use"]], SFSW2_prj_inputs[["sw_input_climscen"]]),
-        file = file.path(SFSW2_prj_meta[["fnames_in"]][["fclimscen_delta"]]), row.names = FALSE)
+      utils::write.csv(
+        reconstitute_inputfile(
+          SFSW2_prj_inputs[["sw_input_climscen_use"]],
+          SFSW2_prj_inputs[["sw_input_climscen"]]
+        ),
+        file = file.path(
+          SFSW2_prj_meta[["fnames_in"]][["fclimscen_delta"]]
+        ),
+        row.names = FALSE
+      )
       unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
-      include_YN_climscen <- as.numeric(include_YN_climscen >= (SFSW2_prj_meta[["sim_scens"]][["N"]] - 1))
+      tmpn <- length(unique(
+        SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
+      ))
+      include_YN_climscen <- as.numeric(include_YN_climscen >= tmpn)
       SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN_ClimateScenarioSources"] <- include_YN_climscen
-      utils::write.csv(SFSW2_prj_inputs[["SWRunInformation"]], file = SFSW2_prj_meta[["fnames_in"]][["fmaster"]], row.names = FALSE)
+      utils::write.csv(
+        SFSW2_prj_inputs[["SWRunInformation"]],
+        file = SFSW2_prj_meta[["fnames_in"]][["fmain"]],
+        row.names = FALSE
+      )
       unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
 
       no_ecw <- sum(include_YN_climscen == 0)
-      if (no_ecw > 0)
-        print(paste("'ExtractClimateWizard':", no_ecw, "sites didn't extract climate",
-          "data"))
-
+      if (no_ecw > 0) {
+        print(paste(
+          "'ExtractClimateWizard':", no_ecw, "sites didn't extract climate",
+          "data"
+        ))
+      }
     } else {
-      print(paste("Not all scenarios requested in 'master file' are",
-        "available with 'ExtractClimateWizard'"))
+      print(paste(
+        "Not all scenarios requested in 'main file' are",
+        "available with 'ExtractClimateWizard'"
+      ))
     }
   }
 
@@ -4896,88 +6592,230 @@ ExtractClimateWizard <- function(climDB_metas, SFSW2_prj_meta, SFSW2_prj_inputs,
 }
 
 
-#' Extracts climate change scenarios and downscales monthly to daily time series
+#' Extracts monthly or daily climate change scenarios
+#'
+#' Downscales monthly to daily time series
+#'
+#' @section Details: Overview of algorithm:
+#'
+#' Function \code{PrepareClimateScenarios}
+#'    1) calls `copy_tempdata_to_dbW()`
+#'    2) calls `ExtractClimateChangeScenarios()`
+#'
+#' -> function \code{\link{ExtractClimateChangeScenarios}}
+#'    1) prepares parallel setup
+#'    1) loops over \var{clim_sources} calling `get_climatechange_data()`
+#'
+#' -> function \code{\link{get_climatechange_data}}
+#'    1) loops over repeated attempts calling `tryToGet_ClimDB()`
+#'    1) calls `copy_tempdata_to_dbW()`
+#'
+#' -> function \code{\link{tryToGet_ClimDB()}}
+#'    * implements separate logic for monthly and daily data sets
+#'
+#'    * monthly data set
+#'      * loops in parallel over \var{GCM} x location combinations
+#'        calling `try_MonthlyScenarioWeather()`
+#'
+#'    * daily data set
+#'      * loops over chunks of locations
+#'        1) calls `calc_DailyScenarioWeather()`
+#'        1) calls `copy_tempdata_to_dbW()` (if not parallel)
+#'
+#' -> function \code{\link{calc_DailyScenarioWeather()}}
+#'    * loops in parallel over \var{GCM} x \var{scenarios}
+#'      calling `get_DailyScenarioData_netCDF()`
+#'
+#' -> function \code{\link{get_DailyScenarioData_netCDF()}}
+#'    * loops over chunks of locations
+#'      1) calls `get_DailyGCMdata_netCDF()`
+#'      1) calls `try_prepare_site_with_daily_scenario_weather()`
+#'
+#' @md
 #' @export
-PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
-  opt_parallel, resume, opt_verbosity, opt_chunks) {
+PrepareClimateScenarios <- function(
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs,
+  opt_parallel,
+  todo_method = c("dbW", "fmain"),
+  opt_verbosity,
+  opt_chunks
+) {
+
+  todo_method <- match.arg(todo_method)
 
   if (opt_verbosity[["verbose"]]) {
     t1 <- Sys.time()
-    temp_call <- shQuote(match.call()[1])
-    print(paste0("rSFSW2's ", temp_call, ": started at ", t1))
+    tmp_call <- shQuote(match.call()[1])
+    print(paste0("rSFSW2's ", tmp_call, ": started at ", t1))
 
-    on.exit({print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-      cat("\n")}, add = TRUE)
+    on.exit(
+      {
+        print(paste0(
+          "rSFSW2's ", tmp_call, ": ended after ",
+          round(difftime(Sys.time(), t1, units = "secs"), 2), " s"
+        ))
+        cat("\n")
+      },
+      add = TRUE
+    )
   }
 
   climDB_metas <- climscen_metadata()
 
   SFSW2_prj_inputs[["SWRunInformation"]] <- climscen_determine_sources(
     climDB_metas = climDB_metas,
-    SFSW2_prj_meta = SFSW2_prj_meta,
-    SFSW2_prj_inputs = SFSW2_prj_inputs
+    xmain = SFSW2_prj_inputs[["SWRunInformation"]],
+    runIDs_sites = SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]],
+    runsN_sites = SFSW2_prj_meta[["sim_size"]][["runsN_sites"]],
+    how_determine_sources = SFSW2_prj_meta[["opt_input"]][["how_determine_sources"]],
+    scen_sources = SFSW2_prj_meta[["sim_scens"]][["sources"]],
+    fmain = SFSW2_prj_meta[["fnames_in"]][["fmain"]],
+    fpreprocin = SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]]
   )
 
-  conventions <- sapply(SFSW2_prj_meta[["sim_scens"]][["sources"]],
+
+  conventions <- sapply(
+    SFSW2_prj_meta[["sim_scens"]][["sources"]],
     function(x) {
       climDB_metas[[x]][["convention"]]
     }
   )
 
-  if (resume) {
-    # Process any temporary datafile from a potential previous run
-    clim_sources <- unique(SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"])
-    clim_sources <- stats::na.exclude(clim_sources)
 
-    for (k in seq_along(clim_sources)) {
-      copy_tempdata_to_dbW(
-        fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-        clim_source = clim_sources[k],
-        dir_out_temp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
-        verbose = opt_verbosity[["verbose"]]
+  #-- Check if requested climate scenarios are listed in table;
+  # if not add to database
+  rSOILWAT2::dbW_setConnection(
+    dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]]
+  )
+
+  stopifnot(
+    rSOILWAT2::dbW_addScenarios(
+      unique(
+        SFSW2_prj_meta[["sim_scens"]][["df"]][, "id_to_dbW"]
       )
+    )
+  )
+
+
+  #--- Process any temporary datafile from a potential previous run
+  clim_sources <- unique(
+    SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"]
+  )
+  clim_sources <- stats::na.exclude(clim_sources)
+  if ("NA" %in% clim_sources) {
+    clim_sources <- clim_sources[!(clim_sources %in% "NA")]
+  }
+
+  for (k in seq_along(clim_sources)) {
+    copy_tempdata_to_dbW(
+      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]],
+      clim_source = clim_sources[k],
+      dir_out_tmp = SFSW2_prj_meta[["project_paths"]][["dir_out_temp"]],
+      verbose = opt_verbosity[["verbose"]]
+    )
+  }
+
+
+  #--- Determine sites for which climate scenario extractions remain to be done
+  todos <-
+    SFSW2_prj_inputs[["SWRunInformation"]][, "Include_YN"] %in% 1 &
+    SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"] %in%
+    SFSW2_prj_meta[["sim_scens"]][["sources"]]
+
+  if (todo_method == "dbW") {
+    #--- Compare against weather database
+    tmp_var <- "ClimateScenarioSources_Completed"
+
+    # Sites for which climate scenario resources are not already completed
+    resave_fmain <- !(
+      tmp_var %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]])
+    )
+
+    if (resave_fmain) {
+      SFSW2_prj_inputs[["SWRunInformation"]][, tmp_var] <- NA
     }
 
-    # Determine which climate scenario extractions and downscalings remain to be done
-    temp <- find_sites_with_bad_weather(
-      fdbWeather = SFSW2_prj_meta[["fnames_in"]][["fdbWeather"]],
-      site_labels = SFSW2_prj_inputs[["SWRunInformation"]][SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]], "WeatherFolder"],
-      scen_labels = SFSW2_prj_meta[["sim_scens"]][["id"]],
-      chunk_size = opt_chunks[["ensembleCollectSize"]],
-      verbose = opt_verbosity[["verbose"]])
+    tmp_ids <- which(todos)
 
-    todos <- SFSW2_prj_inputs[["include_YN"]]
-    todos[SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]]] <- temp
+    # Check sites
+    if (length(tmp_ids) > 0) {
+      rSOILWAT2::dbW_setConnection(
+        dbFilePath = SFSW2_prj_meta[["fnames_in"]][["fdbWeather2"]]
+      )
+      on.exit(rSOILWAT2::dbW_disconnectConnection(), add = TRUE)
 
-  } else {
-    todos <- SFSW2_prj_inputs[["include_YN"]] &
-      (SFSW2_prj_inputs[["SWRunInformation"]][, "GCM_sources"] %in%
-      SFSW2_prj_meta[["sim_scens"]][["sources"]])
+      tmp_ids2 <- SFSW2_prj_meta[["sim_size"]][["runIDs_sites"]] %in% tmp_ids
+
+      tmp <- !rSOILWAT2::dbW_have_sites_all_weatherData(
+        site_labels =
+          SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, "WeatherFolder"],
+        site_ids =
+          SFSW2_prj_meta[["sim_size"]][["runIDs_sites_by_dbW2"]][tmp_ids2],
+        scen_labels = unique(
+          SFSW2_prj_meta[["sim_scens"]][["df"]][-1, "id_to_dbW"]
+        ),
+        verbose = opt_verbosity[["verbose"]]
+      )
+
+      # Determine sites for which we still need to extract data
+      todos[tmp_ids] <- tmp
+
+      # Update information in fmain
+      resave_fmain <- TRUE
+      SFSW2_prj_inputs[["SWRunInformation"]][tmp_ids, tmp_var] <-
+        as.integer(!tmp)
+
+    } else {
+      todos[] <- FALSE
+    }
+
+    if (resave_fmain) {
+      utils::write.csv(
+        SFSW2_prj_inputs[["SWRunInformation"]],
+        file = SFSW2_prj_meta[["fnames_in"]][["fmain"]],
+        row.names = FALSE
+      )
+      unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
+    }
+
+  } else if (todo_method == "fmain") {
+    #--- Compare against fmain
+    tmp_var <- "ClimateScenarioSources_Completed"
+    if (tmp_var %in% colnames(SFSW2_prj_inputs[["SWRunInformation"]])) {
+      todos <-
+        todos & !(SFSW2_prj_inputs[["SWRunInformation"]][, tmp_var] %in% 1)
+    }
   }
   names(todos) <- NULL
 
+
+  #--- Extract
   if (any(todos)) {
     if (any("NEX" %in% conventions) || any("CF" %in% conventions)) {
-      temp <- ExtractClimateChangeScenarios(
+      tmp <- ExtractClimateChangeScenarios(
         climDB_metas = climDB_metas,
         SFSW2_prj_meta = SFSW2_prj_meta,
         SFSW2_prj_inputs = SFSW2_prj_inputs,
         todos = todos,
         opt_parallel = opt_parallel,
         opt_chunks = opt_chunks,
-        resume = resume,
         verbose = opt_verbosity[["verbose"]],
         print.debug = opt_verbosity[["print.debug"]]
       )
 
-      SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
-      SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
+      SFSW2_prj_inputs <- tmp[["SFSW2_prj_inputs"]]
+      SFSW2_prj_meta <- tmp[["SFSW2_prj_meta"]]
     }
 
     if (any("ClimateWizardEnsembles" %in% conventions)) {
-      SFSW2_prj_inputs <- ExtractClimateWizard(climDB_metas, SFSW2_prj_meta,
-        SFSW2_prj_inputs, todos, verbose = opt_verbosity[["verbose"]])
+      SFSW2_prj_inputs <- ExtractClimateWizard(
+        climDB_metas,
+        SFSW2_prj_meta,
+        SFSW2_prj_inputs,
+        todos,
+        verbose = opt_verbosity[["verbose"]]
+      )
     }
   }
 
@@ -4989,7 +6827,7 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 
 #-----Obtain climate projection data------
 
-#' Check and prepare local copy of \var{CMIP5_MACAv2metdata} dataset
+#' Check and prepare local copy of aggregated \var{CMIP5_MACAv2metdata} dataset
 #'
 #' @param locations A data frame. Two columns \code{X_WGS84} and
 #'   \code{Y_WGS84} of locations describe rectangle
@@ -5024,7 +6862,7 @@ PrepareClimateScenarios <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
 #'
 #' @export
 obtain_CMIP5_MACAv2metdata_USA <- function(locations, dir_ex_fut) {
-  climDB_meta <- climscen_metadata()[["CMIP5_MACAv2metdata_USA"]]
+  climDB_meta <- climscen_metadata()[["CMIP5_MACAv2metdataAgg_USA"]]
 
   dir_ex_dat <- file.path(
     dir_ex_fut,
@@ -5107,17 +6945,18 @@ obtain_CMIP5_MACAv2metdata_USA <- function(locations, dir_ex_fut) {
       )
     )
 
-    fname_bash <- file.path(dir_ex_dat,
+    fname_bash <- file.path(
+      dir_ex_dat,
       paste0("macav2metdata_wget_", format(Sys.time(), "%Y%m%d%H%M%S"), ".sh")
     )
 
     writeLines(wget_bash, con = fname_bash)
 
-    stop("Please execute script ",
+    stop(
+      "Please execute script ",
       shQuote(fname_bash),
       " to download missing MACAv2metdata_USA data."
     )
-
   } else {
     print(paste(
       "All MACAv2metdata_USA files are available;",

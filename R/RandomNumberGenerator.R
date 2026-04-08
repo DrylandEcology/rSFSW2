@@ -15,7 +15,7 @@
 #'
 #' @param N An integer. The number of streams to generate.
 #' @param seed An integer or \code{NULL}. The seed used by
-#'   \code{\link{set.seed}} to set the (global/master) random generator, i.e.,
+#'   \code{\link{set.seed}} to set the (global/main) random generator, i.e.,
 #'   before generating the seeds of the streams.
 #' @param reproducible A logical value. If \code{TRUE}, then \code{N} are
 #'   prepared. If \code{FALSE}, then instead \code{NA}s are returned.
@@ -33,23 +33,27 @@
 generate_RNG_streams <- function(N, seed = NULL, reproducible = TRUE) {
 
   if (reproducible) {
-    oldseed <- get0(".Random.seed", envir = as.environment(1L),
-      inherits = FALSE)
+    oldseed <- get0(
+      ".Random.seed",
+      envir = as.environment(1L),
+      inherits = FALSE
+    )
 
-    on.exit({
+    on.exit(
       if (!is.null(oldseed)) {
-          assign(".Random.seed", oldseed, pos = 1L)
+        assign(".Random.seed", oldseed, pos = 1L)
       } else {
-        rm(.Random.seed, pos = 1L)
-      }
-    }, add = TRUE)
+        rm(".Random.seed", pos = 1L)
+      },
+      add = TRUE
+    )
 
     RNGkind("L'Ecuyer-CMRG")
 
     if (!is.null(seed)) set.seed(seed)
 
     seeds <- vector("list", N)
-    seeds[[1L]] <- .Random.seed
+    seeds[[1L]] <- .Random.seed # nolint
 
     for (i in seq_len(N - 1L)) {
       seeds[[i + 1L]] <- parallel::nextRNGStream(seeds[[i]])

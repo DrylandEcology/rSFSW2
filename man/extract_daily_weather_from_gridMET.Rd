@@ -2,29 +2,32 @@
 % Please edit documentation in R/WeatherDB.R
 \name{extract_daily_weather_from_gridMET}
 \alias{extract_daily_weather_from_gridMET}
-\title{Extract daily gridded weather data from the \var{gridMET} dataset}
+\title{Extract daily gridded weather data from the \code{gridMET} dataset}
 \usage{
 extract_daily_weather_from_gridMET(
   dir_data,
   site_ids,
   site_ids_by_dbW,
-  coords,
+  coords_WGS84,
   start_year,
   end_year,
+  id_ambient_scenario = 1,
   comp_type = "gzip",
-  dbW_digits = 2,
+  dbW_digits = NA,
+  correctWeatherValues = FALSE,
+  chunksize = 10000,
   verbose = FALSE
 )
 }
 \arguments{
 \item{dir_data}{A character string. The directory containing the
-\var{gridMET} dataset files.}
+\code{gridMET} dataset files.}
 
 \item{site_ids}{An integer vector. The indices of sites for which to extract
-\var{gridMET} weather data.}
+\code{gridMET} weather data.}
 
-\item{coords}{A two-dimensional numerical object. The coordinates for each
-site in \var{WGS84}.}
+\item{coords_WGS84}{A two-dimensional numerical object.
+The coordinates for each site in \code{WGS84}.}
 
 \item{start_year}{An integer value. The first calendar year for which to
 extract daily weather data.}
@@ -38,21 +41,25 @@ weather database.}
 \item{dbW_digits}{An integer value. The number of digits to which the
 daily weather values are rounded to.}
 
+\item{correctWeatherValues}{A logical value.
+Correct weather values including switched minimum/maximum values or
+humidity > \verb{100\%}.}
+
 \item{verbose}{A logical value.}
 }
 \description{
 Extracts daily gridded weather data, including precipitation,
-maximum temperature and minimum temperature from the \var{gridMET}
+maximum temperature and minimum temperature from the \code{gridMET}
 (Abatzoglou 2013) database: a 1/24 degree gridded weather database that
 contains data for the years 1979 - yesterday.
 }
 \section{Details}{
- Run the function \code{\link{gridMET_download_and_check}}
-  to download and check the dataset.
+ Run the function \code{\link[=gridMET_download_and_check]{gridMET_download_and_check()}}
+to download and check the dataset.
 }
 
 \references{
 Abatzoglou, J. T. (2013) Development of gridded surface
-  meteorological data for ecological applications and modelling.
-  \var{Int. J. Climatol.}, 33: 121–131.
+meteorological data for ecological applications and modelling.
+\var{Int. J. Climatol.}, 33: 121–131.
 }

@@ -22,7 +22,6 @@ objects from the evaluation frame stack of function 'f' are collected and
 stored in a \var{RData} file
 }
 \examples{
-\dontrun{
 f2 <- function(x, cause_error = FALSE) {
   print(match.call())
   print(environment())
@@ -58,7 +57,6 @@ ls.str(x)
 
 # Clean up
 unlink("last.dump.f2.RData")
-}
 
 }
 \seealso{

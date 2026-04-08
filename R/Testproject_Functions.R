@@ -164,29 +164,38 @@ run_test_projects <- function(dir_tests, dir_prj_tests = NULL, dir_ref = NULL,
         }
 
         if (exists("SFSW2_prj_meta")) {
-          temp <- NULL
+          tmp <- list()
 
           # nolint start
           if (SFSW2_prj_meta[["exinfo"]][["ExtractSkyDataFromNOAAClimateAtlas_USA"]] ||
-            SFSW2_prj_meta[["exinfo"]][["ExtractSkyDataFromNCEPCFSR_Global"]]) {
+            SFSW2_prj_meta[["exinfo"]][["ExtractSkyDataFromNCEPCFSR_Global"]]
+          ) {
 
-            temp <- c(temp, SFSW2_prj_meta[["fnames_in"]][["fclimnorm"]])
+            tmp <- c(tmp, SFSW2_prj_meta[["fnames_in"]][["fclimnorm"]])
           }
 
           if (SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromCONUSSOILFromSTATSGO_USA"]] ||
-            SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]]) {
+            SFSW2_prj_meta[["exinfo"]][["ExtractSoilDataFromISRICWISEv12_Global"]]
+          ) {
 
-            temp <- c(temp, SFSW2_prj_meta[["fnames_in"]][["fslayers"]],
-              SFSW2_prj_meta[["fnames_in"]][["fsoils"]])
+            tmp <- c(
+              tmp,
+              SFSW2_prj_meta[["fnames_in"]][["fslayers"]],
+              SFSW2_prj_meta[["fnames_in"]][["fsoils"]]
+            )
           }
           # nolint end
 
-          if (verbose && !is.null(temp)) {
-            print(paste("Will delete input files:", paste0(basename(temp),
-              collapse = ", ")))
+          tmp <- unlist(tmp)
+
+          if (verbose && length(tmp) > 0) {
+            print(paste(
+              "Will delete input files:",
+              toString(basename(tmp))
+            ))
           }
 
-          files_to_delete <- temp
+          files_to_delete <- tmp
         }
 
       } else {
@@ -374,7 +383,9 @@ delete_test_output <- function(dir_test, delete_filepaths = NULL) {
 
   dirs_to_delete <- c(
     file.path(dir_test, "3_Runs"),
-    file.path(dir_test, "4_Simulation"))
+    file.path(dir_test, "4_Simulation"),
+    file.path(dir_test, "logs")
+  )
 
   try(unlink(unlist(files_to_delete)), silent = TRUE)
   try(unlink(unlist(dirs_to_delete), recursive = TRUE), silent = TRUE)

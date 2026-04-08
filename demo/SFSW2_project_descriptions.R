@@ -25,23 +25,8 @@ opt_platform <- list(
 
 #------ Paths to simulation framework project folders
 project_paths <- list(
-  dir_prj = dir_prj <- {
-    # path to simulation project
-    temp <- if (identical(opt_platform[["host"]], "local")) {
-        "SFSW2_default_project" # change to "~/YOURPROJECT"
-      } else if (identical(opt_platform[["host"]], "hpc")) {
-        getwd()
-      }
-
-    if (dir.exists(temp)) {
-      if (interactive()) setwd(temp)
-    } else {
-      warning("'project_paths[['dir_prj']]' = ", shQuote(temp),
-        "does not exist. Code uses ", shQuote(getwd()), " instead.",
-        call. = FALSE, immediate. = TRUE)
-    }
-    getwd()
-  },
+  # path to simulation project
+  dir_prj = dir_prj <- getwd(),
 
   # Path to inputs
   dir_in = dir_in <- file.path(dir_prj, "1_Input"),
@@ -54,10 +39,10 @@ project_paths <- list(
 
   # Path to where large outputs are saved to disk
   dir_big = dir_big <- if (identical(opt_platform[["host"]], "local")) {
-      dir_prj
-    } else if (identical(opt_platform[["host"]], "hpc")) {
-      dir_prj
-    },
+    dir_prj
+  } else if (identical(opt_platform[["host"]], "hpc")) {
+    dir_prj
+  },
   # Path to where rSOILWAT2 objects are saved to disk
   #   if saveRsoilwatInput and/or saveRsoilwatOutput
   dir_out_sw = file.path(dir_big, "3_Runs"),
@@ -68,13 +53,14 @@ project_paths <- list(
   # Path to various other output
   dir_out_expDesign = file.path(dir_out, "Experimentals_Input_Data"),
   dir_out_traces = file.path(dir_out, "Time_Traces"),
+  dir_log = file.path(dir_prj, "logs"),
 
   # Path from where external data are extraced
   dir_external = dir_ex <- if (identical(opt_platform[["host"]], "local")) {
-      file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
-    } else if (identical(opt_platform[["host"]], "hpc")) {
-      file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
-    },
+    file.path("/Volumes", "YOURDRIVE", "BigData", "GIS", "Data")
+  } else if (identical(opt_platform[["host"]], "hpc")) {
+    file.path("/home", "YOURDRIVE", "BigData", "GIS", "Data")
+  },
   # Path to historic weather and climate data including
   #   Livneh, Maurer, ClimateAtlas, and NCEPCFSR data
   dir_ex_weather = file.path(dir_ex, "Weather_Past"),
@@ -83,22 +69,58 @@ project_paths <- list(
   # Path to soil data
   dir_ex_soil = file.path(dir_ex, "Soils"),
   # Path to topographic data
-  dir_ex_dem = file.path(dir_ex, "Topography")
+  dir_ex_dem = file.path(dir_ex, "Topography"),
+
+  #--- Paths to historic weather data (defaults used if not specified)
+  # see `set_paths_to_dailyweather_datasources()`
+  dir_maurer2002 = NA,
+  dir_daymet = NA,
+  dir_NRCan = NA,
+  dir_Livneh2013 = NA,
+  dir_gridMET = NA,
+  dir_NCEPCFSR = NA,
+
+  #--- Paths to mean monthly climate data (defaults used if not specified)
+  # see `get_path_to_meanmonthlyclimate_datasources()`
+  dir_ClimateAtlasUS = NA,
+
+  #--- Paths to projected climate data (defaults used if not specified)
+  # see `get_path_to_projectedclimate_datasources()`
+  dir_CMIP5_BCSD_GDODCPUCLLNL_USA = NA,
+  dir_BCSD_GDODCPUCLLNL_Global = NA,
+  dir_CMIP5_MACAv2metdata_USA = NA,
+  dir_ESGF_Global = NA,
+  dir_BCSD_SageSeer_USA = NA,
+  dir_BCSD_NEX_USA = NA,
+  dir_ClimateWizardEnsembles_USA = NA,
+  dir_ClimateWizardEnsembles_Global = NA,
+
+  #--- Paths to soils data (defaults used if not specified)
+  # see `get_path_to_soil_datasources()`
+  dir_CONUSSOILFromSTATSGO_USA = NA,
+  dir_ISRICWISEv12 = NA,
+  dir_ISRICWISE30secV1a = NA,
+
+  #--- Paths to elevation data (defaults used if not specified)
+  # see `get_path_to_elevation_datasources()`
+  dir_NED_USA = NA,
+  dir_HWSD_Global = NA
 )
 
 
 #------ Base names or full names of input files
 fnames_in <- list(
-  fmaster = "SWRuns_InputMaster_YOURPROJECT_v12.csv",
+  fmain = "SWRuns_InputMain_YOURPROJECT_v12.csv",
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
   ftreatDesign = "SWRuns_InputData_TreatmentDesign_v18.csv",
-  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v10.csv",
+  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v14.csv",
 
   fclimnorm = "SWRuns_InputData_cloud_v10.csv",
   fvegetation = "SWRuns_InputData_prod_v11.csv",
-  fsite = "SWRuns_InputData_siteparam_v15.csv",
-  fsoils = "SWRuns_InputData_soils_v12.csv",
+  fsite = "SWRuns_InputData_siteparam_v18.csv",
+  fsoils = "SWRuns_InputData_soils_v13.csv",
+  fswrcp = "SWRuns_InputData_SWRCp_v1.csv",
   fweathersetup = "SWRuns_InputData_weathersetup_v10.csv",
   fclimscen_delta = "SWRuns_InputData_ClimateScenarios_Change_v11.csv",
   fclimscen_values = "SWRuns_InputData_ClimateScenarios_Values_v11.csv",
@@ -118,12 +140,16 @@ fnames_in <- list(
   #   from (slower) csv files
   fpreprocin = "SWRuns_InputAll_PreProcessed.rds",
 
-  # Database with daily weather data
+  # Database with daily ambient weather data
   fdbWeather = if (identical(opt_platform[["host"]], "local")) {
-      file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3")
-    } else if (identical(opt_platform[["host"]], "hpc")) {
-      file.path(project_paths[["dir_prj"]], "..", "dbWeatherData.sqlite3")
-    },
+    file.path(project_paths[["dir_in"]], "dbWeatherData.sqlite3")
+  } else if (identical(opt_platform[["host"]], "hpc")) {
+    file.path(project_paths[["dir_prj"]], "..", "dbWeatherData.sqlite3")
+  },
+
+  # Database with projected daily weather data
+  # (set to `fdbWeather` or NA if data are combined in `fdbWeather`)
+  fdbWeather2 = NA,
 
   # Raster describing spatial interpretation of simulation experiment
   # if scorp == "cell"
@@ -134,8 +160,12 @@ fnames_in <- list(
 #------ Full names of output files
 fnames_out <- list(
   dbOutput = file.path(project_paths[["dir_out"]], "dbOutput.sqlite3"),
-  dbOutput_current = file.path(project_paths[["dir_out"]],
-    "dbOutput_current.sqlite3"),
+  dbOutput_current = file.path(
+    project_paths[["dir_out"]], "dbOutput_current.sqlite3"
+  ),
+  scenarioList = file.path(
+    project_paths[["dir_out"]], "Table_ScenarioDescription.csv"
+  ),
   timerfile = file.path(project_paths[["dir_out"]], "Timing_Simulation.csv")
 )
 
@@ -150,39 +180,39 @@ opt_input <- list(
     "CalculateBareSoilEvaporationCoefficientsFromSoilTexture", 1
   ),
 
-  # Interpolate and add soil layers if not available if 'AddRequestedSoilLayers'
+  # Update soil profile and data if 'AddRequestedSoilLayers'
   requested_soil_layers = c(5, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 150),
-  # Approach existing soil depth is less than 'requested_soil_layers'
-  #   - [TRUE] keep input soil depth
-  #   - [FALSE] adjust soil depth to 'max(requested_soil_layers)'
-  keep_old_depth = TRUE,
+  # Determine soil depth
+  #   - [TRUE] keep input/previous soil depth, i.e., don't add
+  #     `requested_soil_layers` that are deeper
+  #   - [FALSE] include all of `requested_soil_layers`, potentially
+  #     extending soil depth to `max(requested_soil_layers)`
+  keep_prev_soildepth = TRUE,
+  # Determine final set of soil layers
+  #   - [TRUE] combine input/previous soil layers with `requested_soil_layers`
+  #   - [FALSE] keep `requested_soil_layers` and dissolve others
+  keep_prev_soillayers = TRUE,
 
   # Request data from datasets ('external' to a rSFSW2-project)
   req_data = c(
       # Daily weather data for current conditions
       #   - Maurer et al. 2002: 1/8-degree res. for 1949-2010; data expected at
-      #     file.path(project_paths[["dir_ex_weather"]], "Maurer+_2002updated",
-      #     "DAILY_FORCINGS")
+      #     project_paths[["dir_maurer2002"]]
       "GriddedDailyWeatherFromMaurer2002_NorthAmerica", 0,
-      #   - Thornton et al. 1997: 1-km res. for 1980-2016; data expected at
-      #     file.path(project_paths[["dir_ex_weather"]], "DayMet_NorthAmerica",
-      #     "DownloadedSingleCells_FromDayMetv3_NorthAmerica")
+      #   - Thornton et al. 1997: 1-km res. for 1980-current; data expected at
+      #     project_paths[["dir_daymet"]]
       "GriddedDailyWeatherFromDayMet_NorthAmerica", 0,
       #   - McKenney et al. 2011: 10-km res. for 1950-2013; use with dbW;
-      #     data expected at file.path(project_paths[["dir_ex_weather"]],
-      #     "NRCan_10km_Canada", "DAILY_GRIDS")
+      #     data expected at project_paths[["dir_NRCan"]]
       "GriddedDailyWeatherFromNRCan_10km_Canada", 0,
       #   - Saha et al. 2010: 0.3125-deg res. for 1979-2010; use with dbW;
-      #     data expected at file.path(project_paths[["dir_ex_weather"]],
-      #     "NCEPCFSR_Global", "CFSR_weather_prog08032012")
+      #     data expected at project_paths[["dir_NCEPCFSR"]]
       "GriddedDailyWeatherFromNCEPCFSR_Global", 0,
       #   - Livneh et al. 2013: 1/16 degree res. for 1915-2011; data expected at
-      #     file.path(project_paths[["dir_ex_weather"]], "Livneh_NA_2013",
-      #     "MONTHLY_GRIDS")
+      #     project_paths[["dir_Livneh2013"]]
       "GriddedDailyWeatherFromLivneh2013_NorthAmerica", 0,
       #   - Abatzoglou et al. 2013: 1/24 degree res. for 1979-yesterday;
-      #     data expected at file.path(project_paths[["dir_ex_weather"]],
-      #     "gridMET_4km_NA", "YEARLY_GRIDS");
+      #     data expected at project_paths[["dir_gridMET"]],
       #     obtain data with function `gridMET_download_and_check`
       "GriddedDailyWeatherFromgridMET_NorthAmerica", 0,
 
@@ -195,32 +225,28 @@ opt_input <- list(
       "ExtractClimateChangeScenarios", 0,
 
       # Mean monthly wind, relative humidity, and 100% - sunshine
-      #   - NCDC 2005: data expected at file.path(
-      #     project_paths[["dir_ex_weather"]], "ClimateAtlasUS")
+      #   - NCDC 2005: data expected at project_paths[["dir_ClimateAtlasUS"]]
       "ExtractSkyDataFromNOAAClimateAtlas_USA", 0,
-      #   - Saha et al. 2010: project_paths[["dir_ex_weather"]],
-      #     "NCEPCFSR_Global", "CFSR_weather_prog08032012")
+      #   - Saha et al. 2010: project_paths[["dir_NCEPCFSR"]]
       "ExtractSkyDataFromNCEPCFSR_Global", 0,
 
       # Topography
       #   - NED, National Elevation Dataset (ned.usgs.gov): 1-arcsec res;
-      #     data expected at project_paths[["dir_ex_dem"]], "NED_USA",
-      #     "NED_1arcsec")
+      #     data expected at project_paths[["dir_NED_USA"]]
       "ExtractElevation_NED_USA", 0,
       #   - Harmonized World Soil Database: 30-arcsec res; data expected
-      #     at project_paths[["dir_ex_dem"]], "HWSD")
+      #     at project_paths[["dir_HWSD_Global"]]
       "ExtractElevation_HWSD_Global", 0,
 
       # Soil texture
       #   - Harmonized World Soil Database: 1-km re-gridded; data expected
-      #     at project_paths[["dir_ex_soil"]], "CONUSSoil", "output", "albers")
+      #     at project_paths[["dir_CONUSSOILFromSTATSGO_USA"]]
       "ExtractSoilDataFromCONUSSOILFromSTATSGO_USA", 0,
       #   - ISRIC-WISE 5-arcmin v1.2 (2012): 5-arcmin re-gridded; data expected
-      #     at project_paths[["dir_ex_soil"]], "WISE", "wise5by5min_v1b",
-      #     "Grid", "smw5by5min")
+      #     at project_paths[["dir_ISRICWISEv12"]]
       "ExtractSoilDataFromISRICWISEv12_Global", 0,
       #   - ISRIC-WISE 30-arsec v1.0 (2016): 30-arcsec re-gridded; data expected
-      #     at project_paths[["dir_ex_soil"]], "WISE", "WISE30sec_v1a")
+      #     at project_paths[["dir_ISRICWISE30secV1a"]]
       "ExtractSoilDataFromISRICWISE30secV1a_Global", 0
   ),
 
@@ -267,16 +293,19 @@ opt_sim <- list(
   global_seed = 1235L,
 
   # Daily weather either from database 'dbWeather' or specified via
-  #   'WeatherFolder' in MasterInput.csv, treatmentDesign.csv, or
+  #   'WeatherFolder' in InputMain.csv, treatmentDesign.csv, or
   #   experimentalDesign.csv
   # Use daily weather from dbWeather for current condition
   use_dbW_current = TRUE,
   # Use daily weather from dbWeather for future scenario conditions
   use_dbW_future = TRUE,
   # Number of decimal places to which weather data is rounded
-  dbW_digits = 2,
+  dbW_digits = 4,
   # Identifying tag of folder names for weather data if 'LookupWeatherFolder'
   tag_WeatherFolder = "weath",
+
+  # Correction of problematic weather values (rSOILWAT2 >= v6.4.0)
+  correctWeatherValues = TRUE,
 
   # Approach if there is no soil texture information for the deepest layer(s)
   #   - [TRUE] adjust soil depth
@@ -334,7 +363,7 @@ opt_out_fix <- list(
   #    table combination
   use_granular_control = FALSE,
 
-  # Column numbers of master input file 'SWRunInformation', e.g, c(3, 7:9), or
+  # Column numbers of main input file 'SWRunInformation', e.g, c(3, 7:9), or
   #   NULL: Selected columns will be part of 'header' table in dbOutput in
   #   addition to those of create_treatments, experimental_treatments, and
   #   climate scenario
@@ -347,7 +376,12 @@ opt_out_fix <- list(
   #   - Create from a subset of temporary text files (fast)
   dbOutCurrent_from_tempTXT = FALSE,
   #   - Subset scenarios to climate.ambient (slow)
-  dbOutCurrent_from_dbOut = FALSE
+  dbOutCurrent_from_dbOut = FALSE,
+
+  # Output variables produced by rSOILWAT2
+  #   - Create minimal (TRUE) or full (FALSE) set of output variables
+  #     The minimal set is sufficient for some cases and is c. 70% smaller
+  minimal_rSOILWAT2_output = TRUE
 )
 
 
@@ -357,7 +391,7 @@ opt_out_fix <- list(
 #   locations provided in 'SWRunInformation' as point locations (1D-sites) or
 #   as means of 2D-cells
 # If `scorp`` is "cell" then provide either valid path to 'fsimraster'
-#   (takes precedence) or (grid resolution and grid crs)
+#   (takes precedence) or (grid resolution and grid crs/epsg)
 # Currently, implemented for
 #   - create maps during input checks
 #   - external extractions:
@@ -370,14 +404,14 @@ opt_out_fix <- list(
 in_space <- list(
   scorp = scorp <- "point",
 
-  # Resolution of raster cells
+  # Resolution of raster cells in units of raster
   sim_res = if (scorp == "cell") c(1e4, 1e4) else NA,
-  # Coordinate reference system (CRS)
-  sim_crs = if (scorp == "cell") {
-      "+init=epsg:5072" # NAD83(HARN) / Conus Albers
-    } else {
-      "+init=epsg:4326" # WGS84
-    }
+
+  # Coordinate reference system (CRS), e.g., as EPSG
+  # e.g., WGS84 is 4326; Web Pseudo-Mercator is 3857;
+  # NAD27(USA) was 2163, now 9311; NAD83(USA) is 4269,
+  # NAD83(HARN) is 5072; NAD83(2011, USA) is 6318
+  sim_crs = if (scorp == "cell") 5072 else 4326
 )
 
 
@@ -395,9 +429,13 @@ sim_time <- list(
   #   \code{c(delta, DSfut_startyr, DSfut_endyr)}
   #
   # Daily scenario data "idem" (pass through):
-  #   - Each list element ("row") of 'future_yrs' must match exactly one
+  #   - Each list element ("row") of 'future_yrs' must match to one
   #     of the scenario experiments of 'req_scens[["models"]]`
-  #     (e.g., "historical", "RCP45", "RCP85") -- in the correct order
+  #     (e.g., "historical", "RCP45", "RCP85"):
+  #     matching is by name if names available
+  #     (multiple rows per scenario possible),
+  #     otherwise by position (limited to one row per scenario)
+  #
   #   - Value of 'delta' is ignored
   #
   # Monthly scenario data:
@@ -414,56 +452,64 @@ sim_time <- list(
   DScur_endyr = endyr,
 
   future_yrs = list(
-    c(d <- 0, startyr + d, endyr + d), # historical runs of GCMs
-    c(d <- 40, startyr + d, endyr + d),
-    c(d <- 90, startyr + d, endyr + d - 1) # most GCMs don't have data for 2100
+    historical = c(NA, 1950, 2005), # historical runs of GCMs
+    RCP45 = c(NA, 2006, 2099),
+    RCP85 = c(NA, 2006, 2099)
   )
 )
 
 
 #------ Requested climate conditions
 req_scens <- list(
+  # Era of MIP: "CMIP3", "CMIP5", "CMIP6"
+  mip_era = "CMIP5",
+
   # Name of climatic conditions of the daily weather input when monthly climate
   #   perturbations are all off
   ambient = "Current",
 
-  # Name of atmospheric CO2-concentration dataset to be used for "ambient"
+  # Name of atmospheric CO2-concentration dataset(s) to be used for "ambient"
   # conditions.
-  # The string must match a column name of `LookupCO2data/AtmosCO2.csv`
-  tag_aCO2_ambient = "Fix360ppm", # e.g., "Fix360ppm", etc.
+  # The string(s) must each match a column name of `rSOILWAT2::sw2_tr_CO2a`.
+  # Yearly values from the first matched column are used until that
+  # column has no more values, then the second matched column is used, etc.
+  # (see ranges of years in documentation of `rSOILWAT2::sw2_tr_CO2a`).
+  # An error is produced if no value can be found.
+  tag_aCO2_ambient = c("CMIP5_historical", "CMIP5_RCP85"),
 
   # Names of climate scenarios
   #   - If a simulation project does not include future climate conditions,
   #     then set models = NULL
   #   - If climate datafiles used, then in the order of data in the those
   #     datafiles
-  #   - This is a list of all GCMs for CMIP5 provided by GDO-DCP-UC-LLNL:
-  #     37 RCP4.5, 35 RCP8.5
-  #     Excluded: 'HadCM3' and 'MIROC4h' because data only available until 2035
-  models = c("RCP45.ACCESS1-0", "RCP45.ACCESS1-3", "RCP45.bcc-csm1-1",
-    "RCP45.bcc-csm1-1-m", "RCP45.BNU-ESM", "RCP45.CanESM2", "RCP45.CCSM4",
-    "RCP45.CESM1-BGC", "RCP45.CESM1-CAM5", "RCP45.CMCC-CM", "RCP45.CNRM-CM5",
-    "RCP45.CSIRO-Mk3-6-0", "RCP45.EC-EARTH", "RCP45.FGOALS-g2",
-    "RCP45.FGOALS-s2", "RCP45.FIO-ESM", "RCP45.GFDL-CM3", "RCP45.GFDL-ESM2G",
-    "RCP45.GFDL-ESM2M", "RCP45.GISS-E2-H-CC", "RCP45.GISS-E2-R",
-    "RCP45.GISS-E2-R-CC", "RCP45.HadGEM2-AO", "RCP45.HadGEM2-CC",
-    "RCP45.HadGEM2-ES", "RCP45.inmcm4", "RCP45.IPSL-CM5A-LR",
-    "RCP45.IPSL-CM5A-MR", "RCP45.IPSL-CM5B-LR", "RCP45.MIROC-ESM",
-    "RCP45.MIROC-ESM-CHEM", "RCP45.MIROC5", "RCP45.MPI-ESM-LR",
-    "RCP45.MPI-ESM-MR", "RCP45.MRI-CGCM3", "RCP45.NorESM1-M",
-    "RCP45.NorESM1-ME",
+  # Example: available models and experiments in MACA for CMIP5
+  models = c(
+    "historical.bcc-csm1-1", "historical.bcc-csm1-1-m", "historical.BNU-ESM",
+    "historical.CanESM2", "historical.CCSM4", "historical.CNRM-CM5",
+    "historical.CSIRO-Mk3-6-0", "historical.GFDL-ESM2G",
+    "historical.GFDL-ESM2M", "historical.HadGEM2-CC365",
+    "historical.HadGEM2-ES365", "historical.inmcm4", "historical.IPSL-CM5A-LR",
+    "historical.IPSL-CM5A-MR", "historical.IPSL-CM5B-LR",
+    "historical.MIROC-ESM", "historical.MIROC-ESM-CHEM", "historical.MIROC5",
+    "historical.MRI-CGCM3", "historical.NorESM1-M",
 
-             "RCP85.ACCESS1-0", "RCP85.ACCESS1-3", "RCP85.bcc-csm1-1",
-    "RCP85.bcc-csm1-1-m", "RCP85.BNU-ESM", "RCP85.CanESM2", "RCP85.CCSM4",
-    "RCP85.CESM1-BGC", "RCP85.CESM1-CAM5", "RCP85.CMCC-CM", "RCP85.CNRM-CM5",
-    "RCP85.CSIRO-Mk3-6-0", "RCP85.EC-EARTH", "RCP85.FGOALS-g2",
-    "RCP85.FGOALS-s2", "RCP85.FIO-ESM", "RCP85.GFDL-CM3", "RCP85.GFDL-ESM2G",
-    "RCP85.GFDL-ESM2M",                       "RCP85.GISS-E2-R",
-                          "RCP85.HadGEM2-AO", "RCP85.HadGEM2-CC",
-    "RCP85.HadGEM2-ES", "RCP85.inmcm4", "RCP85.IPSL-CM5A-LR",
-    "RCP85.IPSL-CM5A-MR", "RCP85.IPSL-CM5B-LR", "RCP85.MIROC-ESM",
-    "RCP85.MIROC-ESM-CHEM", "RCP85.MIROC5", "RCP85.MPI-ESM-LR",
-    "RCP85.MPI-ESM-MR", "RCP85.MRI-CGCM3", "RCP85.NorESM1-M", "RCP85.NorESM1-ME"
+    "RCP45.bcc-csm1-1", "RCP45.bcc-csm1-1-m", "RCP45.BNU-ESM",
+    "RCP45.CanESM2", "RCP45.CCSM4", "RCP45.CNRM-CM5",
+    "RCP45.CSIRO-Mk3-6-0", "RCP45.GFDL-ESM2G",
+    "RCP45.GFDL-ESM2M", "RCP45.HadGEM2-CC365",
+    "RCP45.HadGEM2-ES365", "RCP45.inmcm4", "RCP45.IPSL-CM5A-LR",
+    "RCP45.IPSL-CM5A-MR", "RCP45.IPSL-CM5B-LR",
+    "RCP45.MIROC-ESM", "RCP45.MIROC-ESM-CHEM", "RCP45.MIROC5",
+    "RCP45.MRI-CGCM3", "RCP45.NorESM1-M",
+
+    "RCP85.bcc-csm1-1", "RCP85.bcc-csm1-1-m", "RCP85.BNU-ESM",
+    "RCP85.CanESM2", "RCP85.CCSM4", "RCP85.CNRM-CM5",
+    "RCP85.CSIRO-Mk3-6-0", "RCP85.GFDL-ESM2G",
+    "RCP85.GFDL-ESM2M", "RCP85.HadGEM2-CC365",
+    "RCP85.HadGEM2-ES365", "RCP85.inmcm4", "RCP85.IPSL-CM5A-LR",
+    "RCP85.IPSL-CM5A-MR", "RCP85.IPSL-CM5B-LR",
+    "RCP85.MIROC-ESM", "RCP85.MIROC-ESM-CHEM", "RCP85.MIROC5",
+    "RCP85.MRI-CGCM3", "RCP85.NorESM1-M"
   ),
 
   sources = c(
@@ -489,6 +535,8 @@ req_scens <- list(
     #     - "CMIP5_MACAv2metdata_USA": daily time series at 1/24-degree
     #       resolution for the US (requires `method_DS = "idem"`)
     #     - "ESGF_Global": monthly time-series at varying resolution
+    # Path to dataset: default or specify in `project_paths` as element
+    # named as "dir_<dataset>"
       dataset1 = "CMIP5_BCSD_GDODCPUCLLNL_USA"
   ),
 
@@ -501,7 +549,7 @@ req_scens <- list(
   #   - "delta" (Hay et al. 2002)
   #   - "hybrid-delta" (Hamlet et al. 2010), "hybrid-delta-3mod"
   #   - "wgen-package" (Steinschneider & Brown 2013 WRR, doi:10.1002/wrcr.20528
-  method_DS = "hybrid-delta-3mod",
+  method_DS = "idem",
 
   # Downscaling parameters
   opt_DS = list(
@@ -580,98 +628,100 @@ req_scens <- list(
 # Turn aggregation for variable groups on (1) or off (0), don't delete any names
 req_out <- list(
   # Overall aggregated output table
+  #   - Note: `dbOutput` is created even if no aggregated output is requested
+  #     (because it is used internally by the code to organize simulations)
   overall_out = c(
   #---Aggregation: SOILWAT2 inputs
-    "input_SoilProfile", 1,
-    "input_FractionVegetationComposition", 1,
-    "input_VegetationBiomassMonthly", 1,
-    "input_VegetationBiomassTrends", 1,
-    "input_VegetationPeak", 1,
-    "input_Phenology", 1,
-    "input_TranspirationCoeff", 1,
-    "input_ClimatePerturbations", 1,
-    "input_CO2Effects", 1,
+    "input_SoilProfile", 0,
+    "input_FractionVegetationComposition", 0,
+    "input_VegetationBiomassMonthly", 0,
+    "input_VegetationBiomassTrends", 0,
+    "input_VegetationPeak", 0,
+    "input_Phenology", 0,
+    "input_TranspirationCoeff", 0,
+    "input_ClimatePerturbations", 0,
+    "input_CO2Effects", 0,
   #---Aggregation: Climate and weather
     "yearlyTemp", 1,
     "yearlyPPT", 1,
-    "dailySnowpack", 1,
-    "dailyFrostInSnowfreePeriod", 1,
-    "dailyHotDays", 1,
-    "dailyWarmDays", 1,
-    "dailyColdDays", 1,
-    "dailyCoolDays", 1,
-    "dailyPrecipitationEventSizeDistribution", 1,
+    "dailySnowpack", 0,
+    "dailyFrostInSnowfreePeriod", 0,
+    "dailyHotDays", 0,
+    "dailyWarmDays", 0,
+    "dailyColdDays", 0,
+    "dailyCoolDays", 0,
+    "dailyPrecipitationEventSizeDistribution", 0,
     "yearlyPET", 1,
-    "monthlySeasonalityIndices", 1,
+    "monthlySeasonalityIndices", 0,
   #---Aggregation: Climatic dryness
     "yearlymonthlyTemperateDrylandIndices", 1,
-    "yearlyDryWetPeriods", 1,
-    "dailyWeatherGeneratorCharacteristics", 1,
-    "dailyPrecipitationFreeEventDistribution", 1,
-    "monthlySPEIEvents", 1,
+    "yearlyDryWetPeriods", 0,
+    "dailyWeatherGeneratorCharacteristics", 0,
+    "dailyPrecipitationFreeEventDistribution", 0,
+    "monthlySPEIEvents", 0,
   #---Aggregation: Climatic control
-    "monthlyPlantGrowthControls", 1,
-    "dailyC4_TempVar", 1,
-    "dailyDegreeDays", 1,
-    "dailyColdDegreeDays", 1,
+    "monthlyPlantGrowthControls", 0,
+    "dailyC4_TempVar", 0,
+    "dailyDegreeDays", 0,
+    "dailyColdDegreeDays", 0,
   #---Aggregation: Yearly water balance
-    "yearlyAET", 1,
-    "yearlyWaterBalanceFluxes", 1,
-    "yearlyTranspirationBySoilLayer", 1,
-    "dailySoilWaterPulseVsStorage", 1,
+    "yearlyAET", 0,
+    "yearlyWaterBalanceFluxes", 0,
+    "yearlyTranspirationBySoilLayer", 0,
+    "dailySoilWaterPulseVsStorage", 0,
   #---Aggregation: Daily extreme values
-    "dailyTranspirationExtremes", 1,
-    "dailyTotalEvaporationExtremes", 1,
-    "dailyDrainageExtremes", 1,
-    "dailyInfiltrationExtremes", 1,
-    "dailyAETExtremes", 1,
-    "dailySWPextremes", 1,
-    "dailyRechargeExtremes", 1,
+    "dailyTranspirationExtremes", 0,
+    "dailyTotalEvaporationExtremes", 0,
+    "dailyDrainageExtremes", 0,
+    "dailyInfiltrationExtremes", 0,
+    "dailyAETExtremes", 0,
+    "dailySWPextremes", 0,
+    "dailyRechargeExtremes", 0,
   #---Aggregation: Ecological dryness
     # Note: 'dailyNRCS_SoilMoistureTemperatureRegimes*' require at least soil
     #   layers at 10, 20, 30, 50, 60, 90 cm
-    "dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates", 1,
-    "dailyNRCS_SoilMoistureTemperatureRegimes", 1,
-    "dailyNRCS_Chambers2014_ResilienceResistance", 1,
-    "dailyNRCS_Maestas2016_ResilienceResistance", 1,
-    "dailyWetDegreeDays", 1,
-    "dailyThermalDrynessStartEnd", 1,
-    "dailyThermalSWPConditionCount", 1,
-    "monthlySWPdryness", 1,
-    "dailySWPdrynessANDwetness", 1,
-    "dailySuitablePeriodsDuration", 1,
-    "dailySuitablePeriodsAvailableWater", 1,
-    "dailySuitablePeriodsDrySpells", 1,
-    "dailySWPdrynessDurationDistribution", 1,
-    "dailySWPdrynessEventSizeDistribution", 1,
-    "dailySWPdrynessIntensity", 1,
-    "dailyThermalDrynessStress", 1,
-    "periodicVWCmatricFirstLayer", 1,
+    "dailyNRCS_SoilMoistureTemperatureRegimes_Intermediates", 0,
+    "dailyNRCS_SoilMoistureTemperatureRegimes", 0,
+    "dailyNRCS_Chambers2014_ResilienceResistance", 0,
+    "dailyNRCS_Maestas2016_ResilienceResistance", 0,
+    "dailyWetDegreeDays", 0,
+    "dailyThermalDrynessStartEnd", 0,
+    "dailyThermalSWPConditionCount", 0,
+    "monthlySWPdryness", 0,
+    "dailySWPdrynessANDwetness", 0,
+    "dailySuitablePeriodsDuration", 0,
+    "dailySuitablePeriodsAvailableWater", 0,
+    "dailySuitablePeriodsDrySpells", 0,
+    "dailySWPdrynessDurationDistribution", 0,
+    "dailySWPdrynessEventSizeDistribution", 0,
+    "dailySWPdrynessIntensity", 0,
+    "dailyThermalDrynessStress", 0,
+    "periodicVWCmatricFirstLayer", 0,
   #---Aggregation: Mean monthly values
-    "monthlyTemp", 1,
-    "monthlyPPT", 1,
-    "monthlySnowpack", 1,
-    "monthlySoilTemp", 1,
-    "monthlyRunoff", 1,
-    "monthlyRunon", 1,
-    "monthlyHydraulicRedistribution", 1,
-    "monthlyInfiltration", 1,
-    "monthlyDeepDrainage", 1,
-    "monthlySWPmatric", 1,
-    "monthlyVWCbulk", 1,
-    "monthlyVWCmatric", 1,
-    "monthlySWCbulk", 1,
-    "monthlySWAbulk", 1,
-    "monthlyTranspiration", 1,
-    "monthlySoilEvaporation", 1,
-    "monthlyAET", 1,
-    "monthlyPET", 1,
-    "monthlyVPD", 1,
-    "monthlyAETratios", 1,
-    "monthlyPETratios", 1,
+    "monthlyTemp", 0,
+    "monthlyPPT", 0,
+    "monthlySnowpack", 0,
+    "monthlySoilTemp", 0,
+    "monthlyRunoff", 0,
+    "monthlyRunon", 0,
+    "monthlyHydraulicRedistribution", 0,
+    "monthlyInfiltration", 0,
+    "monthlyDeepDrainage", 0,
+    "monthlySWPmatric", 0,
+    "monthlyVWCbulk", 0,
+    "monthlyVWCmatric", 0,
+    "monthlySWCbulk", 0,
+    "monthlySWAbulk", 0,
+    "monthlyTranspiration", 0,
+    "monthlySoilEvaporation", 0,
+    "monthlyAET", 0,
+    "monthlyPET", 0,
+    "monthlyVPD", 0,
+    "monthlyAETratios", 0,
+    "monthlyPETratios", 0,
   #---Aggregation: Potential regeneration
-    "dailyRegeneration_bySWPSnow", 1,
-    "dailyRegeneration_GISSM", 1
+    "dailyRegeneration_bySWPSnow", 0,
+    "dailyRegeneration_GISSM", 0
   ),
 
   # Select variables to aggregate daily means and stats::sd

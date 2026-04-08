@@ -11,13 +11,14 @@ GriddedDailyWeatherFromNCEPCFSR_Global(
   tag_WeatherFolder,
   start_year,
   end_year,
+  id_ambient_scenario = 1,
   meta_cfsr,
   n_site_per_core = 100,
   rm_temp = TRUE,
   resume = FALSE,
   dir_temp = tempdir(),
   dbW_compression_type = "gzip",
-  dbW_digits,
+  dbW_digits = 4L,
   verbose = FALSE,
   print.debug = FALSE
 )
@@ -55,5 +56,5 @@ Saha, S., et al. 2010. NCEP Climate Forecast System Reanalysis
   (CFSR) Selected Hourly Time-Series Products, January 1979 to December 2010.
   Research Data Archive at the National Center for Atmospheric Research,
   Computational and Information Systems Laboratory.
-  \url{http://dx.doi.org/10.5065/D6513W89}.
+  \doi{10.5065/D6513W89}.
 }

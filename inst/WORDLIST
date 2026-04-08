@@ -15,6 +15,7 @@
 #------ Jargon
 abiotic
 additively
+agronomical
 arcmin
 arcsec
 boreal
@@ -55,6 +56,7 @@ multiplicatively
 normals
 operationalization
 parallelize
+pedotransfer
 Pedotransfer
 phenology
 pre
@@ -84,20 +86,26 @@ EWRI
 FAO
 GCM
 ISRIC
+MPa
 NCEP
 netCDF
 NOAA
 ORCID
 ORNL
 RCM
+SWA
+SWC
+SWP
 UNEP
-
+USGS
+VWC
 
 
 #------------------------------------
 #------ Names
 Abatzoglou
 Anandhi
+appveyor
 Artemisia tridentata
 Batjes
 Boe
@@ -107,6 +115,7 @@ Calera
 Carrasco
 Choi
 Clapp
+codecov
 DayMet
 Deichmann
 Deursen
@@ -117,6 +126,7 @@ Engen
 Frei
 Geoderma
 Ginn
+github
 Gobiet
 Gudmundsson
 Habets
@@ -125,6 +135,7 @@ Haugen
 Hopkinson
 Hornberger
 Itenfisu
+Kao
 Koeppen
 Koeppen's
 L'Ecuyer
@@ -147,28 +158,36 @@ Nijssen
 Nooksack
 Odhiambo
 Oecologia
+Palmquist
 Papadopol
 Paruelo
 Pedlar
 Pierson
+rSFSW
+rSOILWAT
+Rupesh
 Saha
 Salathe
 Saxton
 Schlaepfer
 Schneiderman
+Shrestha
 Skaugen
 SOILWAT
 Technometrics
 Teeri
 Terray
+testthat
 Themessl
 Tohver
 Trewartha
 Vose
 Wageningen
+Wei
 Wette
+Wickham
+Wickham's
 Wilby
 Wythers
 Yoder
 Zach
-

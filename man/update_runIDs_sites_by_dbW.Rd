@@ -5,26 +5,26 @@
 \title{Lookup IDs of sites as found in a weather database}
 \usage{
 update_runIDs_sites_by_dbW(
-  sim_size,
-  label_WeatherData,
-  fdbWeather = NULL,
-  verbose = FALSE
+  fdbWeather,
+  label_WeatherData_runIDs_sites,
+  runIDs_sites_by_dbW = NULL
 )
 }
 \arguments{
-\item{sim_size}{A list with at least one named element \code{runIDs_sites}.}
+\item{fdbWeather}{A character string. The path to the weather database.}
 
-\item{label_WeatherData}{A vector of character strings. The names of the
-weather data.}
+\item{label_WeatherData_runIDs_sites}{A vector of character strings.
+The names of the weather data corresponding to each \code{runIDs_sites}.}
 
-\item{fdbWeather}{A character string. The path to the weather database. This
-is only used if there is no current valid connection.}
+\item{runIDs_sites_by_dbW}{A numeric vector. \code{NULL} or previously
+identified identification numbers of sites as used by the weather database.}
 }
 \value{
-The list \code{sim_size} with an updated respectively newly added
-  named element \code{runIDs_sites_by_dbW}. The element
-  \code{runIDs_sites_by_dbW} is only added if there is a current valid
-  connection to a weather database or if one can be established.
+A numeric vector with identification numbers of sites as used
+  by the weather database (replacing argument \code{runIDs_sites_by_dbW}).
+  \code{runIDs_sites_by_dbW} is returned unchanged
+  if no update was needed or if no connection to the weather database
+  can be established (possibly because it does not exist).
 }
 \description{
 Lookup IDs of sites as found in a weather database

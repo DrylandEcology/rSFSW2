@@ -9,9 +9,11 @@
 
 
 #---- Soil water content initialization, minimum, and wet condition
--1.0		# swc_min : cm/cm if 0 - <1.0, -bars if >= 1.0.; if < 0. then estimate residual water content for each layer
-15.0		# swc_init: cm/cm if < 1.0, -bars if >= 1.0.
-15.0		# swc_wet : cm/cm if < 1.0, -bars if >= 1.0.
+-1.0		# swc_min : [cm/cm] if >= 0. and < 1.0
+    		#           [-bars] if >= 1.0.
+    		#           estimate (from realistic limit and Rawls et al. 1985) if < 0.
+15.0		# swc_init: [cm/cm] if < 1.0, [-bars] if >= 1.0.
+15.0		# swc_wet : [cm/cm] if < 1.0, [-bars] if >= 1.0.
 
 #---- Diffuse recharge and runoff/runon
 0		# reset (1/0): do/don't reset soil water content for each year
@@ -52,16 +54,7 @@
 .5		# inflection point
 1.1		# range
 
-#---- Site location and topography
--105.58	# longitude (degrees; W < 0; E > 0)
-				# (currently not used by simulation, but useful for site documentation)
-39.59		# latitude (degrees; N > 0; S < 0)
-1000		# elevation (m a.s.l.)
-0				# slope (degrees): no slope = 0, vertical surface = 90
-NAN			# aspect = surface azimuth angle (degrees): S=0, E=-90, N=±180, W=90;
-				# ignored if slope = 0 or aspect takes a missing value, i.e., NAN or 999
-
-#---- Soil temperature
+#---- Surface and soil temperature
 # from Parton 1978, ch. 2.2.2 Temperature-profile Submodel
 300.		# biomass limiter, 300 g/m^2 in Parton's equation for T1(avg daily temperature at the top of the soil)
 15.		# constant for T1 equation (used if biomass <= biomass limiter), 15 in Parton's equation
@@ -74,6 +67,9 @@ NAN			# aspect = surface azimuth angle (degrees): S=0, E=-90, N=±180, W=90;
 15.		# deltaX parameter for soil_temperature function, default is 15.  (distance between profile points in cm)  max depth (the next number) should be evenly divisible by this number
 990.		# max depth for the soil_temperature function equation, default is 990.  this number should be evenly divisible by deltaX
 1		# flag, 1 to calculate soil_temperature, 0 to not calculate soil_temperature
+1       # Method for average surface temperature:
+        #     0, default prior to v8.1.0 (Parton 1978)
+        #     1, default since v8.1.0 (Parton 1984)
 
 # ---- CO2 Settings ----
 # Activate (1) / deactivate (0) biomass multiplier
@@ -83,11 +79,64 @@ NAN			# aspect = surface azimuth angle (degrees): S=0, E=-90, N=±180, W=90;
 # Name of CO2 scenario: see input file `carbon.in`
 RCP85
 
+
+# --- Soil characterization ---
+# Simulated soil layer number determination:
+#   txt-mode: layers provided in "soils.in" and "swrc_params.in"
+#   nc-mode:  the first n layers with depth and width/thickness that are
+#             neither zero nor missing (if provided as input)
+
+1   # 0 = depth/thickness of soil layers vary among sites/gridcells
+    #     nc-mode: Vertical axis of outputs represents soil layers (units "1").
+    #              The soil is created from netCDF inputs; thus, all required
+    #              soil properties must be provided as netCDF inputs.
+    #
+    # 1 = depths/thickness of soil layers are equal among sites/gridcells
+    #     nc-mode: Vertical axis of outputs represents soil depth (units "cm").
+    #              The soil is based on text input files
+    #              ("soils.in" and "swrc_params.in"); soil properties provided
+    #              as netCDF inputs replace the values from the text inputs.
+    #              Thus, the soil input text files must contain the
+    #              maximum number of soil layers and the same depths/thickness
+    #              as netCDF soil inputs.
+
+# Are inputs of density representing bulk soil (type 1) or the matric component (type 0)?
+0
+
+
+# --- Organic matter ---
+# Depth [cm] at which characteristics of organic matter have completely switched from fibric to sapric peat
+50
+
+
+#--- Soil water retention curve (SWRC) ------
+#
+# Implemented options (`swrc_name`/`ptf_name`, see `swrc2str[]`/`ptf2str[]`):
+#   - ptf_name = <other>: SWRC parameters must be provided via "swrc_params.in"
+#   - swrc_name = "Campbell1974" (Campbell 1974)
+#     * ptf_name = "Cosby1984AndOthers" (Cosby et al. 1984 but `swc_sat` by Saxton et al. 2006)
+#     * ptf_name = "Cosby1984" (Cosby et al. 1984)
+#   - swrc_name = "vanGenuchten1980" (van Genuchten 1980)
+#   - swrc_name = "FXW" (Fredlund and Xing 1994, Wang et al. 2018)
+#
+# Note: option "Campbell1974"/"Cosby1984AndOthers" was hard-coded < v7.0.0
+# Note: `rSOILWAT2` may implement additional PTFs
+
+Campbell1974        # Specify soil water retention curve
+Cosby1984AndOthers  # Specify pedotransfer function
+                    #   * if not implemented, then provide SWRC parameters
+                    #     as inputs via "swrc_params.in" and/or "swrcp.nc")
+
+0                   # Are SWRC parameters for the mineral soil component
+                    # provided as inputs (see `has_swrcp`)?
+                    #   0: Estimate with specified pedotransfer function
+                    #   1: Use inputs from "swrc_params.in" and/or "swrcp.nc"
+
+
 #---- Transpiration regions
 # ndx  : 1=shallow, 2=medium, 3=deep, 4=very deep
-# layer: deepest soil layer number of the region.
-#        Must agree with soil layers as defined in `soils.in`
-#	ndx	layer
-	1	3
-	2	5
-	3	8
+# region depth (cm): depth from soil surface to bottom of a transpiration region
+#	ndx	depth (cm)
+	1	20
+	2	40
+	3	100

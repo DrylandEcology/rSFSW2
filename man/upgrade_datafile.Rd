@@ -4,6 +4,7 @@
 \alias{upgrade_datafile}
 \alias{upgrade_prodin_v10_to_v11}
 \alias{upgrade_soilsin_v11_to_v12}
+\alias{upgrade_soilsin_v12_to_v13}
 \title{Upgrade a 'data input file'}
 \usage{
 upgrade_datafile(file, new_name, insert_after_tag, inserted_colnames)
@@ -11,6 +12,8 @@ upgrade_datafile(file, new_name, insert_after_tag, inserted_colnames)
 upgrade_prodin_v10_to_v11(file, new_name = NULL)
 
 upgrade_soilsin_v11_to_v12(file, new_name = NULL)
+
+upgrade_soilsin_v12_to_v13(file, new_name = NULL)
 }
 \arguments{
 \item{file}{A character string. The file path to the datafile to upgrade.}
@@ -35,4 +38,6 @@ Add a column of critical soil water potential (\var{SWPcrit}) for each
 functional type
 
 Add a column of total organic content (\var{TOC}) for each soil layer
+
+Rename organic matter variable from \var{TOC} to \var{SOM}
 }

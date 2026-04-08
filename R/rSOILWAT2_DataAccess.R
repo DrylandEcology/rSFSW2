@@ -1,9 +1,8 @@
 
-# Based on code from \code{\link[tools][.split_dependencies]} and
-# \code{\link[tools][.split_op_version]}
+# Based on code from \code{\link[tools]{.split_dependencies}} and
+# \code{\link[tools]{.split_op_version}}
 .split_dependencies <- function(x) {
-  .split_op_version <- function(x)
-  {
+  .split_op_version <- function(x) {
     pat <- "^([^\\([:space:]]+)[[:space:]]*\\(([^\\)]+)\\).*"
     x1 <- sub(pat, "\\1", x)
     x2 <- sub(pat, "\\2", x)
@@ -42,7 +41,7 @@
 
 get_minVersion_rSOILWAT2 <- function() {
   tmp <- .split_dependencies(
-    x = utils::packageDescription(pkg = "rSFSW2", fields = "Depends")
+    x = utils::packageDescription(pkg = "rSFSW2", fields = "Imports")
   )
 
   ntmp <- sapply(tmp, function(x) x[["name"]])
@@ -73,19 +72,16 @@ get_minVersion_rSOILWAT2 <- function() {
 #'
 #' @export
 check_rSW2_version <- function(object, strict = TRUE) {
-  tmp1 <- get_version(object)
-  tmp2 <- SFSW2_glovars[["minVersion_rSOILWAT2"]]
-
-  res <- if (is.na(tmp1) || is.na(tmp2)) {
-    FALSE
-  } else {
-    as.numeric_version(tmp1) >= as.numeric_version(tmp2)
-  }
+  res <- rSOILWAT2::check_version(
+    object,
+    expected_version = SFSW2_glovars[["minVersion_rSOILWAT2"]]
+  )
 
   if (!strict && !res) {
     warning(
-      "Code requires 'rSOILWAT2' v", tmp2,
-      ", but ", shQuote(deparse(substitute(object))), "has v", tmp1
+      "Code requires 'rSOILWAT2' v", SFSW2_glovars[["minVersion_rSOILWAT2"]],
+      ", but ", shQuote(deparse(substitute(object))), "has v",
+      rSOILWAT2::get_version(object)
     )
     res <- TRUE
   }
@@ -116,8 +112,15 @@ get_Response_aggL <- function(response,
       # divide by 5, because each soil layer (cm) has five entries for:
       # total, trees, shrubs, forbs, grasses
       5L
+    } else if (
+      response %in% "SOILTEMP" &&
+        getNamespaceVersion("rSOILWAT2") >= numeric_version("3.5.0")
+    ) {
+      # since rSOILWAT2 v5.3.0:
+      #   each layer has three soil temperatures max/avg/min
+      3L # TODO: this is a hack => extract columns more reliably
     } else {
-      # this case if for: sw_vwc, sw_evsoil, sw_soiltemp, sw_swc, sw_swa
+      # this case if for: sw_vwc, sw_evsoil, sw_soiltemp (< 3.5), sw_swc, sw_swa
       1L
     }
 
@@ -271,14 +274,14 @@ get_VPD_mo <- function(sc, temp.mo, xin, st2) {
   rH <- rSOILWAT2::swCloud_Humidity(xin[[sc]])
   rH <- as.vector(rH[st2$month_ForEachUsedMonth])
 
-  list(mean = vpd(temp.mo$min, temp.mo$max, rH))
+  list(mean = rSW2data::vpd(temp.mo$min, temp.mo$max, rH))
 }
 
 get_VPD_dy <- function(sc, temp.dy, xin, st2) {
   rH <- rSOILWAT2::swCloud_Humidity(xin[[sc]])
   rH <- as.vector(rH[st2$month_ForEachUsedDay])
 
-  list(mean = vpd(temp.dy$min, temp.dy$max, rH))
+  list(mean = rSW2data::vpd(temp.dy$min, temp.dy$max, rH))
 }
 
 get_PPT_yr <- function(x, st) {

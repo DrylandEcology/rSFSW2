@@ -47,7 +47,7 @@ doy_ranges <- list(
 
 
 req_simtime_elems <- c("simstartyr", "startyr", "endyr",
-  "DScur_startyr", "DScur_endyr", "future_yrs", "spinup_N", "future_N",
+  "DScur_startyr", "DScur_endyr", "future_yrs", "spinup_N",
   "useyrs", "no.useyr", "no.usemo", "no.usedy", "index.useyr", "index.usemo",
   "index.usedy")
 

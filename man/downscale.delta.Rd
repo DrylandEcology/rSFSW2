@@ -14,6 +14,7 @@ downscale.delta(
   sim_time = NULL,
   opt_DS = list(ppt_type = "detailed", sigmaN = 6, PPTratioCutoff = 10),
   dailyPPTceiling,
+  dbW_digits = 4L,
   do_checks = TRUE,
   ...
 )

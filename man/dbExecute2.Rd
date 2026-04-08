@@ -7,9 +7,8 @@
 dbExecute2(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5, seed = NA)
 }
 \arguments{
-\item{con}{A \code{\link[DBI:DBIConnection-class]{DBIConnection}} or
-\code{\link[RSQLite:SQLiteConnection-class]{SQLiteConnection}}
-object.}
+\item{con}{A object of class
+\code{\link[RSQLite:SQLiteConnection-class]{SQLiteConnection}}.}
 
 \item{SQL}{A character string or vector of character strings. The SQL
 statement(s) to execute on \code{con}. If \code{SQL} is a vector of

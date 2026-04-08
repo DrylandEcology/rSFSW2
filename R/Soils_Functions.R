@@ -1,8 +1,69 @@
-# nolint start
-getLayersWidth <- rSOILWAT2:::getLayersWidth
-calc_weights_from_depths <- rSOILWAT2:::calc_weights_from_depths
-add_layer_to_soil <- rSOILWAT2:::add_layer_to_soil
-# nolint end
+
+
+namesSoils <- function(
+    namesTrCo, hasRSWv650, hasRSWv630, type = c("RSW", "RSFSW")
+) {
+  type <- match.arg(type)
+
+  if (isTRUE(hasRSWv650)) {
+    switch(
+      EXPR = type,
+      RSW = c(
+        "depth_cm",
+        "bulkDensity_g/cm^3",
+        "gravel_content",
+        "sand_frac",
+        "clay_frac",
+        "som_frac",
+        "impermeability_frac",
+        "soilTemp_c",
+        "EvapBareSoil_frac",
+        namesTrCo
+      ),
+      RSFSW = c(
+        NA_character_,
+        "Matricd",
+        "GravelContent",
+        "Sand",
+        "Clay",
+        "SOM",
+        "Imperm",
+        "SoilTemp",
+        "EvapCoeff",
+        namesTrCo
+      )
+    )
+
+  } else {
+    switch(
+      EXPR = type,
+      RSW = c(
+        "depth_cm",
+        "bulkDensity_g/cm^3",
+        "gravel_content",
+        "EvapBareSoil_frac",
+        namesTrCo,
+        "sand_frac",
+        "clay_frac",
+        "impermeability_frac",
+        "soilTemp_c",
+        if (isTRUE(hasRSWv630)) "som_frac"
+      ),
+      RSFSW = c(
+        NA_character_,
+        "Matricd",
+        "GravelContent",
+        "EvapCoeff",
+        namesTrCoRSFSW,
+        "Sand",
+        "Clay",
+        "Imperm",
+        "SoilTemp",
+        if (has_rSW2[["6.3.0"]]) "SOM"
+      )
+    )
+  }
+}
 
 #' The wrapper only handles 1-cm resolution of soil depths
 #' (mainly because of the \var{trco})
@@ -14,23 +75,42 @@ setLayerSequence <- function(d) seq_len(d)
 
 
 
-check_soil_data <- function(data) {
-    check_soil <- is.finite(data)
+check_soil_data <- function(x, allowAllSandClayOrSilt = FALSE) {
+    check_soil <- is.finite(x)
+
     check_soil[, "depth_cm"] <- check_soil[, "depth_cm"] &
-      data[, "depth_cm"] > 0 &
-      diff(c(0, data[, "depth_cm"])) > 0
-    check_soil[, "matricd"] <- check_soil[, "matricd"] &
-      data[, "matricd"] > 0.3 &
-      data[, "matricd"] - 2.65 <= SFSW2_glovars[["tol"]]
+      x[, "depth_cm"] > 0 &
+      diff(c(0, x[, "depth_cm"])) > 0
+
+    check_soil[, "bulkDensity_g/cm^3"] <- check_soil[, "bulkDensity_g/cm^3"] &
+      x[, "bulkDensity_g/cm^3"] > 0.3 &
+      x[, "bulkDensity_g/cm^3"] - 2.65 <= SFSW2_glovars[["tol"]]
+
     check_soil[, "gravel_content"] <- check_soil[, "gravel_content"] &
-      data[, "gravel_content"] >= 0 & data[, "gravel_content"] < 1
-    itemp <- c("sand", "clay")
-    check_soil[, itemp] <- check_soil[, itemp] & data[, itemp] > 0 &
-      data[, itemp] - 1 <= SFSW2_glovars[["tol"]]
-    itemp <- c("EvapBareSoil_frac", "transpGrass_frac", "transpShrub_frac",
-              "transpTree_frac", "transpForb_frac", "imperm")
-    check_soil[, itemp] <- check_soil[, itemp] & data[, itemp] >= 0 &
-      data[, itemp] - 1 <= SFSW2_glovars[["tol"]]
+      x[, "gravel_content"] >= 0 & x[, "gravel_content"] < 1
+
+    itemp <- c("sand_frac", "clay_frac")
+    check_soil[, itemp] <- check_soil[, itemp] & x[, itemp] >= 0
+    check_soil[, itemp] <- if (isTRUE(allowAllSandClayOrSilt)) {
+      check_soil[, itemp] & x[, itemp] <= 1
+    } else {
+      check_soil[, itemp] & x[, itemp] - 1 <= SFSW2_glovars[["tol"]]
+    }
+
+    v650 <- getNamespaceVersion("rSOILWAT2") >= numeric_version("6.5.0")
+    namesTrCo <- if (v650) {
+      paste0("TrCo_", rSOILWAT2::namesVegTypes("v2"))
+    } else {
+      paste0(c("Tree", "Shrub", "Forb", "Grass"), "_TranspCoeff")
+    }
+    itemp <- c(
+      "EvapBareSoil_frac",
+      intersect(namesTrCo, colnames(check_soil)),
+      "impermeability_frac"
+    )
+    check_soil[, itemp] <- check_soil[, itemp] &
+      x[, itemp] >= 0 &
+      x[, itemp] - 1 <= SFSW2_glovars[["tol"]]
 
     check_soil
 }
@@ -39,16 +119,20 @@ check_soil_data <- function(data) {
 #'
 #' Expectations are: \itemize{
 #'  \item Every coefficient must be equal or larger than 0,
-#'  \item Their sum is strictly larger than 0,
+#'  \item Their sum is strictly larger than 0 (unless \code{allowZeroSum}),
 #'  \item Their sum is equal or smaller than 1.
 #' }
 #'
 #' @param data A numeric vector. The coefficient of each soil layer.
 #'
 #' @return A logical value. \code{TRUE} if \code{data} meets expectations.
-check_soilco <- function(data) {
+check_soilco <- function(data, allowZeroSum = FALSE) {
     temp <- sum(data)
-    all(data >= 0, temp > 0, temp - 1 <= SFSW2_glovars[["tol"]])
+    all(
+      data >= 0,
+      if (isTRUE(allowZeroSum)) temp >= 0 else temp > 0,
+      temp - 1 <= SFSW2_glovars[["tol"]]
+    )
 }
 
 
@@ -116,15 +200,6 @@ assign_aggregation_soillayers <- function(layers_depth, daily_lyr_agg) {
   vals
 }
 
-init_soiltemperature <- function(layers_depth, lower.Tdepth, soilTupper,
-  soilTlower) {
-
-  sl <- c(0, lower.Tdepth) # nolint
-  st <- c(soilTupper, soilTlower) # nolint
-
-  stats::predict(stats::lm(st ~ sl), data.frame(sl = layers_depth))
-}
-
 
 setDeepestTopLayer <- function(layers_depth, Depth_TopLayers_cm) {
   max(1, findInterval(Depth_TopLayers_cm, layers_depth))
@@ -143,26 +218,6 @@ setBottomLayer <- function(d, DeepestTopLayer) {
 }
 
 
-#' NAs present but only in deepest soil layers
-#'
-#' Checks that NAs are present and that NAs occur only grouped together in the
-#' right-most columns per row (e.g., deepest soil layers if columns represent
-#' soil layers and rows represent sites).
-#'
-#' @param x A data.frame, matrix, or array with at least two dimensions.
-#'
-#' @return A logical vector of length equal to the first dimension of \code{x}
-#'   with \code{TRUE} if there are n[k] \code{NA}s in the k-th row and they
-#'   occupy the k rightmost columns.
-#'
-has_NAs_pooled_at_depth <- function(x) {
-  stopifnot(!is.null(dim(x)))
-  temp <- apply(x, 1, function(dat) rle(is.na(dat)))
-  sapply(temp, function(dat)
-    length(dat$values) <= 2 && dat$values[length(dat$values)])
-}
-
-
 
 
 #' Merge two soil input datafiles
@@ -170,10 +225,10 @@ has_NAs_pooled_at_depth <- function(x) {
 #' Merge datafiles from two soil data sources (source 1 overrides source 2) and
 #' choose some or none of the variables to come from one source only.
 #'
-#' @param fmaster A character string. Path to the target master file.
-#' @param fmaster1 A character string. Path to master file derived from
+#' @param fmain A character string. Path to the target main file.
+#' @param fmain1 A character string. Path to main file derived from
 #'   extracting from soil data source 1
-#' @param fmaster2 A character string. Path to master file derived from
+#' @param fmain2 A character string. Path to main file derived from
 #'   extracting from soil data source 2
 #' @param fslayer A character string. Path to the target soil layer structure
 #'   file.
@@ -192,18 +247,18 @@ has_NAs_pooled_at_depth <- function(x) {
 #'   is available
 #'
 #' @return A logical value. This function is called for its side effects, i.e.,
-#'   storing updated/new files to \code{fmaster}, \code{fslayer}, and
+#'   storing updated/new files to \code{fmain}, \code{fslayer}, and
 #'   \code{fstexture}.
-merge_2soils <- function(fmaster, fmaster1, fmaster2, fslayer, fslayer1,
+merge_2soils <- function(fmain, fmain1, fmain2, fslayer, fslayer1,
   fslayer2, fstexture, fstexture1, fstexture2, var_from2 = NULL) {
 
-  #------ MASTER FILES
-  master1 <- utils::read.csv(fmaster1)
-  master2 <- utils::read.csv(fmaster2)
-  master <- if (file.exists(fmaster)) utils::read.csv(fmaster) else master1
+  #------ MAIN FILES
+  main1 <- utils::read.csv(fmain1)
+  main2 <- utils::read.csv(fmain2)
+  main <- if (file.exists(fmain)) utils::read.csv(fmain) else main1
 
-  source1 <- as.character(unique(stats::na.exclude(master1$SoilTexture_source)))
-  source2 <- as.character(unique(stats::na.exclude(master2$SoilTexture_source)))
+  source1 <- as.character(unique(stats::na.exclude(main1$SoilTexture_source)))
+  source2 <- as.character(unique(stats::na.exclude(main2$SoilTexture_source)))
 
   stopifnot(length(source1) == 1, length(source2) == 1)
 
@@ -211,36 +266,36 @@ merge_2soils <- function(fmaster, fmaster1, fmaster2, fslayer, fslayer1,
     shQuote(source2), "will be merged, and values from", shQuote(source1),
     "will be used for sites which contain data from both sources.",
     if (length(var_from2) > 0) paste("However, data from", shQuote(source2),
-    "for variables", paste(shQuote(var_from2), collapse = ", "), "will be",
+    "for variables", toString(shQuote(var_from2)), "will be",
     "used for all sites if available")))
 
-  temp1 <- !is.na(master1$SoilTexture_source) &
-    !is.na(master1$Include_YN_SoilSources) & master1$Include_YN_SoilSources > 0
-  temp2 <- !is.na(master2$SoilTexture_source) &
-    !is.na(master2$Include_YN_SoilSources) & master2$Include_YN_SoilSources > 0
+  temp1 <- !is.na(main1$SoilTexture_source) &
+    !is.na(main1$Include_YN_SoilSources) & main1$Include_YN_SoilSources > 0
+  temp2 <- !is.na(main2$SoilTexture_source) &
+    !is.na(main2$Include_YN_SoilSources) & main2$Include_YN_SoilSources > 0
   iuse_source <- ifelse(temp1, 1, ifelse(temp2, 2, NA))
 
   soiltally <- table(iuse_source, useNA = "ifany")
   print(soiltally)
 
   # Indices of soil datasets
-  id1 <- id1c <- !is.na(master1$SoilTexture_source) &
-    master1$SoilTexture_source == source1
-  id2 <- !is.na(master2$SoilTexture_source) &
-    master2$SoilTexture_source == source2
+  id1 <- id1c <- !is.na(main1$SoilTexture_source) &
+    main1$SoilTexture_source == source1
+  id2 <- !is.na(main2$SoilTexture_source) &
+    main2$SoilTexture_source == source2
   id2c <- id2 & !id1
   id12 <- id1 & id2
   idnot <- !id1c & !id2c
 
   # Copy data
-  master[idnot, "SoilTexture_source"] <- NA
-  master[id1c, "SoilTexture_source"] <- source1
-  master[id2c, "SoilTexture_source"] <- source2
-  master[idnot, "Include_YN_SoilSources"] <- 0
-  master[!idnot, "Include_YN_SoilSources"] <- 1
+  main[idnot, "SoilTexture_source"] <- NA
+  main[id1c, "SoilTexture_source"] <- source1
+  main[id2c, "SoilTexture_source"] <- source2
+  main[idnot, "Include_YN_SoilSources"] <- 0
+  main[!idnot, "Include_YN_SoilSources"] <- 1
 
   # Save to disk
-  utils::write.csv(master, file = fmaster, row.names = FALSE)
+  utils::write.csv(main, file = fmain, row.names = FALSE)
 
 
   #------SOIL LAYERS

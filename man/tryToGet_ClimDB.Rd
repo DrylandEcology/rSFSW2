@@ -15,7 +15,8 @@ tryToGet_ClimDB(
   reqGCMs,
   reqRCPsPerGCM,
   reqDownscalingsPerGCM,
-  locations,
+  locations0,
+  is_idem,
   getYears,
   assocYears,
   project_paths,
@@ -23,12 +24,13 @@ tryToGet_ClimDB(
   fdbWeather,
   climate.ambient,
   dbW_compression_type,
+  dbW_digits = 4L,
   sim_time,
   seeds_DS,
   sim_scens,
-  resume,
-  verbose,
-  print.debug,
+  chunk_size = 500L,
+  verbose = FALSE,
+  print.debug = FALSE,
   seed = NA
 )
 }
@@ -44,9 +46,9 @@ contain appropriate values.
 \section{Details}{
 
 The daily extractions parallelize over \var{GCM} x \var{scenario}
-combinations, i.e., data for all \var{locations} are extracted for
+combinations, i.e., data for chunks of \var{locations} are extracted for
 one value of \var{GCM} x \var{scenario} at a time. This is good if
-file handling is slow and memory is not limiting.
+file handling is slow and chunk size is adjusted to fit available memory.
 
 The monthly extractions parallelize over \var{GCM} x \var{locations}
 combinations, i.e., data for one \var{location} is extracted for

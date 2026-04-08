@@ -5,7 +5,7 @@
 #         EXECUTING SIMULATIONS, AND AGGREGATING OUTPUTS
 
 #----- LICENSE
-#    Copyright (C) 2017-2019 by `r packageDescription("rSFSW2")[["Author"]]`
+#    Copyright (C) 2017-2024 by `r packageDescription("rSFSW2")[["Author"]]`
 #    Contact information `r packageDescription("rSFSW2")[["Maintainer"]]`
 
 #    This program is free software: you can redistribute it and/or modify
@@ -25,9 +25,28 @@
 
 
 ################################################################################
+
 t_job_start <- Sys.time()
 
-library("rSFSW2")
+
+#------ Grab command line arguments (if any)
+# e.g., `Rscript SFSW2_project_code.R -nparallel=10 -chunksims=1,5`
+
+args <- commandArgs(trailingOnly = TRUE)
+
+ids <- grepl("-nparallel", args, fixed = TRUE)
+nparallel <- if (any()ids) {
+  as.integer(sub("-nparallel=", "", args[ids]))
+}
+
+ids <- ids <- grepl("-chunksims", args, fixed = TRUE)
+chunksims <- if (any(ids)) {
+  tmp <- as.integer(
+    strsplit(sub("-chunksims=", "", args[ids]), split = ",", fixed = TRUE)[[1L]]
+  )
+  if (length(tmp) == 2L) tmp else NA
+}
+
 
 #------ Turn on/off actions to be carried out by simulation framework
 actions <- list(
@@ -79,7 +98,7 @@ writeLines(c(
   ""
 ))
 
-SFSW2_prj_meta <- init_rSFSW2_project(
+SFSW2_prj_meta <- rSFSW2::init_rSFSW2_project(
   fmetar = file.path(dir_prj, "SFSW2_project_descriptions.R"),
   update = FALSE,
   verbose = interactive(),
@@ -97,17 +116,28 @@ source(
   keep.source = FALSE
 )
 
-SFSW2_prj_meta <- update_actions(
+SFSW2_prj_meta <- rSFSW2::update_actions(
   SFSW2_prj_meta,
   actions,
   wipe_dbOutput = opt_out_run[["wipe_dbOutput"]]
 )
 
 
+if (isTRUE(is.finite(nparallel))) {
+  opt_parallel[["num_cores"]] <- max(0, nparallel - 1)
+}
+
+
+if (isTRUE(!is.null(chunksims))) {
+  opt_behave[["chunk_sims"]] <- if (anyNA(chunksims)) NULL else chunksims
+}
+
+
+
 ################################################################################
 #------ 3) POPULATE PROJECT WITH INPUT DATA (REPEAT UNTIL COMPLETE) ------------
 
-temp <- populate_rSFSW2_project_with_data(
+tmp <- rSFSW2::populate_rSFSW2_project_with_data(
   SFSW2_prj_meta,
   opt_behave,
   opt_parallel,
@@ -118,7 +148,7 @@ temp <- populate_rSFSW2_project_with_data(
 
 if (
   isTRUE(opt_verbosity[["verbose"]]) &&
-  !identical(SFSW2_prj_meta, temp[["SFSW2_prj_meta"]])
+  !identical(SFSW2_prj_meta, tmp[["SFSW2_prj_meta"]])
 ) {
   warning(
     "'SFSW2_prj_meta' has changed: ",
@@ -130,8 +160,8 @@ if (
   )
 }
 
-SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
-SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+SFSW2_prj_meta <- tmp[["SFSW2_prj_meta"]]
+SFSW2_prj_inputs <- tmp[["SFSW2_prj_inputs"]]
 
 
 
@@ -140,15 +170,15 @@ SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
 
 if (isTRUE(actions[["check_inputs"]])) {
 
-  temp <- check_rSFSW2_project_input_data(
+  tmp <- rSFSW2::check_rSFSW2_project_input_data(
     SFSW2_prj_meta,
     SFSW2_prj_inputs,
     opt_chunks,
     opt_verbosity
   )
 
-  SFSW2_prj_meta <- temp[["SFSW2_prj_meta"]]
-  SFSW2_prj_inputs <- temp[["SFSW2_prj_inputs"]]
+  SFSW2_prj_meta <- tmp[["SFSW2_prj_meta"]]
+  SFSW2_prj_inputs <- tmp[["SFSW2_prj_inputs"]]
 
   if (
     isTRUE(opt_verbosity[["verbose"]]) &&
@@ -171,21 +201,22 @@ if (isTRUE(actions[["check_inputs"]])) {
 
 if (any(unlist(actions[c("sim_create", "sim_execute", "sim_aggregate")]))) {
 
-  SFSW2_prj_meta <- simulate_SOILWAT2_experiment(
+  SFSW2_prj_meta <- rSFSW2::simulate_SOILWAT2_experiment(
     SFSW2_prj_meta,
     SFSW2_prj_inputs,
     opt_behave,
     opt_parallel,
     opt_chunks,
     opt_out_run,
-    opt_verbosity
+    opt_verbosity,
+    check_dbWork = isTRUE(actions[["check_dbOut"]])
   )
 }
 
 if (isTRUE(actions[["concat_dbOut"]])) {
 
   stopifnot(
-    move_output_to_dbOutput(
+    rSFSW2::move_output_to_dbOutput(
       SFSW2_prj_meta,
       t_job_start,
       opt_parallel,
@@ -220,7 +251,7 @@ if (isTRUE(actions[["ensemble"]])) {
 
 if (isTRUE(actions[["check_dbOut"]])) {
 
-  info_missing <- check_outputDB_completeness(
+  info_missing <- rSFSW2::check_outputDB_completeness(
     SFSW2_prj_meta,
     opt_parallel,
     opt_behave,
@@ -235,7 +266,7 @@ if (isTRUE(actions[["check_dbOut"]])) {
 #------ 8) FINISH RUN CLEANLY --------------------------------------------------
 
 #--- Terminate infrastructure for parallel framework runs
-exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]])
+rSFSW2::exit_SFSW2_cluster(verbose = opt_verbosity[["verbose"]])
 
 #--- Goodbye message
 writeLines(c("",

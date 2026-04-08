@@ -22,6 +22,7 @@ calc_MonthlyScenarioWeather(
   climate.ambient,
   locations,
   compression_type,
+  dbW_digits,
   getYears,
   assocYears,
   sim_time,
@@ -29,7 +30,6 @@ calc_MonthlyScenarioWeather(
   opt_DS,
   project_paths,
   dir_failed,
-  resume,
   verbose,
   print.debug
 )

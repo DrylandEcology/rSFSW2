@@ -7,9 +7,8 @@
 #' attempts to execute the SQL statement up to \code{repeats} before giving up
 #' if the database was locked.
 #'
-#' @param con A \code{\link[DBI:DBIConnection-class]{DBIConnection}} or
-#'   \code{\link[RSQLite:SQLiteConnection-class]{SQLiteConnection}}
-#'   object.
+#' @param con A object of class
+#'   \code{\link[RSQLite:SQLiteConnection-class]{SQLiteConnection}}.
 #' @param SQL A character string or vector of character strings. The SQL
 #'   statement(s) to execute on \code{con}. If \code{SQL} is a vector of
 #'   character strings, then the loop across individual executions is wrapped in
@@ -87,8 +86,8 @@ dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5,
 #' attempts to connect up to \code{repeats} before giving up.
 #'
 #' @param dbname A character string. The path including name to the database.
-#' @param flags An integer value. See \code{\link[DBI]{dbConnect}}. Defaults to
-#'   read/write mode.
+#' @param flags An integer value. See \code{\link[DBI]{dbConnect}}.
+#'   Defaults to read/write mode.
 #' @inheritParams dbExecute2
 #' @return A
 #'   \code{\link[RSQLite:SQLiteConnection-class]{SQLiteConnection}}
@@ -96,6 +95,7 @@ dbExecute2 <- function(con, SQL, verbose = FALSE, repeats = 10L, sleep_s = 5,
 #'   failure.
 #'
 #' @seealso \code{\link[DBI]{dbConnect}}
+#'
 #' @export
 dbConnect2 <- function(dbname, flags = SQLITE_RW, verbose = FALSE,
   repeats = 10L, sleep_s = 5, seed = NA) {
@@ -113,8 +113,14 @@ dbConnect2 <- function(dbname, flags = SQLITE_RW, verbose = FALSE,
         round(difftime(Sys.time(), t0, units = "secs"), 2), "s"))
     }
 
-    con <- try(dbConnect(SQLite(), dbname = dbname,
-      flags = flags), silent = !verbose)
+    con <- try(
+      dbConnect(
+        SQLite(),
+        dbname = dbname,
+        flags = flags
+      ),
+      silent = !verbose
+    )
 
     if (inherits(con, "SQLiteConnection") || k > repeats) {
       break
@@ -183,9 +189,12 @@ dbVacuumRollack <- function(con, dbname) {
 #' List tables and variables of a database
 #' @export
 list.dbTables <- function(dbName) {
-  con <- dbConnect(SQLite(), dbName,
-    flags = SQLITE_RO)
-  res <- dbListTables(con)
+  con <- dbConnect(
+    SQLite(),
+    dbName,
+    flags = SQLITE_RO
+  )
+  res <- RSQLite::dbListTables(con)
   dbDisconnect(con)
 
   res
@@ -194,11 +203,14 @@ list.dbTables <- function(dbName) {
 #' List variables of a database
 #' @export
 list.dbVariables <- function(dbName, dbTable) {
-  con <- dbConnect(SQLite(), dbName,
-    flags = SQLITE_RO)
+  con <- dbConnect(
+    SQLite(),
+    dbName,
+    flags = SQLITE_RO
+  )
   on.exit(dbDisconnect(con), add = TRUE)
 
-  dbListFields(con, dbTable)
+  RSQLite::dbListFields(con, dbTable)
 }
 
 #' List tables and variables of a database

@@ -10,11 +10,14 @@
 #'   \var{\dQuote{Clay}}, \var{\dQuote{SoilTemp}}.
 #'
 #' @export
-calc_RequestedSoilLayers <- function(SFSW2_prj_meta,
-  SFSW2_prj_inputs, runIDs_adjust, keep_old_depth = TRUE, verbose = FALSE) {
-
-  requested_soil_layers <-
-    SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]]
+calc_RequestedSoilLayers <- function(
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs,
+  runIDs_adjust,
+  keep_prev_soildepth = TRUE,
+  keep_prev_soillayers = TRUE,
+  verbose = FALSE
+) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -23,258 +26,221 @@ calc_RequestedSoilLayers <- function(SFSW2_prj_meta,
 
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
-      round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
+        round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
       cat("\n")}, add = TRUE)
   }
 
-  # Column name pattern of soil layers, e.g., `depth_L1`
-  cn_depth <- "depth_L"
+  vars_exhaust <- c("EvapCoeff", "TranspCoeff", "Imperm")
 
-  # How to add different soil variables
-  # values will be exhausted:
-  sl_vars_sub <- c("EvapCoeff", "TranspCoeff", "Imperm")
+  #--- Available variables
+  tmp <- colnames(SFSW2_prj_inputs[["sw_input_soils"]])[-1]
+  vars_all <- unique(sapply(
+    strsplit(tmp, split = "_", fixed = TRUE),
+    function(x) paste0(x[-length(x)], collapse = "_")
+  ))
 
-  # Requested layers
-  requested_soil_layers <- as.integer(round(requested_soil_layers))
-  stopifnot(requested_soil_layers > 0, diff(requested_soil_layers) > 0)
+  stopifnot(nchar(vars_all) > 0)
+  n_vars <- length(vars_all)
 
-  # Available layers
-  ids_depth <- strsplit(names(SFSW2_prj_inputs[["sw_input_soils_use"]])
-    [SFSW2_prj_inputs[["sw_input_soils_use"]]], "_", fixed = TRUE)
+
+  tmp <- SFSW2_prj_inputs[["sw_input_soils_use"]]
+  ids_depth <- strsplit(names(tmp)[tmp], split = "_", fixed = TRUE)
   stopifnot(length(ids_depth) > 0)
-  var_layers <- unique(sapply(ids_depth, function(x)
-    paste0(x[-length(x)], collapse = "_")))
+
+  var_layers <- unique(sapply(
+    X = ids_depth,
+    FUN = function(x) paste0(x[-length(x)], collapse = "_")
+  ))
+
+  #--- Available layers
   ids_depth2 <- unique(sapply(ids_depth, function(x) x[length(x)]))
   use_layers <- paste0("depth_", ids_depth2)
 
-  layers_depth <- round(as.matrix(SFSW2_prj_inputs[["sw_input_soillayers"]]
-    [runIDs_adjust, use_layers, drop = FALSE]))
-  i_nodata <- apply(is.na(layers_depth), 1, all)
-  if (any(i_nodata)) {
-    layers_depth <- layers_depth[!i_nodata, ]
-    runIDs_adjust_ws <- runIDs_adjust[!i_nodata]
+  layers_depth <- round(
+    as.matrix(SFSW2_prj_inputs[["sw_input_soillayers"]]
+      [runIDs_adjust, use_layers, drop = FALSE])
+  )
+  has_nodata <- apply(is.na(layers_depth), 1, all)
+
+  if (any(has_nodata)) {
+    layers_depth <- layers_depth[!has_nodata, , drop = FALSE]
+    ids_updated <- runIDs_adjust[!has_nodata]
   } else {
-    runIDs_adjust_ws <- runIDs_adjust
+    ids_updated <- runIDs_adjust
   }
-  i_nodata <- apply(is.na(layers_depth), 2, all)
-  if (any(i_nodata))
-    layers_depth <- layers_depth[, !i_nodata]
-  ids_layers <- seq_len(dim(layers_depth)[2])
-  avail_sl_ids <- apply(layers_depth, 1, paste0, collapse = "x")
 
-  # Loop through runs with same layer profile and adjust
-  layer_sets <- unique(avail_sl_ids)
-  if (length(layer_sets) > 0) {
-    has_changed <- FALSE
-    sw_input_soils_data <- lapply(var_layers, function(x)
-      as.matrix(SFSW2_prj_inputs[["sw_input_soils"]][
-          runIDs_adjust_ws,
-          grep(x, names(SFSW2_prj_inputs[["sw_input_soils"]]))[ids_layers],
-          drop = FALSE]))
-    sw_input_soils_data2 <- NULL
+  has_nodata <- apply(is.na(layers_depth), 2, all)
+  if (any(has_nodata)) {
+    layers_depth <- layers_depth[, !has_nodata, drop = FALSE]
+    use_layers <- use_layers[!has_nodata]
+  }
 
-    for (ils in seq_along(layer_sets)) {
-      il_set <- avail_sl_ids == layer_sets[ils]
-      if (sum(il_set, na.rm = TRUE) == 0) next
 
-      # Identify which requested layers to add
-      ldset <- stats::na.exclude(layers_depth[which(il_set)[1], ])
-      req_sd_toadd <- setdiff(requested_soil_layers, ldset)
-      if (isTRUE(keep_old_depth)) {
-        req_sd_toadd <- req_sd_toadd[req_sd_toadd < max(ldset)]
-      }
-      if (length(req_sd_toadd) == 0) next
+  new_soils <- rSW2data::update_soil_profile(
+    soil_layers = layers_depth,
+    requested_soil_layers =
+      SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]],
+    soil_data =
+      SFSW2_prj_inputs[["sw_input_soils"]][ids_updated, -1, drop = FALSE],
+    variables = var_layers,
+    vars_exhaust = vars_exhaust,
+    keep_prev_soildepth = keep_prev_soildepth,
+    keep_prev_soillayers = keep_prev_soillayers,
+    verbose = verbose
+  )
 
-      # Add identified layers
-      sw_input_soils_data2 <- lapply(seq_along(var_layers),
-        function(iv) sw_input_soils_data[[iv]][il_set, , drop = FALSE])
-      for (lnew in req_sd_toadd) {
-        ilnew <- findInterval(lnew, ldset)
-        il_weight <- calc_weights_from_depths(ilnew, lnew, ldset)
-        sw_input_soils_data2 <- lapply(seq_along(var_layers), function(iv)
-          add_layer_to_soil(sw_input_soils_data2[[iv]], il = ilnew,
-            w = il_weight, method = if (var_layers[iv] %in% sl_vars_sub)
-              "exhaust" else "interpolate"))
-        ldset <- sort(c(ldset, lnew))
-      }
 
-      # Update soil datafiles
-      lyrs <- seq_along(ldset)
-      irows <- runIDs_adjust_ws[il_set]
+  if (new_soils[["updated"]]) {
+    n_req <- length(SFSW2_glovars[["slyrs_ids"]])
 
-      for (iv in seq_along(var_layers)) {
-        icol <- grep(var_layers[iv],
-          names(SFSW2_prj_inputs[["sw_input_soils_use"]]))[lyrs]
-        SFSW2_prj_inputs[["sw_input_soils"]][irows, icol] <-
-          round(sw_input_soils_data2[[iv]][, lyrs],
-            if (var_layers[iv] %in% sl_vars_sub) 4L else 2L)
-        SFSW2_prj_inputs[["sw_input_soils_use"]][icol] <- TRUE
-      }
+    #--- Round soil data
+    cn_tmp <- colnames(new_soils[["soil_data"]])
 
-      icol <- paste0(cn_depth, lyrs)
-      SFSW2_prj_inputs[["sw_input_soillayers"]][irows, icol] <-
-        matrix(ldset, nrow = sum(il_set), ncol = length(ldset), byrow = TRUE)
-      has_changed <- TRUE
+    for (k in seq_along(var_layers)) {
+      kvar <- grep(var_layers[k], cn_tmp, value = TRUE)
+
+      new_soils[["soil_data"]][, kvar] <- round(
+        new_soils[["soil_data"]][, kvar],
+        digits = if (var_layers[k] %in% vars_exhaust) 4L else 3L
+      )
     }
 
-    if (has_changed) {
-      #write data to disk
-      utils::write.csv(SFSW2_prj_inputs[["sw_input_soillayers"]],
-        file = SFSW2_prj_meta[["fnames_in"]][["fslayers"]], row.names = FALSE)
-      utils::write.csv(reconstitute_inputfile(
+    #--- transfer updated soils
+    n_new_sd <- ncol(new_soils[["soil_data"]]) %/% n_vars
+    n_has_sd <- (ncol(SFSW2_prj_inputs[["sw_input_soils"]]) - 1) %/% n_vars
+
+    n_tmp <- max(n_req, n_has_sd, n_new_sd)
+
+    if (n_req < n_new_sd || n_req < n_has_sd) {
+      stop(
+        "Downstream code requires exactly ", n_req, " soil layers; ",
+        "we have now n = ", n_tmp
+      )
+    }
+
+    cn_tmp <- paste0(
+      rep(vars_all, n_tmp),
+      "_L",
+      rep(seq_len(n_tmp), each = n_vars)
+    )
+
+    tmp_sprop <- data.frame(
+      Label = SFSW2_prj_inputs[["sw_input_soils"]][, "Label"],
+      matrix(
+        data = NA,
+        nrow = nrow(SFSW2_prj_inputs[["sw_input_soils"]]),
+        ncol = n_tmp * n_vars,
+        dimnames = list(NULL, cn_tmp)
+      )
+    )
+
+    cn_tmp <- paste0(
+      rep(var_layers, n_new_sd),
+      "_L",
+      rep(seq_len(n_new_sd), each = length(var_layers))
+    )
+
+    tmp_sprop[ids_updated, cn_tmp] <- new_soils[["soil_data"]][, cn_tmp]
+
+
+    #--- transfer usage
+    n_new_sl <- sum(
+      apply(
+        X = new_soils[["soil_layers"]],
+        MARGIN = 2,
+        FUN = function(x) any(is.finite(x))
+      )
+    )
+
+    cn_tmp <- paste0(
+      rep(var_layers, n_new_sl),
+      "_L",
+      rep(seq_len(n_new_sl), each = length(var_layers))
+    )
+
+    SFSW2_prj_inputs[["sw_input_soils_use"]][cn_tmp] <- TRUE
+
+
+    #--- transfer updated soil layer depths
+    is_depth <- grepl(
+      "depth_L",
+      colnames(SFSW2_prj_inputs[["sw_input_soillayers"]])
+    )
+
+    n_has_sd <- sum(is_depth)
+    n_new_sd <- ncol(new_soils[["soil_layers"]])
+    n_tmp <- max(n_req, n_has_sd, n_new_sd)
+
+    if (n_req < n_new_sd || n_req < n_has_sd) {
+      stop(
+        "Downstream code requires exactly ", n_req, " soil layers; ",
+        "we have now n = ", n_tmp
+      )
+    }
+
+    cn_tmp <- paste0("depth_L", seq_len(n_tmp))
+
+    x_tmp <- SFSW2_prj_inputs[["sw_input_soillayers"]][, !is_depth, drop = FALSE] #nolint
+    tmp_slyrs <- data.frame(
+      x_tmp,
+      matrix(
+        data = NA,
+        nrow = nrow(SFSW2_prj_inputs[["sw_input_soillayers"]]),
+        ncol = n_tmp,
+        dimnames = list(NULL, cn_tmp)
+      )
+    )
+
+    ids <- seq_len(n_new_sd)
+    tmp_slyrs[ids_updated, ncol(x_tmp) + ids] <-
+      new_soils[["soil_layers"]][, ids]
+
+
+    #--- write updated data to disk
+    SFSW2_prj_inputs[["sw_input_soils"]] <- tmp_sprop
+    SFSW2_prj_inputs[["sw_input_soillayers"]] <- tmp_slyrs
+
+    utils::write.csv(
+      SFSW2_prj_inputs[["sw_input_soillayers"]],
+      file = SFSW2_prj_meta[["fnames_in"]][["fslayers"]],
+      row.names = FALSE
+    )
+
+    utils::write.csv(
+      reconstitute_inputfile(
         SFSW2_prj_inputs[["sw_input_soils_use"]],
-        SFSW2_prj_inputs[["sw_input_soils"]]),
-        file = SFSW2_prj_meta[["fnames_in"]][["fsoils"]], row.names = FALSE)
-      unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
+        SFSW2_prj_inputs[["sw_input_soils"]]
+      ),
+      file = SFSW2_prj_meta[["fnames_in"]][["fsoils"]],
+      row.names = FALSE
+    )
 
-      print(paste("'InterpolateSoilDatafileToRequestedSoilLayers':",
+    unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
+
+    if (verbose) {
+      print(paste(
+        "'InterpolateSoilDatafileToRequestedSoilLayers':",
         "don't forget to adjust lookup tables with per-layer values if",
-        "applicable for this project"))
+        "applicable for this project"
+      ))
     }
-
-   SFSW2_prj_meta[["opt_input"]][["requested_soil_layers"]] <-
-     requested_soil_layers
   }
 
   list(SFSW2_prj_meta = SFSW2_prj_meta, SFSW2_prj_inputs = SFSW2_prj_inputs)
 }
 
 
-#' Calculate potential bare-soil evaporation coefficients
-#'
-#' Soil texture influence based on re-analysis of data from Wythers et al. 1999.
-#' Default of \code{depth_max_bs_evap} = 15 cm from Torres et al. 2010.
-#'
-#' @references Torres EA, Calera A (2010) Bare soil evaporation under high
-#'   evaporation demand: a proposed modification to the FAO-56 model.
-#'   Hydrological Sciences Journal- Journal des Sciences Hydrologiques, 55,
-#'   303-315.
-#'
-#' @references Wythers K.R., Lauenroth W.K., Paruelo J.M. (1999) Bare-Soil
-#'   Evaporation Under Semiarid Field Conditions. Soil Science Society of
-#'   America Journal, 63, 1341-1349.
-#'
-#' @param layers_depth A numeric vector, matrix, or data.frame. Values describe
-#'   the lower soil layer depths in units of centimeters.
-#' @param sand A numeric vector, matrix, or data.frame. Values are sand contents
-#'   in units of mass-percentage / 100.
-#' @param clay A numeric vector, matrix, or data.frame. Values are clay contents
-#'   in units of mass-percentage / 100.
-#' @param depth_max_bs_evap_cm A numeric value. The maximal soil depth in
-#'   centimeters from which bare-soil evaporation is potentially drawing
-#'   moisture.
-#'
-#' @section Notes: Rows of soil input arguments \code{layers_depth},
-#'   \code{sand}, and \code{clay} correspond to sites and columns to soil
-#'   layers. If \code{sand} and/or \code{clay} are vectors, then they are
-#'   converted to 1-row matrices. If \code{layers_depth} is a vector, then it is
-#'   converted to a matrix with as many sites/rows as \code{sand} and
-#'   \code{clay} have. That is the code assumes identical soil layer depths for
-#'   each site. All soil input arguments must have a the same number of sites
-#'   and of soil layers, i.e., identical matrix dimensions.
-#' @section Warning: Influence of gravel is not accounted for.
-#'
-#' @return A numeric matrix with potential bare-soil evaporation coefficients
-#'   where rows correspond to sites and columns to soil layers.
-#'
-#' @export
-calc_BareSoilEvapCoefs <- function(layers_depth, sand, clay,
-  depth_max_bs_evap_cm = 15) {
-
-  #--- If inputs are not site x layers, then convert them into 1 site x layers
-  if (is.null(dim(sand))) {
-    sand <- matrix(sand, nrow = 1, ncol = length(sand))
-  }
-  if (is.null(dim(clay))) {
-    clay <- matrix(clay, nrow = 1, ncol = length(clay))
-  }
-  if (is.null(dim(layers_depth))) {
-    layers_depth <- matrix(layers_depth, nrow = dim(sand)[1],
-      ncol = length(layers_depth), byrow = TRUE)
-  }
-
-  #--- Test inputs
-  # - sand and clay have identical number of sites and layers
-  # - all soil inputs have identical number of sites and at least as many
-  #   layers as depths
-  # - soil layer depths are numeric and positive -- or NA, if all deeper
-  #   layers are NA
-  # - sand and clay are numeric and values between 0 and 1 -- or NA, if all
-  #   deeper layers are NA as well
-  # - the sum of sand and clay is less or equal to 1
-  sand_and_clay <- sand + clay
-  stopifnot(
-    identical(dim(sand), dim(clay)),
-    identical(dim(sand)[1], dim(layers_depth)[1]),
-    dim(sand)[2] >= dim(layers_depth)[2],
-    is.numeric(layers_depth),
-    layers_depth > 0 | has_NAs_pooled_at_depth(layers_depth),
-    is.numeric(unlist(sand)),
-    sand >= 0 & sand <= 1 | has_NAs_pooled_at_depth(sand),
-    is.numeric(unlist(clay)),
-    clay >= 0 & clay <= 1 | has_NAs_pooled_at_depth(clay),
-    sand_and_clay <= 1 | has_NAs_pooled_at_depth(sand_and_clay),
-    is.finite(depth_max_bs_evap_cm) & depth_max_bs_evap_cm >= 0)
-
-
-  #--- Calculate
-
-  depth_min_bs_evap <- min(layers_depth[, 1], na.rm = TRUE)
-  if (depth_min_bs_evap > depth_max_bs_evap_cm) {
-    # all sites have first layer with coeff = 1
-    res <- array(1, dim = dim(sand))
-    res[, -1] <- 0
-    return(res)
-  }
-
-  lyrs_max_bs_evap <- t(apply(layers_depth, 1, function(x) {
-    xdm <- depth_max_bs_evap_cm - x
-    i0 <- abs(xdm) < SFSW2_glovars[["tol"]]
-    ld <- if (any(i0, na.rm = TRUE)) {
-      which(i0)
-    } else {
-      temp <- which(xdm < 0)
-      if (length(temp) > 0) temp[1] else length(x)
-    }
-    c(diff(c(0, x))[seq_len(ld)], rep(0L, length(x) - ld))
-  }))
-  ldepth_max_bs_evap <- rowSums(lyrs_max_bs_evap)
-
-  sand_mean <- rowSums(lyrs_max_bs_evap * sand, na.rm = TRUE) /
-    ldepth_max_bs_evap
-  clay_mean <- rowSums(lyrs_max_bs_evap * clay, na.rm = TRUE) /
-    ldepth_max_bs_evap
-
-  # equation from re-analysis
-  temp_depth <- 4.1984 + 0.6695 * sand_mean ^ 2 + 168.7603 * clay_mean ^ 2
-
-  depth_bs_evap <- pmin(pmax(temp_depth, depth_min_bs_evap, na.rm = TRUE),
-    depth_max_bs_evap_cm, na.rm = TRUE)
-  lyrs_bs_evap0 <- t(apply(depth_bs_evap - layers_depth, 1, function(x) {
-    i0 <- abs(x) < SFSW2_glovars[["tol"]]
-    ld <- if (any(i0, na.rm = TRUE)) {
-      which(i0)
-    } else {
-      temp <- which(x < 0)
-      if (length(temp) > 0) temp[1] else sum(!is.na(x))
-    }
-    ld0 <- max(0, ld - 1)
-
-    c(rep(TRUE, ld0), rep(FALSE, length(x) - ld0))
-  }))
-
-  # function made up to match previous cummulative distributions
-  temp_coeff <- 1 - exp(- 5 * layers_depth / depth_bs_evap)
-  temp_coeff[!lyrs_bs_evap0 | is.na(temp_coeff)] <- 1
-  coeff_bs_evap <- round(t(apply(cbind(0, temp_coeff), 1, diff)), 4)
-  coeff_bs_evap / rowSums(coeff_bs_evap, na.rm = TRUE)
-}
-
 
 #' Calculate bare-soil evaporation coefficients based on soil texture and store
 #' in soil input file
-get_BareSoilEvapCoefs <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
-  runIDs_adjust, resume = TRUE, verbose = FALSE) {
+get_BareSoilEvapCoefs <- function(
+  SFSW2_prj_meta,
+  SFSW2_prj_inputs,
+  runIDs_adjust,
+  method_bad_soils = c("pass", "stop"),
+  resume = TRUE,
+  verbose = FALSE
+) {
 
   if (verbose) {
     t1 <- Sys.time()
@@ -284,66 +250,105 @@ get_BareSoilEvapCoefs <- function(SFSW2_prj_meta, SFSW2_prj_inputs,
     on.exit({
       print(paste0("rSFSW2's ", temp_call, ": ended after ",
       round(difftime(Sys.time(), t1, units = "secs"), 2), " s"))
-      cat("\n")}, add = TRUE)
+      cat("\n")},
+      add = TRUE
+    )
   }
 
   icol_bsE <- grep("EvapCoeff", names(SFSW2_prj_inputs[["sw_input_soils_use"]]))
   icol_sand <- grep("Sand_L", names(SFSW2_prj_inputs[["sw_input_soils_use"]]))
   icol_clay <- grep("Clay_L", names(SFSW2_prj_inputs[["sw_input_soils_use"]]))
-  use_layers <- which(SFSW2_prj_inputs[["sw_input_soils_use"]][icol_sand] &
-    SFSW2_prj_inputs[["sw_input_soils_use"]][icol_clay])
+  use_layers <- which(
+    SFSW2_prj_inputs[["sw_input_soils_use"]][icol_sand] &
+    SFSW2_prj_inputs[["sw_input_soils_use"]][icol_clay]
+  )
   stopifnot(length(use_layers) > 0)
 
   do_calc <- TRUE
   if (resume) {
-    temp <- icol_bsE[use_layers]
-    icols <- temp[SFSW2_prj_inputs[["sw_input_soils_use"]][temp]]
+    tmp <- icol_bsE[use_layers]
+    icols <- tmp[SFSW2_prj_inputs[["sw_input_soils_use"]][tmp]]
     if (length(icols) > 0L) {
-      x <- SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icols,
-        drop = FALSE]
+      x <-
+        SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icols, drop = FALSE]
       do_calc <- anyNA(x) || !all(rowSums(x, na.rm = TRUE) > 0)
       rm(x)
     }
   }
 
   if (do_calc) {
-    icols <- grep("depth_L",
-      names(SFSW2_prj_inputs[["sw_input_soillayers"]]))[use_layers]
-    temp <- SFSW2_prj_inputs[["sw_input_soillayers"]][runIDs_adjust, icols,
-      drop = FALSE]
-    layers_depth <- as.matrix(temp)
+    icols <- grep(
+      "depth_L",
+      names(SFSW2_prj_inputs[["sw_input_soillayers"]])
+    )[use_layers]
+    tmp <-
+      SFSW2_prj_inputs[["sw_input_soillayers"]][runIDs_adjust, icols,
+        drop = FALSE]
+    layers_depth <- as.matrix(tmp)
 
-    sand <- SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icol_sand,
-      drop = FALSE]
-    clay <- SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icol_clay,
-      drop = FALSE]
+    ids_hassoil <- which(!is.na(layers_depth[, 1]))
 
-    coeff_bs_evap <- calc_BareSoilEvapCoefs(
-      layers_depth, sand, clay, depth_max_bs_evap_cm =
-        SFSW2_prj_meta[["opt_sim"]][["depth_max_bs_evap_cm"]])
+    sand <-
+      SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icol_sand,
+        drop = FALSE]
+    clay <-
+      SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icol_clay,
+        drop = FALSE]
+
+    method_bad_soils <- match.arg(method_bad_soils)
+
+    coeff_bs_evap <- rSW2data::calc_BareSoilEvapCoefs(
+      layers_depth[ids_hassoil, , drop = FALSE],
+      sand[ids_hassoil, , drop = FALSE],
+      clay[ids_hassoil, , drop = FALSE],
+      depth_max_bs_evap_cm =
+        SFSW2_prj_meta[["opt_sim"]][["depth_max_bs_evap_cm"]],
+      method_bad_soils = method_bad_soils
+    )
+
+    # warn if any used runs returned with NA
+    if (anyNA(coeff_bs_evap[, 1])) {
+      msg <- message(
+        "Not able to estimate bare-soil evaporation coefficients ",
+        "for some active sites because of poor soil inputs."
+      )
+
+      switch(
+        EXPR = method_bad_soils,
+        pass = warning(msg),
+        stop(msg)
+      )
+    }
 
 
     #add data to sw_input_soils and set the use flags
-    icol <- seq_len(sum(apply(coeff_bs_evap, 2, function(x)
-      any(x > SFSW2_glovars[["tol"]]))))
+    icol <- seq_len(sum(
+      apply(
+        coeff_bs_evap,
+        MARGIN = 2,
+        FUN = function(x) any(x > SFSW2_glovars[["tol"]], na.rm = TRUE)
+      )
+    ))
     icols_bsE_used <- icol_bsE[icol]
     icols_bse_notused <- icol_bsE[-icol]
 
+    runIDs_adjust2 <- runIDs_adjust[ids_hassoil]
     SFSW2_prj_inputs[["sw_input_soils_use"]][icols_bsE_used] <- TRUE
-    SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icols_bsE_used] <-
+    SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust2, icols_bsE_used] <-
       round(coeff_bs_evap[, icol], 4)
 
     SFSW2_prj_inputs[["sw_input_soils_use"]][icols_bse_notused] <- FALSE
-    SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust, icols_bse_notused] <- 0
-
-    stopifnot(!is.na(SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust,
-      icols_bsE_used]))
+    SFSW2_prj_inputs[["sw_input_soils"]][runIDs_adjust2, icols_bse_notused] <- 0
 
     #write data to disk
-    utils::write.csv(reconstitute_inputfile(
-      SFSW2_prj_inputs[["sw_input_soils_use"]],
-      SFSW2_prj_inputs[["sw_input_soils"]]),
-      file = SFSW2_prj_meta[["fnames_in"]][["fsoils"]], row.names = FALSE)
+    utils::write.csv(
+      reconstitute_inputfile(
+        SFSW2_prj_inputs[["sw_input_soils_use"]],
+        SFSW2_prj_inputs[["sw_input_soils"]]
+      ),
+      file = SFSW2_prj_meta[["fnames_in"]][["fsoils"]],
+      row.names = FALSE
+    )
     unlink(SFSW2_prj_meta[["fnames_in"]][["fpreprocin"]])
   }
 

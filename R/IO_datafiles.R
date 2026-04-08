@@ -151,13 +151,13 @@ check_requested_sites <- function(include_YN, SWRunInformation, fnames_in,
       include_YN_available[include_YN_sources] <- 1L
       SWRunInformation[, "include_YN_available"] <- include_YN_available
 
-      utils::write.csv(SWRunInformation, file = fnames_in[["fmaster"]],
+      utils::write.csv(SWRunInformation, file = fnames_in[["fmain"]],
         row.names = FALSE)
       unlink(fnames_in[["fpreprocin"]])
 
       stop("Data sources not available for every requested rSFSW2 simulation ",
         "run. New column 'include_YN_available' with updated information ",
-        "stored to MasterInput file 'SWRunInformation' on disk. rSFSW2 ",
+        "stored to InputMain file 'SWRunInformation' on disk. rSFSW2 ",
         "should be stopped so that you can bring 'include_YN' and ",
         "'include_YN_available' in agreement before running the simulations.")
     }
@@ -166,6 +166,13 @@ check_requested_sites <- function(include_YN, SWRunInformation, fnames_in,
 
   list(SWRunInformation = SWRunInformation, check = check)
 }
+
+
+
+has_elem_name <- function(name_data, pp) {
+  name_data %in% names(pp) && isTRUE(nchar(pp[[name_data]]) > 0)
+}
+
 
 
 map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
@@ -249,34 +256,45 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
 
           # Convert data to spatial object
           if (sim_space[["scorp"]] == "point") {
-            sp_dat <- as(sim_space[["run_sites"]], "SpatialPointsDataFrame")
+            sp_dat <- sim_space[["run_sites"]]
             temp <- as.data.frame(dat)
             colnames(temp) <-  iv_locs[[it1]][it2]
-            slot(sp_dat, "data") <- temp
+            sp_dat <- cbind(sp_dat, temp)
 
-            if (!raster::compareCRS(sim_space[["crs_sites"]],
-              sim_space[["sim_crs"]])) {
-
-              sp_dat <- sp::spTransform(sp_dat, CRS = sim_space[["sim_crs"]])
+            if (
+              sf::st_crs(sim_space[["crs_sites"]]) !=
+              sf::st_crs(sim_space[["sim_crs"]])
+            ) {
+              sp_dat <- sf::st_transform(sp_dat, crs = sim_space[["sim_crs"]])
             }
 
           } else if (sim_space[["scorp"]] == "cell") {
             # if failing, then need a more sophisticated assignment of values
             # than implemented below
+            stopifnot(requireNamespace("raster"))
+            stopifnot(requireNamespace("sp"))
             stopifnot(raster::canProcessInMemory(sim_space[["sim_raster"]]))
 
-            if (!raster::compareCRS(sim_space[["crs_sites"]],
-              sim_space[["sim_crs"]])) {
+            if (
+              sf::st_crs(sim_space[["crs_sites"]]) ==
+              sf::st_crs(sim_space[["sim_crs"]])
+            ) {
+              tmp_rs <- sim_space[["run_sites"]]
 
-              temp <- sp::spTransform(sim_space[["run_sites"]],
-                CRS = sim_space[["sim_crs"]])
+            } else {
+              tmp_rs <- sp::spTransform(
+                sim_space[["run_sites"]],
+                CRS = sim_space[["sim_crs"]]
+              )
             }
 
             # init with NAs
-            sp_dat <- raster::init(sim_space[["sim_raster"]],
-              fun = function(x) rep(NA, x))
-            temp <- sp::coordinates(sim_space[["run_sites"]])
-            sp_dat[raster::cellFromXY(sp_dat, temp)] <- dat
+            sp_dat <- raster::init(
+              sim_space[["sim_raster"]],
+              fun = function(x) rep(NA, x)
+            )
+            tmp <- sp::coordinates(tmp_rs)
+            sp_dat[raster::cellFromXY(sp_dat, tmp)] <- dat
           }
 
           # Save to disk
@@ -310,13 +328,13 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
 
             if (n_cols == 1L) {
               legend_labs <- as.character(dat[1])
-              sp::plot(sp_dat, col = cols, pch = 15, cex = 1, axes = TRUE,
+              plot(sp_dat, col = cols, pch = 15, cex = 1, axes = TRUE,
                 asp = 1)
 
             } else {
               cdat <- cut(dat, n_cols)
               legend_labs <- levels(cdat)
-              sp::plot(sp_dat, col = cols[as.integer(cdat)], pch = 15,
+              plot(sp_dat, col = cols[as.integer(cdat)], pch = 15,
                 cex = p_size(length(dat)), axes = TRUE, asp = 1)
             }
 
@@ -333,6 +351,7 @@ map_input_variables <- function(map_vars, SFSW2_prj_meta, SFSW2_prj_inputs,
             graphics::par(par1)
 
           } else if (sim_space[["scorp"]] == "cell") {
+            stopifnot(requireNamespace("raster"))
             raster::plot(sp_dat, col = cols, asp = 1)
           }
 
@@ -380,7 +399,7 @@ read_SOILWAT2_DefaultInputs <- function() {
   rSOILWAT2::swSite_SoilTemperatureFlag(swData) <- TRUE
 
   # Delete weather data folder (all rSFSW2 projects get their own weather data)
-  rSOILWAT2::set_swWeatherData(swData) <- new("swWeatherData")
+  rSOILWAT2::set_WeatherHistory(swData) <- list(new("swWeatherData"))
 
   swData
 }
@@ -389,19 +408,27 @@ read_SOILWAT2_DefaultInputs <- function() {
 
 complete_with_defaultpaths <- function(project_paths, fnames_in) {
   # full names of files located in 'dir_in'
-  ftemp <- c("fmaster", "fslayers", "ftreatDesign", "fexpDesign", "fpreprocin",
-    "fdbWeather", "fsimraster")
+  ftmp <- c(
+    "fmain", "fslayers", "ftreatDesign", "fexpDesign", "fpreprocin",
+    "fdbWeather", "fdbWeather2", "fsimraster"
+  )
 
-  for (f in ftemp) {
-    if (f %in% names(fnames_in) &&
-        identical(basename(fnames_in[[f]]), fnames_in[[f]]))
+  for (f in ftmp) {
+    if (
+      f %in% names(fnames_in) &&
+      is.character(fnames_in[[f]]) &&
+      identical(basename(fnames_in[[f]]), fnames_in[[f]])
+    ) {
 
       fnames_in[[f]] <- file.path(project_paths[["dir_in"]], fnames_in[[f]])
+    }
   }
 
   # full names of files located in 'dir_in_dat'
-  ftemp <- c("fclimnorm", "fvegetation", "fsite", "fsoils", "fweathersetup",
-    "fclimscen_delta", "fclimscen_values")
+  ftemp <- c(
+    "fclimnorm", "fvegetation", "fsite", "fsoils", "fswrcp", "fweathersetup",
+    "fclimscen_delta", "fclimscen_values"
+  )
 
   for (f in ftemp) {
     if (f %in% names(fnames_in) &&
@@ -445,9 +472,9 @@ load_Rsw_treatment_templates <- function(project_paths, create_treatments,
   tr_list
 }
 
-fix_rowlabels <- function(x, master, verbose = TRUE) {
+fix_rowlabels <- function(x, main, verbose = TRUE) {
 
-  ml <- as.character(master[, "Label"])
+  ml <- as.character(main[, "Label"])
 
   if ("Label" %in% names(x)) {
     xl <- as.character(x[, "Label"])
@@ -463,25 +490,25 @@ fix_rowlabels <- function(x, master, verbose = TRUE) {
     if (dim(x)[1] == 0L) {
       if (verbose) {
         print(paste("Datafile", shQuote(argnames[1]), "contains zero rows.",
-          "'Label's of the master input file", shQuote(argnames[2]),
+          "'Label's of the main input file", shQuote(argnames[2]),
           "are used to populate rows and 'Label's of the datafile."))
       }
 
       x[seq_along(ml), "Label"] <- ml
 
-    } else if (dim(master)[1] == dim(x)[1]) {
-      print(paste("Datafile", shQuote(argnames[1]), "and master input file",
+    } else if (dim(main)[1] == dim(x)[1]) {
+      print(paste("Datafile", shQuote(argnames[1]), "and main input file",
         shQuote(argnames[2]), "contain the same number of rows and yet they",
-        "disagree in the simulation 'Label's. Master 'Label's replace those",
+        "disagree in the simulation 'Label's. Main 'Label's replace those",
         "from the datafile."))
 
       x[, "Label"] <- ml
 
     } else {
-      stop(paste("Datafile", shQuote(argnames[1]), "and the master input file",
+      stop(paste("Datafile", shQuote(argnames[1]), "and the main input file",
         shQuote(argnames[2]), "disagree in the number of rows,",
-        paste0("n[datafile] = ", dim(x)[1], " vs. n[master] = ",
-          dim(master)[1]),
+        paste0("n[datafile] = ", dim(x)[1], " vs. n[main] = ",
+          dim(main)[1]),
         "and they disagree in the simulation 'Label's.",
         "'rSFSW2' cannot continue."))
     }
@@ -514,8 +541,12 @@ load_preprocessed_inputs <- function(SFSW2_prj_meta, verbose = FALSE) {
 
 
 #' Load and prepare inputs for a \pkg{rSFSW2} simulation project
-process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
-  verbose = FALSE) {
+process_inputs <- function(
+  project_paths,
+  fnames_in,
+  use_preprocin = TRUE,
+  verbose = FALSE
+) {
 
   temp_call <- shQuote(match.call()[1])
   if (verbose) {
@@ -532,7 +563,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
 
   if (!use_preprocin || !file.exists(fnames_in[["fpreprocin"]])) {
 
-    SWRunInformation <- tryCatch(SFSW2_read_csv(fnames_in[["fmaster"]]),
+    SWRunInformation <- tryCatch(SFSW2_read_csv(fnames_in[["fmain"]]),
       error = print)
     stopifnot(sapply(req_fields_SWRunInformation(),
         function(x) x %in% names(SWRunInformation)),    # required columns
@@ -547,12 +578,25 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
     include_YN <- as.logical(SWRunInformation$Include_YN)
     nrowsClasses <- max(dim(SWRunInformation)[1], 25L, na.rm = TRUE)
 
-    sw_input_soillayers <- tryCatch(SFSW2_read_csv(fnames_in[["fslayers"]],
-      nrowsClasses = nrowsClasses), error = print)
-    sw_input_soillayers <- fix_rowlabels(sw_input_soillayers, SWRunInformation,
-      verbose = verbose)
-    sw_input_soillayers[, - (1:2)] <- rSW2utils::check_monotonic_increase(
-      data.matrix(sw_input_soillayers[, - (1:2)]),
+    sw_input_soillayers <- tryCatch(
+      SFSW2_read_csv(
+        file = fnames_in[["fslayers"]],
+        nrowsClasses = nrowsClasses
+      ),
+      error = print
+    )
+    sw_input_soillayers <- fix_rowlabels(
+      x = sw_input_soillayers,
+      main = SWRunInformation,
+      verbose = verbose
+    )
+    vars_sl <- grep(
+      "depth_L[[:digit:]]+$",
+      colnames(sw_input_soillayers),
+      value = TRUE
+    )
+    sw_input_soillayers[, vars_sl] <- rSW2utils::check_monotonic_increase(
+      data.matrix(sw_input_soillayers[, vars_sl]),
       strictly = TRUE,
       fail = TRUE,
       na.rm = TRUE
@@ -597,12 +641,42 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
       verbose = verbose)
     sw_input_site_use <- temp[["use"]]
 
-    temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fsoils"]],
-      nrowsClasses = nrowsClasses), error = print)
+    temp <- tryCatch(
+      SFSW2_read_inputfile(fnames_in[["fsoils"]], nrowsClasses = nrowsClasses),
+      error = print
+    )
     sw_input_soils_use <- temp[["use"]]
     sw_input_soils <- temp[["data"]]
-    sw_input_soils <- fix_rowlabels(sw_input_soils, SWRunInformation,
-      verbose = verbose)
+    sw_input_soils <- fix_rowlabels(
+      sw_input_soils,
+      SWRunInformation,
+      verbose = verbose
+    )
+
+    if (file.exists(fnames_in[["fswrcp"]])) {
+      sw_input_swrcp <- tryCatch(
+        SFSW2_read_csv(
+          file = fnames_in[["fswrcp"]],
+          nrowsClasses = nrowsClasses
+        ),
+        error = print
+      )
+    } else {
+      message("The file ", shQuote(fnames_in[["fswrcp"]]), " does not exist.")
+      # Add a minimal mock data.frame
+      sw_input_swrcp <- as.data.frame(
+        array(
+          dim = c(nrow(SWRunInformation), 1 + 6),
+          dimnames = list(NULL, c("Label", paste0("Params", seq_len(6), "_L1")))
+        )
+      )
+    }
+
+    sw_input_swrcp <- fix_rowlabels(
+      x = sw_input_swrcp,
+      main = SWRunInformation,
+      verbose = verbose
+    )
 
     temp <- tryCatch(SFSW2_read_inputfile(fnames_in[["fweathersetup"]],
       nrowsClasses = nrowsClasses), error = print)
@@ -672,8 +746,36 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
     }
 
     if (any(create_treatments == "LookupCO2data")) {
-      tr_input_CO2data <- SFSW2_read_csv(
-        fnames_in[["LookupCO2data"]])
+      tmp_CO2data <- SFSW2_read_csv(fnames_in[["LookupCO2data"]])
+
+      # Append to rSOILWAT2 data
+      tr1 <- rSOILWAT2::sw2_tr_CO2a
+
+      # Add years?
+      needs_yrs <- !(tmp_CO2data[, "Year"] %in% tr1[, "Year"])
+      if (any(needs_yrs)) {
+        tmp <- range(c(tmp_CO2data[, "Year"], tr1[, "Year"]))
+        tr2 <- data.frame(matrix(
+          nrow = tmp[2] - tmp[1] + 1,
+          ncol = ncol(tr1),
+          dimnames = list(NULL, colnames(tr1))
+        ))
+        tr2[, "Year"] <- seq.int(tmp[1], tmp[2])
+
+        ids <- match(tr2[, "Year"], tr1[, "Year"], nomatch = 0)
+        tr2[ids > 0, colnames(tr1)[-1]] <- tr1[ids, -1]
+        tr1 <- tr2
+      }
+
+      # Add data?
+      tmp <- colnames(tmp_CO2data)
+      needs_vars <- tmp[!(tmp %in% colnames(tr1))]
+      if (length(needs_vars) > 0) {
+        ids <- match(tr1[, "Year"], tmp_CO2data[, "Year"], nomatch = 0)
+        tr1[ids > 0, needs_vars] <- tmp_CO2data[ids, needs_vars]
+      }
+
+      tr_input_CO2data <- tr1
     }
 
     if (any(create_treatments == "LookupClimateTemp")) {
@@ -691,16 +793,79 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
         fnames_in[["LookupEvapCoefs"]], row.names = 1)
     }
 
-    if (any(grepl("LookupTranspCoefs_", create_treatments),
-        create_treatments == "AdjRootProfile")) {
-      tr_input_TranspCoeff_Code <- tryCatch(utils::read.csv(
-        fnames_in[["LookupTranspCoefs"]], nrows = 2,
-        stringsAsFactors = FALSE), error = print)
-      tr_input_TranspCoeff_Code <- tr_input_TranspCoeff_Code[-2, ]
-      tr_input_TranspCoeff <- utils::read.csv(
-        fnames_in[["LookupTranspCoefs"]], skip = 2,
-        stringsAsFactors = FALSE)
-      colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)
+    if (
+      any(
+        grepl("LookupTranspCoefs_", create_treatments),
+        create_treatments == "AdjRootProfile"
+      )
+    ) {
+
+      if (file.exists(fnames_in[["LookupTranspCoefs"]])) {
+        tr_input_TranspCoeff_Code <- tryCatch(
+          utils::read.csv(
+            fnames_in[["LookupTranspCoefs"]],
+            nrows = 2,
+            stringsAsFactors = FALSE
+          ),
+          error = print
+        )
+        tr_input_TranspCoeff_Code <-
+          tr_input_TranspCoeff_Code[-2, , drop = FALSE]
+
+        tr_input_TranspCoeff <- utils::read.csv(
+          fnames_in[["LookupTranspCoefs"]],
+          skip = 2,
+          stringsAsFactors = FALSE
+        )
+        colnames(tr_input_TranspCoeff) <- colnames(tr_input_TranspCoeff_Code)
+
+        #--- Merge additional information from `rSOILWAT2::sw2_trco_table`
+        if (getNamespaceVersion("rSOILWAT2") >= numeric_version("5.0.0")) {
+          cns_to_add <- setdiff(
+            colnames(rSOILWAT2::sw2_trco_table[["data"]]),
+            colnames(tr_input_TranspCoeff)
+          )
+
+          if (length(cns_to_add) > 0) {
+            # Add additional columns to "description"
+            tr_input_TranspCoeff_Code <- cbind(
+              tr_input_TranspCoeff_Code,
+              rSOILWAT2::sw2_trco_table[["desc"]][, cns_to_add, drop = FALSE]
+            )
+
+            # Check if we need to add rows to `tr_input_TranspCoeff`
+            nrows2 <- nrow(rSOILWAT2::sw2_trco_table[["data"]])
+            nrows_to_add <- nrows2 - nrow(tr_input_TranspCoeff)
+
+            if (nrows_to_add > 0) {
+              tr_input_TranspCoeff <- rbind(
+                tr_input_TranspCoeff,
+                array(
+                  dim = c(nrows_to_add, ncol(tr_input_TranspCoeff)),
+                  dimnames = list(NULL, colnames(tr_input_TranspCoeff))
+                )
+              )
+            }
+
+            # Add additional columns to "data"
+            ids <- seq_len(nrows2)
+            tr_input_TranspCoeff[ids, cns_to_add] <-
+              rSOILWAT2::sw2_trco_table[["data"]][ids, cns_to_add, drop = FALSE]
+          }
+        }
+
+      } else {
+        if (getNamespaceVersion("rSOILWAT2") >= numeric_version("5.0.0")) {
+          # No input for "LookupTranspCoefs": use `rSOILWAT2::sw2_trco_table`
+          tr_input_TranspCoeff_Code <- rSOILWAT2::sw2_trco_table[["desc"]]
+          tr_input_TranspCoeff <- rSOILWAT2::sw2_trco_table[["data"]]
+        } else {
+          stop(
+            "Provide input file `fnames_in[['LookupTranspCoefs']]` and/or ",
+            "upgrade to rSOILWAT2 >= v5.0.0."
+          )
+        }
+      }
     }
 
     if (any(create_treatments == "LookupTranspRegions"))
@@ -763,6 +928,7 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
       sw_input_site = sw_input_site,
       sw_input_soils_use = sw_input_soils_use,
       sw_input_soils = sw_input_soils,
+      sw_input_swrcp = sw_input_swrcp,
       sw_input_weather_use = sw_input_weather_use,
       sw_input_weather = sw_input_weather,
       sw_input_climscen_use = sw_input_climscen_use,
@@ -786,7 +952,9 @@ process_inputs <- function(project_paths, fnames_in, use_preprocin = TRUE,
 
     inputs <- list2env(x = temp, envir = new.env(parent = emptyenv()))
 
-    saveRDS(inputs, file = fnames_in[["fpreprocin"]])
+    if (use_preprocin) {
+      saveRDS(inputs, file = fnames_in[["fpreprocin"]])
+    }
 
   } else {
     inputs <- readRDS(fnames_in[["fpreprocin"]])

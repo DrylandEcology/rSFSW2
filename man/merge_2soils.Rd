@@ -5,9 +5,9 @@
 \title{Merge two soil input datafiles}
 \usage{
 merge_2soils(
-  fmaster,
-  fmaster1,
-  fmaster2,
+  fmain,
+  fmain1,
+  fmain2,
   fslayer,
   fslayer1,
   fslayer2,
@@ -18,12 +18,12 @@ merge_2soils(
 )
 }
 \arguments{
-\item{fmaster}{A character string. Path to the target master file.}
+\item{fmain}{A character string. Path to the target main file.}
 
-\item{fmaster1}{A character string. Path to master file derived from
+\item{fmain1}{A character string. Path to main file derived from
 extracting from soil data source 1}
 
-\item{fmaster2}{A character string. Path to master file derived from
+\item{fmain2}{A character string. Path to main file derived from
 extracting from soil data source 2}
 
 \item{fslayer}{A character string. Path to the target soil layer structure
@@ -50,7 +50,7 @@ is available}
 }
 \value{
 A logical value. This function is called for its side effects, i.e.,
-  storing updated/new files to \code{fmaster}, \code{fslayer}, and
+  storing updated/new files to \code{fmain}, \code{fslayer}, and
   \code{fstexture}.
 }
 \description{

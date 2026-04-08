@@ -2,13 +2,12 @@
 % Please edit documentation in R/rSFSW2-package.R
 \docType{package}
 \name{rSFSW2}
-\alias{rSFSW2}
 \alias{rSFSW2-package}
+\alias{rSFSW2}
 \title{\pkg{rSFSW2}: Framework for \pkg{rSOILWAT2} simulations: creating simulation
  runs, executing simulations, and aggregating outputs}
 \description{
-Setting up, carrying out, and analyzing ecosystem water balance
-    simulation experiments with SOILWAT2.
+Setting up, carrying out, and analyzing ecosystem water balance simulation experiments with SOILWAT2.
 }
 \section{FORCING}{
  \pkg{SOILWAT2} is forced by \itemize{
@@ -64,7 +63,7 @@ Useful links:
 
 }
 \author{
-\strong{Maintainer}: Daniel Schlaepfer \email{daniel.schlaepfer@alumni.ethz.ch} (\href{https://orcid.org/0000-0001-9973-2065}{ORCID})
+\strong{Maintainer}: Daniel Schlaepfer \email{danielrschlaepfer@gmail.com} (\href{https://orcid.org/0000-0001-9973-2065}{ORCID})
 
 Other contributors:
 \itemize{

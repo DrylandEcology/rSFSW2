@@ -10,7 +10,7 @@ generate_RNG_streams(N, seed = NULL, reproducible = TRUE)
 \item{N}{An integer. The number of streams to generate.}
 
 \item{seed}{An integer or \code{NULL}. The seed used by
-\code{\link{set.seed}} to set the (global/master) random generator, i.e.,
+\code{\link{set.seed}} to set the (global/main) random generator, i.e.,
 before generating the seeds of the streams.}
 
 \item{reproducible}{A logical value. If \code{TRUE}, then \code{N} are

@@ -9,6 +9,7 @@ get_BareSoilEvapCoefs(
   SFSW2_prj_meta,
   SFSW2_prj_inputs,
   runIDs_adjust,
+  method_bad_soils = c("pass", "stop"),
   resume = TRUE,
   verbose = FALSE
 )

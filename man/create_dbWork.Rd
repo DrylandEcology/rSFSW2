@@ -12,10 +12,10 @@ create_dbWork(path, jobs)
 created.}
 
 \item{jobs}{An integer matrix. Each row corresponds to one call of the
-simulation function \code{do_OneSite}, i.e., \code{runsN_master} x
+simulation function \code{do_OneSite}, i.e., \code{runsN_main} x
 \code{expN}. The columns \code{runID_total}, \code{runID_sites},
 \code{include_YN} represent a running ID, the \code{site_id} (row number in
-master input file), and a flag whether site is being simulated or not. See
+main input file), and a flag whether site is being simulated or not. See
 \code{\link{indices}}.}
 }
 \value{
