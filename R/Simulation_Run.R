@@ -442,7 +442,7 @@ do_OneSite <- function(
   # --- Further preparations ------
 
   #--- rSOILWAT2 version ------
-  tmp <- c("6.0.0", "6.1.0", "6.2.0", "6.3.0", "6.4.0", "6.5.0")
+  tmp <- c("6.0.0", "6.1.0", "6.2.0", "6.3.0", "6.4.0", "6.5.0", "6.6.0")
   has_rSW2 <- stats::setNames(
     getNamespaceVersion("rSOILWAT2") >= numeric_version(tmp),
     nm = tmp
@@ -1631,6 +1631,40 @@ do_OneSite <- function(
           "Correction of weather values requested but rSOILWAT2 < v6.4.0",
           call. = FALSE
         )
+      }
+    }
+
+
+    #--- * Albedo method (requires rSOILWAT2 >= v6.6.0) ------
+    if (isTRUE(sw_input_site_use[["Albedo_Method"]])) {
+      if (!has_rSW2[["6.6.0"]]) {
+        stop("Albedo method requested but rSOILWAT2 < v6.6.0")
+      }
+
+      am <- i_sw_input_site[["Albedo_Method"]]
+      at <- 0L # albedoFixed
+      av <- NULL
+
+      if (
+        grepl("albedoDynamic1", am, fixed = TRUE) || identical(am, 1L)
+      ) {
+        at <- 1L
+
+        if (grepl("albedoDynamic1j", am, ignore.case = TRUE)) {
+          # White-sky shortwave MODIS albedo for JULES PFTs
+          # Houldcroft et al. 2009, Table 4
+          av <- c(0.088, 0.143, 0.115, 0.178, 0.178, 0.159, 0.15)
+        } else if (grepl("albedoDynamic1i", am, ignore.case = TRUE)) {
+          # White-sky shortwave MODIS albedo for pure IGBP cells
+          # Houldcroft et al. 2009, Table 3
+          av <- c(0.106, 0.168, 0.143, 0.167, 0.167, 0.156, 0.15)
+        }
+      }
+
+      rSOILWAT2::swSite_AlbedoMethod(swRunScenariosData[[1L]]) <- at
+
+      if (!is.null(av)) {
+        rSOILWAT2::swProd_Albedo(swRunScenariosData[[1L]]) <- av
       }
     }
 

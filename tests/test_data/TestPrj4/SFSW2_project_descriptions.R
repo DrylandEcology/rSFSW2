@@ -114,11 +114,11 @@ fnames_in <- list(
 
   fslayers = "SWRuns_InputData_SoilLayers_v9.csv",
   ftreatDesign = "SWRuns_InputData_TreatmentDesign_v18.csv",
-  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v13.csv",
+  fexpDesign = "SWRuns_InputData_ExperimentalDesign_v14.csv",
 
   fclimnorm = "SWRuns_InputData_cloud_v10.csv",
   fvegetation = "SWRuns_InputData_prod_v11.csv",
-  fsite = "SWRuns_InputData_siteparam_v17.csv",
+  fsite = "SWRuns_InputData_siteparam_v18.csv",
   fsoils = "SWRuns_InputData_soils_v13.csv",
   fswrcp = "SWRuns_InputData_SWRCp_v1.csv",
   fweathersetup = "SWRuns_InputData_weathersetup_v10.csv",

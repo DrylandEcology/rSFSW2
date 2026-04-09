@@ -325,7 +325,7 @@ setup_dbWeather <- function(
   weather_source,
   uniqueWeather = TRUE
 ) {
-  tmp <- data.frame(
+  SWRunInformation <- data.frame(
     site_id = seq_along(wfs[["cellID"]]),
     X_WGS84 = wfs[["dm_WGS84"]][, 1L, drop = TRUE],
     Y_WGS84 = wfs[["dm_WGS84"]][, 2L, drop = TRUE],
@@ -340,17 +340,17 @@ setup_dbWeather <- function(
     stringsAsFactors = FALSE
   )
 
-  SWRunInformation <- if (isTRUE(uniqueWeather)) {
-    tmp[!duplicated(wfs[["cellID"]]), , drop = FALSE]
+  runIDs_sites <- if (isTRUE(uniqueWeather)) {
+    which(!duplicated(wfs[["cellID"]]))
   } else {
-    tmp
+    SWRunInformation[["site_id"]]
   }
 
   # Create or connect to `dbWeather`
   res <- rSFSW2::make_dbW(
     fdbWeather = fdbWeather,
     SWRunInformation = SWRunInformation,
-    runIDs_sites = SWRunInformation[["site_id"]],
+    runIDs_sites = runIDs_sites,
     ambient_scenario = "Current"
   )
 
