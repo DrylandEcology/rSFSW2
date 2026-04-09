@@ -25,7 +25,7 @@ jobs:
         env: 
           PKG_GIT_SUBMODULES: true
         with:
-          extra-packages: any::lintr, Rmpi=?ignore, local::., git::https://github.com/DrylandEcology/rSOILWAT2
+          extra-packages: any::lintr, Rmpi=?ignore, local::.
           needs: lint
 
       - name: Lint
