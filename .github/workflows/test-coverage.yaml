@@ -23,6 +23,8 @@ jobs:
           use-public-rspm: true
 
       - uses: r-lib/actions/setup-r-dependencies@v2
+        env: 
+          PKG_GIT_SUBMODULES: true
         with:
           extra-packages: any::covr, any::xml2, Rmpi=?ignore
           needs: coverage
