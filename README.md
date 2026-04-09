@@ -85,6 +85,15 @@ system2(command = "git", args = "clone -b master --single-branch https://github.
 tools::Rcmd(args = paste("INSTALL rSFSW2"))
 ```
 
+#### Note on dependencies
+For the installation of `rSOILWAT2` to work correctly (including Github Actions)
+with the `pak` workflow, we need to instruct to pull submodules, i.e.,
+`options(pkg.git_submodules = TRUE)` or `Sys.setenv(PKG_GIT_SUBMODULES="true")`.
+
+Then, we can install with `pak::local_install()` or
+using `devtools` since v2.5.0 with `devtools::install()`.
+
+
 ### Binary package version
 If you want a binary version of the `rSFSW2` package (e.g., to distribute to
 someone without development tools) for a platform to which you do not have
