@@ -39,7 +39,13 @@ jobs:
           r-version: ${{ matrix.config.r }}
           http-user-agent: ${{ matrix.config.http-user-agent }}
           use-public-rspm: true
-
+          
+      - name: Install rSOILWAT2 (with submodules)
+        run: |
+          install.packages('remotes')
+          remotes::install_github("DrylandEcology/rSOILWAT2")
+        shell: Rscript {0}
+        
       - uses: r-lib/actions/setup-r-dependencies@v2
         env: 
           PKG_GIT_SUBMODULES: true
