@@ -51,7 +51,7 @@ Remotes:
     github::DrylandEcology/rSW2st,
     github::DrylandEcology/rSW2exter,
     github::DrylandEcology/rSW2data,
-    github::DrylandEcology/rSOILWAT2,
+    git::https://github.com/DrylandEcology/rSOILWAT2,
     github::DrylandEcology/rSW2funs
 NeedsCompilation: yes
 License: GPL-3 + file LICENSE
